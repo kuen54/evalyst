@@ -1,0 +1,21 @@
+{
+  "id": "qa_accuracy",
+  "name": "QA Accuracy (example)",
+  "description": "Minimal rubric for QA evaluation: was the answer correct, and was the model's self-reported confidence calibrated?",
+  "source": "builtin",
+  "criteria": [
+    {
+      "key": "correct",
+      "label": "Answer is correct",
+      "type": "pass_fail",
+      "description": "Does the model's answer match the reference (allowing trivial wording differences)?",
+      "required": true
+    },
+    {
+      "key": "confidence_calibrated",
+      "label": "Confidence is calibrated",
+      "type": "likert_1_5",
+      "description": "1 = wildly off (confident but wrong / uncertain but correct). 5 = confidence matches actual correctness."
+    }
+  ]
+}

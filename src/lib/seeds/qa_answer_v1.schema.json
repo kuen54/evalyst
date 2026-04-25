@@ -1,0 +1,75 @@
+{
+  "id": "qa_answer_v1",
+  "label": "QA Answer (example)",
+  "description": "A minimal example schema: feed the LLM a question and its reference answer, ask it to answer and self-rate confidence. Use this as a starting point; new TaskSchemas go under data/schemas/.",
+  "version": 1,
+  "compare_group": "qa_answer",
+  "inputs": [
+    {
+      "alias": "qa",
+      "dataset_id": "qa_pairs",
+      "filters": [
+        {
+          "kind": "multiselect",
+          "key": "topics",
+          "field": "topic",
+          "label": "Topic",
+          "options": [
+            { "value": "geography", "label": "Geography" },
+            { "value": "literature", "label": "Literature" },
+            { "value": "science", "label": "Science" },
+            { "value": "history", "label": "History" },
+            { "value": "art", "label": "Art" },
+            { "value": "technology", "label": "Technology" }
+          ],
+          "defaultValue": ["geography", "literature", "science", "history", "art", "technology"]
+        },
+        {
+          "kind": "multiselect",
+          "key": "difficulties",
+          "field": "difficulty",
+          "label": "Difficulty",
+          "options": [
+            { "value": "easy", "label": "Easy" },
+            { "value": "medium", "label": "Medium" },
+            { "value": "hard", "label": "Hard" }
+          ],
+          "defaultValue": ["easy", "medium", "hard"]
+        },
+        {
+          "kind": "number",
+          "key": "limit",
+          "role": "limit",
+          "label": "Limit (blank = all)"
+        }
+      ]
+    }
+  ],
+  "variables": [
+    { "name": "question", "source": "qa.question" },
+    { "name": "reference", "source": "qa.reference_answer" }
+  ],
+  "default_prompt": "You are a helpful assistant answering short factual questions.\n\nReturn a JSON object: {\"answer\": \"...\", \"confidence\": 1-5}\n- answer: your answer, concise\n- confidence: 1 (guess) … 5 (certain)\n\nQuestion: {{question}}\nReference (only for your self-assessment, don't just echo it): {{reference}}",
+  "message_builder": {
+    "user_template": "Reply with JSON only — no prose, no code fences."
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["answer", "confidence"],
+    "properties": {
+      "answer": { "type": "string", "max_length": 500 },
+      "confidence": { "type": "number", "enum": [1, 2, 3, 4, 5] }
+    }
+  },
+  "display_dimensions": [
+    {
+      "field": "input_refs.qa",
+      "label": "Question",
+      "header_fields": [
+        { "field": "input_preview.qa.question", "label": "Q" },
+        { "field": "input_preview.qa.topic", "label": "Topic" },
+        { "field": "input_preview.qa.difficulty", "label": "Difficulty" }
+      ]
+    }
+  ]
+}

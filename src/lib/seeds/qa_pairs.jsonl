@@ -1,0 +1,12 @@
+{"qa_id":"q01","question":"What is the capital of France?","reference_answer":"Paris","topic":"geography","difficulty":"easy"}
+{"qa_id":"q02","question":"Who wrote the novel 1984?","reference_answer":"George Orwell","topic":"literature","difficulty":"easy"}
+{"qa_id":"q03","question":"What is the chemical symbol for gold?","reference_answer":"Au","topic":"science","difficulty":"easy"}
+{"qa_id":"q04","question":"In which year did the Berlin Wall fall?","reference_answer":"1989","topic":"history","difficulty":"medium"}
+{"qa_id":"q05","question":"What is the largest planet in our solar system?","reference_answer":"Jupiter","topic":"science","difficulty":"easy"}
+{"qa_id":"q06","question":"Who painted the Mona Lisa?","reference_answer":"Leonardo da Vinci","topic":"art","difficulty":"easy"}
+{"qa_id":"q07","question":"What is the speed of light in vacuum (m/s, to 3 significant figures)?","reference_answer":"3.00e8","topic":"science","difficulty":"medium"}
+{"qa_id":"q08","question":"Which programming language is primarily used for iOS app development?","reference_answer":"Swift","topic":"technology","difficulty":"easy"}
+{"qa_id":"q09","question":"What does HTTP stand for?","reference_answer":"HyperText Transfer Protocol","topic":"technology","difficulty":"easy"}
+{"qa_id":"q10","question":"Who formulated the theory of general relativity?","reference_answer":"Albert Einstein","topic":"science","difficulty":"medium"}
+{"qa_id":"q11","question":"What is the longest river in the world?","reference_answer":"The Nile","topic":"geography","difficulty":"medium"}
+{"qa_id":"q12","question":"In which continent is the Sahara Desert located?","reference_answer":"Africa","topic":"geography","difficulty":"easy"}
