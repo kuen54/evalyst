@@ -250,6 +250,42 @@ CI（`.github/workflows/ci.yml`）两个 job：
 - `verify` — `tsc --noEmit → lint（continue-on-error）→ test → build`
 - `e2e`（依赖 verify 通过）— `npx playwright install --with-deps chromium → npm run test:e2e`，失败上传 HTML report 作为 artifact
 
+## Claude Code skill 集成
+
+产品定位：**agent 驱动是主推路径**（尤其复杂配置），UI 同时保持一流体验、手工用户不降级。两条路都是一等公民。
+
+### skill 目录
+
+`.claude/skills/{slug}/SKILL.md` 都 git-tracked，Dockerfile runner 阶段 `COPY --from=builder /app/.claude/skills ./.claude/skills`。三个已登记：
+
+| slug | 层级 | 作用 |
+|---|---|---|
+| `batch-eval` | 平台级 | 教 agent 端到端跑一轮评测（REST API 为主，含 curl 示例）。心智模型 + LLM 配置 + 估算 + 建实验 + 跑 + 读 result + annotation；委托两个子 skill 处理资源的详细 JSON shape |
+| `batch-eval-dataset` | 单资源级 | 产 `data/datasets/{id}.{meta.json,jsonl}` |
+| `batch-eval-task` | 单资源级 | 产 `data/schemas/{id}.json`（+ 按需 display） |
+
+### 下载入口
+
+`src/app/api/skills/[name]/route.ts` 按 slug 返回 markdown，`Content-Disposition: attachment; filename="SKILL.md"`。曝光位置：
+
+| 位置 | 装哪个 skill | 触发条件 |
+|---|---|---|
+| Dashboard 空态（`/`） | `batch-eval` | `filtered.length === 0 && !schemaFilter` |
+| `/settings` 顶栏 | `batch-eval` | 常驻 |
+| `/settings/datasets/new` 顶部 | `batch-eval-dataset` | 常驻 |
+| `/settings/templates/new` 顶部 | `batch-eval-task` | 常驻 |
+
+### `AgentHintBanner` 组件
+
+`src/components/settings/agent-hint-banner.tsx`。Props：
+- `slashCommand: string` —— 对应 skill slug（决定下载 URL + 展示在 `<code>/batch-eval</code>` 里的文字）
+- `title? / bodyPrefix? / bodySuffix?: ReactNode` —— 可选覆盖默认文案；默认走 `new_res.agent_hint_*` i18n key（面向"创建单个资源"），平台级入口（Dashboard / Settings）传 `app.agent_hint_*` 覆盖成"让 Claude Code 端到端驱动"
+
+新加 skill 时：
+1. 写 `.claude/skills/{slug}/SKILL.md`（frontmatter 必须含 `name` + `description`，description 里明确 "Use when" / "NOT for"）
+2. 曝光入口挑一个地方 mount `AgentHintBanner`（`slashCommand={slug}`）
+3. `.dockerignore` 已经 `!.claude/skills` 过，不用动；Dockerfile 也已经显式 copy
+
 ## i18n（中英双语）
 
 自建轻量 provider，不引入 `next-intl` / `i18next`。参照 `next-themes` 模式。
@@ -273,7 +309,7 @@ t("settings.datasets.detail.show_all", { n: total })  // 插值
 
 未找到 key 时：先 fallback 到 zh，再 fallback 到 key 本身。
 
-**命名空间约定**：`common.*` / `sidebar.*` / `dashboard.*` / `experiment.*` / `compare.*` / `settings.{llm,datasets,templates,displays}.*` / `results.*` / `form.error.*` / `editor.*` / `filters.*` / `transform.*` / `field_picker.*` / `relation.*` / `new_res.*`。
+**命名空间约定**：`common.*` / `sidebar.*` / `dashboard.*` / `experiment.*` / `compare.*` / `settings.{llm,datasets,templates,displays}.*` / `results.*` / `form.error.*` / `editor.*` / `filters.*` / `transform.*` / `field_picker.*` / `relation.*` / `new_res.*` / `app.*`（平台级 agent 引导）。
 
 **覆盖范围**：
 - ✅ **UI chrome**：侧栏、页面标题、section header、表单 label / helper / placeholder、toast、dialog、section 头、按钮、badge

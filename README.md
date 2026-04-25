@@ -13,6 +13,8 @@
 
 **UI 原则**：**能不手写 JSON 就不手写。** 三种资源（数据集 / 评测任务 / 展示模板）全部有结构化表单——字段路径用下拉、filter / transform / 维度全是结构化编辑器、CSV 文件直接上传。AI agent 产 JSON 的通道仍保留作为兜底。
 
+**Agent 驱动（推荐）**：Dashboard 空态和 `/settings` 顶栏各有一个「下载 SKILL.md」按钮。装上 `batch-eval` skill 后，Claude Code 里一句话就能从零建数据集、评测任务、实验并跑起来——UI 专心展示结果。不想用 agent 也完全 OK，表单 UI 保持一流体验。
+
 ---
 
 ## 目录
@@ -21,9 +23,10 @@
 2. [Docker 启动](#docker-启动)
 3. [核心概念](#核心概念)
 4. [完整教程：从零搭一个评测任务](#完整教程从零搭一个评测任务)
-5. [进阶](#进阶)
-6. [常见问题](#常见问题)
-7. [贡献](#贡献)
+5. [用 Agent 驱动](#用-agent-驱动)
+6. [进阶](#进阶)
+7. [常见问题](#常见问题)
+8. [贡献](#贡献)
 
 ---
 
@@ -258,6 +261,55 @@ Reference: {{reference}}
 1. 左栏按 Schema 筛选，勾选 2 个以上同 `compare_group` 的实验
 2. 右栏按 `input_refs` 对齐：每行对应一条输入 → 多列是不同实验的结果
 3. Prompt 悬停 hover 可看当时用的 system prompt 全文
+
+---
+
+## 用 Agent 驱动
+
+不想手点七步教程？用 Claude Code 一句话跑完。
+
+### 装 skill
+
+打开 Dashboard 空态或 `/settings` 顶栏，点「下载 SKILL.md」→ 保存到 `~/.claude/skills/batch-eval/SKILL.md` → 重启 Claude Code 会话。同理可装两个子 skill：
+
+| skill | 作用 | 入口 |
+|---|---|---|
+| `batch-eval` | 平台级。教 agent 端到端跑一轮（建数据集/任务/实验/读 result/打分） | Dashboard 空态 · `/settings` 顶栏 |
+| `batch-eval-dataset` | 只产数据集 | `/settings/datasets/new` 顶栏 |
+| `batch-eval-task` | 只产评测任务（TaskSchema） | `/settings/templates/new` 顶栏 |
+
+### 典型用法
+
+在 Claude Code 对话框（确保 `cwd` 在项目根）：
+
+```
+/batch-eval
+帮我测 gpt-4o-mini 和 claude-haiku 在 20 条英译中上的质量。
+```
+
+agent 会：
+1. 检查 dev server（没起来就提醒你 `npm run dev`）
+2. 问清或自己推断出数据集（如果你让它从本地 CSV 读）
+3. 建数据集 / 评测任务 / 两个实验
+4. 跑起来，轮询进度
+5. 给你打开 `http://localhost:3000/compare?...` 看对比
+
+整个过程你只需要在浏览器看结果。复杂 JSON 配置（filter 结构、transform 链、display_dimensions）由 agent 负责写对。
+
+### 不装 skill 走 API
+
+skill 本质是一份 prompt 文档 + `curl` 用法指南，平台的 REST API 是权威接口：
+
+- `GET / PUT /api/llm-config`
+- `GET / POST /api/datasets` · `GET / PATCH / DELETE /api/datasets/[id]`
+- `GET / POST /api/schemas` · `GET / PATCH / DELETE /api/schemas/[id]`
+- `GET / POST /api/experiments` · `POST /api/experiments/[id]/run`（可带 `task_ids` 精准重试）· `/stop` · `/results` · `/annotations`
+- `POST /api/estimate` —— 跑之前估算任务数
+- `GET / POST /api/rubrics` · `GET / POST /api/displays`
+
+类型签名见 `src/lib/types.ts` + `src/lib/schema/types.ts`。你自己写脚本 / 自己的 agent 也能跑。
+
+> **注意**：当前 API 无鉴权，适合本地开发。开源前会补 token 机制。
 
 ---
 
