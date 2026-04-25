@@ -1,0 +1,11 @@
+services:
+  batch-eval:
+    build: .
+    image: batch-eval:latest
+    container_name: batch-eval
+    ports:
+      - "3000:3000"
+    volumes:
+      # 宿主机 ./data 持久化实验 / 数据集 / LLM 配置
+      - ./data:/app/data
+    restart: unless-stopped
