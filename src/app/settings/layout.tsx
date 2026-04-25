@@ -14,7 +14,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       </p>
 
       <AgentHintBanner
-        slashCommand="batch-eval"
+        slashCommand="evalyst"
         title={t("app.agent_hint_title")}
         bodyPrefix={t("app.agent_hint_body_prefix")}
         bodySuffix={t("app.agent_hint_body_suffix")}

@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Batch Eval · 批量评测",
-  description: "LLM prompt batch evaluation platform · 本地跑的 LLM prompt 批量评测平台",
+  title: "Evalyst · 批量评测",
+  description: "Evalyst — agent-driven LLM evaluation platform · 本地跑的 LLM prompt 评测平台",
 }
 
 export default function RootLayout({

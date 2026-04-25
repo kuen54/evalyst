@@ -48,11 +48,11 @@
 - **展示模板**：95% 不需要手建，`display_dimensions` 会自动推断；仅 JSX / table / grouped_grid 这种特殊场景进 `/settings/displays/new`（有 Form tab，三选一模式 + JSON tab 兜底）
 - **评分量表**：`/settings/rubrics/new` 结构化表单（CriteriaEditor 子组件：key / label / type / description / required，支持上下排序 + 增删）；list → 详情（criteria 表 + 关联实验列表 + 编辑/删除）→ edit
 - **Claude Code 助手 skill**：`.claude/skills/{slug}/SKILL.md`（git-tracked，Dockerfile runner 阶段会 copy 进镜像）。三个已登记：
-  - `batch-eval` —— 平台级，教 agent 端到端跑一轮（REST API 为主，带 curl 示例）；推荐给「agent 独立驱动」场景
-  - `batch-eval-dataset` / `batch-eval-task` —— 单资源级，产数据集 / TaskSchema JSON
+  - `evalyst` —— 平台级，教 agent 端到端跑一轮（REST API 为主，带 curl 示例）；推荐给「agent 独立驱动」场景
+  - `evalyst-dataset` / `evalyst-task` —— 单资源级，产数据集 / TaskSchema JSON
 
   `/api/skills/[name]` route 按 slug 返回 markdown；`AgentHintBanner` 组件 render 出「Download SKILL.md」按钮给用户一键装到自己的 Claude Code。曝光位置：
-  - Dashboard 空态 + `/settings` 顶栏 → 装 `batch-eval` 平台级 skill
+  - Dashboard 空态 + `/settings` 顶栏 → 装 `evalyst` 平台级 skill
   - `/settings/datasets/new` / `/settings/templates/new` 顶部 → 装对应的单资源 skill
 
   `AgentHintBanner` 默认文案面向「创建单个资源」场景；平台级入口用 `title` / `bodyPrefix` / `bodySuffix` props 覆盖成 `app.agent_hint_*` 文案。新加 skill 时 `.dockerignore` 已经 `!.claude/skills` 过，不用动配置。

@@ -1,15 +1,15 @@
 ---
-name: batch-eval-dataset
-description: "为 batch-eval 评测平台创建新「数据集」。Use when: 用户在 batch-eval 项目里说「加个数据集」「new dataset for eval」「建一份 records」等，需要产出 data/datasets/{id}.meta.json + data/datasets/{id}.jsonl 两个文件。NOT for: 编辑已有数据集（直接对话改即可）、batch-eval 项目以外的数据集、LLM 模型配置。"
+name: evalyst-dataset
+description: "为 evalyst 评测平台创建新「数据集」。Use when: 用户在 evalyst 项目里说「加个数据集」「new dataset for eval」「建一份 records」等，需要产出 data/datasets/{id}.meta.json + data/datasets/{id}.jsonl 两个文件。NOT for: 编辑已有数据集（直接对话改即可）、evalyst 项目以外的数据集、LLM 模型配置。"
 ---
 
-# batch-eval · 新建数据集
+# evalyst · 新建数据集
 
-本 skill 帮你（Claude）为 batch-eval 评测平台创建一份合规的「数据集」，直接把 `data/datasets/{id}.meta.json` + `data/datasets/{id}.jsonl` 两个文件写到磁盘。平台下次访问 `/settings/datasets` 时会自动扫到它（`listDatasets()` 每次调用都幂等扫目录），无需重启 dev server。
+本 skill 帮你（Claude）为 evalyst 评测平台创建一份合规的「数据集」，直接把 `data/datasets/{id}.meta.json` + `data/datasets/{id}.jsonl` 两个文件写到磁盘。平台下次访问 `/settings/datasets` 时会自动扫到它（`listDatasets()` 每次调用都幂等扫目录），无需重启 dev server。
 
 ## Step 1 · 前置确认
 
-1. 用 Bash `pwd` 确认当前工作目录在 batch-eval 项目根（有 `package.json` 且依赖含 `next`）。否则停止，告诉用户需要 `cd` 进项目目录再跑。
+1. 用 Bash `pwd` 确认当前工作目录在 evalyst 项目根（有 `package.json` 且依赖含 `next`）。否则停止，告诉用户需要 `cd` 进项目目录再跑。
 2. 读以下两个文件作为权威参考：
    - `src/lib/meta-prompts/dataset.ts` —— 数据集 JSON 结构的完整示例与字段语义（**严格按它**）
    - `src/lib/schema/types.ts` 里的 `DatasetDef` / `FieldDef` 接口定义（字段 type 的合法枚举）
@@ -70,7 +70,7 @@ description: "为 batch-eval 评测平台创建新「数据集」。Use when: �
 
 1. 两个文件的相对路径
 2. 在 `/settings/datasets` 刷新即可看到（服务端每次 list 调用都扫目录）
-3. 如果这个数据集是为某个评测任务准备的，**建议接下来调用 `/batch-eval-task`** 来创建对应的评测任务（skill 会帮你校验 `inputs[].dataset_id` 指向已存在的数据集）。
+3. 如果这个数据集是为某个评测任务准备的，**建议接下来调用 `/evalyst-task`** 来创建对应的评测任务（skill 会帮你校验 `inputs[].dataset_id` 指向已存在的数据集）。
 
 ## 不在本 skill 范围内
 

@@ -77,7 +77,7 @@ export const zh = {
   "common.custom": "自定义",
 
   // === sidebar ===
-  "sidebar.title": "文案批量评测",
+  "sidebar.title": "Evalyst",
   "sidebar.overview": "总览",
   "sidebar.new_experiment": "新建实验",
   "sidebar.compare": "实验对比",
@@ -956,6 +956,6 @@ export const zh = {
 
   // 平台级 skill 引导（Dashboard 空态 + Settings 顶栏）
   "app.agent_hint_title": "让 Claude Code 端到端驱动",
-  "app.agent_hint_body_prefix": "装上 batch-eval skill 后，在 Claude 对话框里输入",
+  "app.agent_hint_body_prefix": "装上 evalyst skill 后，在 Claude 对话框里输入",
   "app.agent_hint_body_suffix": "，agent 会从建数据集、评测任务到跑实验一条龙帮你搞定，UI 专心看结果。",
 }

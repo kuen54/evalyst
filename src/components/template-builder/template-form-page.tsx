@@ -573,7 +573,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
 
   return (
     <>
-      {mode === "create" && <AgentHintBanner slashCommand="batch-eval-task" />}
+      {mode === "create" && <AgentHintBanner slashCommand="evalyst-task" />}
       <Tabs value={tab} onValueChange={v => setTab((v ?? "form") as "json" | "form")}>
         <TabsList className="mb-4">
           <TabsTrigger value="form">{t("settings.templates.tform.tab_form")}</TabsTrigger>

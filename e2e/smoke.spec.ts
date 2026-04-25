@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test"
  * spec so this one can stay under a few seconds even on cold CI.
  */
 
-const SIDEBAR_TITLE_RE = /文案批量评测|Batch Eval/i
+const SIDEBAR_TITLE_RE = /Evalyst/i
 
 const ROUTES: { path: string; expectText: RegExp }[] = [
   { path: "/", expectText: /实验列表|Experiments/i },
@@ -39,10 +39,10 @@ for (const route of ROUTES) {
 test("skills download endpoint returns SKILL.md", async ({ request }) => {
   // Regression for the docker-skills fix in 5383de5: ensures /api/skills/{name}
   // serves the markdown body and not a 404.
-  const resp = await request.get("/api/skills/batch-eval-dataset")
+  const resp = await request.get("/api/skills/evalyst-dataset")
   expect(resp.status()).toBe(200)
   expect(resp.headers()["content-type"]).toContain("text/markdown")
   const body = await resp.text()
   expect(body).toMatch(/^---/) // SKILL.md frontmatter
-  expect(body).toMatch(/batch-eval-dataset/)
+  expect(body).toMatch(/evalyst-dataset/)
 })

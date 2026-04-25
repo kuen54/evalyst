@@ -1,5 +1,5 @@
 // ---------- TaskSchema & 相关类型 ----------
-// 整个 batch-eval 平台的「任务定义」抽象。每个 Schema 声明：
+// 整个 evalyst 平台的「任务定义」抽象。每个 Schema 声明：
 // - 需要哪些数据源（inputs，笛卡尔积基础）
 // - 从输入里抽哪些 prompt 变量（variables，可链式 transform）
 // - LLM 消息如何构造（system 由 prompt_template 渲染，user 由 message_builder 生成，支持多模态）

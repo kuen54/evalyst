@@ -1,7 +1,7 @@
 // Meta-prompt 用于引导用户的 agent 产出合规的数据集 JSON
 
 export const DATASET_META_PROMPT = `# 任务
-为 batch-eval 评测平台创建一个「数据集」JSON。我会把你的输出粘贴到平台，平台校验后保存。
+为 evalyst 评测平台创建一个「数据集」JSON。我会把你的输出粘贴到平台，平台校验后保存。
 
 # 格式
 输出一个完整的 JSON 对象（不要加 markdown 代码块）：

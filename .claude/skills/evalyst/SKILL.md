@@ -1,11 +1,11 @@
 ---
-name: batch-eval
-description: "端到端驱动 batch-eval（LLM prompt 批量评测平台）。Use when: 用户在 batch-eval 项目里想「从头跑一轮评测」「帮我建数据集+任务+实验一起跑」「调 API 驱动 batch-eval」，或第一次接触项目需要搞清楚心智模型与 API 入口。NOT for: 单独建数据集（用 /batch-eval-dataset）、单独建评测任务（用 /batch-eval-task）、只是改 UI 代码。"
+name: evalyst
+description: "端到端驱动 evalyst（LLM prompt 批量评测平台）。Use when: 用户在 evalyst 项目里想「从头跑一轮评测」「帮我建数据集+任务+实验一起跑」「调 API 驱动 evalyst」，或第一次接触项目需要搞清楚心智模型与 API 入口。NOT for: 单独建数据集（用 /evalyst-dataset）、单独建评测任务（用 /evalyst-task）、只是改 UI 代码。"
 ---
 
-# batch-eval · 端到端驱动
+# evalyst · 端到端驱动
 
-本 skill 帮你（Claude）把 batch-eval 平台当作自己的工作台：从配置 LLM 到跑完一轮实验、读结果、打分，全程用 REST API 驱动，用户只需要在 UI 看结果。数据集和评测任务两类资源的详细 JSON shape 委托给 `/batch-eval-dataset` 和 `/batch-eval-task` 两个子 skill。
+本 skill 帮你（Claude）把 evalyst 平台当作自己的工作台：从配置 LLM 到跑完一轮实验、读结果、打分，全程用 REST API 驱动，用户只需要在 UI 看结果。数据集和评测任务两类资源的详细 JSON shape 委托给 `/evalyst-dataset` 和 `/evalyst-task` 两个子 skill。
 
 ## 心智模型
 
@@ -31,7 +31,7 @@ LLM 模型   →   数据集   →  评测任务   ⟶ 实验 ⟶  展示模板
 
 ## Step 1 · 前置确认
 
-1. 用 Bash `pwd` 确认工作目录在 batch-eval 项目根（有 `package.json` 且依赖含 `next`）。否则停下来让用户 `cd` 进去。
+1. 用 Bash `pwd` 确认工作目录在 evalyst 项目根（有 `package.json` 且依赖含 `next`）。否则停下来让用户 `cd` 进去。
 2. 确认 dev server 在跑：Bash `curl -sf http://localhost:3000/api/llm-config > /dev/null && echo ok`。没起来告诉用户 `npm run dev`。如果 3000 被占，试 `http://localhost:3002`（Next.js 会自动切）。
 3. 读 `src/lib/types.ts`（`ExperimentConfig` / `CreateExperimentRequest` / `LlmConfig` / `ModelConfig`）和 `src/lib/schema/types.ts`（`TaskSchema` / `DatasetDef` / `Rubric` / `GenericResultRecord`）作为 API payload 的权威类型定义。
 
@@ -46,8 +46,8 @@ LLM 模型   →   数据集   →  评测任务   ⟶ 实验 ⟶  展示模板
 ### 路径 B · 先调子 skill 产文件，再用 API 跑实验
 
 数据集 / 评测任务这两类资源的 JSON shape 复杂，直接用子 skill 更稳：
-- 数据集：调 `/batch-eval-dataset`（产 `data/datasets/{id}.{meta.json,jsonl}`）
-- 评测任务：调 `/batch-eval-task`（产 `data/schemas/{id}.json`）
+- 数据集：调 `/evalyst-dataset`（产 `data/datasets/{id}.{meta.json,jsonl}`）
+- 评测任务：调 `/evalyst-task`（产 `data/schemas/{id}.json`）
 
 子 skill 产完文件后，平台下次 list 调用会自动扫到（`ensureSeeds()` + listDatasets/listSchemas 幂等扫目录）。你接着跳到 Step 5 用 API 建实验、跑、读结果。
 
@@ -91,7 +91,7 @@ curl -X PUT http://localhost:3000/api/llm-config \
 
 ## Step 4 · 建数据集
 
-**优先调 `/batch-eval-dataset`**。如果用户需求简单，想直接 POST：
+**优先调 `/evalyst-dataset`**。如果用户需求简单，想直接 POST：
 
 ```bash
 curl -X POST http://localhost:3000/api/datasets \
@@ -116,7 +116,7 @@ curl -X POST http://localhost:3000/api/datasets \
 
 ## Step 5 · 建评测任务（TaskSchema）
 
-**优先调 `/batch-eval-task`**。需要时直接 POST `/api/schemas`，payload 就是完整 `TaskSchema`（`src/lib/schema/types.ts`）。字段多，参考 `src/lib/meta-prompts/template.ts` 里的示例。
+**优先调 `/evalyst-task`**。需要时直接 POST `/api/schemas`，payload 就是完整 `TaskSchema`（`src/lib/schema/types.ts`）。字段多，参考 `src/lib/meta-prompts/template.ts` 里的示例。
 
 ```bash
 curl -X POST http://localhost:3000/api/schemas \
@@ -249,8 +249,8 @@ Annotation 是 **append-only**（同 `(task_id, rubric_id, evaluator)` 可多条
 
 ## 不在本 skill 范围内
 
-- 数据集的详细 JSON shape → `/batch-eval-dataset`
-- 评测任务的详细 JSON shape → `/batch-eval-task`
+- 数据集的详细 JSON shape → `/evalyst-dataset`
+- 评测任务的详细 JSON shape → `/evalyst-task`
 - 自建 JSX display → 极少场景，用户明确要求再做；参考 `src/lib/meta-prompts/display.ts`
 - LLM 厂商 SDK / 多模态图片的消息格式 → `src/lib/llm-client.ts` 已封装，不用操心
 - 修 UI 代码 / 改 i18n → 不走 skill，直接对话

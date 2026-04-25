@@ -1,7 +1,7 @@
 // Meta-prompt 用于引导 agent 产出合规的评测任务（TaskSchema）JSON
 
 export const TEMPLATE_META_PROMPT = `# 任务
-为 batch-eval 评测平台创建一个「评测任务」JSON。评测任务描述了一次评测任务的完整生产逻辑：用哪些数据源、怎么抽取变量、怎么拼 prompt、LLM 输出要符合什么 JSON 结构、用哪个展示模板呈现。
+为 evalyst 评测平台创建一个「评测任务」JSON。评测任务描述了一次评测任务的完整生产逻辑：用哪些数据源、怎么抽取变量、怎么拼 prompt、LLM 输出要符合什么 JSON 结构、用哪个展示模板呈现。
 
 # 顶层结构
 

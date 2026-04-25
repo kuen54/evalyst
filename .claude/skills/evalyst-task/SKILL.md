@@ -1,20 +1,20 @@
 ---
-name: batch-eval-task
-description: "为 batch-eval 评测平台创建新「评测任务」（代码里叫 TaskSchema）。Use when: 用户在 batch-eval 项目里说「建个评测任务」「帮我建个 schema」「new task for eval 平台」「再来一个 xxx 版本」等，需要产出 data/schemas/{id}.json 以及（按需）data/displays/{id}.json。NOT for: 编辑已有 schema（直接聊）、数据集创建（用 /batch-eval-dataset）、LLM 配置。"
+name: evalyst-task
+description: "为 evalyst 评测平台创建新「评测任务」（代码里叫 TaskSchema）。Use when: 用户在 evalyst 项目里说「建个评测任务」「帮我建个 schema」「new task for eval 平台」「再来一个 xxx 版本」等，需要产出 data/schemas/{id}.json 以及（按需）data/displays/{id}.json。NOT for: 编辑已有 schema（直接聊）、数据集创建（用 /evalyst-dataset）、LLM 配置。"
 ---
 
-# batch-eval · 新建评测任务
+# evalyst · 新建评测任务
 
-本 skill 帮你（Claude）为 batch-eval 评测平台创建一份合规的「评测任务」（`TaskSchema`），直接把文件写到 `data/schemas/{id}.json`（以及按需的 `data/displays/{id}.json`）。平台下次访问 `/settings/templates` 时会自动扫到（`listSchemas()` 每次调用都幂等扫目录），无需重启 dev server。
+本 skill 帮你（Claude）为 evalyst 评测平台创建一份合规的「评测任务」（`TaskSchema`），直接把文件写到 `data/schemas/{id}.json`（以及按需的 `data/displays/{id}.json`）。平台下次访问 `/settings/templates` 时会自动扫到（`listSchemas()` 每次调用都幂等扫目录），无需重启 dev server。
 
 ## Step 1 · 前置确认
 
-1. 用 Bash `pwd` 确认当前工作目录在 batch-eval 项目根（有 `package.json` 且依赖含 `next`）。否则停止，告诉用户 `cd` 进去。
+1. 用 Bash `pwd` 确认当前工作目录在 evalyst 项目根（有 `package.json` 且依赖含 `next`）。否则停止，告诉用户 `cd` 进去。
 2. 读以下三个文件作为权威参考：
    - `src/lib/meta-prompts/template.ts` —— TaskSchema 的完整 JSON 结构 + 详尽示例（**严格按它**）
    - `src/lib/schema/types.ts` —— `TaskSchema` / `InputSourceDef` / `VariableDef` / `TransformStep` / `FilterDef` / `MessageBuilderDef` / `JsonSchemaDef` / `DisplayDimension` / `Display` 全套类型定义
    - `src/lib/schema/transform.ts` —— 所有 transform op 的实际行为
-3. 列可用数据集：Glob `data/datasets/*.meta.json`。`inputs[].dataset_id` 引用的数据集**必须**存在（或者你引导用户先跑 `/batch-eval-dataset` 建好）。
+3. 列可用数据集：Glob `data/datasets/*.meta.json`。`inputs[].dataset_id` 引用的数据集**必须**存在（或者你引导用户先跑 `/evalyst-dataset` 建好）。
 4. 看现有 schema 范式：`data/schemas/*.json`（比如内置 seed `qa_answer_v1.json`）。
 
 ## Step 2 · 与用户对齐需求
@@ -97,5 +97,5 @@ description: "为 batch-eval 评测平台创建新「评测任务」（代码里
 
 - 编辑已有 schema：让用户直接对话说「把 xxx schema 的 prompt 改成 yyy」，Claude 读 + Edit 即可，不需要走 skill
 - seed schemas（如 `qa_answer_v1`）的修改：源在 `src/lib/seeds/xxx.schema.json`，直接改 seed 源 + 删除 `data/schemas/` 下对应文件让 ensureSeeds 重生
-- 数据集创建：走 `/batch-eval-dataset`
+- 数据集创建：走 `/evalyst-dataset`
 - LLM 接口配置：一次性手动 `/settings/llm` 填就行

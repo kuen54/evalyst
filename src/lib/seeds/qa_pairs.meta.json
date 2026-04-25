@@ -1,7 +1,7 @@
 {
   "id": "qa_pairs",
   "name": "QA 对示例",
-  "description": "一个小型通用问答数据集，作为 batch-eval 的 starter 示例。可以在 /settings/datasets 里替换成你自己的数据。",
+  "description": "一个小型通用问答数据集，作为 evalyst 的 starter 示例。可以在 /settings/datasets 里替换成你自己的数据。",
   "source": "builtin",
   "id_field": "qa_id",
   "fields": [

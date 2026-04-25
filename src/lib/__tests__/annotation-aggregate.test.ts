@@ -6,7 +6,7 @@ import * as path from "path"
 import * as os from "os"
 
 // annotation-store 读写 data/results/{id}/annotations.jsonl；用临时目录替换 cwd
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "batch-eval-test-"))
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "evalyst-test-"))
 const origCwd = process.cwd()
 process.chdir(tmp)
 

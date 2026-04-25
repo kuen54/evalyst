@@ -102,7 +102,7 @@ export default function Dashboard() {
           {!schemaFilter && (
             <div className="max-w-2xl mx-auto mb-8 mt-4">
               <AgentHintBanner
-                slashCommand="batch-eval"
+                slashCommand="evalyst"
                 title={t("app.agent_hint_title")}
                 bodyPrefix={t("app.agent_hint_body_prefix")}
                 bodySuffix={t("app.agent_hint_body_suffix")}

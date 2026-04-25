@@ -1,6 +1,6 @@
-# batch-eval — LLM prompt 批量评测平台
+# evalyst — LLM prompt 批量评测平台
 
-[![CI](https://github.com/kuen54/batch-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/kuen54/batch-eval/actions/workflows/ci.yml)
+[![CI](https://github.com/kuen54/evalyst/actions/workflows/ci.yml/badge.svg)](https://github.com/kuen54/evalyst/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 [![Node ≥20](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](https://nodejs.org/)
 
@@ -13,7 +13,7 @@
 
 **UI 原则**：**能不手写 JSON 就不手写。** 三种资源（数据集 / 评测任务 / 展示模板）全部有结构化表单——字段路径用下拉、filter / transform / 维度全是结构化编辑器、CSV 文件直接上传。AI agent 产 JSON 的通道仍保留作为兜底。
 
-**Agent 驱动（推荐）**：Dashboard 空态和 `/settings` 顶栏各有一个「下载 SKILL.md」按钮。装上 `batch-eval` skill 后，Claude Code 里一句话就能从零建数据集、评测任务、实验并跑起来——UI 专心展示结果。不想用 agent 也完全 OK，表单 UI 保持一流体验。
+**Agent 驱动（推荐）**：Dashboard 空态和 `/settings` 顶栏各有一个「下载 SKILL.md」按钮。装上 `evalyst` skill 后，Claude Code 里一句话就能从零建数据集、评测任务、实验并跑起来——UI 专心展示结果。不想用 agent 也完全 OK，表单 UI 保持一流体验。
 
 ---
 
@@ -270,20 +270,20 @@ Reference: {{reference}}
 
 ### 装 skill
 
-打开 Dashboard 空态或 `/settings` 顶栏，点「下载 SKILL.md」→ 保存到 `~/.claude/skills/batch-eval/SKILL.md` → 重启 Claude Code 会话。同理可装两个子 skill：
+打开 Dashboard 空态或 `/settings` 顶栏，点「下载 SKILL.md」→ 保存到 `~/.claude/skills/evalyst/SKILL.md` → 重启 Claude Code 会话。同理可装两个子 skill：
 
 | skill | 作用 | 入口 |
 |---|---|---|
-| `batch-eval` | 平台级。教 agent 端到端跑一轮（建数据集/任务/实验/读 result/打分） | Dashboard 空态 · `/settings` 顶栏 |
-| `batch-eval-dataset` | 只产数据集 | `/settings/datasets/new` 顶栏 |
-| `batch-eval-task` | 只产评测任务（TaskSchema） | `/settings/templates/new` 顶栏 |
+| `evalyst` | 平台级。教 agent 端到端跑一轮（建数据集/任务/实验/读 result/打分） | Dashboard 空态 · `/settings` 顶栏 |
+| `evalyst-dataset` | 只产数据集 | `/settings/datasets/new` 顶栏 |
+| `evalyst-task` | 只产评测任务（TaskSchema） | `/settings/templates/new` 顶栏 |
 
 ### 典型用法
 
 在 Claude Code 对话框（确保 `cwd` 在项目根）：
 
 ```
-/batch-eval
+/evalyst
 帮我测 gpt-4o-mini 和 claude-haiku 在 20 条英译中上的质量。
 ```
 

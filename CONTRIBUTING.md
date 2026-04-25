@@ -1,12 +1,12 @@
-# Contributing to batch-eval
+# Contributing to evalyst
 
 先感谢你愿意贡献 —— 这是个我个人用着写起来的工具，希望它也能对别人有用。
 
 ## 快速上手
 
 ```bash
-git clone https://github.com/<you>/batch-eval.git
-cd batch-eval
+git clone https://github.com/<you>/evalyst.git
+cd evalyst
 npm install
 npm run dev
 # http://localhost:3000
@@ -16,7 +16,7 @@ npm run dev
 
 ## 项目定位
 
-batch-eval 是**通用的 LLM prompt 批量评测平台**。seed 数据集 `qa_pairs` 和 seed 评测任务 `qa_answer_v1` 只是"让新用户 clone 下来能直接跑几条"的示例，不代表工具本身的用途。贡献代码时请保持代码、文档、示例对任何领域都适用；确实需要场景示例时，首选 "QA pair 评测 / 文本分类 / 摘要质量" 这类中性例子。
+evalyst 是**通用的 LLM prompt 批量评测平台**。seed 数据集 `qa_pairs` 和 seed 评测任务 `qa_answer_v1` 只是"让新用户 clone 下来能直接跑几条"的示例，不代表工具本身的用途。贡献代码时请保持代码、文档、示例对任何领域都适用；确实需要场景示例时，首选 "QA pair 评测 / 文本分类 / 摘要质量" 这类中性例子。
 
 ## 目录结构
 

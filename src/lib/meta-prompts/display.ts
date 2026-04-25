@@ -5,7 +5,7 @@
 // 只有在需要特别样式（自定义 JSX 组件）或精细配置（table/grouped_grid DSL）时才建。
 
 export const DISPLAY_META_PROMPT = `# 任务
-为 batch-eval 创建一个「自定义展示模板」JSON。
+为 evalyst 创建一个「自定义展示模板」JSON。
 
 > 先确认是否真的需要：如果评测任务已经声明了 \`display_dimensions\`，系统会自动推断出合适的内置 display（单列表 / 双分组 / 三维网格 / 气泡叠加 / JSON 兜底）——这覆盖 95% 的场景。
 > 只有当你需要**完全自定义的视觉样式**（用 JSX 画一个独特组件）时才走这个流程。

@@ -79,7 +79,7 @@ export const en: Record<keyof typeof zh, string> = {
   "common.custom": "Custom",
 
   // === sidebar ===
-  "sidebar.title": "Batch Eval",
+  "sidebar.title": "Evalyst",
   "sidebar.overview": "Overview",
   "sidebar.new_experiment": "New experiment",
   "sidebar.compare": "Compare",
@@ -958,6 +958,6 @@ export const en: Record<keyof typeof zh, string> = {
 
   // platform-level skill pitch (Dashboard empty state + Settings top bar)
   "app.agent_hint_title": "Drive end-to-end with Claude Code",
-  "app.agent_hint_body_prefix": "Install the batch-eval skill and type",
+  "app.agent_hint_body_prefix": "Install the evalyst skill and type",
   "app.agent_hint_body_suffix": "in your Claude chat — the agent builds datasets, tasks, and experiments from scratch. The UI just shows the results.",
 }

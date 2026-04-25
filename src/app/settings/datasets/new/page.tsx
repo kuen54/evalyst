@@ -30,7 +30,7 @@ export default function NewDatasetPage() {
   const t = useT()
   return (
     <>
-      <AgentHintBanner slashCommand="batch-eval-dataset" />
+      <AgentHintBanner slashCommand="evalyst-dataset" />
       <Tabs defaultValue="form">
         <TabsList className="mb-4">
           <TabsTrigger value="form">{t("new_res.tab_csv_import")}</TabsTrigger>

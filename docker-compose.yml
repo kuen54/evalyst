@@ -1,8 +1,8 @@
 services:
-  batch-eval:
+  evalyst:
     build: .
-    image: batch-eval:latest
-    container_name: batch-eval
+    image: evalyst:latest
+    container_name: evalyst
     ports:
       - "3000:3000"
     volumes:

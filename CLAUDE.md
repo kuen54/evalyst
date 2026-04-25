@@ -1,4 +1,4 @@
-# batch-eval
+# evalyst
 
 通用 LLM prompt 批量评测平台。资源（模型 / 数据集 / 评测任务 / 展示模板）都是 `data/` 下的文件，首次启动时从 `src/lib/seeds/` 种子示例过来。
 
@@ -242,7 +242,7 @@ interface Annotation {
 `e2e/smoke.spec.ts` → `npm run test:e2e`（首次需 `npx playwright install chromium`）。覆盖：
 
 - 每条关键路由（`/` / `/experiments/new` / `/compare` / `/settings/llm,datasets,templates,displays,rubrics`）navigate → HTTP < 400 → 侧栏 chrome 渲染 → 页面自带 anchor 文本渲染 → 运行时无 `pageerror`
-- `/api/skills/batch-eval-dataset` 返回 200 + markdown 正文（防止 Docker 部署漏拷 `.claude/skills/` 这类回归）
+- `/api/skills/evalyst-dataset` 返回 200 + markdown 正文（防止 Docker 部署漏拷 `.claude/skills/` 这类回归）
 
 Playwright 配置在 `playwright.config.ts`：`webServer` 跑 `npm run dev`（本地 `reuseExistingServer: true`），默认只用 chromium；失败时产出 `test-results/` 和 `playwright-report/`（已加 gitignore）。
 
@@ -260,9 +260,9 @@ CI（`.github/workflows/ci.yml`）两个 job：
 
 | slug | 层级 | 作用 |
 |---|---|---|
-| `batch-eval` | 平台级 | 教 agent 端到端跑一轮评测（REST API 为主，含 curl 示例）。心智模型 + LLM 配置 + 估算 + 建实验 + 跑 + 读 result + annotation；委托两个子 skill 处理资源的详细 JSON shape |
-| `batch-eval-dataset` | 单资源级 | 产 `data/datasets/{id}.{meta.json,jsonl}` |
-| `batch-eval-task` | 单资源级 | 产 `data/schemas/{id}.json`（+ 按需 display） |
+| `evalyst` | 平台级 | 教 agent 端到端跑一轮评测（REST API 为主，含 curl 示例）。心智模型 + LLM 配置 + 估算 + 建实验 + 跑 + 读 result + annotation；委托两个子 skill 处理资源的详细 JSON shape |
+| `evalyst-dataset` | 单资源级 | 产 `data/datasets/{id}.{meta.json,jsonl}` |
+| `evalyst-task` | 单资源级 | 产 `data/schemas/{id}.json`（+ 按需 display） |
 
 ### 下载入口
 
@@ -270,15 +270,15 @@ CI（`.github/workflows/ci.yml`）两个 job：
 
 | 位置 | 装哪个 skill | 触发条件 |
 |---|---|---|
-| Dashboard 空态（`/`） | `batch-eval` | `filtered.length === 0 && !schemaFilter` |
-| `/settings` 顶栏 | `batch-eval` | 常驻 |
-| `/settings/datasets/new` 顶部 | `batch-eval-dataset` | 常驻 |
-| `/settings/templates/new` 顶部 | `batch-eval-task` | 常驻 |
+| Dashboard 空态（`/`） | `evalyst` | `filtered.length === 0 && !schemaFilter` |
+| `/settings` 顶栏 | `evalyst` | 常驻 |
+| `/settings/datasets/new` 顶部 | `evalyst-dataset` | 常驻 |
+| `/settings/templates/new` 顶部 | `evalyst-task` | 常驻 |
 
 ### `AgentHintBanner` 组件
 
 `src/components/settings/agent-hint-banner.tsx`。Props：
-- `slashCommand: string` —— 对应 skill slug（决定下载 URL + 展示在 `<code>/batch-eval</code>` 里的文字）
+- `slashCommand: string` —— 对应 skill slug（决定下载 URL + 展示在 `<code>/evalyst</code>` 里的文字）
 - `title? / bodyPrefix? / bodySuffix?: ReactNode` —— 可选覆盖默认文案；默认走 `new_res.agent_hint_*` i18n key（面向"创建单个资源"），平台级入口（Dashboard / Settings）传 `app.agent_hint_*` 覆盖成"让 Claude Code 端到端驱动"
 
 新加 skill 时：
@@ -321,7 +321,7 @@ t("settings.datasets.detail.show_all", { n: total })  // 插值
 - ⚠️ **部分错误消息**：`form-state.ts` 的 `buildSchemaFromForm` 校验错误采用"English / 中文"并置，UI 层不过滤
 - ⚠️ **`src/lib/displays.ts` 的 5 个 builtin display name/description**：目前仍是中文（属于应用资产的边界），用户自建的 display 保留用户输入
 
-**HTML `lang` 属性**：SSR 默认 `zh-CN`，客户端 provider 根据 localStorage 更新到 `zh-CN` / `en-US`。`<metadata.title>` 服务端渲染，使用中英并置字符串 `"Batch Eval · 批量评测"`。
+**HTML `lang` 属性**：SSR 默认 `zh-CN`，客户端 provider 根据 localStorage 更新到 `zh-CN` / `en-US`。`<metadata.title>` 服务端渲染，使用中英并置字符串 `"Evalyst · 批量评测"`。
 
 **增量加 key 流程**：
 1. 在 `src/lib/i18n/zh.ts` 新增条目
