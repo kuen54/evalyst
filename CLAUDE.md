@@ -230,7 +230,7 @@ interface Annotation {
 | `src/lib/__tests__/annotation-aggregate.test.ts` | `latestAnnotations` 去重 + `aggregateAnnotations` 三种 criterion |
 | `src/lib/__tests__/format.test.ts` | formatCost 档位 × 币种符号；formatTokens；formatCostMap |
 | `src/lib/__tests__/llm-config.migrate.test.ts` | V1/V2/V3 三层兼容 + pickModel + findPricing + isLlmConfigured |
-| `src/lib/__tests__/store.migrate.test.ts` | `migrateExperimentInMemory`（`total_cost_usd` → `total_cost_by_currency.USD` + `provider_id` → `model_id`）+ `applyCostCompat` |
+| `src/lib/__tests__/store.migrate.test.ts` | `migrateExperimentInMemory`（`run_stats.total_cost_usd` → `total_cost_by_currency.USD`；保留已有 `total_cost_by_currency` 不覆盖） |
 
 116 个 test case，~260ms 跑完。**只测纯函数**——API route / UI 组件不测。
 
