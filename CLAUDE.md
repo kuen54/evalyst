@@ -232,11 +232,22 @@ interface Annotation {
 | `src/lib/__tests__/llm-config.migrate.test.ts` | V1/V2/V3 三层兼容 + pickModel + findPricing + isLlmConfigured |
 | `src/lib/__tests__/store.migrate.test.ts` | `migrateExperimentInMemory`（`run_stats.total_cost_usd` → `total_cost_by_currency.USD`；保留已有 `total_cost_by_currency` 不覆盖） |
 
-116 个 test case，~260ms 跑完。**只测纯函数**——API route / UI 组件不测。
+110 个 test case，~180ms 跑完。**只测纯函数**——API route / UI 组件不测。
 
 **惰性路径**：`llm-config.ts` / `annotation-store.ts` 的 `configDir()` / `resultsDir()` 是惰性函数（不在模块加载时 freeze `process.cwd()`），测试里 chdir 到 tmp 目录能生效。生产 cwd 固定，无副作用。
 
-CI（`.github/workflows/ci.yml`）：`tsc --noEmit → lint（continue-on-error）→ test → build` 四步。lint 加 `continue-on-error` 是因为现有 `react-hooks/set-state-in-effect` 15 个 error 没清，不该阻塞 PR。
+## E2E smoke（Playwright）
+
+`e2e/smoke.spec.ts` → `npm run test:e2e`（首次需 `npx playwright install chromium`）。覆盖：
+
+- 每条关键路由（`/` / `/experiments/new` / `/compare` / `/settings/llm,datasets,templates,displays,rubrics`）navigate → HTTP < 400 → 侧栏 chrome 渲染 → 页面自带 anchor 文本渲染 → 运行时无 `pageerror`
+- `/api/skills/batch-eval-dataset` 返回 200 + markdown 正文（防止 Docker 部署漏拷 `.claude/skills/` 这类回归）
+
+Playwright 配置在 `playwright.config.ts`：`webServer` 跑 `npm run dev`（本地 `reuseExistingServer: true`），默认只用 chromium；失败时产出 `test-results/` 和 `playwright-report/`（已加 gitignore）。
+
+CI（`.github/workflows/ci.yml`）两个 job：
+- `verify` — `tsc --noEmit → lint（continue-on-error）→ test → build`
+- `e2e`（依赖 verify 通过）— `npx playwright install --with-deps chromium → npm run test:e2e`，失败上传 HTML report 作为 artifact
 
 ## i18n（中英双语）
 
@@ -370,9 +381,10 @@ data/
 ## 运行
 
 ```bash
-npm run dev         # http://localhost:3000（被占用时自动切到 3002 等）
-npm test            # 跑所有单测（vitest，116 case ~260ms）
-npm run test:watch  # watch 模式
+npm run dev          # http://localhost:3000（被占用时自动切到 3002 等）
+npm test             # 跑所有单测（vitest，110 case ~180ms）
+npm run test:watch   # watch 模式
+npm run test:e2e     # E2E smoke（playwright；首次需 `npx playwright install chromium`）
 ```
 
 或 Docker：
