@@ -10,6 +10,7 @@
 - 自建轻量 i18n（`src/lib/i18n/`，zh / en，localStorage 持久化）
 - `@babel/standalone` 浏览器端 JSX 编译（用户自定义展示模板）
 - `papaparse` CSV 解析（数据集表单上传）
+- 测试：`vitest`（纯函数单测，110 case）+ `playwright`（E2E smoke，9 case）
 - 无数据库，文件存储（JSON + JSONL）
 
 ## 四件套 + Rubric 架构
@@ -260,7 +261,7 @@ CI（`.github/workflows/ci.yml`）两个 job：
 | `src/lib/i18n/types.ts` | `Locale = "zh" \| "en"`、`LOCALE_BCP47` 映射表 |
 | `src/lib/i18n/zh.ts` / `en.ts` | 扁平 key-value 字典（点号命名空间） |
 | `src/lib/i18n/provider.tsx` | `LocaleProvider` + `useT()` / `useLocale()` hooks、`{var}` 插值、localStorage 持久化（key=`locale`） |
-| `src/lib/i18n/format.ts` | `formatDate(value, locale, opts)` / `formatNumber` |
+| `src/lib/i18n/format.ts` | `formatDate(value, locale, opts)` |
 | `src/components/language-toggle.tsx` | 侧栏底部 EN ⇄ ZH 切换按钮 |
 
 **用法**：

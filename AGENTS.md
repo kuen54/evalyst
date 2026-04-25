@@ -47,6 +47,7 @@
 - **评测任务**：`/settings/templates/new` 走表单（`TemplateFormPage` 主组件）；表单顶部「JSON 导入」兜底
 - **展示模板**：95% 不需要手建，`display_dimensions` 会自动推断；仅 JSX / table / grouped_grid 这种特殊场景进 `/settings/displays/new`（有 Form tab，三选一模式 + JSON tab 兜底）
 - **评分量表**：`/settings/rubrics/new` 结构化表单（CriteriaEditor 子组件：key / label / type / description / required，支持上下排序 + 增删）；list → 详情（criteria 表 + 关联实验列表 + 编辑/删除）→ edit
+- **Claude Code 助手 skill**：`.claude/skills/{slug}/SKILL.md`（git-tracked，Dockerfile runner 阶段会 copy 进镜像）。`/api/skills/[name]` route 按 slug 返回 markdown；`AgentHintBanner` 组件 render 出「Download SKILL.md」按钮给用户一键装到自己的 Claude Code。新加 skill 时在 `.dockerignore` 已经 `!.claude/skills` 过，不用动配置
 
 ## 评分资源的交互约定
 
@@ -124,7 +125,7 @@ JSON 粘贴入口仍保留给 "AI agent 整份产出" 这一种场景（new 页�
 - 非组件函数（工具、class ErrorBoundary）没法调 hook，两种办法：
   1. 让调用方组件 `useT()` 后把需要的字符串作为参数传进去（见 `display-jsx.tsx` 的 `JsxBoundary.errorLabel` / `compileUserJsx(source, compilerLoadingText, ...)`）
   2. 极少见场景可写"English / 中文"并置字符串（见 `form-state.ts` / `llm-client.ts`）
-- 日期 / 数字：调 `formatDate(value, locale, opts)` / `formatNumber(value, locale, opts)`（`src/lib/i18n/format.ts`）
+- 日期：调 `formatDate(value, locale, opts)`（`src/lib/i18n/format.ts`）
 - **不需要翻译**：
   - 用户数据：数据集 `name/description`、schema `label/description/filter.label`、display `name/description`、dimension `label`、value_labels、seed jsonl 内容
   - Meta-prompts（`src/lib/meta-prompts/*.ts`）：发给 LLM 的 prompt，不是 UI
