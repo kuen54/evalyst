@@ -1,0 +1,556 @@
+"use client"
+
+import { useMemo, useState } from "react"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RequiredMark } from "@/components/ui/field-label"
+import { StickySaveBar } from "@/components/ui/sticky-save-bar"
+import { ArrowUpIcon, ArrowDownIcon, XIcon } from "lucide-react"
+import { useT } from "@/lib/i18n/provider"
+import type { TFn } from "@/lib/i18n/provider"
+import type { DisplayColumn, DisplayFieldType, DisplayMode, Display, TaskSchema, GenericResultRecord } from "@/lib/schema/types"
+import { pickView } from "@/components/results/registry"
+
+const FIELD_TYPES: DisplayFieldType[] = ["text", "image", "badge", "json"]
+
+interface GroupConfig {
+  field: string
+  label: string
+}
+
+interface FormState {
+  id: string
+  name: string
+  description: string
+  mode: Exclude<DisplayMode, "builtin">
+  // table
+  table_columns: DisplayColumn[]
+  // grouped_grid
+  primary_group: GroupConfig
+  secondary_group: GroupConfig
+  cell_columns: DisplayColumn[]
+  // jsx
+  jsx_source: string
+}
+
+function emptyState(): FormState {
+  return {
+    id: "",
+    name: "",
+    description: "",
+    mode: "table",
+    table_columns: [{ field: "", label: "", type: "text" }],
+    primary_group: { field: "", label: "" },
+    secondary_group: { field: "", label: "" },
+    cell_columns: [{ field: "", label: "", type: "text" }],
+    jsx_source: `function ({ result, schema, helpers }) {
+  return <div>{helpers.renderField(result.output?.copy, "text")}</div>
+}`,
+  }
+}
+
+export function DisplayFormPage() {
+  const t = useT()
+  const [form, setForm] = useState<FormState>(emptyState)
+  const [submitting, setSubmitting] = useState(false)
+  const [errors, setErrors] = useState<Array<{ field: string; message: string }>>([])
+
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }))
+
+  const tableDup = useMemo(() => findDuplicates(form.table_columns.map(c => c.field)), [form.table_columns])
+  const cellDup = useMemo(() => findDuplicates(form.cell_columns.map(c => c.field)), [form.cell_columns])
+
+  const handleSubmit = async () => {
+    const errs: Array<{ field: string; message: string }> = []
+    if (!form.id) errs.push({ field: "id", message: t("settings.datasets.form.required") })
+    else if (!/^[a-z][a-z0-9_]*$/.test(form.id)) errs.push({ field: "id", message: t("settings.datasets.form.id_validation") })
+    if (!form.name) errs.push({ field: "name", message: t("settings.datasets.form.required") })
+
+    const body: Record<string, unknown> = {
+      id: form.id,
+      name: form.name,
+      description: form.description || undefined,
+      mode: form.mode,
+    }
+
+    if (form.mode === "table") {
+      const cols = form.table_columns.filter(c => c.field)
+      if (cols.length === 0) errs.push({ field: "table.columns", message: t("new_res.at_least_one_column") })
+      body.table = { columns: cols }
+    } else if (form.mode === "grouped_grid") {
+      if (!form.primary_group.field) errs.push({ field: "primary_group.field", message: t("settings.datasets.form.required") })
+      if (!form.secondary_group.field) errs.push({ field: "secondary_group.field", message: t("settings.datasets.form.required") })
+      const cells = form.cell_columns.filter(c => c.field)
+      if (cells.length === 0) errs.push({ field: "cell_columns", message: t("new_res.at_least_one_column") })
+      body.grouped_grid = {
+        primary_group: { field: form.primary_group.field, label: form.primary_group.label || undefined },
+        secondary_group: { field: form.secondary_group.field, label: form.secondary_group.label || undefined },
+        cell_columns: cells,
+      }
+    } else if (form.mode === "jsx") {
+      if (!form.jsx_source.trim()) errs.push({ field: "jsx.source", message: t("settings.datasets.form.required") })
+      body.jsx = { source: form.jsx_source }
+    }
+
+    if (errs.length) {
+      setErrors(errs)
+      toast.error(t("settings.displays.form.errors_toast", { n: errs.length }))
+      return
+    }
+    setErrors([])
+    setSubmitting(true)
+
+    const res = await fetch("/api/displays", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setErrors(data.errors ?? [{ field: "$", message: data.error ?? t("settings.displays.form.save_fail_default") }])
+      toast.error(data.error ?? t("settings.displays.form.save_fail_default"))
+      setSubmitting(false)
+      return
+    }
+    toast.success(t("settings.displays.form.created_toast", { name: form.name }))
+    window.location.href = "/settings/displays"
+  }
+
+  return (
+    <div className="grid grid-cols-[1fr_420px] gap-6">
+      <div className="space-y-6 pb-12">
+      <section className="space-y-3">
+        <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.datasets.form.section_basic")}</h4>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>{t("common.id")}<RequiredMark /></Label>
+            <Input value={form.id} onChange={e => set("id", e.target.value)} placeholder={t("settings.displays.form.id_placeholder")} />
+            <p className="text-[11px] text-muted-foreground">{t("settings.datasets.form.id_format_hint")}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("settings.displays.form.display_name")}<RequiredMark /></Label>
+            <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder={t("settings.displays.form.display_name_placeholder")} />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("settings.datasets.form.dataset_description")}</Label>
+          <Input value={form.description} onChange={e => set("description", e.target.value)} />
+        </div>
+      </section>
+
+      <Separator />
+
+      <section className="space-y-3">
+        <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.mode_section")}<RequiredMark /></h4>
+        <div className="grid grid-cols-3 gap-2">
+          {(["table", "grouped_grid", "jsx"] as const).map(m => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => set("mode", m)}
+              className={`p-3 rounded-md border text-left transition-colors ${form.mode === m ? "border-foreground bg-accent/60" : "border-border hover:bg-muted/50"}`}
+            >
+              <div className="font-medium text-sm">
+                {m === "table" ? t("settings.displays.form.mode_table_btn") : m === "grouped_grid" ? t("settings.displays.form.mode_grouped_grid_btn") : t("settings.displays.form.mode_jsx_btn")}
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                {m === "table"
+                  ? t("settings.displays.form.mode_table_desc")
+                  : m === "grouped_grid"
+                  ? t("settings.displays.form.mode_grouped_grid_desc")
+                  : t("settings.displays.form.mode_jsx_desc")}
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <Separator />
+
+      {form.mode === "table" && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.table_columns")}</h4>
+            <Button size="sm" variant="outline" onClick={() => set("table_columns", [...form.table_columns, { field: "", label: "", type: "text" }])}>
+              {t("settings.displays.form.add_column")}
+            </Button>
+          </div>
+          {form.table_columns.map((c, i) => (
+            <ColumnRow
+              key={i}
+              col={c}
+              t={t}
+              onChange={patch => set("table_columns", form.table_columns.map((x, idx) => idx === i ? { ...x, ...patch } : x))}
+              onDelete={() => set("table_columns", form.table_columns.filter((_, idx) => idx !== i))}
+              onMove={dir => {
+                const j = i + dir
+                if (j < 0 || j >= form.table_columns.length) return
+                const next = [...form.table_columns]
+                ;[next[i], next[j]] = [next[j], next[i]]
+                set("table_columns", next)
+              }}
+              disableFirst={i === 0}
+              disableLast={i === form.table_columns.length - 1}
+              disableDelete={form.table_columns.length <= 1}
+              isDuplicate={!!c.field && tableDup.has(c.field)}
+            />
+          ))}
+        </section>
+      )}
+
+      {form.mode === "grouped_grid" && (
+        <>
+          <section className="space-y-3">
+            <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.primary_dimension")}<RequiredMark /></h4>
+            <Card className="p-3 border ring-0">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("settings.displays.form.field_path_label")}</Label>
+                  <Input
+                    value={form.primary_group.field}
+                    onChange={e => set("primary_group", { ...form.primary_group, field: e.target.value })}
+                    placeholder="input_refs.qa"
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("settings.displays.form.display_label")}</Label>
+                  <Input
+                    value={form.primary_group.label}
+                    onChange={e => set("primary_group", { ...form.primary_group, label: e.target.value })}
+                    placeholder={t("settings.displays.form.primary_label_placeholder")}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            </Card>
+          </section>
+
+          <section className="space-y-3">
+            <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.secondary_dimension")}<RequiredMark /></h4>
+            <Card className="p-3 border ring-0">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("settings.displays.form.field_path_label")}</Label>
+                  <Input
+                    value={form.secondary_group.field}
+                    onChange={e => set("secondary_group", { ...form.secondary_group, field: e.target.value })}
+                    placeholder="input_preview.qa.topic"
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("settings.displays.form.display_label")}</Label>
+                  <Input
+                    value={form.secondary_group.label}
+                    onChange={e => set("secondary_group", { ...form.secondary_group, label: e.target.value })}
+                    placeholder={t("settings.displays.form.secondary_label_placeholder")}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            </Card>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.cell_columns")}</h4>
+              <Button size="sm" variant="outline" onClick={() => set("cell_columns", [...form.cell_columns, { field: "", label: "", type: "text" }])}>
+                {t("settings.displays.form.add_column")}
+              </Button>
+            </div>
+            {form.cell_columns.map((c, i) => (
+              <ColumnRow
+                key={i}
+                col={c}
+                t={t}
+                onChange={patch => set("cell_columns", form.cell_columns.map((x, idx) => idx === i ? { ...x, ...patch } : x))}
+                onDelete={() => set("cell_columns", form.cell_columns.filter((_, idx) => idx !== i))}
+                onMove={dir => {
+                  const j = i + dir
+                  if (j < 0 || j >= form.cell_columns.length) return
+                  const next = [...form.cell_columns]
+                  ;[next[i], next[j]] = [next[j], next[i]]
+                  set("cell_columns", next)
+                }}
+                disableFirst={i === 0}
+                disableLast={i === form.cell_columns.length - 1}
+                disableDelete={form.cell_columns.length <= 1}
+                isDuplicate={!!c.field && cellDup.has(c.field)}
+              />
+            ))}
+          </section>
+        </>
+      )}
+
+      {form.mode === "jsx" && (
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.jsx_section")}<RequiredMark /></h4>
+            <Badge variant="outline" className="text-[10px]">{t("settings.displays.form.jsx_badge")}</Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {t("settings.displays.form.jsx_hint_html")}
+          </p>
+          <Textarea
+            value={form.jsx_source}
+            onChange={e => set("jsx_source", e.target.value)}
+            className="font-mono text-xs min-h-[240px]"
+          />
+        </section>
+      )}
+
+      {errors.length > 0 && (
+        <div className="p-3 rounded border border-destructive/40 bg-destructive/10 text-sm">
+          <div className="font-medium text-destructive mb-1">{t("settings.datasets.form.validation_failed_header", { n: errors.length })}</div>
+          <ul className="text-xs space-y-0.5 text-destructive/90 max-h-40 overflow-y-auto">
+            {errors.map((e, i) => <li key={i}><span className="font-mono">{e.field}</span>: {e.message}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <StickySaveBar
+        onSave={handleSubmit}
+        onCancel={() => (window.location.href = "/settings/displays")}
+        submitting={submitting}
+      />
+      </div>
+
+      <DisplayPreviewPane form={form} t={t} />
+    </div>
+  )
+}
+
+function DisplayPreviewPane({ form, t }: { form: FormState; t: TFn }) {
+  const { display, schema, results } = useMemo(() => buildPreviewInputs(form, t), [form, t])
+
+  const view = useMemo(() => {
+    try {
+      return pickView(schema, display)
+    } catch {
+      return null
+    }
+  }, [schema, display])
+
+  const ViewComp = view?.component
+
+  return (
+    <div className="sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto">
+      <Card className="p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.preview_title")}</h4>
+          <Badge variant="outline" className="text-[10px]">{t("settings.displays.form.preview_mock")}</Badge>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {t("settings.displays.form.preview_desc")}
+        </p>
+        <div className="border rounded p-2 bg-muted/10 overflow-x-auto">
+          {ViewComp && schema ? (
+            <div className="min-w-0">
+              <ViewComp results={results} schema={schema} />
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted-foreground italic p-2">{t("settings.displays.form.preview_empty")}</p>
+          )}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function buildPreviewInputs(form: FormState, t: TFn): {
+  display: Display | undefined
+  schema: TaskSchema | undefined
+  results: GenericResultRecord[]
+} {
+  // 从列配置里推 output_schema 字段
+  const cols = form.mode === "table" ? form.table_columns : form.mode === "grouped_grid" ? form.cell_columns : []
+  const outputFieldNames = cols
+    .map(c => {
+      const m = c.field.match(/^output\.(.+)$/)
+      return m ? m[1] : null
+    })
+    .filter((x): x is string => !!x)
+
+  // 构造最简 TaskSchema
+  const schema: TaskSchema = {
+    id: "__preview__",
+    label: "preview",
+    version: 1,
+    inputs: [
+      { alias: "qa", dataset_id: "__stub__" },
+      { alias: "topic", dataset_id: "__stub__" },
+    ],
+    variables: [],
+    default_prompt: "",
+    message_builder: {},
+    output_schema: {
+      type: "object",
+      properties: Object.fromEntries(
+        outputFieldNames.length > 0
+          ? outputFieldNames.map(n => [n, { type: "string" as const }])
+          : [["copy", { type: "string" as const }]]
+      ),
+      required: outputFieldNames.length > 0 ? outputFieldNames : ["copy"],
+    },
+    display_dimensions:
+      form.mode === "grouped_grid"
+        ? [
+            { field: form.primary_group.field || "input_refs.qa", label: form.primary_group.label || t("settings.displays.form.primary_default_label") },
+            { field: form.secondary_group.field || "input_preview.qa.topic", label: form.secondary_group.label || t("settings.displays.form.secondary_default_label") },
+          ]
+        : undefined,
+  }
+
+  // 构造 Display
+  let display: Display | undefined
+  if (form.mode === "table") {
+    const cols = form.table_columns.filter(c => c.field)
+    if (cols.length > 0) {
+      display = {
+        id: "__preview__",
+        name: "preview",
+        source: "user",
+        mode: "table",
+        table: { columns: cols },
+      }
+    }
+  } else if (form.mode === "grouped_grid") {
+    const cells = form.cell_columns.filter(c => c.field)
+    if (form.primary_group.field && form.secondary_group.field && cells.length > 0) {
+      display = {
+        id: "__preview__",
+        name: "preview",
+        source: "user",
+        mode: "grouped_grid",
+        grouped_grid: {
+          primary_group: { field: form.primary_group.field, label: form.primary_group.label || undefined },
+          secondary_group: { field: form.secondary_group.field, label: form.secondary_group.label || undefined },
+          cell_columns: cells,
+        },
+      }
+    }
+  } else if (form.mode === "jsx") {
+    if (form.jsx_source.trim()) {
+      display = {
+        id: "__preview__",
+        name: "preview",
+        source: "user",
+        mode: "jsx",
+        jsx: { source: form.jsx_source },
+      }
+    }
+  }
+
+  // 构造 3 条 mock 记录
+  const stubItems = ["q1", "q2", "q3"]
+  const stubTopics = ["geography", "science", "history"]
+  const results: GenericResultRecord[] = stubItems.flatMap((b, i) =>
+    form.mode === "grouped_grid"
+      ? stubTopics.map(u => mockRecord(schema, `${b}_${u}`, { qa: b, topic: u }, t))
+      : [mockRecord(schema, `t_${i}`, { qa: b, topic: stubTopics[i % stubTopics.length] }, t)]
+  )
+
+  return { display, schema, results }
+}
+
+function mockRecord(schema: TaskSchema, taskId: string, refs: { qa: string; topic: string }, t: TFn): GenericResultRecord {
+  const output: Record<string, string> = {}
+  for (const name of Object.keys(schema.output_schema.properties ?? {})) {
+    output[name] = `mock ${name}`
+  }
+  return {
+    schema_id: schema.id,
+    schema_version: schema.version,
+    task_id: taskId,
+    experiment_id: "__preview__",
+    input_refs: { qa: refs.qa, topic: refs.topic },
+    input_preview: {
+      "qa.question": t("settings.displays.form.mock_sample_question", { id: refs.qa }),
+      "qa.topic": refs.topic,
+      "qa.difficulty": "easy",
+    },
+    output,
+    status: "success",
+    latency_ms: 123,
+    model: "mock",
+    timestamp: new Date().toISOString(),
+  }
+}
+
+function ColumnRow({
+  col, onChange, onDelete, onMove, disableFirst, disableLast, disableDelete, isDuplicate, t,
+}: {
+  col: DisplayColumn
+  onChange: (patch: Partial<DisplayColumn>) => void
+  onDelete: () => void
+  onMove: (dir: -1 | 1) => void
+  disableFirst: boolean
+  disableLast: boolean
+  disableDelete: boolean
+  isDuplicate?: boolean
+  t: TFn
+}) {
+  return (
+    <Card className="p-2 border ring-0">
+      <div className="grid grid-cols-[1fr_1fr_100px_80px_auto] gap-2 items-center">
+        <Input
+          value={col.field}
+          onChange={e => onChange({ field: e.target.value })}
+          placeholder={t("settings.displays.form.col_field_placeholder")}
+          className={`h-8 text-xs font-mono ${isDuplicate ? "border-destructive text-destructive" : ""}`}
+          aria-invalid={isDuplicate}
+          title={isDuplicate ? t("settings.displays.form.col_duplicate_title") : undefined}
+        />
+        <Input
+          value={col.label ?? ""}
+          onChange={e => onChange({ label: e.target.value })}
+          placeholder={t("settings.displays.form.col_label_placeholder")}
+          className="h-8 text-xs"
+        />
+        <Select value={col.type ?? "text"} onValueChange={v => { if (v) onChange({ type: v as DisplayFieldType }) }}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {FIELD_TYPES.map(ft => <SelectItem key={ft} value={ft}>{ft}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Input
+          value={col.max_length ?? ""}
+          onChange={e => onChange({ max_length: e.target.value === "" ? undefined : Number(e.target.value) })}
+          placeholder={t("settings.displays.form.col_max_length_placeholder")}
+          type="number"
+          className="h-8 text-xs"
+        />
+        <div className="flex items-center">
+          <button type="button" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={disableFirst} onClick={() => onMove(-1)}>
+            <ArrowUpIcon className="size-3" />
+          </button>
+          <button type="button" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={disableLast} onClick={() => onMove(1)}>
+            <ArrowDownIcon className="size-3" />
+          </button>
+          <button type="button" className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-30" disabled={disableDelete} onClick={onDelete}>
+            <XIcon className="size-3" />
+          </button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function findDuplicates(values: string[]): Set<string> {
+  const seen = new Set<string>()
+  const dup = new Set<string>()
+  for (const v of values) {
+    if (!v) continue
+    if (seen.has(v)) dup.add(v)
+    seen.add(v)
+  }
+  return dup
+}

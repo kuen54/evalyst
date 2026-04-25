@@ -1,0 +1,41 @@
+"use client"
+
+import { useEffect, useState, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
+import { TemplateFormPage } from "@/components/template-builder/template-form-page"
+import { useT } from "@/lib/i18n/provider"
+import type { TaskSchema } from "@/lib/schema/types"
+
+function NewTemplateInner() {
+  const t = useT()
+  const searchParams = useSearchParams()
+  const fromId = searchParams.get("from")
+  const [initialSchema, setInitialSchema] = useState<TaskSchema | null>(null)
+  const [loading, setLoading] = useState(!!fromId)
+
+  useEffect(() => {
+    if (!fromId) return
+    fetch(`/api/schemas/${fromId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(s => { setInitialSchema(s); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [fromId])
+
+  if (loading) return <div className="p-8 text-muted-foreground text-sm">{t("common.loading")}</div>
+
+  return (
+    <TemplateFormPage
+      mode="create"
+      initialSchema={initialSchema ?? undefined}
+      fromId={fromId ?? undefined}
+    />
+  )
+}
+
+export default function NewTemplatePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-muted-foreground text-sm">…</div>}>
+      <NewTemplateInner />
+    </Suspense>
+  )
+}
