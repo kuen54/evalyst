@@ -109,6 +109,19 @@ describe("getLlmConfig migrate", () => {
     expect(cfg.models[0].id).toBe("m1")
     expect(cfg.active_model_id).toBe("m1")
   })
+
+  it("preserves copilot_enabled flag through migration", () => {
+    writeCfg({
+      models: [
+        { id: "m1", name: "M1", model: "gpt-4o", api_format: "openai", base_url: "x", api_key: "k", copilot_enabled: true },
+        { id: "m2", name: "M2", model: "claude", api_format: "anthropic", base_url: "y", api_key: "k2" },
+      ],
+      active_model_id: "m1",
+    })
+    const cfg = getLlmConfig()
+    expect(cfg.models[0].copilot_enabled).toBe(true)
+    expect(cfg.models[1].copilot_enabled).toBeUndefined()
+  })
 })
 
 describe("pickModel", () => {

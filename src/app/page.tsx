@@ -152,19 +152,28 @@ function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, l
   const isRunning = exp.status === "running"
 
   return (
-    <Card className="group transition-colors hover:border-foreground/30 hover:bg-muted/20 h-full">
+    <Card
+      data-copilot-context="experiment"
+      data-copilot-context-id={exp.id}
+      data-copilot-context-summary={`${exp.name} · ${exp.model}`}
+      className="group transition-colors hover:border-foreground/30 h-full"
+    >
       <CardHeader className="pb-1.5 pt-4 px-4">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-medium leading-snug">{exp.name}</CardTitle>
-          <Badge variant="outline" className={`text-[11px] shrink-0 ${schemaColor ?? ""}`}>
-            {schemaLabel}
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <CardTitle className="text-sm font-medium leading-snug truncate min-w-0 flex-1" title={exp.name}>{exp.name}</CardTitle>
+          <Badge
+            variant="outline"
+            className={`text-[11px] shrink max-w-[50%] min-w-0 ${schemaColor ?? ""}`}
+            title={schemaLabel}
+          >
+            <span className="truncate flex-1 min-w-0">{schemaLabel}</span>
           </Badge>
         </div>
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-          <span>{exp.model}</span>
-          <span className="text-border">|</span>
-          <span>t={exp.temperature}</span>
-          <span className="ml-auto">{formatDate(exp.created_at, locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5 min-w-0">
+          <span className="truncate min-w-0" title={exp.model}>{exp.model}</span>
+          <span className="text-border shrink-0">|</span>
+          <span className="shrink-0">t={exp.temperature}</span>
+          <span className="ml-auto shrink-0">{formatDate(exp.created_at, locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
         </div>
       </CardHeader>
       <CardContent className="pb-3 px-4 pt-0 space-y-2">
@@ -190,7 +199,7 @@ function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, l
           <Link href={`/experiments/${exp.id}`}>
             <Button variant="outline" size="sm" className="h-7 text-xs">{t("common.view")}</Button>
           </Link>
-          <button className="text-[11px] text-muted-foreground hover:text-red-500 ml-auto cursor-pointer" onClick={() => onDelete(exp.id)}>
+          <button className="text-[11px] text-muted-foreground hover:text-red-500 ml-auto cursor-pointer px-1.5 py-1 -my-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors" onClick={() => onDelete(exp.id)}>
             {t("common.delete")}
           </button>
         </div>

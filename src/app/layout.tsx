@@ -6,6 +6,13 @@ import { ConfirmProvider } from "@/components/ui/confirm-dialog"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LocaleProvider } from "@/lib/i18n/provider"
 import { Sidebar } from "@/components/sidebar"
+import { CopilotStoreProvider } from "@/components/copilot/store"
+import { CopilotPanel } from "@/components/copilot/panel"
+import { InspectorOverlay } from "@/components/copilot/inspector-overlay"
+import { ContextMask } from "@/components/copilot/context-mask"
+import { GlowOverlay } from "@/components/copilot/glow-overlay"
+import { TextSelector } from "@/components/copilot/text-selector"
+import { TextSelectionMask } from "@/components/copilot/text-selection-mask"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,9 +44,19 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <LocaleProvider>
             <ConfirmProvider>
-              <Sidebar />
-              <main className="flex-1 overflow-auto">{children}</main>
-              <Toaster />
+              <CopilotStoreProvider>
+                <Sidebar />
+                <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
+                  <GlowOverlay />
+                  <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
+                </main>
+                <CopilotPanel />
+                <InspectorOverlay />
+                <ContextMask />
+                <TextSelector />
+                <TextSelectionMask />
+                <Toaster />
+              </CopilotStoreProvider>
             </ConfirmProvider>
           </LocaleProvider>
         </ThemeProvider>

@@ -120,14 +120,27 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
                 const r = cellMap.get(`${rv}|${cv}`)
                 if (!r) return <div key={String(cv)} className="text-xs text-muted-foreground p-2 text-center">-</div>
                 return (
-                  <Card key={String(cv)} className={`p-2 ${r.status !== "success" ? "border-red-200 bg-red-50" : ""}`}>
+                  <Card
+                    key={String(cv)}
+                    className={`p-2 ${r.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
+                    data-copilot-context="task_result"
+                    data-copilot-context-id={r.task_id}
+                    data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id })}
+                  >
                     {r.status === "success" && r.output ? (
                       <>
                         {outputFields.map(f => {
                           const val = readField(r, `output.${f.name}`)
                           const type = inferFieldRenderType(f, val)
                           return (
-                            <div key={f.name} className="text-xs leading-relaxed">
+                            <div
+                              key={f.name}
+                              className="text-xs leading-relaxed"
+                              data-copilot-context="task_field"
+                              data-copilot-context-id={`${r.task_id}#${f.name}`}
+                              data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id, task_id: r.task_id, field: f.name })}
+                              data-copilot-context-summary={f.name}
+                            >
                               {renderField(val, type, 100)}
                             </div>
                           )
@@ -175,7 +188,17 @@ export function TripleGridCell({ result, schema }: CellViewProps) {
       {outputFields.map(f => {
         const val = (result.output as Record<string, unknown>)[f.name]
         const type = inferFieldRenderType(f, val)
-        return <div key={f.name}>{renderField(val, type)}</div>
+        return (
+          <div
+            key={f.name}
+            data-copilot-context="task_field"
+            data-copilot-context-id={`${result.task_id}#${f.name}`}
+            data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id, task_id: result.task_id, field: f.name })}
+            data-copilot-context-summary={`${f.name} · ${String(val ?? "").slice(0, 24)}`}
+          >
+            {renderField(val, type)}
+          </div>
+        )
       })}
     </div>
   )

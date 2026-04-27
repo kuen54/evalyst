@@ -60,7 +60,12 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
   const effectiveDisplay = displays.find(d => d.id === effectiveDisplayId)
 
   return (
-    <div className="space-y-6">
+    <div
+      className="space-y-6"
+      data-copilot-context="template"
+      data-copilot-context-id={schema.id}
+      data-copilot-context-summary={schema.label ?? schema.id}
+    >
       {/* 头部 */}
       <div>
         <Link href="/settings/templates" className="text-xs text-muted-foreground hover:text-foreground">

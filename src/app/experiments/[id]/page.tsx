@@ -16,6 +16,7 @@ import type { RubricAggregate } from "@/lib/annotation-store"
 import { useT } from "@/lib/i18n/provider"
 import { formatCostMap, formatTokens } from "@/lib/format"
 import { aggregateResults } from "@/lib/results-aggregate"
+import { CopilotShell } from "@/components/copilot/shell"
 
 export default function ExperimentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -138,13 +139,14 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     : aggregateResults(results)
 
   return (
-    <div className="px-8 py-6">
-      <div className="flex items-baseline gap-3 mb-6">
-        <Link href="/" className="text-muted-foreground hover:text-foreground text-xs">&larr; {t("common.back")}</Link>
-        <h2 className="text-lg font-semibold tracking-tight">{experiment.name}</h2>
-        {schema && <Badge variant="outline" className="text-[11px]">{schema.label}</Badge>}
-        {rubric && <Badge variant="outline" className="text-[11px]">✅ {rubric.name}</Badge>}
-      </div>
+    <div className="px-6 py-4">
+      <CopilotShell className="p-6">
+        <div className="flex items-baseline gap-3 mb-6">
+          <Link href="/" className="text-muted-foreground hover:text-foreground text-xs">&larr; {t("common.back")}</Link>
+          <h2 className="text-lg font-semibold tracking-tight">{experiment.name}</h2>
+          {schema && <Badge variant="outline" className="text-[11px]">{schema.label}</Badge>}
+          {rubric && <Badge variant="outline" className="text-[11px]">✅ {rubric.name}</Badge>}
+        </div>
 
       <Collapsible open={configOpen} onOpenChange={setConfigOpen}>
         <CollapsibleTrigger className="mb-2 text-muted-foreground text-sm hover:text-foreground transition-colors cursor-pointer px-2 py-1 rounded hover:bg-accent">
@@ -164,7 +166,12 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
         </CollapsibleContent>
       </Collapsible>
 
-      <div className="mb-6 rounded-lg border bg-card px-4 py-3">
+      <div
+        className="mb-6 rounded-lg border bg-card px-4 py-3"
+        data-copilot-context="experiment"
+        data-copilot-context-id={experiment.id}
+        data-copilot-context-summary={`${experiment.name} · ${experiment.model}`}
+      >
         <div className="flex items-center gap-3">
           <Badge variant={experiment.status === "running" ? "default" : "secondary"}>
             {t(`dashboard.status_${experiment.status}`)}
@@ -206,7 +213,13 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
 
       {rubric && aggregate && (
         <Collapsible open={scoringOpen} onOpenChange={setScoringOpen}>
-          <Card className="mb-6 border-emerald-200/60">
+          <Card
+            className="mb-6 border-emerald-200/60"
+            data-copilot-context="rubric_stats"
+            data-copilot-context-id={experiment.id}
+            data-copilot-context-extra={JSON.stringify({ rubric_id: rubric.id })}
+            data-copilot-context-summary={`${rubric.name} 评分统计`}
+          >
             <CardContent className="pt-4">
               <CollapsibleTrigger className="w-full text-left">
                 <div className="flex items-center gap-3 text-sm">
@@ -254,7 +267,14 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                         const preview = summarizeResult(r)
                         const existing = annotationByTask.get(r.task_id)
                         return (
-                          <div key={r.task_id} className="flex items-start gap-3 py-1.5 text-xs">
+                          <div
+                            key={r.task_id}
+                            className="flex items-start gap-3 py-1.5 text-xs"
+                            data-copilot-context="task_result"
+                            data-copilot-context-id={r.task_id}
+                            data-copilot-context-extra={JSON.stringify({ experiment_id: experiment.id })}
+                            data-copilot-context-summary={preview}
+                          >
                             <span className="font-mono text-[10px] text-muted-foreground shrink-0 w-20 truncate" title={r.task_id}>{r.task_id}</span>
                             <span className="flex-1 min-w-0 text-muted-foreground truncate">{preview}</span>
                             <RubricAnnotator
@@ -297,6 +317,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
           {schema && <ViewComp results={results} schema={schema} />}
         </>
       )}
+      </CopilotShell>
     </div>
   )
 }
@@ -351,7 +372,7 @@ function FailedPanel({ results, onRetryTask, running, t }: {
                 <div key={r.task_id} className="flex items-start gap-3 py-2 text-xs">
                   <span className="font-mono text-[10px] text-muted-foreground shrink-0 w-20 truncate" title={r.task_id}>{r.task_id}</span>
                   <div className="flex-1 min-w-0">
-                    <Badge variant="outline" className="text-[9px] border-destructive/50 text-destructive mr-1">{r.status}</Badge>
+                    <Badge variant="outline" className="text-[10px] border-destructive/50 text-destructive mr-1">{r.status}</Badge>
                     <span className="text-muted-foreground break-all">{(r.error ?? "").slice(0, 200)}</span>
                   </div>
                   <Button

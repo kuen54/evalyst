@@ -96,17 +96,23 @@ export function DisplayJsx({ results, schema, display }: JsxProps) {
   return (
     <div className="space-y-3">
       {results.map(r => (
-        <JsxBoundary
+        <div
           key={r.task_id}
-          errorLabel={t("results.jsx_render_error")}
-          fallback={
-            <Card className="p-3 border-red-200">
-              <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(r.output, null, 2)}</pre>
-            </Card>
-          }
+          data-copilot-context="task_result"
+          data-copilot-context-id={r.task_id}
+          data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id })}
         >
-          <JsxRenderer fn={compiled.fn} result={r} schema={schema} helpers={helpers} />
-        </JsxBoundary>
+          <JsxBoundary
+            errorLabel={t("results.jsx_render_error")}
+            fallback={
+              <Card className="p-3 border-red-200">
+                <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(r.output, null, 2)}</pre>
+              </Card>
+            }
+          >
+            <JsxRenderer fn={compiled.fn} result={r} schema={schema} helpers={helpers} />
+          </JsxBoundary>
+        </div>
       ))}
     </div>
   )

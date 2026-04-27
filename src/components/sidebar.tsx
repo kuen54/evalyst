@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useT } from "@/lib/i18n/provider"
 import { LanguageToggle } from "@/components/language-toggle"
+import { useCopilotStore } from "@/components/copilot/store"
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -13,8 +14,27 @@ export function Sidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const t = useT()
+  const { open: copilotOpen } = useCopilotStore()
+  // 记住 copilot 打开前的 collapsed 状态；关闭后还原
+  const prevCollapsedBeforeCopilot = useRef<boolean | null>(null)
 
   useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (copilotOpen) {
+      if (prevCollapsedBeforeCopilot.current === null) {
+        prevCollapsedBeforeCopilot.current = collapsed
+        setCollapsed(true)
+      }
+    } else {
+      if (prevCollapsedBeforeCopilot.current !== null) {
+        setCollapsed(prevCollapsedBeforeCopilot.current)
+        prevCollapsedBeforeCopilot.current = null
+      }
+    }
+    // 只依赖 copilotOpen 的变更；collapsed 在 open 时被强制改写，不追踪进依赖避免循环
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [copilotOpen])
 
   const cycleTheme = () => {
     if (theme === "light") setTheme("dark")
@@ -80,7 +100,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`sticky top-0 h-screen shrink-0 border-r border-border/60 bg-muted/20 flex flex-col transition-[width] duration-200 ${collapsed ? "w-12" : "w-52"}`}
+      className={`sticky top-0 h-screen shrink-0 border-r border-border/60 bg-muted/20 flex flex-col ${collapsed ? "w-12" : "w-52"}`}
     >
       <div className={`flex items-center ${collapsed ? "justify-center py-4" : "justify-between px-3 py-5"}`}>
         {!collapsed && (

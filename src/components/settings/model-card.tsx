@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useT } from "@/lib/i18n/provider"
 import type { ModelConfig, ApiFormat, ModelPricing } from "@/lib/llm-config"
 import { buildApiRequest } from "@/lib/llm-client"
@@ -211,6 +212,20 @@ export function ModelCard({ entry, isDefault, onChange, onSetDefault, onDelete }
               {t("settings.llm.model_incomplete_hint")}
             </span>
           )}
+        </div>
+
+        <div className="flex items-center gap-2 py-1">
+          <Checkbox
+            id={`copilot-enabled-${entry.id}`}
+            checked={!!entry.copilot_enabled}
+            onCheckedChange={v => set("copilot_enabled", !!v)}
+          />
+          <Label htmlFor={`copilot-enabled-${entry.id}`} className="text-[13px] font-normal cursor-pointer">
+            {t("settings.llm.copilot_enabled_label")}
+          </Label>
+          <span className="text-[11px] text-muted-foreground ml-1">
+            {t("settings.llm.copilot_enabled_hint")}
+          </span>
         </div>
 
         <Separator />

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { useT } from "@/lib/i18n/provider"
+import { GlassSurface } from "@/components/copilot/shell"
 
 /** 统一的底部操作条：保存 / 取消 / 右侧 dirty 提示 */
 export function StickySaveBar({
@@ -21,7 +22,7 @@ export function StickySaveBar({
 }) {
   const t = useT()
   return (
-    <div className="flex items-center gap-3 sticky bottom-0 bg-background pt-2 pb-4 -mx-6 px-6 border-t">
+    <GlassSurface className="flex items-center gap-3 sticky bottom-0 bg-background pt-2 pb-4 -mx-6 px-6 border-t">
       {onCancel && (
         <Button variant="outline" onClick={onCancel} disabled={submitting}>{t("common.cancel")}</Button>
       )}
@@ -31,6 +32,6 @@ export function StickySaveBar({
       {dirty && !submitting && (
         <span className="text-[11px] text-amber-600 dark:text-amber-400">{t("common.unsaved")}</span>
       )}
-    </div>
+    </GlassSurface>
   )
 }

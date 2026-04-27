@@ -111,7 +111,20 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
                     {labelFor(secondaryDim, sv)}
                   </Badge>
                 </div>
-                <Card className={`flex-1 p-2 ${r && r.status !== "success" ? "border-red-200 bg-red-50" : ""}`}>
+                <Card
+                  className={`flex-1 p-2 ${r && r.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
+                  {...(r
+                    ? {
+                        "data-copilot-context": "task_result",
+                        "data-copilot-context-id": r.task_id,
+                        "data-copilot-context-extra": JSON.stringify({ experiment_id: r.experiment_id }),
+                        "data-copilot-context-summary":
+                          r.status === "success"
+                            ? `${labelFor(secondaryDim, sv)} 结果`
+                            : `[${r.status}] ${(r.error ?? "").slice(0, 40)}`,
+                      }
+                    : {})}
+                >
                   {r ? (
                     r.status === "success" ? (
                       <div className="space-y-1">
@@ -119,7 +132,14 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
                           const val = readField(r, `output.${f.name}`)
                           const type = inferFieldRenderType(f, val)
                           return (
-                            <div key={f.name} className="flex gap-2 text-sm items-baseline">
+                            <div
+                              key={f.name}
+                              className="flex gap-2 text-sm items-baseline"
+                              data-copilot-context="task_field"
+                              data-copilot-context-id={`${r.task_id}#${f.name}`}
+                              data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id, task_id: r.task_id, field: f.name })}
+                              data-copilot-context-summary={`${labelFor(secondaryDim, sv)} · ${f.name}`}
+                            >
                               {outputFields.length > 1 && (
                                 <span className="text-[11px] text-muted-foreground min-w-[50px]">{f.name}:</span>
                               )}
@@ -173,7 +193,17 @@ export function DualListCell({ result, schema }: CellViewProps) {
       {outputFields.map(f => {
         const val = (result.output as Record<string, unknown>)[f.name]
         const type = inferFieldRenderType(f, val)
-        return <div key={f.name}>{renderField(val, type)}</div>
+        return (
+          <div
+            key={f.name}
+            data-copilot-context="task_field"
+            data-copilot-context-id={`${result.task_id}#${f.name}`}
+            data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id, task_id: result.task_id, field: f.name })}
+            data-copilot-context-summary={`${f.name} · ${String(val ?? "").slice(0, 24)}`}
+          >
+            {renderField(val, type)}
+          </div>
+        )
       })}
     </div>
   )

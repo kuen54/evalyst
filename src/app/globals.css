@@ -127,4 +127,235 @@
   html {
     @apply font-sans;
   }
+
+  /* Copilot 等待回复时的三点弹跳 */
+  .thinking-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background-color: color-mix(in oklab, currentColor 40%, transparent);
+    animation: thinking-dot-bounce 1.2s ease-in-out infinite;
+  }
+
+  @keyframes thinking-dot-bounce {
+    0%, 60%, 100% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+    30% {
+      transform: translateY(-4px);
+      opacity: 0.9;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .thinking-dot { animation: none; opacity: 0.6; }
+  }
+
+  /* ---- Copilot inspector：active 时 body 全局 cursor crosshair ---- */
+  body.copilot-inspector-active,
+  body.copilot-inspector-active * {
+    cursor: crosshair !important;
+  }
+  /* 但 copilot panel 自身里面保持正常 cursor（用户要能点退出/下拉） */
+  body.copilot-inspector-active [data-copilot-panel],
+  body.copilot-inspector-active [data-copilot-panel] * {
+    cursor: auto !important;
+  }
+
+  /* ---- Copilot glow：清新柔光 + 大幅流动 ---- */
+  /* 低饱和（chroma 0.09-0.12）+ 低 alpha（24-32%）出清爽感；
+     位移 ±70px + scale 1→1.25 + rotate 12° 让动感可见；idle 9/11s。 */
+  /* 性能：
+       - 静态 blur 半径（22/24px）；active 态只追加 saturate/brightness，不改 blur 防止 filter 缓冲重建
+       - isolation: isolate 形成独立 stacking context
+       - contain: layout style paint + 动画层 translateZ(0) + backface-visibility: hidden 显式 GPU 提升
+       - will-change 只写 transform */
+  .copilot-glow {
+    --glow-a: oklch(0.78 0.11 280);  /* 紫 */
+    --glow-b: oklch(0.82 0.10 230);  /* 蓝 */
+    --glow-c: oklch(0.85 0.09 330);  /* 粉 */
+    --glow-d: oklch(0.84 0.10 85);   /* 金黄 */
+    --glow-e: oklch(0.82 0.09 180);  /* 青 */
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    overflow: hidden;
+    contain: layout style paint;
+    isolation: isolate;
+  }
+  .dark .copilot-glow {
+    --glow-a: oklch(0.72 0.14 285);
+    --glow-b: oklch(0.76 0.13 225);
+    --glow-c: oklch(0.8 0.12 335);
+    --glow-d: oklch(0.78 0.13 85);
+    --glow-e: oklch(0.76 0.12 180);
+  }
+  .copilot-glow[data-enabled="true"] { opacity: 1; }
+
+  /* 底层：四角色斑，9s 大幅漂移 + 呼吸 scale */
+  .copilot-glow::before {
+    content: "";
+    position: absolute;
+    inset: -40px;
+    background:
+      radial-gradient(ellipse 55% 40% at 15% 12%, color-mix(in oklab, var(--glow-a) 32%, transparent) 0%, transparent 68%),
+      radial-gradient(ellipse 55% 40% at 88% 18%, color-mix(in oklab, var(--glow-b) 30%, transparent) 0%, transparent 68%),
+      radial-gradient(ellipse 50% 35% at 12% 85%, color-mix(in oklab, var(--glow-c) 28%, transparent) 0%, transparent 68%),
+      radial-gradient(ellipse 55% 40% at 90% 88%, color-mix(in oklab, var(--glow-d) 26%, transparent) 0%, transparent 68%);
+    filter: blur(22px);
+    animation: copilot-glow-drift 9s ease-in-out infinite alternate;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* 中层：长椭圆，11s 反向漂移 + 明显旋转 */
+  .copilot-glow-flow {
+    position: absolute;
+    inset: -60px;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 70% 25% at 30% 45%, color-mix(in oklab, var(--glow-e) 28%, transparent) 0%, transparent 62%),
+      radial-gradient(ellipse 60% 30% at 72% 58%, color-mix(in oklab, var(--glow-a) 26%, transparent) 0%, transparent 62%),
+      radial-gradient(ellipse 40% 55% at 50% 28%, color-mix(in oklab, var(--glow-c) 22%, transparent) 0%, transparent 65%);
+    filter: blur(24px);
+    animation: copilot-glow-flow 11s ease-in-out infinite alternate;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* active 状态：同 blur 半径 + 叠 saturate/brightness（color-matrix，缓冲复用）*/
+  .copilot-glow[data-state="active"]::before {
+    animation-duration: 3s;
+    filter: blur(22px) saturate(1.2) brightness(1.08);
+  }
+  .copilot-glow[data-state="active"] .copilot-glow-flow {
+    animation-duration: 4s;
+    filter: blur(24px) saturate(1.2) brightness(1.06);
+  }
+
+  /* 大幅漂移 —— 让人眼看得到运动 */
+  @keyframes copilot-glow-drift {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    25%  { transform: translate3d(70px, -48px, 0) scale(1.18); }
+    50%  { transform: translate3d(-58px, 36px, 0) scale(1.08); }
+    75%  { transform: translate3d(42px, 54px, 0) scale(1.22); }
+    100% { transform: translate3d(-54px, -28px, 0) scale(1.06); }
+  }
+
+  @keyframes copilot-glow-flow {
+    0%   { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+    25%  { transform: translate3d(-82px, 54px, 0) rotate(14deg) scale(1.16); }
+    50%  { transform: translate3d(68px, -46px, 0) rotate(-11deg) scale(1.08); }
+    75%  { transform: translate3d(-42px, -62px, 0) rotate(9deg) scale(1.2); }
+    100% { transform: translate3d(52px, 40px, 0) rotate(-7deg) scale(1.06); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .copilot-glow::before,
+    .copilot-glow-flow { animation: none; }
+  }
+
+  /* ---- 点击背景：小光点融入流动 ---- */
+  .copilot-glow-spawn {
+    position: absolute;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0.3) translateZ(0);
+    background: radial-gradient(circle, color-mix(in oklab, var(--spawn-color, oklch(0.82 0.10 230)) 55%, transparent) 0%, transparent 65%);
+    filter: blur(18px);
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    animation: copilot-glow-spawn 1800ms ease-out forwards;
+  }
+
+  @keyframes copilot-glow-spawn {
+    0%   { transform: translate(-50%, -50%) scale(0.3) translateZ(0); opacity: 0; }
+    18%  { transform: translate(-50%, -50%) scale(1) translateZ(0); opacity: 0.9; }
+    50%  { transform: translate(calc(-50% + 10px), calc(-50% - 8px)) scale(1.18) translateZ(0); opacity: 0.72; }
+    100% { transform: translate(calc(-50% + 20px), calc(-50% - 14px)) scale(1.35) translateZ(0); opacity: 0.55; }
+  }
+
+  @keyframes copilot-inspector-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px oklch(0.7 0.17 280 / 0.25); }
+    50%      { box-shadow: 0 0 0 6px oklch(0.7 0.17 280 / 0.12); }
+  }
+
+  /* mask 出场：命中 context 时框快速 pop —— 让"圈选了什么"立刻可见 */
+  @keyframes copilot-mask-enter {
+    0%   { opacity: 0; transform: scale(1.18); }
+    55%  { opacity: 1; transform: scale(0.97); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .copilot-mask-enter {
+    animation: copilot-mask-enter 0.38s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    transform-origin: center;
+  }
+
+  /* ---- 圈选命中：特殊双层动画（环扩散 + 内核闪烁） ---- */
+  .copilot-capture-burst {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    width: 0;
+    height: 0;
+    contain: layout style paint;
+  }
+  /* 外环：高速扩散淡出（border-only，低 fillrate）*/
+  .copilot-capture-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid color-mix(in oklab, var(--capture-color, oklch(0.78 0.11 280)) 80%, transparent);
+    transform: translate(-50%, -50%) scale(0) translateZ(0);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    animation: copilot-capture-ring 700ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+  }
+  @keyframes copilot-capture-ring {
+    0%   { transform: translate(-50%, -50%) scale(0.2) translateZ(0); opacity: 0.9; border-width: 3px; }
+    100% { transform: translate(-50%, -50%) scale(3.2) translateZ(0); opacity: 0; border-width: 1px; }
+  }
+  /* 内核：柔光飞向 panel 方向再淡出 */
+  .copilot-capture-core {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in oklab, var(--capture-color, oklch(0.78 0.11 280)) 75%, transparent) 0%, transparent 65%);
+    filter: blur(14px);
+    transform: translate(-50%, -50%) scale(0) translateZ(0);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    animation: copilot-capture-core 900ms ease-out forwards;
+  }
+  @keyframes copilot-capture-core {
+    0%   { transform: translate(-50%, -50%) scale(0.3) translateZ(0); opacity: 0; }
+    20%  { transform: translate(-50%, -50%) scale(1.1) translateZ(0); opacity: 0.95; }
+    100% {
+      transform: translate(calc(-50% + var(--fly-dx, 60px)), calc(-50% + var(--fly-dy, -60px))) scale(0.4) translateZ(0);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .copilot-glow-spawn,
+    .copilot-capture-burst,
+    .copilot-capture-ring,
+    .copilot-capture-core { animation: none; opacity: 0; }
+  }
 }
+

@@ -29,6 +29,7 @@ export interface ModelConfig {
   default_temperature?: number
   default_max_tokens?: number
   pricing?: ModelPricing         // 该模型的定价（单条）
+  copilot_enabled?: boolean      // 是否允许 Evalyst Copilot 使用该模型（默认 false）
 }
 
 export interface LlmConfig {

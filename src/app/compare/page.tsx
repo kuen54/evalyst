@@ -11,6 +11,7 @@ import { formatCost, formatCostMap, formatTokens } from "@/lib/format"
 import type { ExperimentConfig } from "@/lib/types"
 import type { GenericResultRecord, TaskSchema, Display } from "@/lib/schema/types"
 import { pickView } from "@/components/results/registry"
+import { CopilotShell, GlassSurface } from "@/components/copilot/shell"
 
 function formatLatency(ms: number | undefined): string {
   if (!ms) return "-"
@@ -55,6 +56,7 @@ export default function ComparePage() {
   const [displays, setDisplays] = useState<Display[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [schemaFilter, setSchemaFilter] = useState<string | undefined>(undefined)
+  const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [compareData, setCompareData] = useState<Record<string, {
     experiment_id: string
     experiment_name: string
@@ -104,61 +106,96 @@ export default function ComparePage() {
   }
 
   return (
-    <div className="px-8 py-6 h-screen flex flex-col">
-      <h2 className="text-lg font-semibold tracking-tight mb-6 shrink-0">{t("compare.title")}</h2>
+    <div className="px-6 py-4 h-full">
+      <CopilotShell className="p-6 h-full flex flex-col">
+        <h2 className="text-lg font-semibold tracking-tight mb-6 shrink-0">{t("compare.title")}</h2>
 
-      <div className="grid grid-cols-[280px_1fr] gap-6 min-h-0 flex-1">
-        <div className="overflow-auto space-y-5 pr-6 border-r">
-          <div>
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">{t("compare.select_prompt")}</h3>
-            <div className="space-y-3">
-              <Select value={schemaFilter} onValueChange={v => { setSchemaFilter(v ?? undefined); setSelectedIds([]) }}>
-                <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder={t("compare.all_schemas")} /></SelectTrigger>
-                <SelectContent>
-                  {schemas.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {schemaFilter && (
-                <button
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                  onClick={() => { setSchemaFilter(undefined); setSelectedIds([]) }}
-                >{t("compare.clear_filter")}</button>
-              )}
+        <div
+          className="grid gap-6 min-h-0 flex-1 transition-[grid-template-columns] duration-200"
+          style={{ gridTemplateColumns: leftCollapsed ? "28px 1fr" : "280px 1fr" }}
+        >
+        <div className="overflow-hidden border-r pr-0">
+          {leftCollapsed ? (
+            <button
+              onClick={() => setLeftCollapsed(false)}
+              title={t("compare.expand_panel")}
+              className="w-full h-full flex flex-col items-center justify-start gap-2 py-3 hover:bg-accent/50 transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 3l4 4-4 4" />
+              </svg>
+              <span
+                className="text-sm tracking-wider"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                {t("compare.select_prompt_short")}
+              </span>
+            </button>
+          ) : (
+            <div className="h-full overflow-auto pr-6 space-y-5">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("compare.select_prompt")}</h3>
+                  <button
+                    onClick={() => setLeftCollapsed(true)}
+                    title={t("compare.collapse_panel")}
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 3l-4 4 4 4" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <Select value={schemaFilter} onValueChange={v => { setSchemaFilter(v ?? undefined); setSelectedIds([]) }}>
+                    <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder={t("compare.all_schemas")} /></SelectTrigger>
+                    <SelectContent>
+                      {schemas.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {schemaFilter && (
+                    <button
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                      onClick={() => { setSchemaFilter(undefined); setSelectedIds([]) }}
+                    >{t("compare.clear_filter")}</button>
+                  )}
 
-              <Separator />
+                  <Separator />
 
-              <div className="space-y-2 max-h-80 overflow-auto">
-                {filteredExperiments.length === 0 && (
-                  <p className="text-xs text-muted-foreground">{t("compare.no_completed")}</p>
-                )}
-                {filteredExperiments.map(exp => {
-                  const expSchema = schemaById[exp.schema_id ?? ""]
-                  const firstSchema = selectedIds.length > 0 ? schemaById[experiments.find(e => e.id === selectedIds[0])?.schema_id ?? ""] : null
-                  const disabled = !!firstSchema && !selectedIds.includes(exp.id) && !sameCompareGroup(firstSchema, expSchema)
-                  return (
-                    <label key={exp.id} className={`flex items-start gap-2 text-sm p-2 rounded hover:bg-muted/50 cursor-pointer ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
-                      <Checkbox
-                        checked={selectedIds.includes(exp.id)}
-                        onCheckedChange={() => toggleExperiment(exp.id)}
-                        disabled={disabled}
-                        className="mt-0.5"
-                      />
-                      <div>
-                        <div className="font-medium">{exp.name}</div>
-                        <div className="flex gap-1 mt-0.5">
-                          {expSchema && <Badge variant="outline" className="text-xs">{expSchema.label}</Badge>}
-                          <Badge variant="secondary" className="text-xs">{exp.model}</Badge>
-                        </div>
-                        {exp.run_stats && (
-                          <span className="text-xs text-muted-foreground">{t("compare.results_count", { n: exp.run_stats.completed_tasks })}</span>
-                        )}
-                      </div>
-                    </label>
-                  )
-                })}
+                  <div className="space-y-2 max-h-80 overflow-auto">
+                    {filteredExperiments.length === 0 && (
+                      <p className="text-xs text-muted-foreground">{t("compare.no_completed")}</p>
+                    )}
+                    {filteredExperiments.map(exp => {
+                      const expSchema = schemaById[exp.schema_id ?? ""]
+                      const firstSchema = selectedIds.length > 0 ? schemaById[experiments.find(e => e.id === selectedIds[0])?.schema_id ?? ""] : null
+                      const disabled = !!firstSchema && !selectedIds.includes(exp.id) && !sameCompareGroup(firstSchema, expSchema)
+                      return (
+                        <label key={exp.id} className={`flex items-start gap-2 text-sm p-2 rounded hover:bg-muted/50 cursor-pointer ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
+                          <Checkbox
+                            checked={selectedIds.includes(exp.id)}
+                            onCheckedChange={() => toggleExperiment(exp.id)}
+                            disabled={disabled}
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <div className="font-medium">{exp.name}</div>
+                            <div className="flex gap-1 mt-0.5">
+                              {expSchema && <Badge variant="outline" className="text-xs">{expSchema.label}</Badge>}
+                              <Badge variant="secondary" className="text-xs">{exp.model}</Badge>
+                            </div>
+                            {exp.run_stats && (
+                              <span className="text-xs text-muted-foreground">{t("compare.results_count", { n: exp.run_stats.completed_tasks })}</span>
+                            )}
+                          </div>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="overflow-auto min-w-0 pr-6">
@@ -178,6 +215,7 @@ export default function ComparePage() {
           ) : null}
         </div>
       </div>
+      </CopilotShell>
     </div>
   )
 }
@@ -250,72 +288,86 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
     }
   })
 
-  const colTemplate = `220px repeat(${selectedIds.length}, minmax(220px, 1fr))`
+  // 输入列宽度按内容自适应，cap 在 220px（短行标签时列很窄；长行被截到 220 + ellipsis）。
+  // 实验列保持 minmax(220px, 1fr)，保证每列至少 220px 同时均分剩余空间。
+  // 外层一个大 grid，header + 每条 row 都用 subgrid 继承列宽 —— 否则各自 grid 的 fit-content
+  // 各算一次会错位。
+  const colTemplate = `fit-content(220px) repeat(${selectedIds.length}, minmax(220px, 1fr))`
 
   return (
-    <div>
-      <div className="sticky top-0 z-10 bg-background pb-3 border-b border-border mb-3">
-        <div className="grid gap-3" style={{ gridTemplateColumns: colTemplate }}>
-          <div className="text-sm font-medium text-muted-foreground self-end">{t("compare.input_col")}</div>
-          {expHeaders.map(h => (
-            <div key={h.id} className="text-sm font-medium min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate">{h.name}</span>
-                <PromptInfoIcon prompt={h.prompt} t={t} />
-              </div>
-              <div className="text-xs text-muted-foreground font-normal truncate">
-                {h.model}
-                {((h.total_cost_by_currency && Object.keys(h.total_cost_by_currency).length > 0) || h.total_input_tokens != null) && (
-                  <>
-                    {" · "}
-                    {h.total_input_tokens != null && <>{formatTokens(h.total_input_tokens)}/{formatTokens(h.total_output_tokens)} tok</>}
-                    {h.total_cost_by_currency && Object.keys(h.total_cost_by_currency).length > 0 && (
-                      <span className="font-medium text-foreground ml-1.5">{formatCostMap(h.total_cost_by_currency)}</span>
-                    )}
-                  </>
-                )}
-              </div>
+    <div className="grid gap-y-3" style={{ gridTemplateColumns: colTemplate }}>
+      <GlassSurface
+        className="col-span-full grid gap-3 sticky top-0 z-10 bg-background pb-3 border-b border-border"
+        style={{ gridTemplateColumns: "subgrid" }}
+      >
+        <div className="text-sm font-medium text-muted-foreground self-end">{t("compare.input_col")}</div>
+        {expHeaders.map(h => (
+          <div key={h.id} className="text-sm font-medium min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate">{h.name}</span>
+              <PromptInfoIcon prompt={h.prompt} t={t} />
             </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {rows.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">{t("compare.no_match")}</div>
-        )}
-
-        {rows.map((row, i) => (
-          <div key={i} className="grid gap-3 items-start" style={{ gridTemplateColumns: colTemplate }}>
-            <div className="text-sm pt-2">
-              <div className="font-medium text-xs leading-relaxed">{row.label}</div>
-            </div>
-
-            {selectedIds.map(expId => {
-              const result = row.cells[expId]
-              if (!result) return <div key={expId} className="text-xs text-muted-foreground p-2">-</div>
-              return (
-                <Card key={expId} className={`p-3 ${result.status !== "success" ? "border-red-200 bg-red-50" : ""}`}>
-                  {result.status === "success" ? (
-                    <CellComp result={result} schema={schema} />
-                  ) : (
-                    <p className="text-xs text-red-500">{result.status}: {result.error?.slice(0, 80)}</p>
+            <div className="text-xs text-muted-foreground font-normal truncate">
+              {h.model}
+              {((h.total_cost_by_currency && Object.keys(h.total_cost_by_currency).length > 0) || h.total_input_tokens != null) && (
+                <>
+                  {" · "}
+                  {h.total_input_tokens != null && <>{formatTokens(h.total_input_tokens)}/{formatTokens(h.total_output_tokens)} tok</>}
+                  {h.total_cost_by_currency && Object.keys(h.total_cost_by_currency).length > 0 && (
+                    <span className="font-medium text-foreground ml-1.5">{formatCostMap(h.total_cost_by_currency)}</span>
                   )}
-                  <div className="text-xs text-muted-foreground mt-1 flex gap-1.5">
-                    <span>{formatLatency(result.latency_ms)}</span>
-                    {result.input_tokens != null && (
-                      <span>· {formatTokens(result.input_tokens)}/{formatTokens(result.output_tokens)} tok</span>
-                    )}
-                    {result.cost_value != null && (
-                      <span className="font-medium text-foreground">· {formatCost(result.cost_value, result.cost_currency)}</span>
-                    )}
-                  </div>
-                </Card>
-              )
-            })}
+                </>
+              )}
+            </div>
           </div>
         ))}
-      </div>
+      </GlassSurface>
+
+      {rows.length === 0 && (
+        <div className="col-span-full text-center text-muted-foreground py-8">{t("compare.no_match")}</div>
+      )}
+
+      {rows.map((row, i) => (
+        <div
+          key={i}
+          className="col-span-full grid gap-3 items-start"
+          style={{ gridTemplateColumns: "subgrid" }}
+        >
+          <div className="text-sm pt-2 min-w-0">
+            <div className="font-medium text-xs leading-relaxed break-words">{row.label}</div>
+          </div>
+
+          {selectedIds.map(expId => {
+            const result = row.cells[expId]
+            if (!result) return <div key={expId} className="text-xs text-muted-foreground p-2">-</div>
+            return (
+              <Card
+                key={expId}
+                className={`p-3 ${result.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
+                data-copilot-context="task_result"
+                data-copilot-context-id={result.task_id}
+                data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id })}
+                data-copilot-context-summary={row.label}
+              >
+                {result.status === "success" ? (
+                  <CellComp result={result} schema={schema} />
+                ) : (
+                  <p className="text-xs text-red-500">{result.status}: {result.error?.slice(0, 80)}</p>
+                )}
+                <div className="text-xs text-muted-foreground mt-1 flex gap-1.5">
+                  <span>{formatLatency(result.latency_ms)}</span>
+                  {result.input_tokens != null && (
+                    <span>· {formatTokens(result.input_tokens)}/{formatTokens(result.output_tokens)} tok</span>
+                  )}
+                  {result.cost_value != null && (
+                    <span className="font-medium text-foreground">· {formatCost(result.cost_value, result.cost_currency)}</span>
+                  )}
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }
