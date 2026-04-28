@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useT } from "@/lib/i18n/provider"
 import type { CopilotMessage } from "@/lib/copilot/types"
-import { tools } from "@/lib/copilot/tools"
-import { findTool } from "@/lib/copilot/tool-registry"
+import { findToolMetadata } from "@/lib/copilot/tool-metadata"
 
 interface Props {
   toolUse: CopilotMessage
@@ -36,7 +35,7 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
 
   const toolName = toolUse.tool_name ?? ""
   const toolInput = toolUse.tool_input ?? {}
-  const tool = findTool(tools, toolName)
+  const tool = findToolMetadata(toolName)
   const requiresConfirm = tool?.requiresConfirm ?? false
 
   // === State 3: has result (success or denied) ===

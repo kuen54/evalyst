@@ -6,8 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { useT } from "@/lib/i18n/provider"
 import type { CopilotMessage, CopilotContextRef } from "@/lib/copilot/types"
-import { tools } from "@/lib/copilot/tools"
-import { findTool } from "@/lib/copilot/tool-registry"
+import { findToolMetadata } from "@/lib/copilot/tool-metadata"
 import { ModelPicker } from "./model-picker"
 import { useCopilotStore } from "./store"
 import { colorForTag } from "./context-mask"
@@ -227,7 +226,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         })
         streamToolUseOrderRef.current.push(ev.call_id)
         // Auto-run read 工具：requiresConfirm=false 的立即触发 /tool-result
-        const tool = findTool(tools, ev.tool_name)
+        const tool = findToolMetadata(ev.tool_name)
         if (tool && !tool.requiresConfirm) {
           // 小小 async：让当前 state update commit 完再发第二段，UX 更稳
           setTimeout(() => {
