@@ -407,6 +407,9 @@
 }
 
 /* ---------------- PR-4: Ambient Border Glow (Apple Intelligence 风) ---------------- */
+/* screen edges glow —— 紧贴 <main> 外缘的一圈 rim，不是外扩大 bloom。
+   技术：conic-gradient 填满 + padding 控 rim 厚度 + mask-composite:exclude 切 ring + 轻 blur feather 向内。
+   不包裹 <main>、不改 <main> layout；作为 <main> 内 overlay (sibling of GlowOverlay)。 */
 
 @property --glow-angle {
   syntax: "<angle>";
@@ -414,65 +417,61 @@
   initial-value: 0deg;
 }
 
-.copilot-glow-frame {
-  position: relative;
-  isolation: isolate;
-  --glow-speed: 6s;
-  --glow-blur: 28px;
-  --glow-opacity: 0;
-  --glow-saturate: 1.3;
-  --glow-spread: 24px;
-  border-radius: var(--radius-xl);
-}
-
-.copilot-glow-frame::before {
-  content: "";
+.copilot-border-glow {
   position: absolute;
-  inset: calc(-1 * var(--glow-spread));
-  border-radius: inherit;
+  inset: 0;
+  border-radius: var(--radius-xl);
+  pointer-events: none;
+  z-index: 2;
+
+  --rim-width: 5px;
+  --rim-feather: 16px;
+  --glow-speed: 8s;
+  --glow-saturate: 1.4;
+
+  padding: var(--rim-width);
   background: conic-gradient(
     from var(--glow-angle),
     #ff3ea5, #8a5bff, #3f8dff, #31e0c8, #ffb547, #ff3ea5
   );
-  filter: blur(var(--glow-blur)) saturate(var(--glow-saturate));
-  opacity: var(--glow-opacity);
-  transition:
-    opacity 400ms ease,
-    filter 400ms ease;
-  animation: copilot-glow-spin var(--glow-speed) linear infinite;
-  pointer-events: none;
-  z-index: 1;
+
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+
+  filter: blur(var(--rim-feather)) saturate(var(--glow-saturate));
+
+  animation: copilot-border-glow-spin var(--glow-speed) linear infinite;
+  transition: filter 400ms ease;
 }
 
-.copilot-glow-frame > * { position: relative; z-index: 2; }
+@keyframes copilot-border-glow-spin { to { --glow-angle: 360deg; } }
 
-@keyframes copilot-glow-spin { to { --glow-angle: 360deg; } }
-
-.copilot-glow-frame[data-glow="off"]     { --glow-opacity: 0; }
-.copilot-glow-frame[data-glow="idle"]    { --glow-opacity: .55; --glow-speed: 6s;   --glow-saturate: 1.3; }
-.copilot-glow-frame[data-glow="typing"]  { --glow-opacity: .75; --glow-speed: 3.5s; --glow-saturate: 1.5; }
-.copilot-glow-frame[data-glow="working"] {
-  --glow-opacity: .95;
-  --glow-speed: 1.8s;
-  --glow-saturate: 1.7;
-  --glow-blur: 22px;
-  will-change: filter, opacity;
+.copilot-border-glow[data-glow="idle"] {
+  --rim-width: 4px;  --rim-feather: 14px; --glow-speed: 8s;   --glow-saturate: 1.35;
+}
+.copilot-border-glow[data-glow="typing"] {
+  --rim-width: 6px;  --rim-feather: 16px; --glow-speed: 4s;   --glow-saturate: 1.55;
+}
+.copilot-border-glow[data-glow="working"] {
+  --rim-width: 8px;  --rim-feather: 20px; --glow-speed: 2s;   --glow-saturate: 1.75;
+  will-change: filter;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .copilot-glow-frame::before { animation: none; }
-  .copilot-glow-frame[data-glow="working"]::before {
-    animation: copilot-glow-pulse 2s ease-in-out infinite;
+  .copilot-border-glow { animation: none; }
+  .copilot-border-glow[data-glow="working"] {
+    animation: copilot-border-glow-pulse 2s ease-in-out infinite;
   }
-  @keyframes copilot-glow-pulse {
-    50% { opacity: calc(var(--glow-opacity) * 0.65); }
+  @keyframes copilot-border-glow-pulse {
+    50% { filter: blur(var(--rim-feather)) saturate(calc(var(--glow-saturate) * 0.7)); }
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .copilot-glow-frame::before {
-    filter: saturate(1.1);
-    opacity: calc(var(--glow-opacity) * 0.5);
+  .copilot-border-glow {
+    filter: blur(6px) saturate(1.0);
   }
 }
 

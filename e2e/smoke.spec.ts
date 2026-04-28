@@ -47,24 +47,19 @@ test("skills download endpoint returns SKILL.md", async ({ request }) => {
   expect(body).toMatch(/evalyst-dataset/)
 })
 
-test("copilot glow frame is present with off state by default", async ({ page }) => {
-  // PR-4: CopilotGlowFrame wraps main content. When copilot panel is closed
-  // (default on first load), data-glow should be "off" and no border animates.
+test("copilot border glow is absent before open", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" })
-  const frame = page.locator(".copilot-glow-frame").first()
-  await expect(frame).toHaveAttribute("data-glow", "off")
+  await expect(page.locator(".copilot-border-glow")).toHaveCount(0)
 })
 
-test("copilot glow frame transitions off→idle when panel opens", async ({ page }) => {
-  // PR-4: opening copilot panel via ⌘K should flip the frame to a non-off state.
+test("copilot border glow appears when panel opens", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" })
-  const frame = page.locator(".copilot-glow-frame").first()
-  await expect(frame).toHaveAttribute("data-glow", "off")
-  // ⌘K on Mac, Ctrl+K elsewhere
+  await expect(page.locator(".copilot-border-glow")).toHaveCount(0)
   const modifier = process.platform === "darwin" ? "Meta" : "Control"
   await page.keyboard.press(`${modifier}+k`)
-  // data-glow should change to idle (or typing / working if anything happens)
-  await expect.poll(async () => await frame.getAttribute("data-glow"), {
+  const glow = page.locator(".copilot-border-glow").first()
+  await expect(glow).toBeVisible({ timeout: 3000 })
+  await expect.poll(async () => await glow.getAttribute("data-glow"), {
     timeout: 3000,
   }).not.toBe("off")
 })
