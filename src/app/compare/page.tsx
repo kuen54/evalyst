@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -11,7 +10,7 @@ import { formatCost, formatCostMap, formatTokens } from "@/lib/format"
 import type { ExperimentConfig } from "@/lib/types"
 import type { GenericResultRecord, TaskSchema, Display } from "@/lib/schema/types"
 import { pickView } from "@/components/results/registry"
-import { CopilotShell, GlassSurface } from "@/components/copilot/shell"
+import { GlassRegular, GlassThin } from "@/components/copilot/shell"
 
 function formatLatency(ms: number | undefined): string {
   if (!ms) return "-"
@@ -107,7 +106,7 @@ export default function ComparePage() {
 
   return (
     <div className="px-6 py-4 h-full">
-      <CopilotShell className="p-6 h-full flex flex-col">
+      <GlassRegular className="p-6 h-full flex flex-col">
         <h2 className="text-lg font-semibold tracking-tight mb-6 shrink-0">{t("compare.title")}</h2>
 
         <div
@@ -215,7 +214,7 @@ export default function ComparePage() {
           ) : null}
         </div>
       </div>
-      </CopilotShell>
+      </GlassRegular>
     </div>
   )
 }
@@ -296,8 +295,8 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
 
   return (
     <div className="grid gap-y-3" style={{ gridTemplateColumns: colTemplate }}>
-      <GlassSurface
-        className="col-span-full grid gap-3 sticky top-0 z-10 bg-background pb-3 border-b border-border"
+      <GlassThin
+        className="col-span-full grid gap-3 sticky top-0 z-10 pb-3 border-b border-border copilot-scroll-edge-bottom"
         style={{ gridTemplateColumns: "subgrid" }}
       >
         <div className="text-sm font-medium text-muted-foreground self-end">{t("compare.input_col")}</div>
@@ -321,7 +320,7 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
             </div>
           </div>
         ))}
-      </GlassSurface>
+      </GlassThin>
 
       {rows.length === 0 && (
         <div className="col-span-full text-center text-muted-foreground py-8">{t("compare.no_match")}</div>
@@ -341,9 +340,9 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
             const result = row.cells[expId]
             if (!result) return <div key={expId} className="text-xs text-muted-foreground p-2">-</div>
             return (
-              <Card
+              <GlassThin
                 key={expId}
-                className={`p-3 ${result.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
+                className={`p-3 rounded-lg border ${result.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
                 data-copilot-context="task_result"
                 data-copilot-context-id={result.task_id}
                 data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id })}
@@ -363,7 +362,7 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
                     <span className="font-medium text-foreground">· {formatCost(result.cost_value, result.cost_currency)}</span>
                   )}
                 </div>
-              </Card>
+              </GlassThin>
             )
           })}
         </div>
