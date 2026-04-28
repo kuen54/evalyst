@@ -123,9 +123,10 @@ describe('serializeMessagesForProvider — OpenAI', () => {
     ])
   })
 
-  it('echoes Gemini thought_signature on tool_calls[].function when present', () => {
+  it('echoes Gemini thought_signature in tool_calls[].extra_content.google slot when present', () => {
     // Gemini 2.5 / 3.x thinking 模式下，tool_use 必须带 thought_signature 回显；
     // 缺失会让 Vertex 400 "function call ... missing a thought_signature"。
+    // Sankuai/Vertex OpenAI-compat 把签名放在 tool_call.extra_content.google 槽，不在 function 里。
     const msgs: LlmMessage[] = [
       {
         role: 'tool_use',
@@ -147,15 +148,15 @@ describe('serializeMessagesForProvider — OpenAI', () => {
             function: {
               name: 'list_experiments',
               arguments: JSON.stringify({ status: 'completed' }),
-              thought_signature: 'sig_abc',
             },
+            extra_content: { google: { thought_signature: 'sig_abc' } },
           },
         ],
       },
     ])
   })
 
-  it('omits thought_signature field when absent (non-Gemini providers unchanged)', () => {
+  it('omits extra_content field when signature absent (non-Gemini providers unchanged)', () => {
     const msgs: LlmMessage[] = [
       {
         role: 'tool_use',
@@ -165,8 +166,8 @@ describe('serializeMessagesForProvider — OpenAI', () => {
       },
     ]
     const out = serializeMessagesForProvider(msgs, 'openai')
-    const composite = out[0] as { tool_calls: Array<{ function: Record<string, unknown> }> }
-    expect(composite.tool_calls[0].function).not.toHaveProperty('thought_signature')
+    const composite = out[0] as { tool_calls: Array<Record<string, unknown>> }
+    expect(composite.tool_calls[0]).not.toHaveProperty('extra_content')
   })
 })
 

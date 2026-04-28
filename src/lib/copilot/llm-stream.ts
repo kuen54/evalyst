@@ -193,8 +193,9 @@ function parseOpenaiEvent(
       }
       // Gemini thinking 模式：thought_signature 可能在 tool_call 的 function 里或顶层，
       // 也可能只在最后一个 chunk（带 finish_reason）里给。每个 chunk 都检测一次，
-      // last write wins。四种位置全部兜底（snake_case + camelCase × function 嵌套 / 顶层）。
+      // last write wins。Sankuai/Vertex OpenAI-compat 把它塞在 extra_content.google 下。
       const sig =
+        tc.extra_content?.google?.thought_signature ??
         tc.function?.thought_signature ??
         tc.function?.thoughtSignature ??
         tc.thought_signature ??
@@ -272,6 +273,8 @@ interface OpenaiChunk {
         }
         thought_signature?: string
         thoughtSignature?: string
+        // Sankuai/Vertex OpenAI-compat 走 Google provider 扩展槽
+        extra_content?: { google?: { thought_signature?: string } }
       }>
     }
     finish_reason?: string | null
@@ -492,9 +495,13 @@ function emitCompositeAssistant(
       function: {
         name: tu.tool_name,
         arguments: JSON.stringify(tu.tool_input),
-        // Gemini thinking 模式：回显 thought_signature；没有则 omit。
-        ...(tu.thought_signature ? { thought_signature: tu.thought_signature } : {}),
       },
+      // Gemini thinking 模式：Sankuai/Vertex OpenAI-compat 的 signature 槽在
+      // tool_call.extra_content.google.thought_signature；原样回传，否则 Gemini
+      // 会在下一轮拒绝请求（"missing a thought_signature"）。
+      ...(tu.thought_signature
+        ? { extra_content: { google: { thought_signature: tu.thought_signature } } }
+        : {}),
     })),
   }
 }
