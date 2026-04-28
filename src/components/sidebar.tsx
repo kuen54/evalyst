@@ -139,13 +139,13 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-auto pb-4 px-3 space-y-0.5">
+      <div className={`mt-auto pb-4 space-y-0.5 ${collapsed ? "px-1.5" : "px-3"}`}>
         {mounted && (
           <button
             onClick={cycleTheme}
             title={collapsed ? themeLabel : undefined}
             className={`flex items-center gap-2 rounded-md text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors ${
-              collapsed ? "justify-center px-2 py-2 mx-auto" : "px-2.5 py-1.5 w-full"
+              collapsed ? "justify-center px-2 py-2 w-full" : "px-2.5 py-1.5 w-full"
             }`}
           >
             {themeIcon}
