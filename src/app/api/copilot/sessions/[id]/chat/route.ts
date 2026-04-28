@@ -7,10 +7,9 @@ import {
   updateSession,
 } from '@/lib/copilot/session-store'
 import { callLlmStreaming } from '@/lib/copilot/llm-stream'
-import type { CopilotMessage, CopilotContextRef, StreamEvent } from '@/lib/copilot/types'
+import type { CopilotContextRef, StreamEvent } from '@/lib/copilot/types'
 import { getLlmConfig } from '@/lib/llm-config'
-import type { LlmMessage } from '@/lib/llm-client'
-import { resolveContexts, formatContextsForLlm } from '@/lib/copilot/resolve-context'
+import { buildLlmMessages } from '@/lib/copilot/build-llm-messages'
 
 /**
  * POST body：
@@ -143,36 +142,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       'X-Accel-Buffering': 'no',
     },
   })
-}
-
-// 固定的系统 prompt；contexts 通过 buildLlmMessages 拼在第二条 system 里
-const SYSTEM_PROMPT = `You are Evalyst Copilot, a helpful assistant embedded in the Evalyst LLM evaluation platform.
-You help users analyze experiment results, debug prompts, and iterate on evaluations.
-Respond in the user's language — if they write in Chinese, reply in Chinese; if English, reply in English.
-Be concise and specific; prefer code or concrete examples over abstract advice.
-When the user has shared context (圈选的对象，以 <context tag="N" ...> 标注), refer to them by their tag number in your answer (例如 "根据你圈的 #1 这个实验..."). Never fabricate data that wasn't shared.`
-
-function buildLlmMessages(branch: CopilotMessage[]): LlmMessage[] {
-  const out: LlmMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }]
-
-  // 把每条 user 消息自身挂的 contexts 都拼一个 block 放在 system 层（位置信息 → 便于 LLM 引用 tag）。
-  // 只处理当前分支最后一条 user 消息的 contexts（历史消息可能有但已经是旧状态）。
-  const lastUser = [...branch].reverse().find(m => m.role === 'user')
-  if (lastUser?.contexts && lastUser.contexts.length > 0) {
-    const resolved = resolveContexts(lastUser.contexts as CopilotContextRef[])
-    const ctxText = formatContextsForLlm(resolved)
-    if (ctxText) {
-      out.push({ role: 'system', content: ctxText })
-    }
-  }
-
-  for (const m of branch) {
-    if (m.role === 'user') {
-      out.push({ role: 'user', content: m.content })
-    } else if (m.role === 'assistant') {
-      out.push({ role: 'assistant', content: m.content })
-    }
-    // tool_use / tool_result 在 PR-3 再处理
-  }
-  return out
 }
