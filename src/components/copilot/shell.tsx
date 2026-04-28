@@ -116,8 +116,3 @@ export const GlassThin = makeGlass("thin", "")
 export const GlassRegular = makeGlass("regular", "rounded-xl border bg-card")
 export const GlassThick = makeGlass("thick", "rounded-xl border bg-card")
 export const GlassTinted = makeGlass("tinted", "rounded-xl border bg-card")
-
-// Backward-compat aliases (removed in Task 12 after all call sites migrate)
-export const CopilotShell = GlassRegular
-export const GlassSurface = GlassThin
-
