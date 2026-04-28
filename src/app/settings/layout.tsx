@@ -3,13 +3,13 @@
 import { useT } from "@/lib/i18n/provider"
 import { RelationDiagram } from "@/components/settings/relation-diagram"
 import { AgentHintBanner } from "@/components/settings/agent-hint-banner"
-import { CopilotShell } from "@/components/copilot/shell"
+import { GlassRegular } from "@/components/copilot/shell"
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const t = useT()
   return (
     <div className="px-6 py-4">
-      <CopilotShell className="p-6">
+      <GlassRegular className="p-6">
         <h2 className="text-lg font-semibold tracking-tight mb-2">{t("settings.title")}</h2>
         <p className="text-sm text-muted-foreground mb-3">
           {t("settings.intro")}
@@ -27,7 +27,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         <div className="border-b border-border mb-6" />
 
         <div>{children}</div>
-      </CopilotShell>
+      </GlassRegular>
     </div>
   )
 }

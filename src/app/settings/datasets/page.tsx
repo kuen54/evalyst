@@ -4,10 +4,11 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
+import { GlassRegular } from "@/components/copilot/shell"
 import type { DatasetDef } from "@/lib/schema/types"
 
 export default function SettingsDatasetsPage() {
@@ -56,7 +57,7 @@ export default function SettingsDatasetsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {datasets.map(ds => (
           <Link key={ds.id} href={`/settings/datasets/${ds.id}`} className="block">
-            <Card className="transition-colors hover:border-foreground/30 hover:bg-muted/20 h-full">
+            <GlassRegular className="transition-colors hover:border-foreground/30 hover:bg-muted/20 h-full flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-medium leading-snug">{ds.name}</CardTitle>
                 <div className="font-mono text-[11px] text-muted-foreground mt-0.5">{ds.id}</div>
@@ -86,7 +87,7 @@ export default function SettingsDatasetsPage() {
                   >{t("common.delete")}</button>
                 </div>
               </CardContent>
-            </Card>
+            </GlassRegular>
           </Link>
         ))}
       </div>

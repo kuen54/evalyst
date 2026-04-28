@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useT } from "@/lib/i18n/provider"
+import { useGlassStyle } from "@/components/copilot/shell"
+import { useCopilotStore } from "@/components/copilot/store"
 
 export type SettingsTabKey = "llm" | "datasets" | "templates" | "displays" | "rubrics"
 
@@ -36,19 +38,25 @@ export function RelationDiagram() {
   const t = useT()
   const pathname = usePathname()
   const active = resolveActive(pathname)
+  const { open: copilotOpen } = useCopilotStore()
+  const tintedStyle = useGlassStyle("tinted")
 
   return (
     <div className="py-2">
       <div className="flex items-stretch gap-2">
-        {ITEMS.map((it, i) => (
+        {ITEMS.map((it, i) => {
+          const isActive = active === it.key
+          return (
           <div key={it.key} className="contents">
             <Link
               href={it.href}
               className={`flex-1 basis-0 min-w-0 p-4 rounded-md border text-center transition-colors cursor-pointer ${
-                active === it.key
+                isActive
                   ? "bg-accent/70 border-foreground shadow-sm"
                   : "border-border bg-muted/20 hover:bg-muted/40 hover:border-border"
               }`}
+              style={isActive && copilotOpen ? tintedStyle : undefined}
+              data-glass-variant={isActive && copilotOpen ? "tinted" : undefined}
             >
               <div className="text-sm font-medium whitespace-nowrap">{it.emoji} {t(it.labelKey)}</div>
               <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{t(it.hintKey)}</div>
@@ -59,7 +67,8 @@ export function RelationDiagram() {
               </div>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
       <div className="text-[10px] text-muted-foreground text-center mt-1">
         {t("relation.arrow_experiment")}
