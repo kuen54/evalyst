@@ -7,7 +7,9 @@ import {
   updateSession,
 } from '@/lib/copilot/session-store'
 import { callLlmStreaming } from '@/lib/copilot/llm-stream'
-import type { CopilotContextRef, StreamEvent } from '@/lib/copilot/types'
+import { tools } from '@/lib/copilot/tools'
+import { toOpenaiTools, toAnthropicTools } from '@/lib/copilot/tool-adapters'
+import type { CopilotContextRef, CopilotMessage, StreamEvent } from '@/lib/copilot/types'
 import { getLlmConfig } from '@/lib/llm-config'
 import { buildLlmMessages } from '@/lib/copilot/build-llm-messages'
 
@@ -16,10 +18,16 @@ import { buildLlmMessages } from '@/lib/copilot/build-llm-messages'
  *   { user_message: string, parent_id?: string, model_id?: string, contexts?: CopilotContextRef[] }
  *
  * 返回 text/event-stream，事件类型（每条一行 `data: <json>\n\n`）：
- *   { kind: 'user_message', id }           — 服务端为用户消息分配的 id
- *   { kind: 'text', delta }                — LLM 文本增量
- *   { kind: 'done', assistant_message_id, usage?, stop_reason? }
+ *   { kind: 'user_message', id }                        — 服务端为用户消息分配的 id
+ *   { kind: 'text', delta }                             — LLM 文本增量
+ *   { kind: 'tool_use_start' | 'tool_use_delta' | 'tool_use_end', ... }
+ *                                                       — 转发 LLM 工具调用事件（PR-3）
+ *   { kind: 'done', assistant_message_id?, tool_use_message_ids?, usage?, stop_reason? }
  *   { kind: 'error', message }
+ *
+ * 工具调用流程与 /tool-result route 对齐：本 route 负责首轮。若 LLM 在首轮就发起
+ * 工具调用，text 与 tool_use 都会落盘（text 作 assistant 消息，每条 tool_use 作一条
+ * tool_use 消息，parent_id 链式串起来），前端收到 tool_use_end 后会调 /tool-result。
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = await params
@@ -71,11 +79,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const branch = getActiveBranch(sessionId, userMsg.id)
   const llmMessages = buildLlmMessages(branch)
 
+  // Provider-adapted tools
+  const toolsFormatted =
+    model.api_format === 'openai' ? toOpenaiTools(tools) : toAnthropicTools(tools)
+
   // 组装流式响应
   const encoder = new TextEncoder()
   let assistantText = ''
   let assistantUsage: { input_tokens: number; output_tokens: number } | undefined
   let stopReason: string | undefined
+  const pendingToolUses: Array<{ call_id: string; tool_name: string; input: Record<string, unknown> }> = []
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -96,12 +109,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             model: model.model,
             temperature: model.default_temperature ?? 1,
             max_tokens: model.default_max_tokens ?? 4096,
+            tools: toolsFormatted,
             signal: req.signal,
           },
           (ev: StreamEvent) => {
             if (ev.type === 'text') {
               assistantText += ev.delta
               write({ kind: 'text', delta: ev.delta })
+            } else if (ev.type === 'tool_use_start') {
+              write({ kind: 'tool_use_start', call_id: ev.call_id, tool_name: ev.tool_name })
+            } else if (ev.type === 'tool_use_delta') {
+              write({ kind: 'tool_use_delta', call_id: ev.call_id, input_json_delta: ev.input_json_delta })
+            } else if (ev.type === 'tool_use_end') {
+              // 不 mid-stream append（避免 jsonl 写句柄竞争）；先 buffer，关流时统一落盘
+              pendingToolUses.push({ call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
+              write({ kind: 'tool_use_end', call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
             } else if (ev.type === 'done') {
               assistantUsage = ev.usage
               stopReason = ev.stop_reason
@@ -111,18 +133,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           },
         )
 
-        // 落盘 assistant 消息
-        const asst = appendMessage({
-          session_id: sessionId,
-          role: 'assistant',
-          content: assistantText,
-          parent_id: userMsg.id,
-          usage: assistantUsage,
-          model_id: model.id,
-        })
+        // 流结束后，按顺序落盘：assistant 文本（若有）→ 每条 tool_use
+        let parentId: string | undefined = userMsg.id
+        let assistantMessageId: string | undefined
+        if (assistantText.trim().length > 0) {
+          const asst: CopilotMessage = appendMessage({
+            session_id: sessionId,
+            role: 'assistant',
+            content: assistantText,
+            parent_id: parentId,
+            usage: assistantUsage,
+            model_id: model.id,
+          })
+          assistantMessageId = asst.id
+          parentId = asst.id
+        }
+        const toolUseMessageIds: string[] = []
+        for (const tu of pendingToolUses) {
+          const msg = appendMessage({
+            session_id: sessionId,
+            role: 'tool_use',
+            content: JSON.stringify(tu.input),
+            parent_id: parentId,
+            call_id: tu.call_id,
+            tool_name: tu.tool_name,
+            tool_input: tu.input,
+            model_id: model.id,
+          })
+          toolUseMessageIds.push(msg.id)
+          parentId = msg.id
+        }
+
         write({
           kind: 'done',
-          assistant_message_id: asst.id,
+          assistant_message_id: assistantMessageId,
+          tool_use_message_ids: toolUseMessageIds,
           usage: assistantUsage,
           stop_reason: stopReason,
         })

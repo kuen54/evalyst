@@ -3,7 +3,8 @@
 // 把各自 SSE 协议归一化为 StreamEvent 发给调用方（再到前端/API 层）。
 //
 // PR-3：扩 tool_use_start / _delta / _end 事件 + tools 请求参数 + tool_use / tool_result
-// 消息序列化。
+// 消息序列化。Task 6 进一步在 serializeMessagesForProvider 里合并连续的
+// assistant text + tool_use，以满足 Anthropic 的 user/assistant 严格交替约束。
 
 import type { ApiConfig } from '../types'
 import type { LlmMessage } from '../llm-client'
@@ -351,40 +352,117 @@ interface AnthropicEvent {
  *   - tool_use → role: 'assistant' 的 content block { type: 'tool_use', ... }
  *   - tool_result → role: 'user' 的 content block { type: 'tool_result', ... }
  *
- * TODO(Task 6): Anthropic 要求 user / assistant 严格交替出现。若上游 buildLlmMessages
- * 把 assistant text + tool_use 摆成两条连续 assistant 消息，这里需要合并或让 caller 交织。
- * 当前 Task 4 走直白映射，留待 Task 6 的 /chat route 重写时统一处理。
+ * 合并规则（两个 provider 都走，PR-3 Task 6）：连续的
+ * [assistant-text?, tool_use, tool_use, ...] 会被合并成一条"复合 assistant"：
+ *   - OpenAI: { role: 'assistant', content: text || null, tool_calls: [...] }
+ *   - Anthropic: { role: 'assistant', content: [{type:'text',text}?, {type:'tool_use'}*] }
+ * 这样 Anthropic 严格的 user/assistant 交替约束自动满足；OpenAI 的
+ * tool_calls association semantics 也更正确。
  */
 export function serializeMessagesForProvider(
   messages: LlmMessage[],
   apiFormat: 'openai' | 'anthropic',
 ): Array<Record<string, unknown>> {
-  if (apiFormat === 'anthropic') {
-    return messages
-      .filter(m => !(isTextMessage(m) && m.role === 'system')) // system 单独抽出
-      .map(m => serializeAnthropicMessage(m))
+  // Anthropic: 先剥掉 system（由 caller 单独抽出放到 body.system）
+  const src = apiFormat === 'anthropic'
+    ? messages.filter(m => !(isTextMessage(m) && m.role === 'system'))
+    : messages
+
+  const out: Array<Record<string, unknown>> = []
+  let i = 0
+  while (i < src.length) {
+    const m = src[i]
+
+    // assistant text 或 tool_use 开头 → 收集一段连续运行，合并为一条复合 assistant
+    if ((isTextMessage(m) && m.role === 'assistant') || m.role === 'tool_use') {
+      let text = ''
+      const toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown> }> = []
+      while (i < src.length) {
+        const cur = src[i]
+        if (isTextMessage(cur) && cur.role === 'assistant') {
+          // 合并多段 assistant 文本（实际不太会出现，保守起见用换行拼）
+          const curText = typeof cur.content === 'string'
+            ? cur.content
+            : cur.content.map(b => ('text' in b ? b.text : '')).join('')
+          text += (text ? '\n' : '') + curText
+          i++
+          continue
+        }
+        if (cur.role === 'tool_use') {
+          toolUses.push({
+            call_id: cur.call_id,
+            tool_name: cur.tool_name,
+            tool_input: cur.tool_input ?? {},
+          })
+          i++
+          continue
+        }
+        break
+      }
+      if (toolUses.length === 0) {
+        // 纯 assistant 文本：按原来的 per-provider 形状输出
+        out.push(emitAssistantText(text, apiFormat))
+      } else {
+        out.push(emitCompositeAssistant(text, toolUses, apiFormat))
+      }
+      continue
+    }
+
+    // 其他消息（system / user / tool_result）走单消息映射
+    if (apiFormat === 'anthropic') {
+      out.push(serializeAnthropicNonAssistant(m))
+    } else {
+      out.push(serializeOpenaiNonAssistant(m))
+    }
+    i++
   }
-  // OpenAI
-  return messages.map(m => serializeOpenaiMessage(m))
+  return out
 }
 
-function serializeOpenaiMessage(m: LlmMessage): Record<string, unknown> {
-  if (m.role === 'tool_use') {
-    return {
-      role: 'assistant',
-      content: null,
-      tool_calls: [
-        {
-          id: m.call_id,
-          type: 'function',
-          function: {
-            name: m.tool_name,
-            arguments: JSON.stringify(m.tool_input ?? {}),
-          },
-        },
-      ],
-    }
+function emitAssistantText(
+  text: string,
+  apiFormat: 'openai' | 'anthropic',
+): Record<string, unknown> {
+  if (apiFormat === 'anthropic') {
+    return { role: 'assistant', content: text }
   }
+  return { role: 'assistant', content: text }
+}
+
+function emitCompositeAssistant(
+  text: string,
+  toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown> }>,
+  apiFormat: 'openai' | 'anthropic',
+): Record<string, unknown> {
+  if (apiFormat === 'anthropic') {
+    const content: Array<Record<string, unknown>> = []
+    if (text) content.push({ type: 'text', text })
+    for (const tu of toolUses) {
+      content.push({
+        type: 'tool_use',
+        id: tu.call_id,
+        name: tu.tool_name,
+        input: tu.tool_input,
+      })
+    }
+    return { role: 'assistant', content }
+  }
+  // OpenAI
+  return {
+    role: 'assistant',
+    content: text ? text : null,
+    tool_calls: toolUses.map(tu => ({
+      id: tu.call_id,
+      type: 'function',
+      function: {
+        name: tu.tool_name,
+        arguments: JSON.stringify(tu.tool_input),
+      },
+    })),
+  }
+}
+
+function serializeOpenaiNonAssistant(m: LlmMessage): Record<string, unknown> {
   if (m.role === 'tool_result') {
     return {
       role: 'tool',
@@ -392,24 +470,15 @@ function serializeOpenaiMessage(m: LlmMessage): Record<string, unknown> {
       content: m.content,
     }
   }
-  // text 三元组：OpenAI 直接透传
-  return { role: m.role, content: m.content }
+  // system / user text 三元组（assistant / tool_use 由 emitComposite 处理）
+  if (isTextMessage(m)) {
+    return { role: m.role, content: m.content }
+  }
+  // 兜底（不应到达）
+  return { role: 'user', content: '' }
 }
 
-function serializeAnthropicMessage(m: LlmMessage): Record<string, unknown> {
-  if (m.role === 'tool_use') {
-    return {
-      role: 'assistant',
-      content: [
-        {
-          type: 'tool_use',
-          id: m.call_id,
-          name: m.tool_name,
-          input: m.tool_input ?? {},
-        },
-      ],
-    }
-  }
+function serializeAnthropicNonAssistant(m: LlmMessage): Record<string, unknown> {
   if (m.role === 'tool_result') {
     return {
       role: 'user',
@@ -422,14 +491,17 @@ function serializeAnthropicMessage(m: LlmMessage): Record<string, unknown> {
       ],
     }
   }
-  // text 三元组
-  const content = typeof m.content === 'string'
-    ? m.content
-    : m.content.map(b => {
-        if (b.type === 'text') return { type: 'text', text: b.text }
-        return { type: 'image', source: { type: 'url', url: b.image_url.url } }
-      })
-  return { role: m.role, content }
+  // user text（system 已被 caller 过滤；assistant / tool_use 由 emitComposite 处理）
+  if (isTextMessage(m)) {
+    const content = typeof m.content === 'string'
+      ? m.content
+      : m.content.map(b => {
+          if (b.type === 'text') return { type: 'text', text: b.text }
+          return { type: 'image', source: { type: 'url', url: b.image_url.url } }
+        })
+    return { role: m.role, content }
+  }
+  return { role: 'user', content: '' }
 }
 
 function buildStreamingRequestBody(p: CallLlmStreamingParams): Record<string, unknown> {

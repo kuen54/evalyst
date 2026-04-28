@@ -6,10 +6,9 @@
 // 注意：顶部加一条固定 system prompt；当前分支最后一条 user 消息挂的 contexts
 // 会 resolve 成第二条 system message（把 context 块给 LLM 看）。
 //
-// TODO(Task 6): Anthropic API 要求 user / assistant 严格交替，当前映射在
-// "assistant text + tool_use" 时会产生两条相邻 assistant 消息。serializeMessagesForProvider
-// 层已留 TODO 注释；Task 6 的 /chat route 重写时统一处理（合并为同一条 assistant
-// 的 content blocks，或者让 buildLlmMessages 直接生成 block 列表）。
+// Anthropic user/assistant 严格交替约束由 serializeMessagesForProvider 在
+// provider 序列化阶段统一处理（合并连续的 assistant text + tool_use 为一条复合
+// 消息），此处不需要额外交织。
 
 import type { CopilotMessage, CopilotContextRef } from './types'
 import type { LlmMessage } from '../llm-client'
