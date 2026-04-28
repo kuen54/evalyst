@@ -11,7 +11,7 @@ import { CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useT } from "@/lib/i18n/provider"
-import { GlassRegular } from "@/components/copilot/shell"
+import { GlassCard } from "@/components/copilot/shell"
 import type { ModelConfig, ApiFormat, ModelPricing } from "@/lib/llm-config"
 import { buildApiRequest } from "@/lib/llm-client"
 
@@ -87,7 +87,7 @@ export function ModelCard({ entry, isDefault, onChange, onSetDefault, onDelete }
   const pricing = entry.pricing
 
   return (
-    <GlassRegular className="flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
+    <GlassCard >
       <CardContent className="pt-4 space-y-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex-1 space-y-1.5">
@@ -272,6 +272,6 @@ export function ModelCard({ entry, isDefault, onChange, onSetDefault, onDelete }
           </div>
         </div>
       </CardContent>
-    </GlassRegular>
+    </GlassCard>
   )
 }

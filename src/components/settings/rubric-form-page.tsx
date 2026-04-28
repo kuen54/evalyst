@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CardContent } from "@/components/ui/card"
-import { GlassRegular } from "@/components/copilot/shell"
+import { GlassCard } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import { StickySaveBar } from "@/components/ui/sticky-save-bar"
 import { useT } from "@/lib/i18n/provider"
@@ -125,7 +125,7 @@ export function RubricFormPage({ mode, initial }: Props) {
         </h2>
       </div>
 
-      <GlassRegular className="flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
+      <GlassCard >
         <CardContent className="pt-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -148,7 +148,7 @@ export function RubricFormPage({ mode, initial }: Props) {
             <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="text-sm" />
           </div>
         </CardContent>
-      </GlassRegular>
+      </GlassCard>
 
       <div>
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
@@ -157,7 +157,7 @@ export function RubricFormPage({ mode, initial }: Props) {
         <p className="text-[11px] text-muted-foreground mb-3">{t("settings.rubrics.form.criteria_hint")}</p>
         <div className="space-y-2">
           {criteria.map((c, i) => (
-            <GlassRegular key={i} className="flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
+            <GlassCard key={i} >
               <CardContent className="pt-4 space-y-3">
                 <div className="grid grid-cols-[1fr_1fr_140px] gap-2 items-start">
                   <div className="space-y-1">
@@ -218,7 +218,7 @@ export function RubricFormPage({ mode, initial }: Props) {
                   </button>
                 </div>
               </CardContent>
-            </GlassRegular>
+            </GlassCard>
           ))}
           <Button size="sm" variant="outline" onClick={add} className="w-full">
             {t("settings.rubrics.form.add_criterion")}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { CardHeader } from "@/components/ui/card"
-import { GlassThin } from "@/components/copilot/shell"
+import { GlassThin, GlassCardThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useT } from "@/lib/i18n/provider"
@@ -82,7 +82,7 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full text-left cursor-pointer">
-        <GlassThin className="hover:bg-muted/50 transition-colors flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10">
+        <GlassCardThin className="hover:bg-muted/50 transition-colors">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{open ? "▾" : "▸"}</span>
@@ -91,7 +91,7 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
               <span className="text-xs text-muted-foreground ml-auto">{t("results.n_rows", { n: rows.length })}</span>
             </div>
           </CardHeader>
-        </GlassThin>
+        </GlassCardThin>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="ml-4 mt-2 mb-4 overflow-x-auto">

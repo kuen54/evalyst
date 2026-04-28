@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { RequiredMark } from "@/components/ui/field-label"
-import { GlassRegular } from "@/components/copilot/shell"
+import { GlassRegular, GlassCard } from "@/components/copilot/shell"
 import { useT } from "@/lib/i18n/provider"
 import type { TFn } from "@/lib/i18n/provider"
 import type { DatasetDef, Display, TaskSchema } from "@/lib/schema/types"
@@ -645,7 +645,7 @@ function PreviewPane({ form, datasets, displays, datasetSamples, t }: {
 
   return (
     <div className="sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto pr-2">
-      <GlassRegular className="flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
+      <GlassCard>
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-2">
             <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.templates.tform.preview_title")}</h4>
@@ -685,7 +685,7 @@ function PreviewPane({ form, datasets, displays, datasetSamples, t }: {
             </>
           )}
         </CardContent>
-      </GlassRegular>
+      </GlassCard>
     </div>
   )
 }

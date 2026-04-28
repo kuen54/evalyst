@@ -10,7 +10,7 @@ import { CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
-import { GlassRegular } from "@/components/copilot/shell"
+import { GlassRegular, GlassCard } from "@/components/copilot/shell"
 import type { TaskSchema, DatasetDef, Display } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
 import { inferDisplayBuiltinId } from "@/lib/display-inference"
@@ -157,9 +157,9 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
 
       {/* Prompt */}
       <Section title={t("settings.templates.detail.prompt_title")}>
-        <GlassRegular className="flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden"><CardContent className="pt-4">
+        <GlassCard><CardContent className="pt-4">
           <pre className="text-xs font-mono whitespace-pre-wrap max-h-60 overflow-auto">{schema.default_prompt}</pre>
-        </CardContent></GlassRegular>
+        </CardContent></GlassCard>
         {schema.message_builder.user_template && (
           <div className="text-xs">
             <span className="text-muted-foreground">{t("settings.templates.detail.user_prefix")}</span>
