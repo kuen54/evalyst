@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, use, useMemo } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -16,7 +16,7 @@ import type { RubricAggregate } from "@/lib/annotation-store"
 import { useT } from "@/lib/i18n/provider"
 import { formatCostMap, formatTokens } from "@/lib/format"
 import { aggregateResults } from "@/lib/results-aggregate"
-import { CopilotShell } from "@/components/copilot/shell"
+import { GlassRegular } from "@/components/copilot/shell"
 
 export default function ExperimentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -140,7 +140,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
 
   return (
     <div className="px-6 py-4">
-      <CopilotShell className="p-6">
+      <GlassRegular className="p-6">
         <div className="flex items-baseline gap-3 mb-6">
           <Link href="/" className="text-muted-foreground hover:text-foreground text-xs">&larr; {t("common.back")}</Link>
           <h2 className="text-lg font-semibold tracking-tight">{experiment.name}</h2>
@@ -153,7 +153,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
           {configOpen ? "▾" : "▸"} {t("experiment.detail.config_title")} &middot; {experiment.model} / t={experiment.temperature}
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <Card className="mb-4">
+          <GlassRegular className="mb-4 flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
             <CardContent className="pt-4">
               <pre className="text-xs font-mono whitespace-pre-wrap max-h-80 overflow-auto">
                 {experiment.prompt_template}
@@ -162,7 +162,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                 <p className="text-sm text-muted-foreground mt-2">{t("experiment.detail.notes")}: {experiment.notes}</p>
               )}
             </CardContent>
-          </Card>
+          </GlassRegular>
         </CollapsibleContent>
       </Collapsible>
 
@@ -213,8 +213,8 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
 
       {rubric && aggregate && (
         <Collapsible open={scoringOpen} onOpenChange={setScoringOpen}>
-          <Card
-            className="mb-6 border-emerald-200/60"
+          <GlassRegular
+            className="mb-6 border-emerald-200/60 flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden"
             data-copilot-context="rubric_stats"
             data-copilot-context-id={experiment.id}
             data-copilot-context-extra={JSON.stringify({ rubric_id: rubric.id })}
@@ -293,7 +293,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                 )}
               </CollapsibleContent>
             </CardContent>
-          </Card>
+          </GlassRegular>
         </Collapsible>
       )}
 
@@ -317,7 +317,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
           {schema && <ViewComp results={results} schema={schema} />}
         </>
       )}
-      </CopilotShell>
+      </GlassRegular>
     </div>
   )
 }
@@ -356,7 +356,7 @@ function FailedPanel({ results, onRetryTask, running, t }: {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className="mb-6 border-red-200/60">
+      <GlassRegular className="mb-6 border-red-200/60 flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
         <CardContent className="pt-4">
           <CollapsibleTrigger className="w-full text-left">
             <div className="flex items-center gap-3 text-sm">
@@ -390,7 +390,7 @@ function FailedPanel({ results, onRetryTask, running, t }: {
             </div>
           </CollapsibleContent>
         </CardContent>
-      </Card>
+      </GlassRegular>
     </Collapsible>
   )
 }
