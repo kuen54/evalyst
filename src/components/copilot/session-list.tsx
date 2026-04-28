@@ -5,6 +5,8 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useT } from "@/lib/i18n/provider"
+import { useGlassStyle } from "@/components/copilot/shell"
+import { useCopilotStore } from "@/components/copilot/store"
 import type { CopilotSessionMeta } from "@/lib/copilot/types"
 
 interface Props {
@@ -19,6 +21,8 @@ interface Props {
 /** 顶部 session bar：显示当前 session 标题 + 下拉切换 + 新建 + 重命名 + 删除 */
 export function SessionList({ sessions, activeSessionId, onSelect, onCreate, onRename, onDelete }: Props) {
   const t = useT()
+  const { open: copilotOpen } = useCopilotStore()
+  const glassStyle = useGlassStyle("thick")
   const [listOpen, setListOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | undefined>(undefined)
   const [editValue, setEditValue] = useState("")
@@ -79,7 +83,7 @@ export function SessionList({ sessions, activeSessionId, onSelect, onCreate, onR
       </div>
 
       {listOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-20 rounded border border-border bg-popover shadow-md max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 z-20 rounded border border-border bg-popover shadow-md max-h-80 overflow-y-auto" style={copilotOpen ? { ...glassStyle } : undefined} data-glass-variant={copilotOpen ? "thick" : undefined}>
           {sessions.length === 0 ? (
             <div className="px-3 py-4 text-[11px] text-muted-foreground text-center">
               {t("copilot.no_sessions")}

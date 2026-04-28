@@ -11,6 +11,8 @@ import type { ExperimentConfig } from "@/lib/types"
 import type { GenericResultRecord, TaskSchema, Display } from "@/lib/schema/types"
 import { pickView } from "@/components/results/registry"
 import { GlassRegular, GlassThin } from "@/components/copilot/shell"
+import { useGlassStyle } from "@/components/copilot/shell"
+import { useCopilotStore } from "@/components/copilot/store"
 
 function formatLatency(ms: number | undefined): string {
   if (!ms) return "-"
@@ -220,6 +222,8 @@ export default function ComparePage() {
 }
 
 function PromptInfoIcon({ prompt, t }: { prompt: string; t: (k: string, v?: Record<string, string | number>) => string }) {
+  const { open: copilotOpen } = useCopilotStore()
+  const glassStyle = useGlassStyle("thick")
   return (
     <div className="relative inline-flex items-center group/info shrink-0">
       <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-default">
@@ -230,7 +234,7 @@ function PromptInfoIcon({ prompt, t }: { prompt: string; t: (k: string, v?: Reco
         </svg>
       </span>
       <div className="hidden group-hover/info:block absolute top-full left-0 z-50 pt-1">
-        <div className="w-[480px] max-h-[60vh] overflow-auto bg-popover border border-border rounded-lg shadow-lg p-4">
+        <div className="w-[480px] max-h-[60vh] overflow-auto bg-popover border border-border rounded-lg shadow-lg p-4" style={copilotOpen ? { ...glassStyle } : undefined} data-glass-variant={copilotOpen ? "thick" : undefined}>
           <div className="text-xs font-medium text-muted-foreground mb-2">{t("compare.prompt_template")}</div>
           <pre className="text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground font-mono">{prompt}</pre>
         </div>
