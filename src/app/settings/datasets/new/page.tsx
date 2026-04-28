@@ -7,6 +7,7 @@ import { JsonPastePane } from "@/components/settings/json-paste-pane"
 import { DatasetFormPage } from "@/components/settings/dataset-form-page"
 import { AgentHintBanner } from "@/components/settings/agent-hint-banner"
 import { useT } from "@/lib/i18n/provider"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 
 function makeValidate(t: (k: string, v?: Record<string, string | number>) => string) {
   return (parsed: unknown): { ok: boolean; errors: Array<{ field: string; message: string }> } => {
@@ -28,6 +29,12 @@ function makeValidate(t: (k: string, v?: Record<string, string | number>) => str
 
 export default function NewDatasetPage() {
   const t = useT()
+  useRegisterPageContext(() => ({
+    route_type: 'dataset_new',
+    path: '/settings/datasets/new',
+    summary: {},
+    timestamp: new Date().toISOString(),
+  }), [])
   return (
     <>
       <AgentHintBanner slashCommand="evalyst-dataset" />

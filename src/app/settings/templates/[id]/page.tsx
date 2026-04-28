@@ -14,6 +14,7 @@ import { GlassRegular, GlassCard } from "@/components/copilot/shell"
 import type { TaskSchema, DatasetDef, Display } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
 import { inferDisplayBuiltinId } from "@/lib/display-inference"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 
 export default function TemplateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -32,6 +33,20 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
     fetch("/api/displays").then(r => r.json()).then(setDisplays)
     fetch(`/api/experiments?schema_id=${id}`).then(r => r.json()).then(setExperiments)
   }, [id])
+
+  useRegisterPageContext(() => ({
+    route_type: 'template_detail',
+    path: `/settings/templates/${id}`,
+    summary: schema ? {
+      id: schema.id,
+      name: schema.label ?? schema.id,
+      version: schema.version ?? 1,
+      input_aliases: schema.inputs?.map(i => i.alias) ?? [],
+      output_field_names: Object.keys(schema.output_schema?.properties ?? {}),
+      prompt_length: (schema.default_prompt ?? '').length,
+    } : {},
+    timestamp: new Date().toISOString(),
+  }), [schema, id])
 
   const handleDelete = async () => {
     const refCount = experiments.length

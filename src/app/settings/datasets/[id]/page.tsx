@@ -11,6 +11,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT, useLocale } from "@/lib/i18n/provider"
 import { GlassRegular } from "@/components/copilot/shell"
 import { formatDate } from "@/lib/i18n/format"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 import type { DatasetDef, TaskSchema } from "@/lib/schema/types"
 
 interface DatasetDetail {
@@ -51,6 +52,18 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
     () => schemas.filter(s => s.inputs.some(inp => inp.dataset_id === id)),
     [schemas, id],
   )
+
+  useRegisterPageContext(() => ({
+    route_type: 'dataset_detail',
+    path: `/settings/datasets/${id}`,
+    summary: data ? {
+      id: data.def.id,
+      name: data.def.name,
+      fields: data.def.fields?.map(f => f.key) ?? [],
+      record_count: data.record_count ?? 0,
+    } : {},
+    timestamp: new Date().toISOString(),
+  }), [data, id])
 
   const handleDelete = async () => {
     const refCount = relatedSchemas.length

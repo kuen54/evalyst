@@ -11,6 +11,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
 import type { Rubric } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 
 const TYPE_LABELS: Record<string, string> = {
   pass_fail: "pass/fail",
@@ -33,6 +34,18 @@ export default function RubricDetailPage({ params }: { params: Promise<{ id: str
       setExperiments(all.filter(e => e.rubric_id === id))
     })
   }, [id])
+
+  useRegisterPageContext(() => ({
+    route_type: 'rubric_detail',
+    path: `/settings/rubrics/${id}`,
+    summary: rubric ? {
+      id: rubric.id,
+      name: rubric.name,
+      criteria_count: rubric.criteria?.length ?? 0,
+      criteria_kinds: rubric.criteria?.map(c => c.type) ?? [],
+    } : {},
+    timestamp: new Date().toISOString(),
+  }), [rubric, id])
 
   const handleDelete = async () => {
     const refCount = experiments.length
