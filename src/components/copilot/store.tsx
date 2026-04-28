@@ -181,8 +181,29 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   return <CopilotCtx.Provider value={value}>{children}</CopilotCtx.Provider>
 }
 
+// Fallback store returned when useCopilotStore is called outside a provider.
+// Keeps shared UI primitives (Dialog / Select / etc.) working in any context
+// without forcing callers to wrap hooks in try/catch or conditionals.
+const NOOP_STORE: CopilotStore = {
+  open: false,
+  setOpen: () => {},
+  toggleOpen: () => {},
+  width: 420,
+  setWidth: () => {},
+  activeSessionId: undefined,
+  setActiveSessionId: () => {},
+  mounted: false,
+  inspectorActive: false,
+  setInspectorActive: () => {},
+  contexts: [],
+  addContext: () => {},
+  removeContext: () => {},
+  clearContexts: () => {},
+  busy: false,
+  setBusy: () => {},
+}
+
 export function useCopilotStore(): CopilotStore {
   const ctx = useContext(CopilotCtx)
-  if (!ctx) throw new Error("useCopilotStore must be used inside CopilotStoreProvider")
-  return ctx
+  return ctx ?? NOOP_STORE
 }
