@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { useT } from "@/lib/i18n/provider"
 import { useGlassStyle } from "@/components/copilot/shell"
 import { useCopilotStore } from "@/components/copilot/store"
+import { segmentedItem } from "@/lib/segmented"
 import type { CopilotSessionMeta } from "@/lib/copilot/types"
 
 interface Props {
@@ -23,6 +24,7 @@ export function SessionList({ sessions, activeSessionId, onSelect, onCreate, onR
   const t = useT()
   const { open: copilotOpen } = useCopilotStore()
   const glassStyle = useGlassStyle("thick")
+  const tintedStyle = useGlassStyle("tinted")
   const [listOpen, setListOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | undefined>(undefined)
   const [editValue, setEditValue] = useState("")
@@ -108,9 +110,9 @@ export function SessionList({ sessions, activeSessionId, onSelect, onCreate, onR
                     </div>
                   ) : (
                     <div
-                      className={`flex items-center gap-1 px-2 py-1 cursor-pointer ${
-                        s.id === activeSessionId ? "bg-accent/80" : "hover:bg-accent/50"
-                      }`}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer transition-colors ${segmentedItem(s.id === activeSessionId)}`}
+                      style={copilotOpen && s.id === activeSessionId ? tintedStyle : undefined}
+                      data-glass-variant={copilotOpen && s.id === activeSessionId ? "tinted" : undefined}
                       onClick={() => {
                         onSelect(s.id)
                         setListOpen(false)

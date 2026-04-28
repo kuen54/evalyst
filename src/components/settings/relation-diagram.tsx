@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useT } from "@/lib/i18n/provider"
 import { useGlassStyle } from "@/components/copilot/shell"
 import { useCopilotStore } from "@/components/copilot/store"
+import { segmentedItem } from "@/lib/segmented"
 
 export type SettingsTabKey = "llm" | "datasets" | "templates" | "displays" | "rubrics"
 
@@ -40,6 +41,7 @@ export function RelationDiagram() {
   const active = resolveActive(pathname)
   const { open: copilotOpen } = useCopilotStore()
   const tintedStyle = useGlassStyle("tinted")
+  const thinStyle = useGlassStyle("thin")
 
   return (
     <div className="py-2">
@@ -50,13 +52,9 @@ export function RelationDiagram() {
           <div key={it.key} className="contents">
             <Link
               href={it.href}
-              className={`flex-1 basis-0 min-w-0 p-4 rounded-md border text-center transition-colors cursor-pointer ${
-                isActive
-                  ? "bg-accent/70 border-foreground shadow-sm"
-                  : "border-border bg-muted/20 hover:bg-muted/40 hover:border-border"
-              }`}
-              style={isActive && copilotOpen ? tintedStyle : undefined}
-              data-glass-variant={isActive && copilotOpen ? "tinted" : undefined}
+              className={`flex-1 basis-0 min-w-0 p-4 rounded-md border text-center transition-colors cursor-pointer ${segmentedItem(isActive)}`}
+              style={copilotOpen ? (isActive ? tintedStyle : thinStyle) : undefined}
+              data-glass-variant={copilotOpen ? (isActive ? "tinted" : "thin") : undefined}
             >
               <div className="text-sm font-medium whitespace-nowrap">{it.emoji} {t(it.labelKey)}</div>
               <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{t(it.hintKey)}</div>

@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n/provider"
 import { LanguageToggle } from "@/components/language-toggle"
 import { useCopilotStore } from "@/components/copilot/store"
 import { useGlassStyle } from "@/components/copilot/shell"
+import { segmentedItem } from "@/lib/segmented"
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -17,6 +18,7 @@ export function Sidebar() {
   const t = useT()
   const { open: copilotOpen } = useCopilotStore()
   const glass = useGlassStyle("thin")
+  const tintedStyle = useGlassStyle("tinted")
   // 记住 copilot 打开前的 collapsed 状态；关闭后还原
   const prevCollapsedBeforeCopilot = useRef<boolean | null>(null)
 
@@ -133,11 +135,9 @@ export function Sidebar() {
               title={collapsed ? link.label : undefined}
               className={`flex items-center gap-2 rounded-md transition-colors text-[13px] ${
                 collapsed ? "justify-center px-2 py-2" : "px-2.5 py-1.5"
-              } ${
-                isActive
-                  ? "text-foreground bg-accent/80"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
-              }`}
+              } ${segmentedItem(isActive)}`}
+              style={copilotOpen ? (isActive ? tintedStyle : undefined) : undefined}
+              data-glass-variant={copilotOpen && isActive ? "tinted" : undefined}
             >
               {link.icon}
               {!collapsed && link.label}

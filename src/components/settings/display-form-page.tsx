@@ -13,6 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RequiredMark } from "@/components/ui/field-label"
 import { StickySaveBar } from "@/components/ui/sticky-save-bar"
 import { ArrowUpIcon, ArrowDownIcon, XIcon } from "lucide-react"
+import { useGlassStyle } from "@/components/copilot/shell"
+import { useCopilotStore } from "@/components/copilot/store"
+import { segmentedItem } from "@/lib/segmented"
 import { useT } from "@/lib/i18n/provider"
 import type { TFn } from "@/lib/i18n/provider"
 import type { DisplayColumn, DisplayFieldType, DisplayMode, Display, TaskSchema, GenericResultRecord } from "@/lib/schema/types"
@@ -61,6 +64,9 @@ export function DisplayFormPage() {
   const [form, setForm] = useState<FormState>(emptyState)
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Array<{ field: string; message: string }>>([])
+  const { open: copilotOpen } = useCopilotStore()
+  const thinStyle = useGlassStyle("thin")
+  const tintedStyle = useGlassStyle("tinted")
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }))
 
@@ -150,12 +156,16 @@ export function DisplayFormPage() {
       <section className="space-y-3">
         <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.mode_section")}<RequiredMark /></h4>
         <div className="grid grid-cols-3 gap-2">
-          {(["table", "grouped_grid", "jsx"] as const).map(m => (
+          {(["table", "grouped_grid", "jsx"] as const).map(m => {
+            const isActive = form.mode === m
+            return (
             <button
               key={m}
               type="button"
               onClick={() => set("mode", m)}
-              className={`p-3 rounded-md border text-left transition-colors ${form.mode === m ? "border-foreground bg-accent/60" : "border-border hover:bg-muted/50"}`}
+              className={`p-3 rounded-md border text-left transition-colors ${segmentedItem(isActive)}`}
+              style={copilotOpen ? (isActive ? tintedStyle : thinStyle) : undefined}
+              data-glass-variant={copilotOpen ? (isActive ? "tinted" : "thin") : undefined}
             >
               <div className="font-medium text-sm">
                 {m === "table" ? t("settings.displays.form.mode_table_btn") : m === "grouped_grid" ? t("settings.displays.form.mode_grouped_grid_btn") : t("settings.displays.form.mode_jsx_btn")}
@@ -168,7 +178,8 @@ export function DisplayFormPage() {
                   : t("settings.displays.form.mode_jsx_desc")}
               </div>
             </button>
-          ))}
+            )
+          })}
         </div>
       </section>
 
