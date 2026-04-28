@@ -6,7 +6,7 @@
 
 **Architecture:**
 - **P1 + P3 共享 client→server snapshot**：每次 `/chat` / `/tool-result` POST 客户端附 `client_snapshot = { page_context, viewport_index }`。Server 缓存到 per-session Map，page_context 注入 system message，viewport_index 供新增 `read_page(query)` 工具查询。
-- **P2 独立 UI 子系统**：`CopilotGlowFrame` 包裹 `<main>`，`conic-gradient + @property --angle` 做彩色旋转，4 状态 (`data-glow=off/idle/typing/working`) 通过 CSS 变量切换，无 React 重渲染。
+- **P2 独立 UI 子系统**：`CopilotBorderGlow` 作为 sibling overlay 渲染到 `<main>` 内（不包裹 main、不改 layout、`.copilot-glow` 背景光完全保留）；`conic-gradient + @property --angle` 彩色旋转 + `mask-composite: exclude` 切成 ring 形状贴 `<main>` 外缘；3 active 状态 `data-glow=idle/typing/working`（off 时 return null），通过 CSS 变量切 rim_width / feather / speed / saturate。
 - **切页**：Next.js `usePathname` 观察路由变化，清 manual contexts，session.messages 非空时显示 banner 建议开新对话。
 
 **Tech Stack:** Next.js 16.2.4 App Router · React 19 · TypeScript · Tailwind v4 · vitest · Playwright
@@ -1837,9 +1837,11 @@ git commit -m "feat(copilot): RouteChangeBanner prompts user to fork session on 
 
 ---
 
-## Phase 7 — Ambient Border Glow (P2)
+## Phase 7 — Ambient Border Glow (P2) — Apple Intelligence "screen edges glow" 风格
 
-### Task 17: CSS — `.copilot-glow-frame` + `@property --glow-angle`
+**视觉目标**：一圈紧贴 `<main>` 外缘的 rim（不是外扩 bloom），2-8px 可见线 + 向内 10-20px feather，沿 `border-radius` 走圆角，conic 五色沿周长流动。**不包裹 `<main>`、不改 `<main>` layout、背景光 `.copilot-glow` 完全保留原状**。
+
+### Task 17: CSS — `.copilot-border-glow` (mask-composite ring)
 
 **Files:**
 - Modify: `src/app/globals.css`
@@ -1850,6 +1852,9 @@ git commit -m "feat(copilot): RouteChangeBanner prompts user to fork session on 
 
 ```css
 /* ---------------- PR-4: Ambient Border Glow (Apple Intelligence 风) ---------------- */
+/* screen edges glow —— 紧贴 <main> 外缘的一圈 rim，不是外扩大 bloom。
+   技术：conic-gradient 填满 + padding 控 rim 厚度 + mask-composite:exclude 切 ring + 轻 blur feather 向内。
+   不包裹 <main>、不改 <main> layout；作为 <main> 内 overlay (sibling of GlowOverlay) 存在。 */
 
 @property --glow-angle {
   syntax: "<angle>";
@@ -1857,65 +1862,65 @@ git commit -m "feat(copilot): RouteChangeBanner prompts user to fork session on 
   initial-value: 0deg;
 }
 
-.copilot-glow-frame {
-  position: relative;
-  isolation: isolate;
-  --glow-speed: 6s;
-  --glow-blur: 28px;
-  --glow-opacity: 0;
-  --glow-saturate: 1.3;
-  --glow-spread: 24px;
-  border-radius: var(--radius-xl);
-}
-
-.copilot-glow-frame::before {
-  content: "";
+.copilot-border-glow {
   position: absolute;
-  inset: calc(-1 * var(--glow-spread));
-  border-radius: inherit;
+  inset: 0;                         /* 贴 main 边框，不外扩 */
+  border-radius: var(--radius-xl);  /* 跟 main 的圆角 */
+  pointer-events: none;
+  z-index: 2;
+
+  /* 可变节奏：状态切 data-glow 时这组 var 更新 */
+  --rim-width: 5px;
+  --rim-feather: 16px;
+  --glow-speed: 8s;
+  --glow-saturate: 1.4;
+
+  /* 用 padding 控制 ring 厚度：padding 区是显色区，content-box 内被 mask 透明 */
+  padding: var(--rim-width);
   background: conic-gradient(
     from var(--glow-angle),
     #ff3ea5, #8a5bff, #3f8dff, #31e0c8, #ffb547, #ff3ea5
   );
-  filter: blur(var(--glow-blur)) saturate(var(--glow-saturate));
-  opacity: var(--glow-opacity);
-  transition:
-    opacity 400ms ease,
-    filter 400ms ease;
-  animation: copilot-glow-spin var(--glow-speed) linear infinite;
-  pointer-events: none;
-  z-index: 1;
+
+  /* 关键：mask-composite: exclude 让 content-box 透明，只保留 padding 环 */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+
+  /* 轻 feather 模糊 ring，向内柔化；main 的 overflow:hidden 裁外溢 */
+  filter: blur(var(--rim-feather)) saturate(var(--glow-saturate));
+
+  animation: copilot-border-glow-spin var(--glow-speed) linear infinite;
+  transition: filter 400ms ease;
 }
 
-.copilot-glow-frame > * { position: relative; z-index: 2; }
+@keyframes copilot-border-glow-spin { to { --glow-angle: 360deg; } }
 
-@keyframes copilot-glow-spin { to { --glow-angle: 360deg; } }
-
-.copilot-glow-frame[data-glow="off"]     { --glow-opacity: 0; }
-.copilot-glow-frame[data-glow="idle"]    { --glow-opacity: .55; --glow-speed: 6s;   --glow-saturate: 1.3; }
-.copilot-glow-frame[data-glow="typing"]  { --glow-opacity: .75; --glow-speed: 3.5s; --glow-saturate: 1.5; }
-.copilot-glow-frame[data-glow="working"] {
-  --glow-opacity: .95;
-  --glow-speed: 1.8s;
-  --glow-saturate: 1.7;
-  --glow-blur: 22px;
-  will-change: filter, opacity;
+.copilot-border-glow[data-glow="idle"] {
+  --rim-width: 4px;  --rim-feather: 14px; --glow-speed: 8s;   --glow-saturate: 1.35;
+}
+.copilot-border-glow[data-glow="typing"] {
+  --rim-width: 6px;  --rim-feather: 16px; --glow-speed: 4s;   --glow-saturate: 1.55;
+}
+.copilot-border-glow[data-glow="working"] {
+  --rim-width: 8px;  --rim-feather: 20px; --glow-speed: 2s;   --glow-saturate: 1.75;
+  will-change: filter;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .copilot-glow-frame::before { animation: none; }
-  .copilot-glow-frame[data-glow="working"]::before {
-    animation: copilot-glow-pulse 2s ease-in-out infinite;
+  .copilot-border-glow { animation: none; }
+  .copilot-border-glow[data-glow="working"] {
+    animation: copilot-border-glow-pulse 2s ease-in-out infinite;
   }
-  @keyframes copilot-glow-pulse {
-    50% { opacity: calc(var(--glow-opacity) * 0.65); }
+  @keyframes copilot-border-glow-pulse {
+    50% { filter: blur(var(--rim-feather)) saturate(calc(var(--glow-saturate) * 0.7)); }
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .copilot-glow-frame::before {
-    filter: saturate(1.1);
-    opacity: calc(var(--glow-opacity) * 0.5);
+  .copilot-border-glow {
+    filter: blur(6px) saturate(1.0);
   }
 }
 ```
@@ -1923,27 +1928,27 @@ git commit -m "feat(copilot): RouteChangeBanner prompts user to fork session on 
 - [ ] **Step 2: 验证 build + dev server**
 
 Run: `npm run dev`
-页面应加载正常（此时 `.copilot-glow-frame` class 尚未被任何元素应用）。
-CSS 校验：打开 DevTools Elements → 搜索 `copilot-glow-frame`，无错即可。
+页面应加载正常（此时 `.copilot-border-glow` class 尚未被任何元素应用）。
+CSS 校验：打开 DevTools Elements → 搜索 `copilot-border-glow`，无错即可。
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add src/app/globals.css
-git commit -m "feat(copilot): ambient border glow CSS (conic-gradient @property, 4 states)"
+git commit -m "feat(copilot): ambient border glow CSS (conic + mask-composite ring, 3 active states)"
 ```
 
 ---
 
-### Task 18: `CopilotGlowFrame` 组件 + 挂载到 layout
+### Task 18: `CopilotBorderGlow` 组件 + 挂载为 `<main>` 内 sibling
 
 **Files:**
-- Create: `src/components/copilot/glow-frame.tsx`
+- Create: `src/components/copilot/border-glow.tsx`
 - Modify: `src/app/layout.tsx`
 
-- [ ] **Step 1: 写 glow-frame 组件**
+- [ ] **Step 1: 写 border-glow 组件**
 
-Create `src/components/copilot/glow-frame.tsx`:
+Create `src/components/copilot/border-glow.tsx`:
 
 ```tsx
 "use client"
@@ -1954,22 +1959,18 @@ import { useCopilotStore } from "./store"
 type GlowState = 'off' | 'idle' | 'typing' | 'working'
 
 /**
- * 包裹主内容区（sidebar 和 copilot panel 之间），在 copilot 开着时显示彩色边框光。
- * 4 状态：
- *   off     — copilot 关
- *   idle    — copilot 开、无输入无工作
- *   typing  — 用户正在输入（debounced 250ms by store.bumpTypingSignal）
- *   working — busy=true（streaming or tool running）
- * 状态通过 data-glow 属性驱动，CSS 变量切换，无 React 重渲染（除 data-attr）
+ * Apple Intelligence 风 screen edges glow —— 作为 overlay 渲染到 <main> 内，
+ * 与 GlowOverlay（背景漂移）同级 sibling，不包裹 main、不改 main layout。
+ * off 状态直接 return null，彻底不上 DOM；状态转移通过 data-glow 属性驱动，
+ * CSS 变量切换做状态差异（rim_width / feather / speed / saturate），无 React 重渲染。
  */
-export function CopilotGlowFrame({ children }: { children: React.ReactNode }) {
+export function CopilotBorderGlow() {
   const { open, busy, typingSignal } = useCopilotStore()
   const [state, setState] = useState<GlowState>('off')
 
   useEffect(() => {
     if (!open) { setState('off'); return }
     if (busy) { setState('working'); return }
-    // typingSignal 每 250ms 最多 bump 一次；bump 后 2s 内保持 typing，之后回 idle
     if (typingSignal > 0) {
       setState('typing')
       const t = setTimeout(() => {
@@ -1980,24 +1981,21 @@ export function CopilotGlowFrame({ children }: { children: React.ReactNode }) {
     setState('idle')
   }, [open, busy, typingSignal])
 
-  return (
-    <div className="copilot-glow-frame flex-1 h-screen flex flex-col overflow-hidden relative" data-glow={state}>
-      {children}
-    </div>
-  )
+  if (state === 'off') return null
+  return <div className="copilot-border-glow" data-glow={state} aria-hidden />
 }
 ```
 
-- [ ] **Step 2: 在 layout.tsx 用 CopilotGlowFrame 包裹 `<main>`**
+- [ ] **Step 2: 挂到 `layout.tsx` 里 `<main>` 内，GlowOverlay 旁**
 
 Edit `src/app/layout.tsx`:
 
-import：
+Import（放在其它 copilot 组件 imports 旁）：
 ```tsx
-import { CopilotGlowFrame } from "@/components/copilot/glow-frame"
+import { CopilotBorderGlow } from "@/components/copilot/border-glow"
 ```
 
-找到既有：
+找到既有（**保持不变**，**不**包 wrapper）：
 ```tsx
 <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
   <GlowOverlay />
@@ -2005,36 +2003,36 @@ import { CopilotGlowFrame } from "@/components/copilot/glow-frame"
 </main>
 ```
 
-改成：
+只需在 `<GlowOverlay />` 下方加一行：
 ```tsx
-<CopilotGlowFrame>
-  <main className="flex-1 flex flex-col overflow-hidden relative">
-    <GlowOverlay />
-    <div className="flex-1 overflow-auto relative z-[2]">{children}</div>
-  </main>
-</CopilotGlowFrame>
+<main className="flex-1 h-screen flex flex-col overflow-hidden relative">
+  <GlowOverlay />
+  <CopilotBorderGlow />                     {/* ← 新增一行 */}
+  <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
+</main>
 ```
 
-**注意**：原 `<main>` 的 `flex-1 h-screen` 现在移到 `CopilotGlowFrame` 根 div 上（glow-frame.tsx 里）；内容层 z-index 从 `z-[1]` 调到 `z-[2]`，避让 border glow（z-1）。
+**重要**：`<main>` 的 className / `z-[1]` 内容层 / overflow-hidden **完全不动**。Border glow 作为 sibling overlay 自己 absolute 定位贴边。
 
 - [ ] **Step 3: tsc + 视觉冒烟**
 
 Run: `npx tsc --noEmit && npm run dev`
 
 手动测试：
-- copilot 关：无彩色边框 ✅
-- ⌘K 打开 copilot：缓慢彩色呼吸边框 (idle) ✅
-- 在 textarea 输入：边框变饱和 + 加速 (typing) ✅
-- 发消息 → 等流式返回：快速旋转 (working) ✅
+- copilot 关：无彩色边框（组件 return null）✅
+- ⌘K 打开 copilot：一圈细 rim 沿 main 边缘缓慢流转 (idle)，颜色沿周长变化 ✅
+- 在 textarea 输入：rim 稍粗 + 加速 + 更饱和 (typing) ✅
+- 发消息 → 等流式返回：rim 最粗 + 快速流转 (working) ✅
 - 返回完成：回 idle ✅
+- 背景光 `.copilot-glow` 漂移应**和 fix 前完全一致**，无遮盖、无位移
 
-System Settings → Accessibility → Reduce Motion 勾选：边框不旋转，只弱 opacity 脉冲。
+System Settings → Accessibility → Reduce Motion 勾选：边框不旋转，working 态有慢饱和度脉冲。
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/components/copilot/glow-frame.tsx src/app/layout.tsx
-git commit -m "feat(copilot): CopilotGlowFrame wraps main content with state-aware ambient border glow"
+git add src/components/copilot/border-glow.tsx src/app/layout.tsx
+git commit -m "feat(copilot): CopilotBorderGlow as sibling overlay inside <main>, preserving layout"
 ```
 
 ---
@@ -2067,15 +2065,17 @@ test('copilot open + page_context preview shows current route', async ({ page })
   }
 })
 
-test('copilot glow frame visible when open', async ({ page }) => {
+test('copilot border glow absent before open, appears after open', async ({ page }) => {
   await page.goto('/')
-  const glowFrame = page.locator('.copilot-glow-frame').first()
-  await expect(glowFrame).toHaveAttribute('data-glow', 'off')
-  // 打开 copilot
+  // Before open: component returns null, no element in DOM
+  await expect(page.locator('.copilot-border-glow')).toHaveCount(0)
+  // Open copilot
   const isMac = process.platform === 'darwin'
   await page.keyboard.press(isMac ? 'Meta+k' : 'Control+k')
-  // idle 或 typing (初始可能有 typing signal 从历史 state)
-  await expect.poll(async () => await glowFrame.getAttribute('data-glow')).not.toBe('off')
+  // After open: overlay exists with a non-off state (idle / typing / working)
+  const glow = page.locator('.copilot-border-glow').first()
+  await expect(glow).toBeVisible({ timeout: 3000 })
+  await expect.poll(async () => await glow.getAttribute('data-glow')).not.toBe('off')
 })
 ```
 
@@ -2109,15 +2109,16 @@ git commit -m "test(e2e): copilot page_context preview + glow frame smoke"
 
 - **自动 page context**：开 copilot 即向 LLM 注入当前页面摘要（13 种 `route_type` × 每页自定义 summary 字段，e.g. experiment_detail 含 id/name/status/progress/cost_by_currency）。不走 chip rail，只在"预览 LLM 看到的 context"面板里以 markdown 渲染
 - **`read_page(query)` 工具**：LLM 可按自然语言 query 查找当前页面可见数据，服务端对 `viewport_index` 做 token 子串打分、top-5 命中复用既有 `resolveContexts()` hydrate 成 tree 返回。`requiresConfirm: false` auto-run
-- **Apple Intelligence 风 ambient border**：`CopilotGlowFrame` 包裹主内容区，`conic-gradient + @property --glow-angle` 实现色相绕边旋转；4 状态 `data-glow=off/idle/typing/working`（周期 6s→1.8s、opacity 0→.95、saturate 1.3→1.7），对比度明显高于背景光；`prefers-reduced-motion` 降级为 opacity 脉冲、`prefers-reduced-transparency` 降 saturate + opacity
+- **Apple Intelligence 风 ambient border glow**：`CopilotBorderGlow` 作为 `<main>` 内 sibling overlay（与 GlowOverlay 并列，不包裹 main、不改 main 的 className/layout），`conic-gradient + @property --glow-angle + mask-composite: exclude` 切出贴 `<main>` 外缘的 rim；3 active 状态 `data-glow=idle/typing/working`（off 时 return null），状态差异通过 rim_width (4→8px) / feather (14→20px) / speed (8s→2s) / saturate (1.35→1.75) 调节；内容区透明不遮挡；`prefers-reduced-motion` 降级为饱和度脉冲、`prefers-reduced-transparency` 降 blur + 去饱和
 - **切页清空 + banner**：路由变化清空 manual contexts（inspector/text_selection），session 有 messages 时顶部弹 amber banner 提示"开启新对话/继续当前对话"（不阻断切换）
 - **统一 client→server snapshot 机制**：`/chat` + `/tool-result` POST body 新增 `client_snapshot = { page_context, viewport_index, ... }`；server 缓存到 per-session Map，`read_page` 工具按 `sessionId` 取 snapshot
 
 **架构落地**：
 - `src/lib/copilot/` 新增: `types.ts` 扩展 / `use-page-context.ts` / `collect-snapshot.ts` / `snapshot-cache.ts` / tools.ts 新 `read_page` + `CopilotToolContext` 接口
-- `src/components/copilot/` 新增: `glow-frame.tsx` / `route-change-banner.tsx` / `route-change-observer.tsx` / store 扩展 (pageContext / typingSignal / routeChangeBanner / clearManualContexts)
+- `src/components/copilot/` 新增: `border-glow.tsx`（sibling overlay，off 时 return null） / `route-change-banner.tsx` / `route-change-observer.tsx` / store 扩展 (pageContext / typingSignal / routeChangeBanner / clearManualContexts)
 - 13 个 page 文件补 `useRegisterPageContext()` hook
-- `src/app/globals.css` 追加 `.copilot-glow-frame` + `@property --glow-angle` + 4 状态 + 2 段 a11y 降级
+- `src/app/globals.css` 追加 `.copilot-border-glow` + `@property --glow-angle` + `mask-composite: exclude` ring + 3 active 状态 + 2 段 a11y 降级
+- `src/app/layout.tsx` `<main>` 内加 `<CopilotBorderGlow />` sibling（不包裹 main、不改 main className / z-index）
 
 **测试**：179 → ~200 vitest（snapshot-cache + collect-snapshot + read-page-tool + resolve-context 扩展）；e2e smoke 9 → 11 case
 

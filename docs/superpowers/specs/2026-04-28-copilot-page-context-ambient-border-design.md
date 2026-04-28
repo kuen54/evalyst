@@ -77,7 +77,7 @@ clientSnapshot = {
     ↓
 useCopilotStore.open = true
     ↓
-<CopilotGlowFrame data-glow="idle"> 渲染 border glow
+<CopilotBorderGlow /> 作为 overlay 渲染（open=true 时 idle，busy 时 working）
     ↓
 用户发送消息
     ↓
@@ -443,11 +443,25 @@ read_page: {
 }
 ```
 
-### 5.3 Ambient Border Glow (P2)
+### 5.3 Ambient Border Glow (P2) — Apple Intelligence "screen edges glow" 风格
+
+**视觉目标**（基于 iPhone iOS 18+ Apple Intelligence 截图确认）：
+- 一圈**紧贴主内容区外缘**的 rim，**不是**外扩大 bloom
+- rim 宽度：可见亮线 2-8px + 向**内**轻柔 feather 10-20px
+- 沿 `<main>` 的 `border-radius` 走圆角
+- conic 彩色沿周长**流动**（不是整圈一起变亮）
+- 内容区内部视觉保持可读、不被遮挡
+
+**设计原则**（本次 fix 纠正）：
+- ❌ **不包裹 `<main>` 外层**：不新建 `CopilotGlowFrame` wrapper；不动 `<main>` 的 className / z-index / layout
+- ❌ **不用 `inset: -24px` 外扩 + `blur(28px)` 大 bloom**：那是外溢大色块，遮盖内容
+- ✅ **作为 overlay 放进 `<main>` 内**，与既有 `GlowOverlay`（背景 radial 漂移）**同级 sibling**
+- ✅ **用 `mask-composite: exclude` 技术切出 ring 形状**——conic 只显示 ring 区域，中心透明不干扰内容
+- ✅ **状态差异通过"旋转速度 + 饱和度 + rim 宽度"调节**，**不**通过 `opacity` / 整体 `blur` 放大做区分
 
 #### 5.3.1 组件结构
 
-`src/components/copilot/glow-frame.tsx`:
+`src/components/copilot/border-glow.tsx`（新文件；既有 `glow-frame.tsx` 在 fix 时删除）:
 
 ```tsx
 "use client"
@@ -456,45 +470,36 @@ import { useCopilotStore } from "./store"
 
 type GlowState = 'off' | 'idle' | 'typing' | 'working'
 
-export function CopilotGlowFrame({ children }: { children: React.ReactNode }) {
+/**
+ * Apple Intelligence 风 screen edges glow —— 作为 overlay 渲染到 <main> 内，
+ * 与 GlowOverlay（背景漂移）同级 sibling，不包裹 main、不改 main 的 layout。
+ * off 状态直接 return null，彻底不上 DOM。
+ */
+export function CopilotBorderGlow() {
   const { open, busy, typingSignal } = useCopilotStore()
   const [state, setState] = useState<GlowState>('off')
 
-  // 主状态机
   useEffect(() => {
     if (!open) { setState('off'); return }
     if (busy) { setState('working'); return }
     if (typingSignal > 0) {
       setState('typing')
-      // typing 信号经 store 层 debounce (250ms)，这里只做 2s 超时回 idle
-      const t = setTimeout(() => {
-        if (!busy) setState('idle')
-      }, 2000)
+      const t = setTimeout(() => setState(curr => curr === 'typing' ? 'idle' : curr), 2000)
       return () => clearTimeout(t)
     }
     setState('idle')
   }, [open, busy, typingSignal])
 
-  return (
-    <div className="copilot-glow-frame" data-glow={state}>
-      {children}
-    </div>
-  )
+  if (state === 'off') return null
+  return <div className="copilot-border-glow" data-glow={state} aria-hidden />
 }
 ```
 
-Store 新增字段:
+Store 字段复用 Task 6 已加的 `open` / `busy` / `typingSignal`（debounced 250ms in store）。
 
-```ts
-typingSignal: number           // monotonic counter, increments on每 debounced typing event (250ms)
-bumpTypingSignal: () => void   // 给 chat-view textarea onChange 调用（内部 debounce）
-```
+#### 5.3.2 CSS（mask-composite ring 技术）
 
-Typing signal 从 chat-view textarea `onChange` 触发。Store 内 debounce 250ms 不在 React 层 re-render，只按 setState 一次.
-
-#### 5.3.2 CSS
-
-`src/app/globals.css` 追加:
+`src/app/globals.css` 追加：
 
 ```css
 @property --glow-angle {
@@ -503,114 +508,112 @@ Typing signal 从 chat-view textarea `onChange` 触发。Store 内 debounce 250m
   initial-value: 0deg;
 }
 
-.copilot-glow-frame {
-  position: relative;
-  isolation: isolate;
-  --glow-speed: 6s;
-  --glow-blur: 28px;
-  --glow-opacity: 0;
-  --glow-saturate: 1.3;
-  --glow-spread: 24px;
-  border-radius: var(--radius-xl);
-}
-
-.copilot-glow-frame::before {
-  content: "";
+.copilot-border-glow {
   position: absolute;
-  inset: calc(-1 * var(--glow-spread));
-  border-radius: inherit;
+  inset: 0;                         /* 贴 main 边框，不外扩 */
+  border-radius: var(--radius-xl);  /* 跟随 main 的圆角 */
+  pointer-events: none;
+  z-index: 2;                       /* 高于 GlowOverlay(z=0) 和 content(z=1)；仅发光层，不抢点击 */
+
+  /* 可变节奏 */
+  --rim-width: 5px;
+  --rim-feather: 16px;
+  --glow-speed: 8s;
+  --glow-saturate: 1.4;
+
+  /* 用 padding 控制 ring 厚度：padding 区是显色区，content-box 内透明 */
+  padding: var(--rim-width);
   background: conic-gradient(
     from var(--glow-angle),
     #ff3ea5, #8a5bff, #3f8dff, #31e0c8, #ffb547, #ff3ea5
   );
-  filter: blur(var(--glow-blur)) saturate(var(--glow-saturate));
-  opacity: var(--glow-opacity);
-  transition:
-    opacity 400ms ease,
-    filter 400ms ease;
-  animation: copilot-glow-spin var(--glow-speed) linear infinite;
-  pointer-events: none;
-  z-index: 1;
+
+  /* 关键：mask-composite: exclude 让 content-box 透明，只保留 padding 环 */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+
+  /* 轻 feather 模糊 ring，让它向内柔化；main 的 overflow:hidden 会裁外溢部分 */
+  filter: blur(var(--rim-feather)) saturate(var(--glow-saturate));
+
+  animation: copilot-border-glow-spin var(--glow-speed) linear infinite;
+  transition: filter 400ms ease;
 }
 
-.copilot-glow-frame > * { position: relative; z-index: 2; }
+@keyframes copilot-border-glow-spin { to { --glow-angle: 360deg; } }
 
-@keyframes copilot-glow-spin { to { --glow-angle: 360deg; } }
-
-.copilot-glow-frame[data-glow="off"]     { --glow-opacity: 0; }
-.copilot-glow-frame[data-glow="idle"]    { --glow-opacity: .55; --glow-speed: 6s;   --glow-saturate: 1.3; }
-.copilot-glow-frame[data-glow="typing"]  { --glow-opacity: .75; --glow-speed: 3.5s; --glow-saturate: 1.5; }
-.copilot-glow-frame[data-glow="working"] {
-  --glow-opacity: .95;
-  --glow-speed: 1.8s;
-  --glow-saturate: 1.7;
-  --glow-blur: 22px;
-  will-change: filter, opacity; /* 只在 active 态，不常驻 */
+.copilot-border-glow[data-glow="idle"] {
+  --rim-width: 4px;  --rim-feather: 14px; --glow-speed: 8s;   --glow-saturate: 1.35;
+}
+.copilot-border-glow[data-glow="typing"] {
+  --rim-width: 6px;  --rim-feather: 16px; --glow-speed: 4s;   --glow-saturate: 1.55;
+}
+.copilot-border-glow[data-glow="working"] {
+  --rim-width: 8px;  --rim-feather: 20px; --glow-speed: 2s;   --glow-saturate: 1.75;
+  will-change: filter;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .copilot-glow-frame::before { animation: none; }
-  .copilot-glow-frame[data-glow="working"]::before {
-    animation: copilot-glow-pulse 2s ease-in-out infinite;
+  .copilot-border-glow { animation: none; }
+  .copilot-border-glow[data-glow="working"] {
+    animation: copilot-border-glow-pulse 2s ease-in-out infinite;
   }
-  @keyframes copilot-glow-pulse {
-    50% { opacity: calc(var(--glow-opacity) * 0.65); }
+  @keyframes copilot-border-glow-pulse {
+    50% { filter: blur(var(--rim-feather)) saturate(calc(var(--glow-saturate) * 0.7)); }
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .copilot-glow-frame::before {
-    filter: saturate(1.1);
-    opacity: calc(var(--glow-opacity) * 0.5);
+  .copilot-border-glow {
+    filter: blur(6px) saturate(1.0);
   }
 }
 ```
 
 #### 5.3.3 状态视觉表
 
-| state | 触发条件 | 周期 | opacity | saturate | blur | 感知 |
+| state | 触发条件 | 周期 | rim_width | rim_feather | saturate | 感知 |
 |---|---|---|---|---|---|---|
-| `off` | `open=false` | — | 0 | — | — | 完全不显示 |
-| `idle` | `open=true`, 无输入无工作 | 6s | .55 | 1.3 | 28px | 缓慢呼吸流转 |
-| `typing` | `open=true`, 用户输入中 (debounced 250ms) | 3.5s | .75 | 1.5 | 28px | 中速流转，亮度略高 |
-| `working` | `busy=true` (streaming / tool running) | 1.8s | .95 | 1.7 | 22px | 快速流转，最饱和，blur 收窄看起来更"实" |
+| `off` | `open=false` | — | — | — | — | 组件 return null，无 DOM |
+| `idle` | `open=true` 无输入无工作 | 8s | 4px | 14px | 1.35 | 柔和细线缓慢流转 |
+| `typing` | 用户输入中（debounced 250ms） | 4s | 6px | 16px | 1.55 | 中速流转 + 稍粗 |
+| `working` | busy=true（streaming / tool running） | 2s | 8px | 20px | 1.75 | 快速流转 + 最饱和 |
 
-**对比背景光**（现在是 8s idle / 4s active / saturate 1.2）——border glow 在每个状态都更亮更快，视觉分层清楚。
+**对比背景光**：背景光（`.copilot-glow`）维持 8s idle / 4s active / saturate 1.2 原状**完全不动**；border glow 用更快旋转 + 更高饱和形成视觉分层，但只在最外缘，不干扰内部。
 
-#### 5.3.4 容器放置
+#### 5.3.4 挂载到 `<main>` 内部 (sibling overlay)
 
-`src/app/layout.tsx`:
+`src/app/layout.tsx` —— **不改动** `<main>` 的 className / layout，仅在 `GlowOverlay` 旁加一个 sibling：
 
 ```tsx
-<div className="flex h-screen">
-  <Sidebar />
-  <CopilotGlowFrame>
-    <main className="flex-1 overflow-auto">{children}</main>
-  </CopilotGlowFrame>
-  <CopilotPanel />
-</div>
+<main className="flex-1 h-screen flex flex-col overflow-hidden relative">
+  <GlowOverlay />          {/* 既有：背景 radial drift —— 完全不动 */}
+  <CopilotBorderGlow />    {/* 新增：边框 rim overlay；open=false 时 return null */}
+  <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
+</main>
 ```
 
-Frame 只包 `<main>`，**不包** sidebar 和 panel。
+**关键**：`<main>` 的 `overflow: hidden` 会裁掉 ring blur 外溢的部分，只保留向内柔化；无需 `isolation: isolate` wrapper，沿用既有 stacking。
 
-#### 5.3.5 z-index 分层
+#### 5.3.5 z-index 分层（在既有 `<main>` 里）
 
 ```
-CopilotGlowFrame   (isolation: isolate, 独立 stacking context)
-├── background glow .copilot-glow 内部漂移   (z-index: 0)
-├── ::before       ambient border rainbow    (z-index: 1)
-└── page content inside <main>               (z-index: 2)
+<main position:relative overflow:hidden>
+├── GlowOverlay        (z auto, 内部 z-index:0 的 .copilot-glow)  — 背景 drift
+├── CopilotBorderGlow  (z-index:2)                                — 边框 rim
+└── content div        (z-index:1)                                — 页面内容
 ```
 
-**关键**：`isolation: isolate` 保证 border glow 不透过 frame 边界泄漏到 sidebar / panel。
+三者都是 `<main>` 的直接/间接子孙。Ring 在 z=2 浮在 content 之上，但 `pointer-events: none` 不抢点击；mask 把中心切透明，视觉也不遮挡。
 
 #### 5.3.6 浏览器与 a11y
 
-- **Chrome 85+, Safari 16.4+, Firefox 128+** 完全支持 `@property` → 旋转生效
-- **Firefox < 128** 降级：`@property` no-op，conic 静态不转但仍彩色 → 可接受
-- **prefers-reduced-motion**: border 静止，仅 `working` 态保留慢 opacity 脉冲
-- **prefers-reduced-transparency**: saturate 降到 1.1、opacity ×0.5
-- **`will-change: filter`** 只在 `data-glow="working"` 态启用，避免大元素长期占 GPU 内存
+- **`@property --glow-angle`**：Chrome 85+ / Safari 16.4+ / Firefox 128+ 支持；低版 Firefox 降级为静态彩色 ring（可接受）
+- **`mask-composite: exclude`**：Baseline 2023，主流浏览器齐全；仍写双供应商前缀 (`-webkit-mask-composite: xor` + `mask-composite: exclude`) 兼容 WebKit 旧版
+- **`prefers-reduced-motion`**：停止旋转，仅 `working` 态保留慢饱和度脉冲
+- **`prefers-reduced-transparency`**：降 blur + 去饱和，ring 变为静态淡色细线
+- **`will-change: filter`** 只在 `data-glow="working"` 态启用，避免常驻 GPU 层
 
 ### 5.4 Route Change Behavior (G4)
 
@@ -769,7 +772,7 @@ Server 同时 `deleteSnapshot(sessionId)`.
 - `src/lib/copilot/__tests__/snapshot-cache.test.ts`
 
 **components**
-- `src/components/copilot/glow-frame.tsx`
+- `src/components/copilot/border-glow.tsx`
 - `src/components/copilot/route-change-banner.tsx`
 - `src/components/copilot/route-change-observer.tsx` (内部用)
 
@@ -799,7 +802,7 @@ Server 同时 `deleteSnapshot(sessionId)`.
 - `src/app/api/copilot/sessions/[id]/route.ts` — DELETE 时 deleteSnapshot
 
 **Layout & pages**
-- `src/app/layout.tsx` — 包 CopilotGlowFrame 在 `<main>` 外
+- `src/app/layout.tsx` — `<main>` 内新增 `<CopilotBorderGlow />` sibling overlay（不包裹 `<main>`、不改 className / z-index）
 - `src/app/globals.css` — border glow 样式
 - `src/app/page.tsx` — useRegisterPageContext (dashboard)
 - `src/app/experiments/new/page.tsx` — useRegisterPageContext
@@ -950,8 +953,10 @@ Server 同时 `deleteSnapshot(sessionId)`.
 | 7 | read_page 签名 | `query: string` 自然语言 | viewport_index 摘要给 LLM 看不友好，NL 最易用 |
 | 8 | Snapshot 持久化 | in-memory Map，重启丢失 | 本地 dev 足够；未来多进程换 Redis |
 | 9 | 链式上限 | 5 (不变) | PR-3 沉淀值 |
-| 10 | 边框光技术选型 | `conic-gradient + @property --angle` | 唯一能做色相绕边旋转；其它方案都无法复刻 Apple 效果 |
-| 11 | 边框光 copilot 关时 | 完全不渲染 (`data-glow="off"`) | 避免对日常使用造成视觉负担 |
+| 10 | 边框光技术选型 | `conic-gradient + @property --angle` + `mask-composite: exclude` ring | 唯一能做色相绕边流动；mask-composite 把 conic 裁成 ring 让中心透明不遮内容 |
+| 11 | 边框光 copilot 关时 | 组件 `return null` 完全不上 DOM | 避免对日常使用造成视觉负担 |
+| 15 | 边框光挂载方式 | 作为 `<main>` 内 sibling overlay（不包裹 main、不动 layout） | 保留既有背景光 `.copilot-glow` / `GlowOverlay` 完全不变；避免 stacking / overflow 连锁改动 |
+| 16 | 状态差异用什么 | 旋转速度 + 饱和度 + rim 宽度/feather | 不用 opacity / 整体 blur 区分（那做成了遮盖大色块，偏离 Apple 风格） |
 | 12 | Debounce typing signal | 250ms | 平衡响应性 + 避免 React 每键 re-render |
 | 13 | read_page 匹配策略 | 小写 token 子串 | v1 可解释；embedding 以后加 |
 | 14 | top-N matches | 5 | 避免 tool_result payload 过大 |
