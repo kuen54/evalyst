@@ -10,7 +10,7 @@ import { findToolMetadata } from "@/lib/copilot/tool-metadata"
 import { ModelPicker } from "./model-picker"
 import { useCopilotStore } from "./store"
 import { colorForTag } from "./context-mask"
-import { MessageRow, MarkdownBody, type UiMessage } from "./chat-view-parts"
+import { MessageRow, MarkdownBody, ThinkingDots, type UiMessage } from "./chat-view-parts"
 import { ToolCallCard } from "./tool-call-card"
 
 interface Props {
@@ -134,7 +134,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-  }, [messages])
+  }, [messages, sending, pendingCallIds])
 
   useEffect(() => {
     return () => { abortRef.current?.abort() }
@@ -569,6 +569,24 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
             />
           )
         })}
+        {(() => {
+          // 任一 fetch 在飞（/chat 或 /tool-result），就在消息流末尾 pin 一个 thinking 气泡。
+          // 最后一条消息如果本身就是正在 streaming 的 assistant（里面已经有 dots 或 blink cursor）
+          // 则不重复渲染，避免双 dots。
+          const inFlight = sending || pendingCallIds.size > 0
+          if (!inFlight) return null
+          const last = messages[messages.length - 1]
+          const lastIsStreamingAssistant =
+            last && last.role === "assistant" && last.streaming === true
+          if (lastIsStreamingAssistant) return null
+          return (
+            <div className="flex justify-start">
+              <div className="max-w-[90%] rounded-md px-3 py-2 bg-muted text-foreground border border-border/60">
+                <ThinkingDots />
+              </div>
+            </div>
+          )
+        })()}
         <div ref={bottomRef} />
       </div>
 
