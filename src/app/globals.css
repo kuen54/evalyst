@@ -270,30 +270,7 @@
     .copilot-glow-flow { animation: none; }
   }
 
-  /* ---- 点击背景：小光点融入流动 ----
-     点击时刻意不拉峰值 —— 和 baseline glow 保持同一档亮度（opacity 上限 0.4，
-     color-mix 32%），避免"点下去突然变深"的视觉跳变。 */
-  .copilot-glow-spawn {
-    position: absolute;
-    width: 160px;
-    height: 160px;
-    border-radius: 50%;
-    transform: translate(-50%, -50%) scale(0.3) translateZ(0);
-    background: radial-gradient(circle, color-mix(in oklab, var(--spawn-color, oklch(0.82 0.10 230)) 32%, transparent) 0%, transparent 65%);
-    filter: blur(18px);
-    opacity: 0;
-    pointer-events: none;
-    will-change: transform, opacity;
-    backface-visibility: hidden;
-    animation: copilot-glow-spawn 1800ms ease-out forwards;
-  }
-
-  @keyframes copilot-glow-spawn {
-    0%   { transform: translate(-50%, -50%) scale(0.3) translateZ(0); opacity: 0; }
-    18%  { transform: translate(-50%, -50%) scale(1) translateZ(0); opacity: 0.4; }
-    50%  { transform: translate(calc(-50% + 10px), calc(-50% - 8px)) scale(1.18) translateZ(0); opacity: 0.34; }
-    100% { transform: translate(calc(-50% + 20px), calc(-50% - 14px)) scale(1.35) translateZ(0); opacity: 0.28; }
-  }
+  /* 注：点击 spawn 光点 feature 已移除 —— 用户要求背景光统一浅色、点击不变色 */
 
   @keyframes copilot-inspector-pulse {
     0%, 100% { box-shadow: 0 0 0 3px oklch(0.7 0.17 280 / 0.25); }
@@ -363,7 +340,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .copilot-glow-spawn,
     .copilot-capture-burst,
     .copilot-capture-ring,
     .copilot-capture-core { animation: none; opacity: 0; }

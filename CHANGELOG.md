@@ -12,7 +12,7 @@
 
 - **卡片线条统一 1px**：`GlassCard` / `GlassCardThin` 的 `SHADCN_CARD_DEFAULTS` 去掉 `ring-1 ring-foreground/10`（原来 border 1px + ring 1px 视觉 2px）；清掉 6 处 `GlassRegular` 手工叠加的 ring-1（experiments/[id] 进度卡、settings/datasets/[id] ×2、settings/templates/[id]、display/dataset form preview）。失败任务卡自然只剩红 border
 - **Copilot 背景光更轻柔**：`.copilot-glow::before` 6s → 18s、`.copilot-glow-flow` 7s → 22s，`data-state="active"` 3s/4s → 11s/13s；昼/夜共用 keyframes，轨迹完全一样，只是改慢
-- **点击 spawn 不再突然变深**：`copilot-glow-spawn` opacity 峰值 0.9/0.72/0.55 → 0.4/0.34/0.28，radial color-mix 55% → 32%，和 baseline 同档亮度
+- **点击 spawn 光点整个删除**：不再在点击位置生成柔光，背景光始终保持漂移本色 —— 用户明确要求"不要有点击后变色的效果，统一浅色"。相关清理：`glow-overlay.tsx` 的 SpawnLayer / SPAWN_COLORS / click listener / throttle / state 全部删；`globals.css` 的 `.copilot-glow-spawn` + `@keyframes copilot-glow-spawn` + 对应 reduced-motion 分支删
 
 ## [0.4.0] — 2026-04-28 · Copilot 工具调用闭环
 
