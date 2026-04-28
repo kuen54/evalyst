@@ -105,4 +105,33 @@ describe('read_page tool', () => {
     expect(r.matches[0].content_tree).toBeTruthy()
     expect((r.matches[0].content_tree as { stub: boolean }).stub).toBe(true)
   })
+
+  it('falls back to whole-query match when all tokens are too short', async () => {
+    setSnapshot('sess', makeSnap('sess', [
+      { key: 'task_result:t1', type: 'task_result', preview_text: 'a b status ok' },
+      { key: 'task_result:t2', type: 'task_result', preview_text: 'nothing' },
+    ]))
+    // Query has all 1-char tokens normally → would filter to empty → fallback to whole query
+    const r = await readPage.run({ query: 'a b' }, { sessionId: 'sess' }) as {
+      matches: Array<{ key: string }>; total_scanned: number
+    }
+    expect(r.matches.length).toBe(1)
+    expect(r.matches[0].key).toBe('task_result:t1')
+  })
+
+  it('returns partial result with error message when resolveContexts throws', async () => {
+    const { resolveContexts } = await import('../resolve-context')
+    ;(resolveContexts as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      throw new Error('fs boom')
+    })
+    setSnapshot('sess', makeSnap('sess', [
+      { key: 'task_result:t1', type: 'task_result', preview_text: 'failed' },
+    ]))
+    const r = await readPage.run({ query: 'failed' }, { sessionId: 'sess' }) as {
+      matches: Array<{ key: string; content_tree: unknown }>; message?: string
+    }
+    expect(r.matches.length).toBe(1)
+    expect(r.matches[0].content_tree).toBeNull()
+    expect(r.message).toContain('fs boom')
+  })
 })

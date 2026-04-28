@@ -138,7 +138,11 @@ export const tools: CopilotTool[] = [
         return { matches: [], total_scanned: 0, message: '当前没有页面快照可用' }
       }
       const query = String(input.query ?? '').toLowerCase().trim()
-      const tokens = query.split(/\s+/).filter(t => t.length >= 2)
+      let tokens = query.split(/\s+/).filter(t => t.length >= 2)
+      // 若全是短词（1 字符英文 / 未分词 CJK），退回整句当单 token，避免静默 0 匹配
+      if (tokens.length === 0 && query.length > 0) {
+        tokens = [query]
+      }
       const scored = snapshot.viewport_index
         .map(entry => {
           const haystack = `${entry.type} ${entry.preview_text} ${(entry.ancestors ?? []).join(' ')}`.toLowerCase()
@@ -161,17 +165,26 @@ export const tools: CopilotTool[] = [
         const id = rest.join(':')
         return { tag: i + 1, type, id }
       })
-      const resolved = resolveContexts(refs)
-      return {
-        matches: scored.map((x, i) => {
-          const hit = resolved[i]
-          return {
-            key: x.entry.key,
-            type: x.entry.type,
-            content_tree: hit?.data ?? null,
-          }
-        }),
-        total_scanned: snapshot.viewport_index.length,
+      try {
+        const resolved = resolveContexts(refs)
+        return {
+          matches: scored.map((x, i) => {
+            const hit = resolved[i]
+            return {
+              key: x.entry.key,
+              type: x.entry.type,
+              content_tree: hit?.data ?? null,
+            }
+          }),
+          total_scanned: snapshot.viewport_index.length,
+        }
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e)
+        return {
+          matches: scored.map(x => ({ key: x.entry.key, type: x.entry.type, content_tree: null })),
+          total_scanned: snapshot.viewport_index.length,
+          message: `匹配到 ${scored.length} 条，但详情读取失败: ${errMsg}`,
+        }
       }
     },
   },
