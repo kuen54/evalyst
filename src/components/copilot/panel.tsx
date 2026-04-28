@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/provider"
 import { useCopilotStore } from "./store"
 import { SessionList } from "./session-list"
 import { ChatView } from "./chat-view"
+import { RouteChangeObserver } from "./route-change-observer"
 import type { CopilotSessionMeta } from "@/lib/copilot/types"
 
 export function CopilotPanel() {
@@ -134,6 +135,7 @@ export function CopilotPanel() {
 
   return (
     <>
+      <RouteChangeObserver />
       {/* 边缘 Toggle —— 吸附在 panel 左边缘（= main 右边缘）。开/关用同一位置，对称 */}
       {/* 没有 transition：width 过渡 + glow 的 blur 合成每帧 rasterize 21MB 会卡 */}
       {mounted && (
