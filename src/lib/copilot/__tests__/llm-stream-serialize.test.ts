@@ -122,6 +122,52 @@ describe('serializeMessagesForProvider — OpenAI', () => {
       { role: 'assistant', content: 'Hello!' },
     ])
   })
+
+  it('echoes Gemini thought_signature on tool_calls[].function when present', () => {
+    // Gemini 2.5 / 3.x thinking 模式下，tool_use 必须带 thought_signature 回显；
+    // 缺失会让 Vertex 400 "function call ... missing a thought_signature"。
+    const msgs: LlmMessage[] = [
+      {
+        role: 'tool_use',
+        call_id: 'call_abc',
+        tool_name: 'list_experiments',
+        tool_input: { status: 'completed' },
+        thought_signature: 'sig_abc',
+      },
+    ]
+    const out = serializeMessagesForProvider(msgs, 'openai')
+    expect(out).toEqual([
+      {
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          {
+            id: 'call_abc',
+            type: 'function',
+            function: {
+              name: 'list_experiments',
+              arguments: JSON.stringify({ status: 'completed' }),
+              thought_signature: 'sig_abc',
+            },
+          },
+        ],
+      },
+    ])
+  })
+
+  it('omits thought_signature field when absent (non-Gemini providers unchanged)', () => {
+    const msgs: LlmMessage[] = [
+      {
+        role: 'tool_use',
+        call_id: 'call_xyz',
+        tool_name: 'list_experiments',
+        tool_input: {},
+      },
+    ]
+    const out = serializeMessagesForProvider(msgs, 'openai')
+    const composite = out[0] as { tool_calls: Array<{ function: Record<string, unknown> }> }
+    expect(composite.tool_calls[0].function).not.toHaveProperty('thought_signature')
+  })
 })
 
 describe('serializeMessagesForProvider — Anthropic', () => {

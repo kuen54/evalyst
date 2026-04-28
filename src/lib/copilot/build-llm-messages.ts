@@ -48,6 +48,8 @@ export function buildLlmMessages(branch: CopilotMessage[]): LlmMessage[] {
         call_id: m.call_id,
         tool_name: m.tool_name,
         tool_input: m.tool_input ?? {},
+        // Gemini thinking 模式：原样回传 thought_signature 到下一轮 provider 序列化。
+        ...(m.thought_signature ? { thought_signature: m.thought_signature } : {}),
       })
     } else if (m.role === 'tool_result') {
       if (!m.call_id) continue

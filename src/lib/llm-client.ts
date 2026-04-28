@@ -20,6 +20,13 @@ export type LlmMessage =
       call_id: string
       tool_name: string
       tool_input: Record<string, unknown>
+      /**
+       * Gemini thinking 模式的不透明签名；下一轮调用必须原样回显到
+       * OpenAI 兼容格式的 `tool_calls[].function.thought_signature` 字段，
+       * 否则 Vertex/Gemini 返回 400。其他 provider 没有该字段，序列化时按
+       * 缺省处理。
+       */
+      thought_signature?: string
     }
   | {
       role: 'tool_result'

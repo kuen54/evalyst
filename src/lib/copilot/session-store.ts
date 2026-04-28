@@ -173,6 +173,8 @@ export interface AppendMessageInput {
   call_id?: string
   tool_name?: string
   tool_input?: Record<string, unknown>
+  /** 仅 tool_use：Gemini thinking 模式的不透明签名，下一轮必须原样回显。 */
+  thought_signature?: string
   denied?: boolean
   reason?: string
 }
@@ -191,6 +193,7 @@ export function appendMessage(input: AppendMessageInput): CopilotMessage {
     call_id: input.call_id,
     tool_name: input.tool_name,
     tool_input: input.tool_input,
+    thought_signature: input.thought_signature,
     denied: input.denied,
     reason: input.reason,
   }

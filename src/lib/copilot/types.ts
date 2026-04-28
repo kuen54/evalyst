@@ -40,6 +40,15 @@ export interface CopilotMessage {
   tool_name?: string
   /** tool_use：LLM 发出的参数（已 JSON.parse 后的对象） */
   tool_input?: Record<string, unknown>
+  /**
+   * tool_use：Gemini 2.5 / 3.x thinking 模式下，proxy 会在 tool_call chunk 上带
+   * `thought_signature`（不透明字符串）。下一轮把该 tool_use 历史重新发回
+   * Vertex/Gemini 时，必须原样回显，否则 Gemini 会 400
+   * "function call ... missing a thought_signature"。只有 Gemini thinking 模型
+   * 才有此字段；其他模型（OpenAI / Claude / 非 thinking Gemini）不出现。
+   * 序列化时放在 OpenAI 兼容格式的 `tool_calls[].function.thought_signature`。
+   */
+  thought_signature?: string
   /** tool_result：用户拒绝执行此写工具 */
   denied?: boolean
   /** tool_result：denied 的原因（可选） */
@@ -78,6 +87,6 @@ export type StreamEvent =
   | { type: 'text'; delta: string }
   | { type: 'tool_use_start'; call_id: string; tool_name: string }
   | { type: 'tool_use_delta'; call_id: string; input_json_delta: string }
-  | { type: 'tool_use_end'; call_id: string; tool_name: string; input: Record<string, unknown> }
+  | { type: 'tool_use_end'; call_id: string; tool_name: string; input: Record<string, unknown>; thought_signature?: string }
   | { type: 'done'; usage?: { input_tokens: number; output_tokens: number }; stop_reason?: string }
   | { type: 'error'; message: string }

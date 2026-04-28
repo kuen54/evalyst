@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   let assistantText = ''
   let assistantUsage: { input_tokens: number; output_tokens: number } | undefined
   let stopReason: string | undefined
-  const pendingToolUses: Array<{ call_id: string; tool_name: string; input: Record<string, unknown> }> = []
+  const pendingToolUses: Array<{ call_id: string; tool_name: string; input: Record<string, unknown>; thought_signature?: string }> = []
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -122,7 +122,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               write({ kind: 'tool_use_delta', call_id: ev.call_id, input_json_delta: ev.input_json_delta })
             } else if (ev.type === 'tool_use_end') {
               // 不 mid-stream append（避免 jsonl 写句柄竞争）；先 buffer，关流时统一落盘
-              pendingToolUses.push({ call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
+              pendingToolUses.push({
+                call_id: ev.call_id,
+                tool_name: ev.tool_name,
+                input: ev.input,
+                thought_signature: ev.thought_signature,
+              })
               write({ kind: 'tool_use_end', call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
             } else if (ev.type === 'done') {
               assistantUsage = ev.usage
@@ -158,6 +163,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             call_id: tu.call_id,
             tool_name: tu.tool_name,
             tool_input: tu.input,
+            thought_signature: tu.thought_signature,
             model_id: model.id,
           })
           toolUseMessageIds.push(msg.id)

@@ -27,6 +27,12 @@ interface ToolUseState {
   call_id: string
   tool_name: string
   args_buffer: string
+  /**
+   * Gemini thinking 模式的 thought_signature —— proxy 可能在任何一个 tool_call
+   * chunk 上给（不一定是 first chunk；常在带 finish_reason 的 last chunk），
+   * 所以每次 chunk 都检测一次并覆盖（last write wins）。
+   */
+  thought_signature?: string
 }
 
 /**
@@ -185,6 +191,17 @@ function parseOpenaiEvent(
         if (tc.id && !st.call_id) st.call_id = tc.id
         if (tc.function?.name && !st.tool_name) st.tool_name = tc.function.name
       }
+      // Gemini thinking 模式：thought_signature 可能在 tool_call 的 function 里或顶层，
+      // 也可能只在最后一个 chunk（带 finish_reason）里给。每个 chunk 都检测一次，
+      // last write wins。四种位置全部兜底（snake_case + camelCase × function 嵌套 / 顶层）。
+      const sig =
+        tc.function?.thought_signature ??
+        tc.function?.thoughtSignature ??
+        tc.thought_signature ??
+        tc.thoughtSignature
+      if (typeof sig === 'string' && sig.length > 0) {
+        st.thought_signature = sig
+      }
       // 第一次出现就 emit start（哪怕参数还没来）
       if (!(st as ToolUseState & { _startEmitted?: boolean })._startEmitted && st.call_id && st.tool_name) {
         ;(st as ToolUseState & { _startEmitted?: boolean })._startEmitted = true
@@ -226,7 +243,13 @@ function flushOpenaiTools(toolState: Map<number, ToolUseState>, onEvent: (ev: St
       })
       continue
     }
-    onEvent({ type: 'tool_use_end', call_id: st.call_id, tool_name: st.tool_name, input })
+    onEvent({
+      type: 'tool_use_end',
+      call_id: st.call_id,
+      tool_name: st.tool_name,
+      input,
+      ...(st.thought_signature ? { thought_signature: st.thought_signature } : {}),
+    })
   }
   toolState.clear()
 }
@@ -240,7 +263,15 @@ interface OpenaiChunk {
         index?: number
         id?: string
         type?: string
-        function?: { name?: string; arguments?: string }
+        function?: {
+          name?: string
+          arguments?: string
+          // Gemini-proxy thinking 签名：snake_case / camelCase / function 内或顶层均见过
+          thought_signature?: string
+          thoughtSignature?: string
+        }
+        thought_signature?: string
+        thoughtSignature?: string
       }>
     }
     finish_reason?: string | null
@@ -376,7 +407,7 @@ export function serializeMessagesForProvider(
     // assistant text 或 tool_use 开头 → 收集一段连续运行，合并为一条复合 assistant
     if ((isTextMessage(m) && m.role === 'assistant') || m.role === 'tool_use') {
       let text = ''
-      const toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown> }> = []
+      const toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown>; thought_signature?: string }> = []
       while (i < src.length) {
         const cur = src[i]
         if (isTextMessage(cur) && cur.role === 'assistant') {
@@ -393,6 +424,7 @@ export function serializeMessagesForProvider(
             call_id: cur.call_id,
             tool_name: cur.tool_name,
             tool_input: cur.tool_input ?? {},
+            thought_signature: cur.thought_signature,
           })
           i++
           continue
@@ -431,7 +463,7 @@ function emitAssistantText(
 
 function emitCompositeAssistant(
   text: string,
-  toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown> }>,
+  toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown>; thought_signature?: string }>,
   apiFormat: 'openai' | 'anthropic',
 ): Record<string, unknown> {
   if (apiFormat === 'anthropic') {
@@ -443,6 +475,9 @@ function emitCompositeAssistant(
         id: tu.call_id,
         name: tu.tool_name,
         input: tu.tool_input,
+        // Anthropic 格式目前用不到 thought_signature（Claude-on-Vertex 走另一条协议）；
+        // 如果 caller 误把 Gemini 的 tool_use 塞给 Anthropic 路径，仍原样回显以防万一。
+        ...(tu.thought_signature ? { thought_signature: tu.thought_signature } : {}),
       })
     }
     return { role: 'assistant', content }
@@ -457,6 +492,8 @@ function emitCompositeAssistant(
       function: {
         name: tu.tool_name,
         arguments: JSON.stringify(tu.tool_input),
+        // Gemini thinking 模式：回显 thought_signature；没有则 omit。
+        ...(tu.thought_signature ? { thought_signature: tu.thought_signature } : {}),
       },
     })),
   }
