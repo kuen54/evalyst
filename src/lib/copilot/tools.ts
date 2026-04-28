@@ -1,6 +1,10 @@
 import { listExperiments, getExperiment, readResults } from "@/lib/store"
 import { startBatch } from "@/lib/batch-runner"
 
+export interface CopilotToolContext {
+  sessionId: string
+}
+
 export interface CopilotTool {
   name: string
   description: string
@@ -10,7 +14,7 @@ export interface CopilotTool {
     properties: Record<string, unknown>
   }
   requiresConfirm: boolean
-  run: (input: Record<string, unknown>) => Promise<unknown>
+  run: (input: Record<string, unknown>, ctx: CopilotToolContext) => Promise<unknown>
 }
 
 export const tools: CopilotTool[] = [
@@ -26,7 +30,7 @@ export const tools: CopilotTool[] = [
       },
     },
     requiresConfirm: false,
-    run: async (input) => {
+    run: async (input, _ctx) => {
       const all = listExperiments()
       let filtered = all
       if (input.status) filtered = filtered.filter(e => e.status === input.status)
@@ -62,7 +66,7 @@ export const tools: CopilotTool[] = [
       },
     },
     requiresConfirm: false,
-    run: async (input) => {
+    run: async (input, _ctx) => {
       if (!input.experiment_id) throw new Error("experiment_id is required")
       const all = readResults(String(input.experiment_id))
       let filtered = all
@@ -92,7 +96,7 @@ export const tools: CopilotTool[] = [
       },
     },
     requiresConfirm: true,
-    run: async (input) => {
+    run: async (input, _ctx) => {
       if (!input.experiment_id) throw new Error("experiment_id is required")
       const expId = String(input.experiment_id)
       const exp = getExperiment(expId)

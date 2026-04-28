@@ -5,14 +5,16 @@ const listTool = tools.find(t => t.name === "list_experiments")!
 const readTool = tools.find(t => t.name === "read_experiment_results")!
 const restartTool = tools.find(t => t.name === "restart_experiment")!
 
+const ctx = { sessionId: "test-session" }
+
 describe("tool: list_experiments", () => {
   it("returns all when no filter", async () => {
-    const result = await listTool.run({}) as { experiments: unknown[]; total_matching: number }
+    const result = await listTool.run({}, ctx) as { experiments: unknown[]; total_matching: number }
     expect(Array.isArray(result.experiments)).toBe(true)
   })
 
   it("caps limit at 50", async () => {
-    const result = await listTool.run({ limit: 999 }) as { returned: number }
+    const result = await listTool.run({ limit: 999 }, ctx) as { returned: number }
     expect(result.returned).toBeLessThanOrEqual(50)
   })
 
@@ -23,11 +25,11 @@ describe("tool: list_experiments", () => {
 
 describe("tool: read_experiment_results", () => {
   it("requires experiment_id", async () => {
-    await expect(readTool.run({} as never)).rejects.toThrow()
+    await expect(readTool.run({} as never, ctx)).rejects.toThrow()
   })
 
   it("returns empty for unknown experiment", async () => {
-    const result = await readTool.run({ experiment_id: "nonexistent" }) as { results: unknown[] }
+    const result = await readTool.run({ experiment_id: "nonexistent" }, ctx) as { results: unknown[] }
     expect(result.results).toEqual([])
   })
 
@@ -42,6 +44,6 @@ describe("tool: restart_experiment", () => {
   })
 
   it("requires experiment_id", async () => {
-    await expect(restartTool.run({} as never)).rejects.toThrow()
+    await expect(restartTool.run({} as never, ctx)).rejects.toThrow()
   })
 })

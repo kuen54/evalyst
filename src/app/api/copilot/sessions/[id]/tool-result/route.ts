@@ -94,7 +94,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return jsonError(400, `unknown tool: ${body.tool_name}`)
     }
     try {
-      resultContent = await tool.run(body.input)
+      resultContent = await tool.run(body.input, { sessionId })
     } catch (e) {
       // 工具错误不 500：LLM 看到 error 字段后可以决定下一步
       resultContent = { error: e instanceof Error ? e.message : String(e) }
