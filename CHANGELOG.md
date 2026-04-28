@@ -8,7 +8,7 @@
 
 ## [Unreleased]
 
-### UI polish（PR #5）
+### UI polish（PR #5 + #6）
 
 - **卡片线条统一 1px**：`GlassCard` / `GlassCardThin` 的 `SHADCN_CARD_DEFAULTS` 去掉 `ring-1 ring-foreground/10`（原来 border 1px + ring 1px 视觉 2px）；清掉 6 处 `GlassRegular` 手工叠加的 ring-1（experiments/[id] 进度卡、settings/datasets/[id] ×2、settings/templates/[id]、display/dataset form preview）。失败任务卡自然只剩红 border
 - **Copilot 背景光节奏**：`.copilot-glow::before` + `.copilot-glow-flow` 都 8s（active/streaming 态 4s）；昼/夜共用 keyframes，轨迹完全一样，只调速度
