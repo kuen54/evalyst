@@ -6,15 +6,70 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { useT } from "@/lib/i18n/provider"
 import type { CopilotMessage, CopilotContextRef } from "@/lib/copilot/types"
+import { tools } from "@/lib/copilot/tools"
+import { findTool } from "@/lib/copilot/tool-registry"
 import { ModelPicker } from "./model-picker"
 import { useCopilotStore } from "./store"
 import { colorForTag } from "./context-mask"
 import { MessageRow, MarkdownBody, type UiMessage } from "./chat-view-parts"
+import { ToolCallCard } from "./tool-call-card"
 
 interface Props {
   sessionId?: string
   selectedModelId?: string
   onPickModel: (modelId: string) => void
+}
+
+/**
+ * 所有从 /chat 和 /tool-result POST 出的 SSE 事件共享这一组 kind。
+ *  - user_message / tool_result_message：服务端分配的消息 id
+ *  - text：assistant 文本增量
+ *  - tool_use_*：LLM 工具调用生命周期
+ *  - done：流结束 + assistant/tool_use 的最终 message id 列表
+ *  - error：业务错误
+ */
+type ChatSseEvent =
+  | { kind: "user_message"; id: string }
+  | { kind: "tool_result_message"; id: string }
+  | { kind: "text"; delta: string }
+  | { kind: "tool_use_start"; call_id: string; tool_name: string }
+  | { kind: "tool_use_delta"; call_id: string; input_json_delta: string }
+  | { kind: "tool_use_end"; call_id: string; tool_name: string; input: Record<string, unknown> }
+  | { kind: "done"; assistant_message_id?: string; tool_use_message_ids?: string[]; usage?: { input_tokens: number; output_tokens: number }; stop_reason?: string }
+  | { kind: "error"; message: string }
+
+/**
+ * 把 fetch Response 的 SSE body 解出来，按 `\n\n` 分条，丢给 onEvent。
+ * /chat 和 /tool-result 的事件 shape 一致，共用同一个消费器。
+ * 调用方持有 AbortController / AbortSignal，把 signal 传给 fetch 即可——
+ * 一旦 abort，resp.body reader 会抛错退出循环，这里无需显式处理 signal。
+ */
+async function consumeSseStream(
+  resp: Response,
+  onEvent: (ev: ChatSseEvent) => void,
+): Promise<void> {
+  if (!resp.body) return
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split("\n\n")
+    buffer = events.pop() ?? ""
+    for (const raw of events) {
+      const line = raw.trimStart()
+      if (!line.startsWith("data:")) continue
+      const json = line.slice(5).trim()
+      if (!json) continue
+      try {
+        onEvent(JSON.parse(json) as ChatSseEvent)
+      } catch {
+        /* skip malformed event */
+      }
+    }
+  }
 }
 
 export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
@@ -31,8 +86,13 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   const [ctxPreview, setCtxPreview] = useState<string>("")
   const [previewOpen, setPreviewOpen] = useState(false)
   const [inputExpanded, setInputExpanded] = useState(false)
+  const [pendingCallIds, setPendingCallIds] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // 追踪流中 tool_use_end 进入 state 的顺序，done 时按序配 id 给 tool_use_message_ids
+  const streamToolUseOrderRef = useRef<string[]>([])
+  // 追踪 session 身份：sessionId 变更时停掉 inflight 的 auto-run 以避免串 session
+  const currentSessionRef = useRef<string | undefined>(undefined)
 
   // 每次 contexts 变动，向服务端 resolve 拿 per-ref status 和格式化的 system_message
   useEffect(() => {
@@ -61,17 +121,13 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   }, [contexts])
 
   useEffect(() => {
+    currentSessionRef.current = sessionId
     if (!sessionId) { setMessages([]); return }
     setLoadingSession(true)
     fetch(`/api/copilot/sessions/${sessionId}`)
       .then(r => r.json())
       .then((d: { messages?: CopilotMessage[] }) => {
-        setMessages((d.messages ?? []).map(m => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          contexts: m.contexts,
-        })))
+        setMessages((d.messages ?? []).map(toUiMessage))
       })
       .catch(() => setMessages([]))
       .finally(() => setLoadingSession(false))
@@ -87,8 +143,235 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
 
   const canSend = !!input.trim() && !sending && !!sessionId && !!modelId
 
+  /**
+   * 把 SSE 事件落到 React state 的通用 handler 工厂。/chat 和 /tool-result
+   * 流共用；auto-run 的读工具在 tool_use_end 里直接触发第二段 POST。
+   *
+   * 参数 pairSessionId 是发起流时快照的 sessionId —— 流回来的事件只有在
+   * 还在同一 session 时才生效，避免用户中途切会话 / fork 后 stale 事件污染。
+   */
+  const makeSseHandler = (pairSessionId: string) => {
+    return (ev: ChatSseEvent) => {
+      if (currentSessionRef.current !== pairSessionId) return
+      if (ev.kind === "text") {
+        setMessages(prev => {
+          const next = prev.slice()
+          // 找最后一条 assistant，没有就 push 一个 streaming=true 的新气泡
+          for (let i = next.length - 1; i >= 0; i--) {
+            const m = next[i]
+            if (m.role === "assistant") {
+              next[i] = { ...m, content: m.content + ev.delta, streaming: true }
+              return next
+            }
+            if (m.role === "tool_use" || m.role === "tool_result") break
+          }
+          next.push({ role: "assistant", content: ev.delta, streaming: true })
+          return next
+        })
+      } else if (ev.kind === "user_message") {
+        setMessages(prev => {
+          const next = prev.slice()
+          for (let i = next.length - 1; i >= 0; i--) {
+            const m = next[i]
+            if (m.role === "user" && !m.id) {
+              next[i] = { ...m, id: ev.id }
+              break
+            }
+          }
+          return next
+        })
+      } else if (ev.kind === "tool_result_message") {
+        setMessages(prev => {
+          const next = prev.slice()
+          // 最近一条没 id 的 tool_result 拿这个 id（我们在 postToolResult 时 push 的占位）
+          for (let i = next.length - 1; i >= 0; i--) {
+            const m = next[i]
+            if (m.role === "tool_result" && !m.id) {
+              next[i] = { ...m, id: ev.id }
+              break
+            }
+          }
+          return next
+        })
+      } else if (ev.kind === "tool_use_start") {
+        // 无需改 UI state（input 未齐，先不渲染占位；等 _end 再 push）
+      } else if (ev.kind === "tool_use_delta") {
+        // 同上：跳过 delta，ToolCallCard 只看 _end 后的完整 input
+      } else if (ev.kind === "tool_use_end") {
+        // 关掉当前 assistant 气泡的 streaming flag（tool_use 出现即意味 LLM 这轮 text 说完了）
+        setMessages(prev => {
+          const next = prev.slice()
+          for (let i = next.length - 1; i >= 0; i--) {
+            const m = next[i]
+            if (m.role === "assistant" && m.streaming) {
+              next[i] = { ...m, streaming: false }
+              break
+            }
+            if (m.role === "tool_use" || m.role === "tool_result") break
+          }
+          next.push({
+            role: "tool_use",
+            call_id: ev.call_id,
+            tool_name: ev.tool_name,
+            tool_input: ev.input,
+          })
+          return next
+        })
+        streamToolUseOrderRef.current.push(ev.call_id)
+        // Auto-run read 工具：requiresConfirm=false 的立即触发 /tool-result
+        const tool = findTool(tools, ev.tool_name)
+        if (tool && !tool.requiresConfirm) {
+          // 小小 async：让当前 state update commit 完再发第二段，UX 更稳
+          setTimeout(() => {
+            if (currentSessionRef.current !== pairSessionId) return
+            void postToolResult(ev.call_id, ev.tool_name, ev.input, false)
+          }, 0)
+        }
+      } else if (ev.kind === "done") {
+        // 关掉最后一条 streaming assistant
+        setMessages(prev => {
+          const next = prev.slice()
+          const toolIds = ev.tool_use_message_ids ?? []
+          // 按 streamToolUseOrderRef 的顺序把 id 赋到对应 tool_use 消息
+          const order = streamToolUseOrderRef.current
+          let orderCursor = 0
+          for (let i = 0; i < next.length && orderCursor < order.length; i++) {
+            const m = next[i]
+            if (m.role === "tool_use" && !m.id && m.call_id === order[orderCursor]) {
+              if (toolIds[orderCursor]) {
+                next[i] = { ...m, id: toolIds[orderCursor], streaming: false }
+              }
+              orderCursor++
+            }
+          }
+          // 找到末尾 streaming assistant，挂上 id
+          for (let i = next.length - 1; i >= 0; i--) {
+            const m = next[i]
+            if (m.role === "assistant" && m.streaming) {
+              next[i] = { ...m, id: ev.assistant_message_id ?? m.id, streaming: false }
+              break
+            }
+            if (m.role === "assistant" && !m.id && ev.assistant_message_id) {
+              next[i] = { ...m, id: ev.assistant_message_id }
+              break
+            }
+          }
+          return next
+        })
+        streamToolUseOrderRef.current = []
+      } else if (ev.kind === "error") {
+        toast.error(ev.message)
+        setMessages(prev => {
+          const next = prev.slice()
+          for (let i = next.length - 1; i >= 0; i--) {
+            const m = next[i]
+            if (m.role === "assistant" && m.streaming) {
+              next[i] = { ...m, content: m.content || t("copilot.reply_failed"), streaming: false }
+              break
+            }
+          }
+          return next
+        })
+      }
+    }
+  }
+
+  /**
+   * 发送 /tool-result。封装 /chat 和 auto-run 共用的工具结果回传：
+   *  1. pendingCallIds 登记（UI 上对应的 ToolCallCard 按钮 disabled）
+   *  2. 先 push 一个无 id 的 tool_result 占位 message，等 SSE 的 tool_result_message 事件回来填 id
+   *  3. 消费 SSE：text / tool_use_end 同一套 handler，形成链式 LLM 对话
+   *  4. finally 清 pending
+   */
+  const postToolResult = async (
+    call_id: string,
+    tool_name: string,
+    input: Record<string, unknown>,
+    denied: boolean,
+    reason?: string,
+  ) => {
+    if (!sessionId) return
+    const pairSessionId = sessionId
+    setPendingCallIds(prev => {
+      const next = new Set(prev)
+      next.add(call_id)
+      return next
+    })
+    setBusy(true)
+    // 先插入 tool_result 占位（content 显示 denied/resolved 摘要；id 由 tool_result_message 事件回填）
+    setMessages(prev => [
+      ...prev,
+      {
+        role: "tool_result",
+        call_id,
+        tool_name,
+        content: denied ? JSON.stringify({ denied: true, reason: reason ?? "" }) : "",
+        denied: denied || undefined,
+        reason,
+      },
+    ])
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    try {
+      const resp = await fetch(`/api/copilot/sessions/${sessionId}/tool-result`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ call_id, tool_name, input, denied, reason }),
+        signal: ctrl.signal,
+      })
+      if (!resp.ok) {
+        if (resp.status === 429) {
+          toast.error(t("copilot.tool.chain_limit"))
+        } else {
+          const errBody = await resp.text().catch(() => "")
+          toast.error(`HTTP ${resp.status}: ${errBody.slice(0, 200)}`)
+        }
+        return
+      }
+      // Reset order ref for this stream segment
+      streamToolUseOrderRef.current = []
+      await consumeSseStream(resp, makeSseHandler(pairSessionId))
+      // 流结束后，如果 tool_result 占位还没拿到 id（通常不会发生），把 content 填回服务端成功的摘要（可选）
+      // 这里不做额外处理；ToolCallCard 已经能依据 toolResult.content 渲染 summary
+      // 实际 content 是 denied 时的占位；非 denied 时应由另一段逻辑回填——但 tool_result 的 content
+      // 是后端计算的 JSON.stringify(resultContent)，前端不获知，暂依赖 toolResult.content="" 时
+      // ToolCallCard 走 summarizeResult(null) 返空串。为了用户能看到 "✅ tool_name"，把 content 标记为空对象
+      setMessages(prev => {
+        const next = prev.slice()
+        for (let i = next.length - 1; i >= 0; i--) {
+          const m = next[i]
+          if (m.role === "tool_result" && m.call_id === call_id && !denied && m.content === "") {
+            next[i] = { ...m, content: JSON.stringify({}) }
+            break
+          }
+        }
+        return next
+      })
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        toast.error((e as Error).message)
+      }
+    } finally {
+      setPendingCallIds(prev => {
+        const next = new Set(prev)
+        next.delete(call_id)
+        return next
+      })
+      setBusy(false)
+      abortRef.current = null
+    }
+  }
+
+  const handleToolConfirm = (call_id: string, tool_name: string, tool_input: Record<string, unknown>) => {
+    void postToolResult(call_id, tool_name, tool_input, false)
+  }
+  const handleToolDeny = (call_id: string, tool_name: string, tool_input: Record<string, unknown>, reason: string) => {
+    void postToolResult(call_id, tool_name, tool_input, true, reason)
+  }
+
   const doStreamSend = async (text: string, sendContexts?: CopilotContextRef[]) => {
     if (!sessionId || !modelId) return
+    const pairSessionId = sessionId
     setSending(true)
     setBusy(true)
     setMessages(prev => [
@@ -98,6 +381,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
     ])
     const ctrl = new AbortController()
     abortRef.current = ctrl
+    streamToolUseOrderRef.current = []
     try {
       const resp = await fetch(`/api/copilot/sessions/${sessionId}/chat`, {
         method: "POST",
@@ -113,78 +397,19 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         const errBody = await resp.text().catch(() => "")
         throw new Error(`HTTP ${resp.status}: ${errBody.slice(0, 200)}`)
       }
-      const reader = resp.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const events = buffer.split("\n\n")
-        buffer = events.pop() ?? ""
-        for (const raw of events) {
-          const line = raw.trimStart()
-          if (!line.startsWith("data:")) continue
-          const json = line.slice(5).trim()
-          if (!json) continue
-          try {
-            const ev = JSON.parse(json) as
-              | { kind: "user_message"; id: string }
-              | { kind: "text"; delta: string }
-              | { kind: "done"; assistant_message_id: string }
-              | { kind: "error"; message: string }
-            if (ev.kind === "text") {
-              setMessages(prev => {
-                const next = prev.slice()
-                const last = next[next.length - 1]
-                if (last && last.role === "assistant") {
-                  next[next.length - 1] = { ...last, content: last.content + ev.delta }
-                }
-                return next
-              })
-            } else if (ev.kind === "user_message") {
-              setMessages(prev => {
-                const next = prev.slice()
-                for (let i = next.length - 1; i >= 0; i--) {
-                  if (next[i].role === "user" && !next[i].id) {
-                    next[i] = { ...next[i], id: ev.id }
-                    break
-                  }
-                }
-                return next
-              })
-            } else if (ev.kind === "done") {
-              setMessages(prev => {
-                const next = prev.slice()
-                const last = next[next.length - 1]
-                if (last && last.role === "assistant") {
-                  next[next.length - 1] = { ...last, id: ev.assistant_message_id, streaming: false }
-                }
-                return next
-              })
-            } else if (ev.kind === "error") {
-              toast.error(ev.message)
-              setMessages(prev => {
-                const next = prev.slice()
-                const last = next[next.length - 1]
-                if (last && last.role === "assistant" && last.streaming) {
-                  next[next.length - 1] = { ...last, content: last.content || t("copilot.reply_failed"), streaming: false }
-                }
-                return next
-              })
-            }
-          } catch { /* skip */ }
-        }
-      }
+      await consumeSseStream(resp, makeSseHandler(pairSessionId))
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         toast.error(t("copilot.send_failed") + ": " + (e as Error).message)
       }
       setMessages(prev => {
         const next = prev.slice()
-        const last = next[next.length - 1]
-        if (last && last.role === "assistant" && last.streaming) {
-          next[next.length - 1] = { ...last, streaming: false }
+        for (let i = next.length - 1; i >= 0; i--) {
+          const m = next[i]
+          if (m.role === "assistant" && m.streaming) {
+            next[i] = { ...m, streaming: false }
+            break
+          }
         }
         return next
       })
@@ -238,6 +463,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
 
   const startEdit = (msg: UiMessage) => {
     if (!msg.id) return
+    if (msg.role !== "user" && msg.role !== "assistant") return
     setEditingId(msg.id)
     setEditDraft(msg.content)
   }
@@ -249,7 +475,9 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
 
   const commitEdit = async (msg: UiMessage) => {
     if (!sessionId || !msg.id || !editDraft.trim()) { cancelEdit(); return }
+    if (msg.role !== "user") { cancelEdit(); return }
     const newText = editDraft.trim()
+    const oldContexts = msg.contexts
     // 1) 删掉旧 user 消息 + 它的所有后代（通常是一条 assistant 回复）
     try {
       const r = await fetch(`/api/copilot/sessions/${sessionId}/messages/${msg.id}`, { method: "DELETE" })
@@ -263,7 +491,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
     }
     cancelEdit()
     // 2) 用新内容作为新 user 消息发一次；复用原消息的 contexts（如果有）
-    await doStreamSend(newText, msg.contexts)
+    await doStreamSend(newText, oldContexts)
   }
 
   // ---------- 渲染 ----------
@@ -287,20 +515,68 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
             {t("copilot.empty_conversation")}
           </div>
         )}
-        {messages.map((m, i) => (
-          <MessageRow
-            key={m.id ?? `p-${i}`}
-            msg={m}
-            editing={!!m.id && editingId === m.id}
-            editDraft={editDraft}
-            onEditDraftChange={setEditDraft}
-            onCopy={() => handleCopy(m.content)}
-            onEdit={() => startEdit(m)}
-            onDelete={() => handleDelete(m)}
-            onEditCancel={cancelEdit}
-            onEditCommit={() => commitEdit(m)}
-          />
-        ))}
+        {messages.map((m, i) => {
+          if (m.role === "tool_use") {
+            // 往后找配对 tool_result（同 call_id）
+            let paired: UiMessage | undefined
+            for (let j = i + 1; j < messages.length; j++) {
+              const x = messages[j]
+              if (x.role === "tool_result" && x.call_id === m.call_id) {
+                paired = x
+                break
+              }
+            }
+            const pending = pendingCallIds.has(m.call_id)
+            const toolUseShim: CopilotMessage = {
+              id: m.id ?? `tu-${i}`,
+              session_id: sessionId,
+              role: "tool_use",
+              content: "",
+              timestamp: "",
+              call_id: m.call_id,
+              tool_name: m.tool_name,
+              tool_input: m.tool_input,
+            }
+            const toolResultShim: CopilotMessage | undefined = paired && paired.role === "tool_result"
+              ? {
+                  id: paired.id ?? `tr-${i}`,
+                  session_id: sessionId,
+                  role: "tool_result",
+                  content: paired.content,
+                  timestamp: "",
+                  call_id: paired.call_id,
+                  tool_name: paired.tool_name,
+                  denied: paired.denied,
+                  reason: paired.reason,
+                }
+              : undefined
+            return (
+              <ToolCallCard
+                key={m.id ?? `tu-${i}`}
+                toolUse={toolUseShim}
+                toolResult={toolResultShim}
+                onConfirm={() => handleToolConfirm(m.call_id, m.tool_name, m.tool_input)}
+                onDeny={(reason) => handleToolDeny(m.call_id, m.tool_name, m.tool_input, reason)}
+                pending={pending}
+              />
+            )
+          }
+          if (m.role === "tool_result") return null
+          return (
+            <MessageRow
+              key={m.id ?? `p-${i}`}
+              msg={m}
+              editing={!!m.id && editingId === m.id}
+              editDraft={editDraft}
+              onEditDraftChange={setEditDraft}
+              onCopy={() => handleCopy(m.content)}
+              onEdit={() => startEdit(m)}
+              onDelete={() => handleDelete(m)}
+              onEditCancel={cancelEdit}
+              onEditCommit={() => commitEdit(m)}
+            />
+          )
+        })}
         <div ref={bottomRef} />
       </div>
 
@@ -426,3 +702,33 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   )
 }
 
+/**
+ * 把 session 历史里的 CopilotMessage 映射成 UiMessage 的 discriminated union。
+ * tool_use / tool_result 消息在存储层必有 call_id / tool_name；做了兜底以兼容旧数据。
+ */
+function toUiMessage(m: CopilotMessage): UiMessage {
+  if (m.role === "tool_use") {
+    return {
+      role: "tool_use",
+      id: m.id,
+      call_id: m.call_id ?? "",
+      tool_name: m.tool_name ?? "",
+      tool_input: m.tool_input ?? {},
+    }
+  }
+  if (m.role === "tool_result") {
+    return {
+      role: "tool_result",
+      id: m.id,
+      call_id: m.call_id ?? "",
+      tool_name: m.tool_name ?? "",
+      content: m.content,
+      denied: m.denied,
+      reason: m.reason,
+    }
+  }
+  if (m.role === "user") {
+    return { role: "user", id: m.id, content: m.content, contexts: m.contexts }
+  }
+  return { role: "assistant", id: m.id, content: m.content }
+}
