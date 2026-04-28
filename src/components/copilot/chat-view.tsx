@@ -13,6 +13,7 @@ import { useCopilotStore } from "./store"
 import { colorForTag } from "./context-mask"
 import { MessageRow, MarkdownBody, ThinkingDots, type UiMessage } from "./chat-view-parts"
 import { ToolCallCard } from "./tool-call-card"
+import { RouteChangeBanner } from "./route-change-banner"
 
 interface Props {
   sessionId?: string
@@ -79,6 +80,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
     contexts, clearContexts, removeContext,
     setInspectorActive, inspectorActive,
     setBusy, pageContext, bumpTypingSignal,
+    setActiveSessionId,
   } = useCopilotStore()
   const [messages, setMessages] = useState<UiMessage[]>([])
   const [input, setInput] = useState("")
@@ -453,6 +455,29 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
     await doStreamSend(text, snapshot.length > 0 ? snapshot : undefined)
   }
 
+  /**
+   * RouteChangeBanner 的 “开启新对话” 动作：POST /api/copilot/sessions 建一个全新
+   * 会话，并把 activeSessionId 切过去 —— 旧会话原样保留，用户可以回头查。
+   * 失败时 toast 提示，不切会话。
+   */
+  const handleForkSession = async () => {
+    try {
+      const resp = await fetch("/api/copilot/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: t("copilot.session.untitled") }),
+      })
+      if (!resp.ok) {
+        toast.error(t("copilot.session.create_failed"))
+        return
+      }
+      const data = await resp.json() as { id: string }
+      setActiveSessionId(data.id)
+    } catch {
+      toast.error(t("copilot.session.create_failed"))
+    }
+  }
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
@@ -530,6 +555,10 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      <RouteChangeBanner
+        hasMessages={messages.length > 0}
+        onForkSession={handleForkSession}
+      />
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {loadingSession && messages.length === 0 && (
           <div className="text-[11px] text-muted-foreground text-center">{t("common.loading")}</div>
