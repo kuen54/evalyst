@@ -6,6 +6,7 @@ import {
   getActiveBranch,
   readAllMessages,
 } from '@/lib/copilot/session-store'
+import { deleteSnapshot } from '@/lib/copilot/snapshot-cache'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -33,6 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const ok = deleteSession(id)
+  deleteSnapshot(id)
   if (!ok) return NextResponse.json({ error: 'not found' }, { status: 404 })
   return NextResponse.json({ deleted: id })
 }

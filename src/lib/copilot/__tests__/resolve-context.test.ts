@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { formatContextsForLlm, type ResolvedContext } from '../resolve-context'
+import type { PageContext } from '../types'
 
 function entity(overrides: Partial<ResolvedContext> = {}): ResolvedContext {
   return {
@@ -99,5 +100,40 @@ describe('formatContextsForLlm', () => {
     const out = formatContextsForLlm([ctx])
     expect(out).not.toContain('### `experiment:exp_missing`')
     expect(out).not.toMatch(/_within_:.*exp_missing/)
+  })
+})
+
+describe('formatContextsForLlm with pageContext', () => {
+  const pc: PageContext = {
+    route_type: 'experiment_detail',
+    path: '/experiments/exp_1',
+    summary: { id: 'exp_1', name: 'test exp', status: 'completed', progress: { total: 10, success: 9, failed: 1 } },
+    timestamp: 'ts',
+  }
+
+  it('prepends page_context header when pageContext is provided', () => {
+    const out = formatContextsForLlm([], pc)
+    expect(out).toContain('# 当前页面')
+    expect(out).toContain('/experiments/exp_1')
+    expect(out).toContain('experiment_detail')
+    expect(out).toContain('- id: exp_1')
+    expect(out).toContain('- name: test exp')
+  })
+
+  it('stringifies nested objects in summary', () => {
+    const out = formatContextsForLlm([], pc)
+    expect(out).toContain('- progress: `{"total":10,"success":9,"failed":1}`')
+  })
+
+  it('returns empty string when no pageContext and no resolved', () => {
+    expect(formatContextsForLlm([])).toBe('')
+    expect(formatContextsForLlm([], null)).toBe('')
+  })
+
+  it('renders both page_context and user selections', () => {
+    const resolved = [{ tag: 1, type: 'experiment', id: 'exp_1', status: 'ok' as const, summary: 's', data: { id: 'exp_1' } }]
+    const out = formatContextsForLlm(resolved, pc)
+    expect(out).toContain('# 当前页面')
+    expect(out).toContain('# 用户圈选的上下文 (context)')
   })
 })

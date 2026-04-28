@@ -20,18 +20,20 @@ Respond in the user's language — if they write in Chinese, reply in Chinese; i
 Be concise and specific; prefer code or concrete examples over abstract advice.
 When the user has shared context (圈选的对象，以 <context tag="N" ...> 标注), refer to them by their tag number in your answer (例如 "根据你圈的 #1 这个实验..."). Never fabricate data that wasn't shared.`
 
-export function buildLlmMessages(branch: CopilotMessage[]): LlmMessage[] {
+export function buildLlmMessages(
+  branch: CopilotMessage[],
+  pageContext?: import('./types').PageContext | null,
+): LlmMessage[] {
   const out: LlmMessage[] = [{ role: 'system', content: COPILOT_SYSTEM_PROMPT }]
 
   // 把当前分支最后一条 user 消息挂的 contexts 渲染成第二条 system message。
   // 历史 user 消息可能有 contexts，但那是旧状态，不再重放。
   const lastUser = [...branch].reverse().find(m => m.role === 'user')
-  if (lastUser?.contexts && lastUser.contexts.length > 0) {
-    const resolved = resolveContexts(lastUser.contexts as CopilotContextRef[])
-    const ctxText = formatContextsForLlm(resolved)
-    if (ctxText) {
-      out.push({ role: 'system', content: ctxText })
-    }
+  const refs = lastUser?.contexts ?? []
+  const resolved = refs.length > 0 ? resolveContexts(refs as CopilotContextRef[]) : []
+  const ctxText = formatContextsForLlm(resolved, pageContext)
+  if (ctxText) {
+    out.push({ role: 'system', content: ctxText })
   }
 
   for (const m of branch) {

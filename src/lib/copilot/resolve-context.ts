@@ -247,16 +247,41 @@ export function resolveContexts(refs: CopilotContextRef[]): ResolvedContext[] {
 /** 把 resolved contexts 拼成给 LLM 的 system message 附加块。
  *
  *  结构（markdown 友好，预览渲染出来就是层级清晰的 heading + blockquote）：
+ *    # 当前页面                 —— 若提供 pageContext
  *    # 用户圈选的上下文 (context)
  *    ## 📚 Referenced entities  —— 去重的实体目录
  *    ## 🎯 User selections       —— 显眼的 `### ■ #N · TYPE` header + `_within_: A → B` 层级
  *    ## ⚠️ 解析失败的 context    —— 若有
  */
-export function formatContextsForLlm(resolved: ResolvedContext[]): string {
-  if (resolved.length === 0) return ''
+export function formatContextsForLlm(
+  resolved: ResolvedContext[],
+  pageContext?: import('./types').PageContext | null,
+): string {
+  const parts: string[] = []
+
+  if (pageContext) {
+    parts.push('# 当前页面')
+    parts.push('')
+    parts.push(`path: \`${pageContext.path}\``)
+    parts.push(`route_type: \`${pageContext.route_type}\``)
+    parts.push('')
+    parts.push('## Summary')
+    parts.push('')
+    for (const [k, v] of Object.entries(pageContext.summary ?? {})) {
+      const line = typeof v === 'object' && v !== null
+        ? `- ${k}: \`${JSON.stringify(v)}\``
+        : `- ${k}: ${String(v)}`
+      parts.push(line)
+    }
+    parts.push('')
+  }
+
+  if (resolved.length === 0 && !pageContext) return ''
+  if (resolved.length === 0) return parts.join('\n')
+
   const ok = resolved.filter(r => r.status === 'ok')
   const missing = resolved.filter(r => r.status !== 'ok')
-  if (ok.length === 0 && missing.length === 0) return ''
+  if (ok.length === 0 && missing.length === 0) return parts.join('\n')
 
   // 1. 收集所有被引用的实体（主 context + 所有 ancestors），按 type:id 去重
   const entities = new Map<string, ResolvedContext>()
@@ -273,7 +298,6 @@ export function formatContextsForLlm(resolved: ResolvedContext[]): string {
     }
   }
 
-  const parts: string[] = []
   if (ok.length > 0) {
     parts.push('# 用户圈选的上下文 (context)')
     parts.push('')

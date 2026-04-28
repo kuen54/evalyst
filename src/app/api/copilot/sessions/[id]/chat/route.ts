@@ -9,9 +9,10 @@ import {
 import { callLlmStreaming } from '@/lib/copilot/llm-stream'
 import { tools } from '@/lib/copilot/tools'
 import { toOpenaiTools, toAnthropicTools } from '@/lib/copilot/tool-adapters'
-import type { CopilotContextRef, CopilotMessage, StreamEvent } from '@/lib/copilot/types'
+import type { CopilotContextRef, CopilotMessage, StreamEvent, ClientSnapshot } from '@/lib/copilot/types'
 import { getLlmConfig } from '@/lib/llm-config'
 import { buildLlmMessages } from '@/lib/copilot/build-llm-messages'
+import { setSnapshot } from '@/lib/copilot/snapshot-cache'
 
 /**
  * POST body：
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     parent_id?: string
     model_id?: string
     contexts?: CopilotContextRef[]
+    client_snapshot?: ClientSnapshot
   }
   if (!body.user_message || typeof body.user_message !== 'string') {
     return new Response(JSON.stringify({ error: 'user_message required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
@@ -65,6 +67,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // 选 parent_id：默认为当前 head
   const parent_id = body.parent_id ?? session.head_message_id
 
+  // 缓存 client_snapshot（用于 read_page 工具 + page_context 注入）
+  if (body.client_snapshot) {
+    setSnapshot(sessionId, body.client_snapshot)
+  }
+
   // 追加 user 消息
   const userMsg = appendMessage({
     session_id: sessionId,
@@ -77,7 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // 构造发给 LLM 的 messages：系统 prompt + 当前活跃分支历史（含刚才 user msg）
   const branch = getActiveBranch(sessionId, userMsg.id)
-  const llmMessages = buildLlmMessages(branch)
+  const llmMessages = buildLlmMessages(branch, body.client_snapshot?.page_context ?? null)
 
   // Provider-adapted tools
   const toolsFormatted =

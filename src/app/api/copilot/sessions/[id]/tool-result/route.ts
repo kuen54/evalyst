@@ -9,8 +9,9 @@ import { tools } from '@/lib/copilot/tools'
 import { findTool } from '@/lib/copilot/tool-registry'
 import { toOpenaiTools, toAnthropicTools } from '@/lib/copilot/tool-adapters'
 import { getLlmConfig } from '@/lib/llm-config'
-import type { CopilotMessage, StreamEvent } from '@/lib/copilot/types'
+import type { CopilotMessage, StreamEvent, ClientSnapshot } from '@/lib/copilot/types'
 import { buildLlmMessages } from '@/lib/copilot/build-llm-messages'
+import { setSnapshot } from '@/lib/copilot/snapshot-cache'
 
 /**
  * POST body：
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     input?: Record<string, unknown>
     denied?: boolean
     reason?: string
+    client_snapshot?: ClientSnapshot
   }
   if (!body.call_id || typeof body.call_id !== 'string') {
     return jsonError(400, 'call_id required')
@@ -60,6 +62,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   if (!body.input || typeof body.input !== 'object') {
     return jsonError(400, 'input required')
+  }
+
+  // 缓存 client_snapshot（用于 read_page 工具 + page_context 注入）
+  if (body.client_snapshot) {
+    setSnapshot(sessionId, body.client_snapshot)
   }
 
   // 链长上限 5（trailing tool_use + tool_result 对）
@@ -115,7 +122,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // 重新拉 branch（含刚 append 的 tool_result），构造 LLM messages
   const branch = getActiveBranch(sessionId, toolResultMsg.id)
-  const llmMessages = buildLlmMessages(branch)
+  const llmMessages = buildLlmMessages(branch, body.client_snapshot?.page_context ?? null)
 
   // Provider-adapted tools
   const toolsFormatted =
