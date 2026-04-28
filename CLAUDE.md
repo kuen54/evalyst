@@ -250,6 +250,136 @@ CI（`.github/workflows/ci.yml`）两个 job：
 - `verify` — `tsc --noEmit → lint（continue-on-error）→ test → build`
 - `e2e`（依赖 verify 通过）— `npx playwright install --with-deps chromium → npm run test:e2e`，失败上传 HTML report 作为 artifact
 
+## Copilot（内嵌 AI 助手）
+
+`⌘K` 打开的右侧滑出对话面板。核心诉求：把"结果不满意 → 把系统 context 复制到另一个对话窗口 → 调 prompt → 复制回来 → 重启实验"的拷贝粘贴链路，换成一条"圈选 + Copilot 直接改模板/重跑"的路径。
+
+### 状态（2026-04-28）
+
+- ✅ **Session + 流式对话**：`src/lib/copilot/session-store.ts` jsonl append-only + fork + prune-descendants；`llm-stream.ts` OpenAI + Anthropic SSE 归一化
+- ✅ **Share Context + Inspector**：9 种 context 类型（experiment / task_result / task_field / text_selection / template / dataset / display / rubric / rubric_stats），Chrome DevTools 风格元素圈选，彩色 mask + 数字徽章，context 层级链（ancestors → `within: A → B → C`）
+- ✅ **划线选中**：选区 → "+加入 Copilot" 胶囊 → 持久化高亮（TextSelectionMask 用 TreeWalker 按 offset 重建 Range）
+- ✅ **Liquid Glass UI 系统**（见下一节）
+- 🚧 **工具调用闭环**（PR-3 待启动）：`edit_template` + `restart_experiment` + `list_experiments` + `read_experiment_results`，confirm card 带 diff
+
+### 关键文件
+
+```
+src/lib/copilot/
+├── types.ts                   # CopilotSession/Message/Event/ContextRef 类型
+├── session-store.ts           # jsonl 会话存储 + fork 分支
+├── llm-stream.ts              # callLlmStreaming OpenAI + Anthropic 归一化
+├── context-registry.ts        # KNOWN_CONTEXT_TYPES + captureFromElement + elementKey
+├── resolve-context.ts         # batch resolver + formatContextsForLlm（markdown system message）
+└── __tests__/                 # context-registry / session-store / resolve-context 单测
+
+src/components/copilot/
+├── panel.tsx                  # 右侧 slide-in panel（resizable 360–720px）
+├── session-list.tsx           # 顶部 session 切换 + 新建 + 改名 + 删除
+├── chat-view.tsx              # markdown 渲染 + 流式 token + chip rail + expand textarea
+├── shell.tsx                  # 4 档玻璃系统 + useGlassStyle hook（见下）
+├── store.tsx                  # React Context 全局状态 + localStorage/sessionStorage 持久化
+├── inspector-overlay.tsx      # DevTools 风格元素圈选
+├── context-mask.tsx           # 彩色蒙层 + 数字徽章 + × 移除按钮
+├── glow-overlay.tsx           # 背景漂移光斑 + 点击 spawn 光点
+├── text-selector.tsx          # 选区监听 + "+加入 Copilot" 胶囊
+├── text-selection-mask.tsx    # 划线持久化高亮
+└── model-picker.tsx           # 筛 copilot_enabled 模型
+
+src/app/api/copilot/
+├── sessions/…                 # 会话 CRUD + chat (SSE)
+├── sessions/[id]/messages/…   # prune 消息 + 后代
+└── contexts/resolve           # POST → { resolved[], system_message }
+```
+
+### 交互
+
+| 快捷键 | 动作 |
+|---|---|
+| `⌘K` / `Ctrl+K` | 开/关面板 |
+| `⌘Enter` / `Ctrl+Enter` | 发送消息 |
+| `Esc` | 关闭面板（不在 input/textarea 焦点内） |
+| Inspector 按钮 | 进入 DevTools 风格圈选模式 |
+| 在任何地方选中文本 | 底部出现 "+加入 Copilot" 胶囊 |
+
+### Context 抽取约定
+
+UI 节点通过 DOM 属性声明自己是哪种 context：
+
+```tsx
+<div
+  data-copilot-context="task_result"
+  data-copilot-context-id={result.task_id}
+  data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id })}
+  data-copilot-context-summary={summary}
+>
+```
+
+`captureFromElement` 会沿着 DOM 父链找到最近挂了这组属性的元素；`collectAncestorChain` 向上递归收集祖先链（用于 `within: A → B → C` 层级展示）。
+
+**elementKey 消歧**：`task_result` / `task_field` 的 elementKey 会带 `${experiment_id}/` 前缀，`queryContextElement` 按 `extra.experiment_id` 过滤匹配 DOM —— 用于 compare 页两张卡片共享同 `task_id` 时的 context 分隔。
+
+## Copilot Glass UI 系统（4 档 + Tinted）
+
+Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（关闭时恢复 shadcn 扁平）。设计参考 Apple HIG Materials + Liquid Glass + MD3 elevation —— spec 全文在 `docs/superpowers/specs/2026-04-28-copilot-glass-system-design.md`，实施计划在 `docs/superpowers/plans/2026-04-28-copilot-glass-system.md`。
+
+### 4 档梯度
+
+| 档 | blur | bg opacity (亮) | 典型角色 |
+|---|---|---|---|
+| **Thin** | 16px | 8% | sticky 条带、数据单元格、results 行级卡 |
+| **Regular** | 28px | 35% | 页面主外壳 + 内容卡（默认档） |
+| **Thick** | 40px | 55% | 浮层（Dialog / Select content / 自建 popover） |
+| **Tinted** | 28px | 35% + accent 22% | primary CTA、segmented selected |
+
+组件 `GlassThin` / `GlassRegular` / `GlassThick` / `GlassTinted` 从 `@/components/copilot/shell` 导出；非 JSX 场景用 `useGlassStyle(variant)` hook 取 `CSSProperties`。
+
+### `--copilot-accent` 而非 `--primary`
+
+项目 `--primary = oklch(0.25 0.015 55)` 是暗褐色（色度 0.015 基本 = 灰）。`bg-primary/10` 做激活染色出来灰扁不像"亮"。`--copilot-accent: oklch(0.76 0.16 225)` (sky blue, 与 glow 主色呼应) 才是 Tinted 和激活态的正确色。**动 copilot 玻璃 / segmented / primary CTA 染色时都用 copilot-accent，不要 primary。**
+
+### Segmented 选中态 token
+
+`src/lib/segmented.ts` 的 `segmentedItem(active, copilotOpen)` 是统一的 class 生成函数：
+- copilot 关 → 回退 shadcn 原样（`border-foreground bg-accent/70`）
+- copilot 开 → accent 浅染 + 顶部白高光 + accent 光圈 + accent ambient shadow（"发光"而非"染色"）
+
+应用在 segmented 按钮 / tab / nav selected 上。`sidebar.tsx` 和 `copilot/session-list.tsx` 硬编 `false`（见下一段）。
+
+### 玻璃作用域（**重要**）
+
+**只有页面中间内容区玻璃化**。以下明确**不走玻璃，保持 shadcn 扁平**：
+
+- **Sidebar** —— 左侧主导航。`bg-muted/20` 实底
+- **Copilot panel 自身 + 内部**（session-list / chat-view 按钮 / textarea）—— 右侧 copilot 区
+- **Toast / Sonner** —— HIG 明确 toast 不玻璃
+- **Agent hint banner**（amber 色通知）—— semantic 色码信号 > 装饰
+- **Textarea / Input / Code 内部** —— 阅读密集
+
+中间内容区触发的**浮层**（Dialog / Select content / compare 的 PromptInfoIcon / custom popover divs）保留 Thick 玻璃，因为它们视觉上是"在中间渲染的浮层"。
+
+### JSX display 兼容
+
+用户自建的 JSX display（`display.mode === "jsx"`）源码里如果写死了 `bg-card`，copilot 打开也是实底。解决方式：`makeHelpers({ open, styles })` 暴露 `helpers.glassStyle(variant)` + `helpers.glassAttr(variant)`，用户源码按 pattern 应用：
+
+```js
+const { readField, Badge, glassStyle, glassAttr } = helpers;
+React.createElement('div', {
+  className: 'border rounded-lg p-3 bg-card',     // copilot 关走实底
+  style: glassStyle('regular'),                    // copilot 开走玻璃（关时 undefined）
+  'data-glass-variant': glassAttr('regular'),      // 供 a11y 媒介查询选择器用
+}, children)
+```
+
+已改好参照：`data/displays/fortune_v3_dual_list.json` + `fortune_v4_dual_list.json`。新建 JSX display 必须带这个 pattern。
+
+### 可访问性
+
+`src/app/globals.css` 尾部 3 条媒介查询降级：
+- `prefers-reduced-transparency: reduce` → 全部玻璃降为实底 `var(--card)`
+- `prefers-contrast: more` → 实心 + 更强描边
+- `prefers-reduced-motion: reduce` → 关 press-squish / hover-lift / scroll-edge 动画
+
 ## Claude Code skill 集成
 
 产品定位：**agent 驱动是主推路径**（尤其复杂配置），UI 同时保持一流体验、手工用户不降级。两条路都是一等公民。

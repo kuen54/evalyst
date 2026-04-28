@@ -15,6 +15,8 @@
 
 **Agent 驱动（推荐）**：Dashboard 空态和 `/settings` 顶栏各有一个「下载 SKILL.md」按钮。装上 `evalyst` skill 后，Claude Code 里一句话就能从零建数据集、评测任务、实验并跑起来——UI 专心展示结果。不想用 agent 也完全 OK，表单 UI 保持一流体验。
 
+**内嵌 Copilot**（`⌘K` 打开）：右侧滑出对话面板，能"看到"你当前屏幕上的东西 —— 圈选实验卡、task 行、prompt 模板、任意文本作为 context 发给 Copilot；切换到 copilot 模式时主内容区统一切到玻璃 UI 语言，和普通编辑模式视觉清晰区隔。工具调用闭环（代用户改模板 + 触发重跑）规划中。
+
 ---
 
 ## 目录

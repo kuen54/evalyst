@@ -153,3 +153,93 @@ JSON 粘贴入口仍保留给 "AI agent 整份产出" 这一种场景（new 页�
   function configDir() { return path.join(process.cwd(), 'data') }
   ```
 - 加新纯函数时配套加 test 文件。迁移层改动（store / llm-config / results-aggregate / annotation-aggregate）必须更新 `__tests__/*.migrate.test.ts`
+
+## Copilot & Glass UI 约定
+
+完整 spec 在 `docs/superpowers/specs/2026-04-28-copilot-glass-system-design.md`；快速总结如下。
+
+### 做 copilot UI 相关改动前先读
+
+1. `CLAUDE.md` 的 Copilot + Glass 章节
+2. Spec §12「首轮验证后的调整」—— 记录了三处反直觉的强约束
+3. 项目记忆 `feedback_copilot_glass_scope.md`
+
+### 玻璃档位选择
+
+| 角色 | 档 |
+|---|---|
+| 页面主外壳 + 内容卡 | **GlassRegular** |
+| Sticky 条 / 数据密集行级卡 / 表格 cell | **GlassThin** |
+| Dialog / Select content / 自建浮层 | **GlassThick** |
+| primary CTA / segmented selected | Button `variant="tinted"` 或手工 `tintedStyle` |
+| ❌ Sidebar / Copilot panel / panel 内部 | **不玻璃**，走 shadcn 扁平 |
+| ❌ Toast / amber 通知 banner | **不玻璃**，semantic 色 > 装饰 |
+
+**同档不 DOM 嵌套**（Regular 套 Regular 浑浊）。Dashboard 的多张 Regular 卡并排不算嵌套 —— 它们是网格同级。
+
+### 色 token
+
+- **激活/发光色用 `var(--copilot-accent)`**（sky blue），**不要用 `var(--primary)`**。项目 primary 是暗褐色，/10 染色灰扁
+- 玻璃 border 用 `color-mix(in oklab, var(--border) 50%, transparent)`，不用实色（破坏玻璃感）
+
+### Segmented 选中态
+
+所有 segmented control / tab / active 项走 `segmentedItem(active, copilotOpen)`：
+- `copilotOpen` 传真（主内容区）→ 两套样式（关态 shadcn + 开态 accent 发光）
+- `copilotOpen` 硬编 `false`（sidebar / session-list）→ 永远 shadcn 扁平
+
+### JSX display 兼容 copilot 态
+
+用户自建 JSX display 写外层主卡时必须用 helpers API：
+```js
+const { glassStyle, glassAttr } = helpers;
+React.createElement('div', {
+  className: 'bg-card border rounded-lg p-3',
+  style: glassStyle('regular'),
+  'data-glass-variant': glassAttr('regular'),
+}, children);
+```
+`glassStyle()` copilot 关返 undefined（走 className 实底），开时返 inline style 覆盖。
+
+参照 `data/displays/fortune_v3_dual_list.json` + `fortune_v4_dual_list.json`。
+
+### 可访问性降级（必须保持工作）
+
+三条媒介查询在 `src/app/globals.css` 尾部：
+- `prefers-reduced-transparency: reduce` → 全实底
+- `prefers-contrast: more` → 实心 + 更强描边
+- `prefers-reduced-motion: reduce` → 关所有动画
+
+玻璃组件必须挂 `data-glass-variant` 属性才能被这三条规则选中降级。`makeGlass` 工厂自动挂。手写 inline glass style 时记得带 `data-glass-variant={copilotOpen ? "regular" : undefined}`。
+
+## 开发流程（本仓库）
+
+### 分支 + PR
+
+所有非 trivial 改动走 feature branch + Pull Request：
+
+1. `git checkout -b feat/xxx`（或 `fix/xxx` / `refactor/xxx`）
+2. 开发 + 本地验证（tsc / test / e2e / build）
+3. `git push -u origin feat/xxx`
+4. `gh pr create --title "..." --body "..."` 或网页打开 PR
+5. PR description 写：**改了什么 / 为什么 / 怎么验证 / 向后兼容风险**
+6. CI 通过 + 自审后合并
+7. 合并后清理本地分支
+
+**小的 typo / doc 修正**：可以直接 push main，但 commit 信息要说清。
+
+### Commit message 规范
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+Co-Authored-By: ...
+```
+
+`<type>`: `feat` / `fix` / `refactor` / `docs` / `chore` / `test` / `perf` / `style` / `build` / `ci`
+
+`<scope>`: 受影响的模块（`copilot` / `ui` / `settings` / `compare` 等），没有就省
+
+**AI 助手额外约定**：当你以 AI assistant 身份工作时，非 trivial 改动（>3 文件或功能性）必须开 branch + PR，**不要直接 push 到 main**。详见 `CONTRIBUTING.md` §提交流程。
