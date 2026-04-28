@@ -359,3 +359,63 @@
   }
 }
 
+/* ---------------- Copilot Glass · Accessibility fallbacks ---------------- */
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-copilot-open="true"] [data-glass-variant] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: var(--card) !important;
+    background-image: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  html[data-copilot-open="true"] [data-glass-variant] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: var(--card) !important;
+    background-image: none !important;
+    border-color: var(--foreground) !important;
+    border-width: 1.5px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-press-squish,
+  .copilot-hover-lift,
+  .copilot-scroll-edge-top,
+  .copilot-scroll-edge-bottom {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ---------------- Copilot Glass · Interactive states ---------------- */
+
+.copilot-press-squish {
+  transition: transform 150ms ease-out, backdrop-filter 150ms ease-out;
+}
+.copilot-press-squish:active {
+  transform: scale(0.98);
+}
+
+.copilot-hover-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease, backdrop-filter 200ms ease;
+}
+@media (hover: hover) {
+  html[data-copilot-open="true"] .copilot-hover-lift:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* 用于 sticky 表头 / 吸底条下方 8–24px mask gradient 软边 */
+.copilot-scroll-edge-bottom {
+  mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
+}
+.copilot-scroll-edge-top {
+  mask-image: linear-gradient(to top, black calc(100% - 16px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, black calc(100% - 16px), transparent 100%);
+}
+
