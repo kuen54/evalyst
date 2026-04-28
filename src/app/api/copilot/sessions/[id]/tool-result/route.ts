@@ -131,7 +131,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const write = (payload: unknown) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
+        // 若客户端已 abort / 流已关，enqueue 会 throw "Controller is already closed"；
+        // 吞掉 —— 没法再回写客户端，写错误日志意义也不大。
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
+        } catch { /* stream closed */ }
       }
       // 回传 content + denied + reason 给前端，让 ToolCallCard.summarizeResult 能渲出
       // "5/12" 这种读工具摘要。只发 id 会让占位 UiMessage 的 content 保持空串。

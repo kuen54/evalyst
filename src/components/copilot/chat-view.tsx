@@ -272,12 +272,16 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         // 写工具（requiresConfirm=true）等用户点 Confirm 再走，走同一个 postToolResult 路径。
         const pending = pendingAutoRunRef.current
         pendingAutoRunRef.current = []
-        for (const tu of pending) {
-          if (currentSessionRef.current !== pairSessionId) break
-          // 串行等前一个 tool_result 回来再跑下一个：postToolResult 会打开新的 SSE，
-          // done 事件到达后同一 handler 会把新的 pending 再清空。串行避免 chain 上限 / 资源占用意外。
-          void postToolResult(tu.call_id, tu.tool_name, tu.input, false)
-        }
+        // 必须串行（await 每个）：若并行 POST /tool-result，多个请求读同一 branch、
+        // 各自 append tool_result + 调 LLM → appendMessage 虽然现在用 append-mode 不会丢消息，
+        // 但多条 tool_result 的 parent_id 都会错位指向 /chat 末端而不是各自的 tool_use。
+        // 另外 chain cap 逻辑依赖 trailing pair 计数，串行才准。
+        ;(async () => {
+          for (const tu of pending) {
+            if (currentSessionRef.current !== pairSessionId) break
+            await postToolResult(tu.call_id, tu.tool_name, tu.input, false)
+          }
+        })()
       } else if (ev.kind === "error") {
         toast.error(ev.message)
         setMessages(prev => {
@@ -329,6 +333,9 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         reason,
       },
     ])
+    // 若前一个请求（另一个 postToolResult 或 doStreamSend）还没结束，先 abort：
+    // 避免旧 SSE 继续消费 + 状态回写和新的 action 混线。
+    abortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
     try {
@@ -384,6 +391,8 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
       { role: "user", content: text, contexts: sendContexts },
       { role: "assistant", content: "", streaming: true },
     ])
+    // 同理先 abort 旧请求，防止用户连点 Send 时两个流并行跑
+    abortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
     streamToolUseOrderRef.current = []

@@ -199,10 +199,11 @@ export function appendMessage(input: AppendMessageInput): CopilotMessage {
   }
   ensureDir(sessionsDir())
   const file = sessionPath(input.session_id)
-  const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : ''
-  const prefix = existing && !existing.endsWith('\n') ? existing + '\n' : existing
-  const next = prefix + JSON.stringify(msg) + '\n'
-  writeAtomic(file, next)
+  // fs.appendFileSync 是 append-mode 的原子操作（O_APPEND + 单次 write），两个并发调用
+  // 不会"读同一个 base → 覆盖彼此"导致整条消息丢失 —— 这是 read-modify-writeAtomic 会踩的坑。
+  // 单条消息若超过 PIPE_BUF（macOS 默认 ~512B，Linux 4KB）理论上可能被交错写入，但
+  // readAllMessages 对每行单独 JSON.parse + try/catch（见 ~line 111），最坏情况是单条消息被丢弃而不是数据全乱。
+  fs.appendFileSync(file, JSON.stringify(msg) + '\n')
   // session 元数据：head 跟过去 + updated_at
   updateSession(input.session_id, { head_message_id: msg.id })
   return msg
