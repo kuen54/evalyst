@@ -1,8 +1,44 @@
 import type { ApiConfig } from './types'
 
-export interface LlmMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>
+/**
+ * 统一的 LLM 消息类型。PR-3 起扩展成 discriminated union 以承载工具调用：
+ * - 文本三元组（system/user/assistant）走 content: string | ContentBlock[]
+ * - tool_use 承载 LLM 发起的工具调用（call_id + tool_name + tool_input）
+ * - tool_result 承载工具返回结果（call_id + content，content 为 JSON string；
+ *   denied 分支也序列化为 JSON string 存入 content）
+ *
+ * 非流式 callLlm（experiment batch runner）只走 text 分支——widened union 里
+ * tool_use / tool_result 对 batch-runner 没意义，由 buildRequestBody 过滤掉。
+ */
+export type LlmMessage =
+  | {
+      role: 'system' | 'user' | 'assistant'
+      content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>
+    }
+  | {
+      role: 'tool_use'
+      call_id: string
+      tool_name: string
+      tool_input: Record<string, unknown>
+      /**
+       * Gemini thinking 模式的不透明签名；下一轮调用必须原样回显到
+       * OpenAI 兼容格式的 `tool_calls[].function.thought_signature` 字段，
+       * 否则 Vertex/Gemini 返回 400。其他 provider 没有该字段，序列化时按
+       * 缺省处理。
+       */
+      thought_signature?: string
+    }
+  | {
+      role: 'tool_result'
+      call_id: string
+      content: string
+    }
+
+/** Narrow guard: 只保留普通 text-style 消息（batch-runner 走此路径）。 */
+export function isTextMessage(
+  m: LlmMessage,
+): m is Extract<LlmMessage, { role: 'system' | 'user' | 'assistant' }> {
+  return m.role === 'system' || m.role === 'user' || m.role === 'assistant'
 }
 
 export interface LlmResponse {
@@ -91,15 +127,17 @@ function buildRequestBody(p: CallLlmParams): Record<string, unknown> {
     max_tokens: p.max_tokens,
     temperature: p.temperature,
   }
+  // 非流式 callLlm 只处理 text-style 消息；tool_use/tool_result 走流式路径（Copilot）
+  const textMessages = p.messages.filter(isTextMessage)
   if (p.config.api_format === 'anthropic') {
     // Anthropic: system 单独字段；messages 只能 user/assistant；image 用 source.url 格式
-    const systemMsg = p.messages.find(m => m.role === 'system')
+    const systemMsg = textMessages.find(m => m.role === 'system')
     if (systemMsg) {
       base.system = typeof systemMsg.content === 'string'
         ? systemMsg.content
         : systemMsg.content.map(b => ('text' in b ? b.text : '')).join('\n')
     }
-    base.messages = p.messages.filter(m => m.role !== 'system').map(m => ({
+    base.messages = textMessages.filter(m => m.role !== 'system').map(m => ({
       role: m.role,
       content: typeof m.content === 'string'
         ? m.content
@@ -110,7 +148,7 @@ function buildRequestBody(p: CallLlmParams): Record<string, unknown> {
     }))
   } else {
     base.stream = false
-    base.messages = p.messages
+    base.messages = textMessages
   }
   if (p.config.extra_body) Object.assign(base, p.config.extra_body)
   return base

@@ -2,11 +2,13 @@
 // 对接两种 api_format：OpenAI `/chat/completions` 和 Anthropic `/messages`，都开 stream。
 // 把各自 SSE 协议归一化为 StreamEvent 发给调用方（再到前端/API 层）。
 //
-// PR-1 只覆盖 text + done + error；tool_use 事件在 PR-3 里扩。
+// PR-3：扩 tool_use_start / _delta / _end 事件 + tools 请求参数 + tool_use / tool_result
+// 消息序列化。Task 6 进一步在 serializeMessagesForProvider 里合并连续的
+// assistant text + tool_use，以满足 Anthropic 的 user/assistant 严格交替约束。
 
 import type { ApiConfig } from '../types'
 import type { LlmMessage } from '../llm-client'
-import { buildApiRequest } from '../llm-client'
+import { isTextMessage, buildApiRequest } from '../llm-client'
 import type { StreamEvent } from './types'
 
 export interface CallLlmStreamingParams {
@@ -15,7 +17,22 @@ export interface CallLlmStreamingParams {
   model: string
   temperature: number
   max_tokens: number
+  /** 已按 provider 格式 pre-adapted 的 tools（caller 用 toOpenaiTools / toAnthropicTools 转换后传入） */
+  tools?: Array<Record<string, unknown>>
   signal?: AbortSignal
+}
+
+/** 单个 tool_use 块（按 index 归并）跨 SSE 帧积累状态 */
+interface ToolUseState {
+  call_id: string
+  tool_name: string
+  args_buffer: string
+  /**
+   * Gemini thinking 模式的 thought_signature —— proxy 可能在任何一个 tool_call
+   * chunk 上给（不一定是 first chunk；常在带 finish_reason 的 last chunk），
+   * 所以每次 chunk 都检测一次并覆盖（last write wins）。
+   */
+  thought_signature?: string
 }
 
 /**
@@ -61,10 +78,16 @@ export async function callLlmStreaming(
   const usage = { input_tokens: 0, output_tokens: 0 }
   let stopReason: string | undefined
   let doneEmitted = false
+  // 跨 SSE 帧的 tool_use 状态（按 index 归并）
+  const toolState = new Map<number, ToolUseState>()
 
   const emitDoneOnce = () => {
     if (doneEmitted) return
     doneEmitted = true
+    // 若 OpenAI 在没明确 finish_reason 的情况下直接发 [DONE]，兜底 flush 所有未闭合的 tool_use
+    if (!isAnthropic && toolState.size > 0) {
+      flushOpenaiTools(toolState, onEvent)
+    }
     onEvent({ type: 'done', usage, stop_reason: stopReason })
   }
 
@@ -80,14 +103,14 @@ export async function callLlmStreaming(
 
       for (const raw of events) {
         if (!raw.trim()) continue
-        if (isAnthropic) parseAnthropicEvent(raw, onEvent, usage, reason => (stopReason = reason))
-        else parseOpenaiEvent(raw, onEvent, usage, reason => (stopReason = reason), emitDoneOnce)
+        if (isAnthropic) parseAnthropicEvent(raw, onEvent, usage, reason => (stopReason = reason), toolState)
+        else parseOpenaiEvent(raw, onEvent, usage, reason => (stopReason = reason), emitDoneOnce, toolState)
       }
     }
     // flush 剩余 buffer
     if (buffer.trim()) {
-      if (isAnthropic) parseAnthropicEvent(buffer, onEvent, usage, reason => (stopReason = reason))
-      else parseOpenaiEvent(buffer, onEvent, usage, reason => (stopReason = reason), emitDoneOnce)
+      if (isAnthropic) parseAnthropicEvent(buffer, onEvent, usage, reason => (stopReason = reason), toolState)
+      else parseOpenaiEvent(buffer, onEvent, usage, reason => (stopReason = reason), emitDoneOnce, toolState)
     }
     emitDoneOnce()
   } catch (e) {
@@ -132,6 +155,7 @@ function parseOpenaiEvent(
   usage: { input_tokens: number; output_tokens: number },
   setReason: (r: string) => void,
   emitDoneOnce: () => void,
+  toolState: Map<number, ToolUseState>,
 ) {
   const { data } = parseSseBlock(block)
   if (!data) return
@@ -149,8 +173,55 @@ function parseOpenaiEvent(
   if (choice?.delta?.content) {
     onEvent({ type: 'text', delta: choice.delta.content })
   }
+  // tool_calls 增量（数组里按 index 归并）
+  if (choice?.delta?.tool_calls) {
+    for (const tc of choice.delta.tool_calls) {
+      const idx = tc.index ?? 0
+      let st = toolState.get(idx)
+      if (!st) {
+        // 首次见这个 index → 初始化并 emit start（id / name 第一次出现时带齐）
+        st = {
+          call_id: tc.id ?? '',
+          tool_name: tc.function?.name ?? '',
+          args_buffer: '',
+        }
+        toolState.set(idx, st)
+      } else {
+        // 后续 chunk 可能补齐 id / name（少见，但 spec 不保证一次性给全）
+        if (tc.id && !st.call_id) st.call_id = tc.id
+        if (tc.function?.name && !st.tool_name) st.tool_name = tc.function.name
+      }
+      // Gemini thinking 模式：thought_signature 可能在 tool_call 的 function 里或顶层，
+      // 也可能只在最后一个 chunk（带 finish_reason）里给。每个 chunk 都检测一次，
+      // last write wins。Sankuai/Vertex OpenAI-compat 把它塞在 extra_content.google 下。
+      const sig =
+        tc.extra_content?.google?.thought_signature ??
+        tc.function?.thought_signature ??
+        tc.function?.thoughtSignature ??
+        tc.thought_signature ??
+        tc.thoughtSignature
+      if (typeof sig === 'string' && sig.length > 0) {
+        st.thought_signature = sig
+      }
+      // 第一次出现就 emit start（哪怕参数还没来）
+      if (!(st as ToolUseState & { _startEmitted?: boolean })._startEmitted && st.call_id && st.tool_name) {
+        ;(st as ToolUseState & { _startEmitted?: boolean })._startEmitted = true
+        onEvent({ type: 'tool_use_start', call_id: st.call_id, tool_name: st.tool_name })
+      }
+      const argsDelta = tc.function?.arguments
+      if (typeof argsDelta === 'string' && argsDelta.length > 0) {
+        st.args_buffer += argsDelta
+        if (st.call_id) {
+          onEvent({ type: 'tool_use_delta', call_id: st.call_id, input_json_delta: argsDelta })
+        }
+      }
+    }
+  }
   if (choice?.finish_reason) {
     setReason(choice.finish_reason)
+    if (choice.finish_reason === 'tool_calls') {
+      flushOpenaiTools(toolState, onEvent)
+    }
   }
   if (parsed.usage) {
     usage.input_tokens = parsed.usage.prompt_tokens ?? usage.input_tokens
@@ -158,9 +229,54 @@ function parseOpenaiEvent(
   }
 }
 
+/** OpenAI: parse 累计的 args_buffer 并 emit tool_use_end；逐项清空 Map */
+function flushOpenaiTools(toolState: Map<number, ToolUseState>, onEvent: (ev: StreamEvent) => void) {
+  for (const st of toolState.values()) {
+    if (!st.call_id) continue
+    let input: Record<string, unknown>
+    try {
+      // 允许空字符串 → 视为无参数调用
+      input = st.args_buffer.trim() ? (JSON.parse(st.args_buffer) as Record<string, unknown>) : {}
+    } catch (e) {
+      onEvent({
+        type: 'error',
+        message: `Tool args JSON parse failed: ${e instanceof Error ? e.message : String(e)} (raw=${st.args_buffer.slice(0, 200)})`,
+      })
+      continue
+    }
+    onEvent({
+      type: 'tool_use_end',
+      call_id: st.call_id,
+      tool_name: st.tool_name,
+      input,
+      ...(st.thought_signature ? { thought_signature: st.thought_signature } : {}),
+    })
+  }
+  toolState.clear()
+}
+
 interface OpenaiChunk {
   choices?: Array<{
-    delta?: { content?: string; role?: string }
+    delta?: {
+      content?: string
+      role?: string
+      tool_calls?: Array<{
+        index?: number
+        id?: string
+        type?: string
+        function?: {
+          name?: string
+          arguments?: string
+          // Gemini-proxy thinking 签名：snake_case / camelCase / function 内或顶层均见过
+          thought_signature?: string
+          thoughtSignature?: string
+        }
+        thought_signature?: string
+        thoughtSignature?: string
+        // Sankuai/Vertex OpenAI-compat 走 Google provider 扩展槽
+        extra_content?: { google?: { thought_signature?: string } }
+      }>
+    }
     finish_reason?: string | null
   }>
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
@@ -173,6 +289,7 @@ function parseAnthropicEvent(
   onEvent: (ev: StreamEvent) => void,
   usage: { input_tokens: number; output_tokens: number },
   setReason: (r: string) => void,
+  toolState: Map<number, ToolUseState>,
 ) {
   const { event, data } = parseSseBlock(block)
   if (!data) return
@@ -190,10 +307,46 @@ function parseAnthropicEvent(
       if (u?.output_tokens) usage.output_tokens = u.output_tokens
       return
     }
+    case 'content_block_start': {
+      const cb = parsed.content_block
+      const idx = parsed.index ?? 0
+      if (cb?.type === 'tool_use' && cb.id && cb.name) {
+        toolState.set(idx, { call_id: cb.id, tool_name: cb.name, args_buffer: '' })
+        onEvent({ type: 'tool_use_start', call_id: cb.id, tool_name: cb.name })
+      }
+      return
+    }
     case 'content_block_delta': {
       const d = parsed.delta
       if (d?.type === 'text_delta' && d.text) {
         onEvent({ type: 'text', delta: d.text })
+      } else if (d?.type === 'input_json_delta' && typeof d.partial_json === 'string') {
+        const idx = parsed.index ?? 0
+        const st = toolState.get(idx)
+        if (st) {
+          st.args_buffer += d.partial_json
+          onEvent({ type: 'tool_use_delta', call_id: st.call_id, input_json_delta: d.partial_json })
+        }
+      }
+      return
+    }
+    case 'content_block_stop': {
+      const idx = parsed.index ?? 0
+      const st = toolState.get(idx)
+      if (st) {
+        let input: Record<string, unknown>
+        try {
+          input = st.args_buffer.trim() ? (JSON.parse(st.args_buffer) as Record<string, unknown>) : {}
+        } catch (e) {
+          onEvent({
+            type: 'error',
+            message: `Tool args JSON parse failed: ${e instanceof Error ? e.message : String(e)} (raw=${st.args_buffer.slice(0, 200)})`,
+          })
+          toolState.delete(idx)
+          return
+        }
+        onEvent({ type: 'tool_use_end', call_id: st.call_id, tool_name: st.tool_name, input })
+        toolState.delete(idx)
       }
       return
     }
@@ -202,7 +355,7 @@ function parseAnthropicEvent(
       if (parsed.usage?.output_tokens) usage.output_tokens = parsed.usage.output_tokens
       return
     }
-    // message_start / content_block_start / content_block_stop / message_stop / ping 等：PR-1 忽略
+    // message_stop / ping 等：忽略
     default:
       return
   }
@@ -210,12 +363,190 @@ function parseAnthropicEvent(
 
 interface AnthropicEvent {
   type?: string
+  index?: number
   message?: { usage?: { input_tokens?: number; output_tokens?: number } }
-  delta?: { type?: string; text?: string; stop_reason?: string }
+  content_block?: { type?: string; id?: string; name?: string; input?: Record<string, unknown> }
+  delta?: { type?: string; text?: string; stop_reason?: string; partial_json?: string }
   usage?: { output_tokens?: number }
 }
 
 // ---------- Request body 构造 ----------
+
+/**
+ * 把 LlmMessage[] 序列化成 provider 要的 messages 数组。
+ * 导出是为了 llm-stream-serialize.test.ts 能单独覆盖这段纯逻辑。
+ *
+ * apiFormat === 'openai'：
+ *   - text 三元组不变
+ *   - tool_use → assistant 带 tool_calls 数组
+ *   - tool_result → role: 'tool' + tool_call_id
+ *
+ * apiFormat === 'anthropic'：
+ *   - text 三元组走 content blocks（user/assistant，system 会在更外层抽出）
+ *   - tool_use → role: 'assistant' 的 content block { type: 'tool_use', ... }
+ *   - tool_result → role: 'user' 的 content block { type: 'tool_result', ... }
+ *
+ * 合并规则（两个 provider 都走，PR-3 Task 6）：连续的
+ * [assistant-text?, tool_use, tool_use, ...] 会被合并成一条"复合 assistant"：
+ *   - OpenAI: { role: 'assistant', content: text || null, tool_calls: [...] }
+ *   - Anthropic: { role: 'assistant', content: [{type:'text',text}?, {type:'tool_use'}*] }
+ * 这样 Anthropic 严格的 user/assistant 交替约束自动满足；OpenAI 的
+ * tool_calls association semantics 也更正确。
+ */
+export function serializeMessagesForProvider(
+  messages: LlmMessage[],
+  apiFormat: 'openai' | 'anthropic',
+): Array<Record<string, unknown>> {
+  // Anthropic: 先剥掉 system（由 caller 单独抽出放到 body.system）
+  const src = apiFormat === 'anthropic'
+    ? messages.filter(m => !(isTextMessage(m) && m.role === 'system'))
+    : messages
+
+  const out: Array<Record<string, unknown>> = []
+  let i = 0
+  while (i < src.length) {
+    const m = src[i]
+
+    // assistant text 或 tool_use 开头 → 收集一段连续运行，合并为一条复合 assistant
+    if ((isTextMessage(m) && m.role === 'assistant') || m.role === 'tool_use') {
+      let text = ''
+      const toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown>; thought_signature?: string }> = []
+      while (i < src.length) {
+        const cur = src[i]
+        if (isTextMessage(cur) && cur.role === 'assistant') {
+          // 合并多段 assistant 文本（实际不太会出现，保守起见用换行拼）
+          const curText = typeof cur.content === 'string'
+            ? cur.content
+            : cur.content.map(b => ('text' in b ? b.text : '')).join('')
+          text += (text ? '\n' : '') + curText
+          i++
+          continue
+        }
+        if (cur.role === 'tool_use') {
+          toolUses.push({
+            call_id: cur.call_id,
+            tool_name: cur.tool_name,
+            tool_input: cur.tool_input ?? {},
+            thought_signature: cur.thought_signature,
+          })
+          i++
+          continue
+        }
+        break
+      }
+      if (toolUses.length === 0) {
+        // 纯 assistant 文本：按原来的 per-provider 形状输出
+        out.push(emitAssistantText(text, apiFormat))
+      } else {
+        out.push(emitCompositeAssistant(text, toolUses, apiFormat))
+      }
+      continue
+    }
+
+    // 其他消息（system / user / tool_result）走单消息映射
+    if (apiFormat === 'anthropic') {
+      out.push(serializeAnthropicNonAssistant(m))
+    } else {
+      out.push(serializeOpenaiNonAssistant(m))
+    }
+    i++
+  }
+  return out
+}
+
+function emitAssistantText(
+  text: string,
+  apiFormat: 'openai' | 'anthropic',
+): Record<string, unknown> {
+  if (apiFormat === 'anthropic') {
+    return { role: 'assistant', content: text }
+  }
+  return { role: 'assistant', content: text }
+}
+
+function emitCompositeAssistant(
+  text: string,
+  toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown>; thought_signature?: string }>,
+  apiFormat: 'openai' | 'anthropic',
+): Record<string, unknown> {
+  if (apiFormat === 'anthropic') {
+    const content: Array<Record<string, unknown>> = []
+    if (text) content.push({ type: 'text', text })
+    for (const tu of toolUses) {
+      content.push({
+        type: 'tool_use',
+        id: tu.call_id,
+        name: tu.tool_name,
+        input: tu.tool_input,
+        // Anthropic 格式目前用不到 thought_signature（Claude-on-Vertex 走另一条协议）；
+        // 如果 caller 误把 Gemini 的 tool_use 塞给 Anthropic 路径，仍原样回显以防万一。
+        ...(tu.thought_signature ? { thought_signature: tu.thought_signature } : {}),
+      })
+    }
+    return { role: 'assistant', content }
+  }
+  // OpenAI
+  return {
+    role: 'assistant',
+    content: text ? text : null,
+    tool_calls: toolUses.map(tu => ({
+      id: tu.call_id,
+      type: 'function',
+      function: {
+        name: tu.tool_name,
+        arguments: JSON.stringify(tu.tool_input),
+      },
+      // Gemini thinking 模式：Sankuai/Vertex OpenAI-compat 的 signature 槽在
+      // tool_call.extra_content.google.thought_signature；原样回传，否则 Gemini
+      // 会在下一轮拒绝请求（"missing a thought_signature"）。
+      ...(tu.thought_signature
+        ? { extra_content: { google: { thought_signature: tu.thought_signature } } }
+        : {}),
+    })),
+  }
+}
+
+function serializeOpenaiNonAssistant(m: LlmMessage): Record<string, unknown> {
+  if (m.role === 'tool_result') {
+    return {
+      role: 'tool',
+      tool_call_id: m.call_id,
+      content: m.content,
+    }
+  }
+  // system / user text 三元组（assistant / tool_use 由 emitComposite 处理）
+  if (isTextMessage(m)) {
+    return { role: m.role, content: m.content }
+  }
+  // 兜底（不应到达）
+  return { role: 'user', content: '' }
+}
+
+function serializeAnthropicNonAssistant(m: LlmMessage): Record<string, unknown> {
+  if (m.role === 'tool_result') {
+    return {
+      role: 'user',
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: m.call_id,
+          content: m.content,
+        },
+      ],
+    }
+  }
+  // user text（system 已被 caller 过滤；assistant / tool_use 由 emitComposite 处理）
+  if (isTextMessage(m)) {
+    const content = typeof m.content === 'string'
+      ? m.content
+      : m.content.map(b => {
+          if (b.type === 'text') return { type: 'text', text: b.text }
+          return { type: 'image', source: { type: 'url', url: b.image_url.url } }
+        })
+    return { role: m.role, content }
+  }
+  return { role: 'user', content: '' }
+}
 
 function buildStreamingRequestBody(p: CallLlmStreamingParams): Record<string, unknown> {
   const base: Record<string, unknown> = {
@@ -225,27 +556,24 @@ function buildStreamingRequestBody(p: CallLlmStreamingParams): Record<string, un
     stream: true,
   }
   if (p.config.api_format === 'anthropic') {
-    const systemMsg = p.messages.find(m => m.role === 'system')
-    if (systemMsg) {
+    const systemMsg = p.messages.find(m => isTextMessage(m) && m.role === 'system')
+    if (systemMsg && isTextMessage(systemMsg)) {
       base.system = typeof systemMsg.content === 'string'
         ? systemMsg.content
         : systemMsg.content.map(b => ('text' in b ? b.text : '')).join('\n')
     }
-    base.messages = p.messages
-      .filter(m => m.role !== 'system')
-      .map(m => ({
-        role: m.role,
-        content: typeof m.content === 'string'
-          ? m.content
-          : m.content.map(b => {
-              if (b.type === 'text') return { type: 'text', text: b.text }
-              return { type: 'image', source: { type: 'url', url: b.image_url.url } }
-            }),
-      }))
+    base.messages = serializeMessagesForProvider(p.messages, 'anthropic')
+    if (p.tools && p.tools.length > 0) {
+      base.tools = p.tools
+    }
   } else {
-    base.messages = p.messages
+    base.messages = serializeMessagesForProvider(p.messages, 'openai')
     // OpenAI 兼容的很多 endpoint 支持 include_usage
     base.stream_options = { include_usage: true }
+    if (p.tools && p.tools.length > 0) {
+      base.tools = p.tools
+      base.tool_choice = 'auto'
+    }
   }
   if (p.config.extra_body) Object.assign(base, p.config.extra_body)
   return base

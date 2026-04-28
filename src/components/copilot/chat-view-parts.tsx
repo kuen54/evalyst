@@ -6,15 +6,22 @@ import remarkGfm from "remark-gfm"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { useT } from "@/lib/i18n/provider"
-import type { CopilotMessage, CopilotContextRef } from "@/lib/copilot/types"
+import type { CopilotContextRef } from "@/lib/copilot/types"
 
-export interface UiMessage {
-  id?: string
-  role: CopilotMessage["role"]
-  content: string
-  streaming?: boolean
-  contexts?: CopilotContextRef[]
-}
+/**
+ * 聊天视图内部的消息形态。PR-3 扩成 discriminated union，覆盖 tool_use / tool_result：
+ *  - user / assistant：有 content 文本，assistant 可能 streaming=true
+ *  - tool_use：LLM 发出的工具调用，call_id / tool_name / tool_input 必填
+ *  - tool_result：工具执行结果，content 装 JSON string；denied=true 表示用户拒绝
+ *
+ * tool_use / tool_result 由 chat-view 顶层 map 路由到 ToolCallCard 组件渲染；
+ * MessageRow 只处理 user / assistant 两种文本气泡（见 MessageRow 顶部的 narrowing）。
+ */
+export type UiMessage =
+  | { role: "user"; id?: string; content: string; contexts?: CopilotContextRef[]; streaming?: undefined }
+  | { role: "assistant"; id?: string; content: string; streaming?: boolean }
+  | { role: "tool_use"; id?: string; call_id: string; tool_name: string; tool_input: Record<string, unknown>; streaming?: boolean }
+  | { role: "tool_result"; id?: string; call_id: string; tool_name: string; content: string; denied?: boolean; reason?: string }
 
 interface MessageRowProps {
   msg: UiMessage
@@ -28,12 +35,16 @@ interface MessageRowProps {
   onEditCommit: () => void
 }
 
-/** 单条聊天消息：user（primary 色块右对齐）/ assistant（muted 色块左对齐）+ hover 出工具条 */
+/** 单条聊天消息：user（primary 色块右对齐）/ assistant（muted 色块左对齐）+ hover 出工具条。
+ *  tool_use / tool_result 由 chat-view 顶层路由到 ToolCallCard，这里直接 return null。 */
 export function MessageRow({ msg, editing, editDraft, onEditDraftChange, onCopy, onEdit, onDelete, onEditCancel, onEditCommit }: MessageRowProps) {
   const t = useT()
+  if (msg.role !== "user" && msg.role !== "assistant") return null
   const isUser = msg.role === "user"
-  const isAssistant = msg.role === "assistant"
-  if (!isUser && !isAssistant) return null
+  // 空 assistant 气泡（LLM 这轮只发了 tool_use、没发文本）不渲染空壳；
+  // streaming 期间保留以显示 ThinkingDots
+  if (msg.role === "assistant" && !msg.streaming && !msg.content) return null
+  // 下方 TS 将 msg narrow 到 user | assistant 两支
   const canEdit = isUser && !!msg.id && !msg.streaming
   const canDelete = !!msg.id && !msg.streaming
 
