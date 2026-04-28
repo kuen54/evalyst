@@ -69,6 +69,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return jsonError(429, 'chain call limit reached')
   }
 
+  // 在 append 之前先校验 model，避免 model 未配置时留下孤儿 tool_result 消息在 jsonl 里
+  const cfg = getLlmConfig()
+  const modelId = session.model_id
+  const model = modelId ? cfg.models.find(m => m.id === modelId && m.copilot_enabled) : undefined
+  if (!model) {
+    return jsonError(400, 'copilot model not configured or not enabled')
+  }
+  if (!model.base_url || !model.api_key) {
+    return jsonError(400, 'model missing base_url or api_key')
+  }
+
   // 本条 tool_result 的 parent 指向当前 branch 末端（通常是 hanging tool_use）
   const tailId = branchBefore[branchBefore.length - 1]?.id
 
@@ -101,17 +112,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     reason: body.reason,
     parent_id: tailId,
   })
-
-  // 解析 model
-  const cfg = getLlmConfig()
-  const modelId = session.model_id
-  const model = modelId ? cfg.models.find(m => m.id === modelId && m.copilot_enabled) : undefined
-  if (!model) {
-    return jsonError(400, 'copilot model not configured or not enabled')
-  }
-  if (!model.base_url || !model.api_key) {
-    return jsonError(400, 'model missing base_url or api_key')
-  }
 
   // 重新拉 branch（含刚 append 的 tool_result），构造 LLM messages
   const branch = getActiveBranch(sessionId, toolResultMsg.id)

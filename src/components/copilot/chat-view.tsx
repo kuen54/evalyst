@@ -90,6 +90,11 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   const abortRef = useRef<AbortController | null>(null)
   // 追踪流中 tool_use_end 进入 state 的顺序，done 时按序配 id 给 tool_use_message_ids
   const streamToolUseOrderRef = useRef<string[]>([])
+  // Auto-run 队列：tool_use_end 事件进来时先只渲染 UI，把 read 工具的 call_id/input
+  // 塞进这里，等 `done` SSE 事件到达（此时 server 已经把 tool_use 消息 append 到 jsonl）
+  // 再一次性 fire /tool-result POST。这样避免 /tool-result 在 server append 之前跑，
+  // 导致 getActiveBranch 里没有 tool_use → tool_result 的 parent_id 错链到上游。
+  const pendingAutoRunRef = useRef<Array<{ call_id: string; tool_name: string; input: Record<string, unknown> }>>([])
   // 追踪 session 身份：sessionId 变更时停掉 inflight 的 auto-run 以避免串 session
   const currentSessionRef = useRef<string | undefined>(undefined)
 
@@ -225,14 +230,11 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
           return next
         })
         streamToolUseOrderRef.current.push(ev.call_id)
-        // Auto-run read 工具：requiresConfirm=false 的立即触发 /tool-result
+        // Auto-run read 工具：先入队，等 `done` 事件到（此时 server 已 append tool_use）再真正 POST。
+        // 立即 POST 会和 /chat 的 post-stream append 竞争，产生 parent_id 错链（tool_result 挂到 user 而不是 tool_use）。
         const tool = findToolMetadata(ev.tool_name)
         if (tool && !tool.requiresConfirm) {
-          // 小小 async：让当前 state update commit 完再发第二段，UX 更稳
-          setTimeout(() => {
-            if (currentSessionRef.current !== pairSessionId) return
-            void postToolResult(ev.call_id, ev.tool_name, ev.input, false)
-          }, 0)
+          pendingAutoRunRef.current.push({ call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
         }
       } else if (ev.kind === "done") {
         // 关掉最后一条 streaming assistant
@@ -266,6 +268,16 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
           return next
         })
         streamToolUseOrderRef.current = []
+        // 现在 server 已经把所有本轮的 tool_use append 到 jsonl 了，可以放心 auto-run read 工具。
+        // 写工具（requiresConfirm=true）等用户点 Confirm 再走，走同一个 postToolResult 路径。
+        const pending = pendingAutoRunRef.current
+        pendingAutoRunRef.current = []
+        for (const tu of pending) {
+          if (currentSessionRef.current !== pairSessionId) break
+          // 串行等前一个 tool_result 回来再跑下一个：postToolResult 会打开新的 SSE，
+          // done 事件到达后同一 handler 会把新的 pending 再清空。串行避免 chain 上限 / 资源占用意外。
+          void postToolResult(tu.call_id, tu.tool_name, tu.input, false)
+        }
       } else if (ev.kind === "error") {
         toast.error(ev.message)
         setMessages(prev => {
@@ -337,6 +349,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
       }
       // Reset order ref for this stream segment
       streamToolUseOrderRef.current = []
+      pendingAutoRunRef.current = []
       await consumeSseStream(resp, makeSseHandler(pairSessionId))
       // tool_result_message 事件已经回填了 content / denied / reason，这里不再需要兜底占位。
     } catch (e) {
@@ -374,6 +387,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
     const ctrl = new AbortController()
     abortRef.current = ctrl
     streamToolUseOrderRef.current = []
+    pendingAutoRunRef.current = []
     try {
       const resp = await fetch(`/api/copilot/sessions/${sessionId}/chat`, {
         method: "POST",
@@ -519,6 +533,10 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
               }
             }
             const pending = pendingCallIds.has(m.call_id)
+            // 服务端 append tool_use 到 jsonl 后才在 `done` 事件里回填 id。
+            // 没有 id 说明本轮流还没关 / tool_use 还没持久化 —— 此时点 Confirm 会触发 race
+            // （/tool-result 跑 getActiveBranch 看不到 tool_use）。按钮先 disabled 挡住。
+            const persistedOnServer = !!m.id && !m.id.startsWith("tu-")
             const toolUseShim: CopilotMessage = {
               id: m.id ?? `tu-${i}`,
               session_id: sessionId,
@@ -549,7 +567,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
                 toolResult={toolResultShim}
                 onConfirm={() => handleToolConfirm(m.call_id, m.tool_name, m.tool_input)}
                 onDeny={(reason) => handleToolDeny(m.call_id, m.tool_name, m.tool_input, reason)}
-                pending={pending}
+                pending={pending || !persistedOnServer}
               />
             )
           }
