@@ -90,3 +90,45 @@ export type StreamEvent =
   | { type: 'tool_use_end'; call_id: string; tool_name: string; input: Record<string, unknown>; thought_signature?: string }
   | { type: 'done'; usage?: { input_tokens: number; output_tokens: number }; stop_reason?: string }
   | { type: 'error'; message: string }
+
+// ---------- PR-4: Page Context + Viewport Index ----------
+
+export type RouteType =
+  | 'dashboard'
+  | 'experiment_new' | 'experiment_detail'
+  | 'compare'
+  | 'settings_hub'
+  | 'datasets_list' | 'dataset_new' | 'dataset_detail'
+  | 'templates_list' | 'template_new' | 'template_detail'
+  | 'displays_list' | 'display_new' | 'display_detail'
+  | 'rubrics_list' | 'rubric_new' | 'rubric_detail'
+  | 'models_list'
+  | 'unknown'
+
+/** 打开 copilot 时注入的当前页面摘要。每个路由自定义 summary 字段（具体 shape 见 spec §5.1.2）。 */
+export interface PageContext {
+  route_type: RouteType
+  path: string
+  search_params?: Record<string, string>
+  summary: Record<string, unknown>
+  timestamp: string
+}
+
+/** 当前页面中一个可被圈选元素的轻量索引条目。 */
+export interface ViewportIndexEntry {
+  key: string
+  type: string
+  preview_text: string
+  ancestors?: string[]
+}
+
+/** 客户端每次 chat / tool-result 请求附带的页面快照。 */
+export interface ClientSnapshot {
+  session_id: string
+  route_type: RouteType
+  path: string
+  search_params?: Record<string, string>
+  page_context: PageContext
+  viewport_index: ViewportIndexEntry[]
+  timestamp: string
+}
