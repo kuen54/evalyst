@@ -260,7 +260,9 @@ CI（`.github/workflows/ci.yml`）两个 job：
 - ✅ **Share Context + Inspector**：9 种 context 类型（experiment / task_result / task_field / text_selection / template / dataset / display / rubric / rubric_stats），Chrome DevTools 风格元素圈选，彩色 mask + 数字徽章，context 层级链（ancestors → `within: A → B → C`）
 - ✅ **划线选中**：选区 → "+加入 Copilot" 胶囊 → 持久化高亮（TextSelectionMask 用 TreeWalker 按 offset 重建 Range）
 - ✅ **Liquid Glass UI 系统**（见下一节）
-- 🚧 **工具调用闭环**（PR-3 待启动）：`edit_template` + `restart_experiment` + `list_experiments` + `read_experiment_results`，confirm card 带 diff
+- 🚧 **PR-3 工具调用闭环**（开发中，branch `feat/pr3-tool-calling`）：3 个工具 `list_experiments` + `read_experiment_results` + `restart_experiment`；两阶段 streaming 对话，chain 上限 5；`edit_template` defer（见 spec §9）
+  - Spec: `docs/superpowers/specs/2026-04-28-copilot-pr3-tool-calling-design.md`
+  - Plan: `docs/superpowers/plans/2026-04-28-copilot-pr3-tool-calling.md`
 
 ### 关键文件
 

@@ -8,6 +8,21 @@
 
 ## [Unreleased]
 
+### 🚧 PR-3 in progress · Copilot 工具调用闭环
+
+Copilot 装上"手"，能调 3 个工具直接读实验数据 + 触发重跑：
+- `list_experiments(filter?)` — 发现相关实验（read，no-confirm）
+- `read_experiment_results(experiment_id, task_ids?, status?)` — 读结果 / 扫失败（read，no-confirm）
+- `restart_experiment(experiment_id, task_ids?)` — 重跑（write，**必 confirm**）
+
+两阶段 streaming 对话（LLM tool_use → 前端暂停渲染卡片 → 用户 Confirm/Deny → 前端 POST 结果 → 服务端 append + 再调 LLM），链式上限 5 次。
+
+`edit_template` **defer**（决策记录见 spec §9）—— 现阶段改 prompt 仍需用户手动到 template 编辑页改。等 3 工具跑稳一轮再加回来。
+
+- Spec: `docs/superpowers/specs/2026-04-28-copilot-pr3-tool-calling-design.md`
+- Plan: `docs/superpowers/plans/2026-04-28-copilot-pr3-tool-calling.md`
+- Branch: `feat/pr3-tool-calling`
+
 ## [0.3.0] — 2026-04-28 · Copilot Glass System
 
 把 copilot 模式的 UI 统一成 4 档玻璃设计系统（Thin / Regular / Thick / Tinted）。目标：打开 copilot 是一种"模式切换"，不是局部改色 —— 中间内容区整体切到玻璃语言，左右 chrome 保持 shadcn 扁平。
