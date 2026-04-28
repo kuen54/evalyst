@@ -13,6 +13,7 @@ import { pickView } from "@/components/results/registry"
 import { GlassRegular, GlassThin } from "@/components/copilot/shell"
 import { useGlassStyle } from "@/components/copilot/shell"
 import { useCopilotStore } from "@/components/copilot/store"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 
 function formatLatency(ms: number | undefined): string {
   if (!ms) return "-"
@@ -105,6 +106,31 @@ export default function ComparePage() {
       return [...prev, id]
     })
   }
+
+  const selectedExperiments = useMemo(
+    () => selectedIds.map(id => experiments.find(e => e.id === id)).filter((e): e is ExperimentConfig => !!e),
+    [selectedIds, experiments],
+  )
+
+  useRegisterPageContext(() => ({
+    route_type: 'compare',
+    path: '/compare',
+    search_params: { ids: selectedIds.join(',') },
+    summary: {
+      experiment_ids: selectedIds,
+      experiments: selectedExperiments.map(e => ({
+        id: e.id,
+        name: e.name,
+        status: e.status,
+        success: e.run_stats?.completed_tasks ?? 0,
+        failed: e.run_stats?.failed_tasks ?? 0,
+      })),
+      align_key: 'input_refs',
+      schema_id: selectedSchema?.id ?? null,
+      schema_filter: schemaFilter ?? null,
+    },
+    timestamp: new Date().toISOString(),
+  }), [selectedIds, selectedExperiments, selectedSchema, schemaFilter])
 
   return (
     <div className="px-6 py-4 h-full">
