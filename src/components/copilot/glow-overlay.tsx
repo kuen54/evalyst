@@ -6,9 +6,9 @@ import { useCopilotStore } from "./store"
 // Copilot 光效：仅背景漂移，刻意不带"点击变色"。
 //
 // 视觉：
-//   - `.copilot-glow::before` —— 四角慢速大色斑漂移（18s）
-//   - `.copilot-glow-flow`   —— 中层长椭圆反向漂移 + 旋转（22s）
-//   - busy(streaming) 时两层加速（11s / 13s），不换色
+//   - `.copilot-glow::before` —— 四角色斑漂移（8s）
+//   - `.copilot-glow-flow`   —— 中层长椭圆反向漂移 + 旋转（8s）
+//   - busy(streaming) 时两层加速到 4s，不换色
 //
 // 刻意不做：点击背景生成额外光点 —— 用户明确要求统一浅色、不要点击变色效果。
 //

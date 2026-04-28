@@ -205,9 +205,9 @@
   }
   .copilot-glow[data-enabled="true"] { opacity: 1; }
 
-  /* 底层：四角色斑，柔缓漂移 + 呼吸 scale + 饱和加亮。
+  /* 底层：四角色斑，漂移 + 呼吸 scale + 饱和加亮。
      copilot 开着时就一直是"活的"状态，不区分 idle/busy —— busy 只是走得更快一点。
-     运动节奏刻意慢（18s/22s），配合大幅位移出"很轻柔"的感觉。 */
+     节奏 8s（busy 4s），配合大幅位移出"很轻柔"的感觉。 */
   .copilot-glow::before {
     content: "";
     position: absolute;
@@ -218,7 +218,7 @@
       radial-gradient(ellipse 50% 35% at 12% 85%, color-mix(in oklab, var(--glow-c) 44%, transparent) 0%, transparent 68%),
       radial-gradient(ellipse 55% 40% at 90% 88%, color-mix(in oklab, var(--glow-d) 42%, transparent) 0%, transparent 68%);
     filter: blur(22px) saturate(1.2) brightness(1.08);
-    animation: copilot-glow-drift 18s ease-in-out infinite alternate;
+    animation: copilot-glow-drift 8s ease-in-out infinite alternate;
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
@@ -234,7 +234,7 @@
       radial-gradient(ellipse 60% 30% at 72% 58%, color-mix(in oklab, var(--glow-a) 42%, transparent) 0%, transparent 62%),
       radial-gradient(ellipse 40% 55% at 50% 28%, color-mix(in oklab, var(--glow-c) 38%, transparent) 0%, transparent 65%);
     filter: blur(24px) saturate(1.2) brightness(1.06);
-    animation: copilot-glow-flow 22s ease-in-out infinite alternate;
+    animation: copilot-glow-flow 8s ease-in-out infinite alternate;
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
@@ -242,10 +242,10 @@
 
   /* busy(streaming) 再快一点点；颜色已经默认就"活"，不需要再提亮 */
   .copilot-glow[data-state="active"]::before {
-    animation-duration: 11s;
+    animation-duration: 4s;
   }
   .copilot-glow[data-state="active"] .copilot-glow-flow {
-    animation-duration: 13s;
+    animation-duration: 4s;
   }
 
   /* 大幅漂移 —— 让人眼看得到运动 */
