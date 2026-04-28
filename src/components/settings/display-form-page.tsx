@@ -7,13 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import { Card } from "@/components/ui/card"
+
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RequiredMark } from "@/components/ui/field-label"
 import { StickySaveBar } from "@/components/ui/sticky-save-bar"
 import { ArrowUpIcon, ArrowDownIcon, XIcon } from "lucide-react"
-import { useGlassStyle } from "@/components/copilot/shell"
+import { useGlassStyle, GlassRegular } from "@/components/copilot/shell"
 import { useCopilotStore } from "@/components/copilot/store"
 import { segmentedItem } from "@/lib/segmented"
 import { useT } from "@/lib/i18n/provider"
@@ -220,7 +220,7 @@ export function DisplayFormPage() {
         <>
           <section className="space-y-3">
             <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.primary_dimension")}<RequiredMark /></h4>
-            <Card className="p-3 border ring-0">
+            <GlassRegular className="p-3 border text-sm text-card-foreground overflow-hidden">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">{t("settings.displays.form.field_path_label")}</Label>
@@ -241,12 +241,12 @@ export function DisplayFormPage() {
                   />
                 </div>
               </div>
-            </Card>
+            </GlassRegular>
           </section>
 
           <section className="space-y-3">
             <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.secondary_dimension")}<RequiredMark /></h4>
-            <Card className="p-3 border ring-0">
+            <GlassRegular className="p-3 border text-sm text-card-foreground overflow-hidden">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">{t("settings.displays.form.field_path_label")}</Label>
@@ -267,7 +267,7 @@ export function DisplayFormPage() {
                   />
                 </div>
               </div>
-            </Card>
+            </GlassRegular>
           </section>
 
           <section className="space-y-3">
@@ -354,7 +354,7 @@ function DisplayPreviewPane({ form, t }: { form: FormState; t: TFn }) {
 
   return (
     <div className="sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto">
-      <Card className="p-3 space-y-2">
+      <GlassRegular className="p-3 space-y-2 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
         <div className="flex items-center gap-2">
           <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.displays.form.preview_title")}</h4>
           <Badge variant="outline" className="text-[10px]">{t("settings.displays.form.preview_mock")}</Badge>
@@ -371,7 +371,7 @@ function DisplayPreviewPane({ form, t }: { form: FormState; t: TFn }) {
             <p className="text-[11px] text-muted-foreground italic p-2">{t("settings.displays.form.preview_empty")}</p>
           )}
         </div>
-      </Card>
+      </GlassRegular>
     </div>
   )
 }
@@ -510,7 +510,7 @@ function ColumnRow({
   t: TFn
 }) {
   return (
-    <Card className="p-2 border ring-0">
+    <GlassRegular className="p-2 border text-sm text-card-foreground overflow-hidden">
       <div className="grid grid-cols-[1fr_1fr_100px_80px_auto] gap-2 items-center">
         <Input
           value={col.field}
@@ -551,7 +551,7 @@ function ColumnRow({
           </button>
         </div>
       </div>
-    </Card>
+    </GlassRegular>
   )
 }
 

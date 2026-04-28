@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo } from "react"
-import { Card } from "@/components/ui/card"
+import { GlassThin } from "@/components/copilot/shell"
 import { useT } from "@/lib/i18n/provider"
 import type { Display, GenericResultRecord, TaskSchema } from "@/lib/schema/types"
 import type { ResultViewProps, CellViewProps } from "./types"
@@ -105,9 +105,9 @@ export function DisplayJsx({ results, schema, display }: JsxProps) {
           <JsxBoundary
             errorLabel={t("results.jsx_render_error")}
             fallback={
-              <Card className="p-3 border-red-200">
+              <GlassThin className="p-3 border-red-200 flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10">
                 <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(r.output, null, 2)}</pre>
-              </Card>
+              </GlassThin>
             }
           >
             <JsxRenderer fn={compiled.fn} result={r} schema={schema} helpers={helpers} />

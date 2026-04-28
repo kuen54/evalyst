@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Card } from "@/components/ui/card"
+import { GlassRegular } from "@/components/copilot/shell"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RequiredMark } from "@/components/ui/field-label"
 import { StickySaveBar } from "@/components/ui/sticky-save-bar"
@@ -299,7 +299,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
         {form.fields.map((f, i) => {
           const isDup = !!f.key && duplicateKeys.has(f.key)
           return (
-            <Card key={i} className="p-2 border ring-0">
+            <GlassRegular key={i} className="p-2 border text-sm text-card-foreground overflow-hidden">
               <div className="grid grid-cols-[100px_1fr_120px_1fr_auto] gap-2 items-center">
                 <Input
                   value={f.key}
@@ -342,7 +342,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
                   </button>
                 </div>
               </div>
-            </Card>
+            </GlassRegular>
           )
         })}
       </section>
@@ -469,7 +469,7 @@ function DatasetPreviewPane({
 
   return (
     <div className="sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto">
-      <Card className="p-3 space-y-3">
+      <GlassRegular className="p-3 space-y-3 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
         <div className="flex items-center gap-2">
           <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.datasets.form.preview_title")}</h4>
           {records.length > 0 && <Badge variant="outline" className="text-[10px]">{t("settings.datasets.form.preview_n_records", { n: records.length })}</Badge>}
@@ -562,7 +562,7 @@ function DatasetPreviewPane({
             </div>
           </div>
         )}
-      </Card>
+      </GlassRegular>
     </div>
   )
 }

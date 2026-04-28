@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { CardContent, CardHeader } from "@/components/ui/card"
+import { GlassThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -112,7 +113,7 @@ function BubbleCard({ result, bubbleFieldName, coordName, textName, emojiName, i
   const bubbles = (result.output?.[bubbleFieldName] as BubbleItem[] | undefined) ?? []
 
   return (
-    <Card className={result.status !== "success" ? "border-red-200" : ""}>
+    <GlassThin className={`flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 ${result.status !== "success" ? "border-red-200" : ""}`}>
       <CardHeader className="pb-2 px-4 pt-3">
         <div className="flex items-center gap-2 flex-wrap">
           {dims.map((dim, i) => {
@@ -158,7 +159,7 @@ function BubbleCard({ result, bubbleFieldName, coordName, textName, emojiName, i
           <p className="text-xs text-red-500">{result.status}: {result.error?.slice(0, 100)}</p>
         )}
       </CardContent>
-    </Card>
+    </GlassThin>
   )
 }
 

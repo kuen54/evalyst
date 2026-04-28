@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Card, CardHeader } from "@/components/ui/card"
+import { CardHeader } from "@/components/ui/card"
+import { GlassThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
@@ -135,7 +136,7 @@ function GroupCard({
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full text-left cursor-pointer">
-        <Card className="hover:bg-muted/50 transition-colors">
+        <GlassThin className="hover:bg-muted/50 transition-colors flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-muted-foreground">{open ? "▾" : "▸"}</span>
@@ -150,7 +151,7 @@ function GroupCard({
               })}
             </div>
           </CardHeader>
-        </Card>
+        </GlassThin>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="ml-4 mt-2 mb-4">
@@ -167,24 +168,24 @@ function GroupCard({
               if (!r) return <div key={String(v)} className="text-xs text-muted-foreground p-2 text-center">-</div>
               if (r.status !== "success") {
                 return (
-                  <Card key={String(v)} className="p-2 border-red-200 bg-red-50">
+                  <GlassThin key={String(v)} className="p-2 border-red-200 bg-red-50 flex flex-col gap-4 overflow-hidden rounded-xl border text-sm text-card-foreground ring-1 ring-foreground/10">
                     <p className="text-xs text-red-500">{r.status}: {r.error?.slice(0, 40)}</p>
-                  </Card>
+                  </GlassThin>
                 )
               }
               return (
-                <Card key={String(v)} className="p-2 space-y-1">
+                <GlassThin key={String(v)} className="p-2 space-y-1 flex flex-col gap-4 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10">
                   {cellColumns.map(c => (
                     <div key={c.field}>{renderField(readField(r, c.field), c.type, c.max_length)}</div>
                   ))}
-                </Card>
+                </GlassThin>
               )
             })}
           </div>
 
           {fallbackRow && (
             <div className="mt-3">
-              <Card className={`p-2 ${fallbackRow.status !== "success" ? "border-red-200 bg-red-50" : "bg-muted/30"}`}>
+              <GlassThin className={`p-2 flex flex-col gap-4 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10 ${fallbackRow.status !== "success" ? "border-red-200 bg-red-50" : "bg-muted/30"}`}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-xs">{fallbackLabel ?? t("results.fallback_group")}</Badge>
                   {fallbackRow.status === "success"
@@ -196,7 +197,7 @@ function GroupCard({
                     : <span className="text-xs text-red-500">{fallbackRow.status}: {fallbackRow.error?.slice(0, 50)}</span>
                   }
                 </div>
-              </Card>
+              </GlassThin>
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { CardContent, CardHeader } from "@/components/ui/card"
+import { GlassThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import type { ResultViewProps, CellViewProps } from "./types"
 
@@ -9,7 +10,7 @@ export function JsonDefaultResults({ results }: ResultViewProps) {
   return (
     <div className="space-y-3">
       {results.map(r => (
-        <Card key={r.task_id} className={r.status !== "success" ? "border-red-200" : ""}>
+        <GlassThin key={r.task_id} className={`flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 ${r.status !== "success" ? "border-red-200" : ""}`}>
           <CardHeader className="py-2 px-4">
             <div className="flex flex-wrap gap-1.5 text-xs">
               <Badge variant="outline" className="font-mono">{r.task_id}</Badge>
@@ -29,7 +30,7 @@ export function JsonDefaultResults({ results }: ResultViewProps) {
               <p className="text-xs text-red-500">{r.status}: {r.error?.slice(0, 200)}</p>
             )}
           </CardContent>
-        </Card>
+        </GlassThin>
       ))}
     </div>
   )

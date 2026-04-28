@@ -166,8 +166,8 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
         </CollapsibleContent>
       </Collapsible>
 
-      <div
-        className="mb-6 rounded-lg border bg-card px-4 py-3"
+      <GlassRegular
+        className="mb-6 px-4 py-3 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden"
         data-copilot-context="experiment"
         data-copilot-context-id={experiment.id}
         data-copilot-context-summary={`${experiment.name} · ${experiment.model}`}
@@ -209,7 +209,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
         {experiment.status === "running" && stats && stats.total_tasks > 0 && (
           <Progress value={progressPct} className="h-1.5 mt-2.5" />
         )}
-      </div>
+      </GlassRegular>
 
       {rubric && aggregate && (
         <Collapsible open={scoringOpen} onOpenChange={setScoringOpen}>

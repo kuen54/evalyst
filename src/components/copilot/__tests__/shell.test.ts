@@ -33,9 +33,9 @@ describe("getGlassStyleForVariant", () => {
     expect(result.boxShadow).toContain("0 30px 60px -15px")
   })
 
-  it("tinted variant: blur 28px with primary color-mix overlay", () => {
+  it("tinted variant: blur 28px with copilot-accent color-mix overlay", () => {
     const result = getGlassStyleForVariant("tinted", true)
     expect(result.backdropFilter).toContain("blur(28px)")
-    expect(result.backgroundImage).toContain("var(--primary)")
+    expect(result.backgroundImage).toContain("var(--copilot-accent)")
   })
 })

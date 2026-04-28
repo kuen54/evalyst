@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Card, CardHeader } from "@/components/ui/card"
+import { CardHeader } from "@/components/ui/card"
+import { GlassThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useT } from "@/lib/i18n/provider"
@@ -81,7 +82,7 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full text-left cursor-pointer">
-        <Card className="hover:bg-muted/50 transition-colors">
+        <GlassThin className="hover:bg-muted/50 transition-colors flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{open ? "▾" : "▸"}</span>
@@ -90,7 +91,7 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
               <span className="text-xs text-muted-foreground ml-auto">{t("results.n_rows", { n: rows.length })}</span>
             </div>
           </CardHeader>
-        </Card>
+        </GlassThin>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="ml-4 mt-2 mb-4 overflow-x-auto">
@@ -120,9 +121,9 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
                 const r = cellMap.get(`${rv}|${cv}`)
                 if (!r) return <div key={String(cv)} className="text-xs text-muted-foreground p-2 text-center">-</div>
                 return (
-                  <Card
+                  <GlassThin
                     key={String(cv)}
-                    className={`p-2 ${r.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
+                    className={`p-2 flex flex-col gap-4 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10 ${r.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
                     data-copilot-context="task_result"
                     data-copilot-context-id={r.task_id}
                     data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id })}
@@ -159,7 +160,7 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
                     ) : (
                       <p className="text-xs text-red-500">{r.status}: {r.error?.slice(0, 40)}</p>
                     )}
-                  </Card>
+                  </GlassThin>
                 )
               })}
             </div>

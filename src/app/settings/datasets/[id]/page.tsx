@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT, useLocale } from "@/lib/i18n/provider"
+import { GlassRegular } from "@/components/copilot/shell"
 import { formatDate } from "@/lib/i18n/format"
 import type { DatasetDef, TaskSchema } from "@/lib/schema/types"
 
@@ -132,7 +132,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
 
       {/* 字段定义 */}
       <Section title={t("settings.datasets.detail.fields_title", { n: def.fields.length })}>
-        <Card className="p-0 overflow-hidden">
+        <GlassRegular className="p-0 overflow-hidden text-sm text-card-foreground ring-1 ring-foreground/10">
           <table className="text-xs w-full">
             <thead className="bg-muted/50">
               <tr className="text-muted-foreground">
@@ -156,7 +156,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               ))}
             </tbody>
           </table>
-        </Card>
+        </GlassRegular>
       </Section>
 
       {/* 记录预览 */}
@@ -171,7 +171,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
             onClick={handleShowAll}
           >{t("settings.datasets.detail.show_all", { n: totalCount })}</button>
         )}
-        <Card className="p-0 overflow-x-auto">
+        <GlassRegular className="p-0 overflow-x-auto text-sm text-card-foreground ring-1 ring-foreground/10">
           <table className="text-[11px] w-full">
             <thead className="bg-muted/50">
               <tr className="text-muted-foreground">
@@ -192,7 +192,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
               ))}
             </tbody>
           </table>
-        </Card>
+        </GlassRegular>
       </Section>
 
       {/* 被引用 */}

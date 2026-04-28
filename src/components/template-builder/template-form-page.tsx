@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Card, CardContent } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { RequiredMark } from "@/components/ui/field-label"
+import { GlassRegular } from "@/components/copilot/shell"
 import { useT } from "@/lib/i18n/provider"
 import type { TFn } from "@/lib/i18n/provider"
 import type { DatasetDef, Display, TaskSchema } from "@/lib/schema/types"
@@ -208,7 +209,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
             <Button size="sm" variant="outline" onClick={() => set("inputs", [...form.inputs, emptyInput()])}>{t("settings.templates.tform.add_btn")}</Button>
           </div>
           {form.inputs.map((inp, i) => (
-            <Card key={i} className="p-3 space-y-2 border border-border ring-0">
+            <GlassRegular key={i} className="p-3 space-y-2 border border-border text-sm text-card-foreground overflow-hidden">
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-[10px]">#{i}</Badge>
                 {form.inputs.length > 1 && (
@@ -299,7 +300,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
                   </>
                 )
               })()}
-            </Card>
+            </GlassRegular>
           ))}
         </section>
 
@@ -311,7 +312,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
             <Button size="sm" variant="outline" onClick={() => set("variables", [...form.variables, emptyVariable()])}>{t("settings.templates.tform.add_btn")}</Button>
           </div>
           {form.variables.map((v, i) => (
-            <Card key={i} className="p-3 space-y-3 border border-border ring-0">
+            <GlassRegular key={i} className="p-3 space-y-3 border border-border text-sm text-card-foreground overflow-hidden">
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-[10px]">#{i}</Badge>
                 <button className="text-[11px] text-muted-foreground hover:text-red-500 ml-auto" onClick={() => set("variables", form.variables.filter((_, j) => j !== i))}>{t("common.delete")}</button>
@@ -347,7 +348,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
                   <Input value={v.fallback} onChange={e => updateItem(form, set, "variables", i, { fallback: e.target.value })} placeholder={t("settings.templates.tform.var_fallback_placeholder")} className="h-8 text-xs" />
                 </div>
               </div>
-            </Card>
+            </GlassRegular>
           ))}
           {form.variables.length === 0 && (
             <p className="text-xs text-muted-foreground italic">
@@ -459,7 +460,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
             <Button size="sm" variant="outline" onClick={() => set("display_dimensions", [...form.display_dimensions, emptyDimension()])}>{t("settings.templates.tform.add_btn")}</Button>
           </div>
           {form.display_dimensions.map((d, i) => (
-            <Card key={i} className="p-3 space-y-2 border border-border ring-0">
+            <GlassRegular key={i} className="p-3 space-y-2 border border-border text-sm text-card-foreground overflow-hidden">
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-[10px]">#{i}</Badge>
                 <button className="text-[11px] text-muted-foreground hover:text-red-500 ml-auto" onClick={() => set("display_dimensions", form.display_dimensions.filter((_, j) => j !== i))}>{t("common.delete")}</button>
@@ -507,7 +508,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
                   <p className="text-[11px] text-muted-foreground">{t("settings.templates.tform.header_fields_hint")}</p>
                 </div>
               )}
-            </Card>
+            </GlassRegular>
           ))}
           {form.display_dimensions.length === 0 && (
             <p className="text-xs text-muted-foreground">{t("settings.templates.tform.no_dimensions")}</p>
@@ -644,7 +645,7 @@ function PreviewPane({ form, datasets, displays, datasetSamples, t }: {
 
   return (
     <div className="sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto pr-2">
-      <Card>
+      <GlassRegular className="flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-2">
             <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.templates.tform.preview_title")}</h4>
@@ -684,7 +685,7 @@ function PreviewPane({ form, datasets, displays, datasetSamples, t }: {
             </>
           )}
         </CardContent>
-      </Card>
+      </GlassRegular>
     </div>
   )
 }

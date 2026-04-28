@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
+import { GlassRegular } from "@/components/copilot/shell"
 import type { TaskSchema, DatasetDef, Display } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
 import { inferDisplayBuiltinId } from "@/lib/display-inference"
@@ -105,7 +106,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
         {schema.inputs.map((inp, i) => {
           const ds = datasets.find(d => d.id === inp.dataset_id)
           return (
-            <Card key={i} className="p-3 space-y-1.5">
+            <GlassRegular key={i} className="p-3 space-y-1.5 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-[11px]">{inp.alias}</Badge>
                 <span className="text-sm">{ds?.name ?? inp.dataset_id}</span>
@@ -129,7 +130,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                   {inp.filters.map((f, j) => <Badge key={j} variant="outline" className="text-[10px] mr-1">{f.kind}: {f.key}</Badge>)}
                 </div>
               )}
-            </Card>
+            </GlassRegular>
           )
         })}
       </Section>
@@ -156,9 +157,9 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
 
       {/* Prompt */}
       <Section title={t("settings.templates.detail.prompt_title")}>
-        <Card><CardContent className="pt-4">
+        <GlassRegular className="flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden"><CardContent className="pt-4">
           <pre className="text-xs font-mono whitespace-pre-wrap max-h-60 overflow-auto">{schema.default_prompt}</pre>
-        </CardContent></Card>
+        </CardContent></GlassRegular>
         {schema.message_builder.user_template && (
           <div className="text-xs">
             <span className="text-muted-foreground">{t("settings.templates.detail.user_prefix")}</span>

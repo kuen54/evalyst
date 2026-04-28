@@ -81,6 +81,12 @@
   --sidebar-accent-foreground: oklch(0.25 0.015 55);
   --sidebar-border: oklch(0.915 0.006 75);
   --sidebar-ring: oklch(0.65 0.015 60);
+
+  /* Copilot accent —— 激活态 / Tinted 玻璃用的"亮色"。
+     不走 --primary（项目主色是暗褐色，/10 出来是灰扁块）。
+     这是 sky-blue 色调，和 glow 主色呼应，"发光"感 */
+  --copilot-accent: oklch(0.7 0.15 230);
+  --copilot-accent-soft: oklch(0.88 0.08 230);
 }
 
 .dark {
@@ -115,6 +121,9 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  --copilot-accent: oklch(0.76 0.16 225);
+  --copilot-accent-soft: oklch(0.62 0.14 225);
 }
 
 @layer base {
@@ -196,47 +205,46 @@
   }
   .copilot-glow[data-enabled="true"] { opacity: 1; }
 
-  /* 底层：四角色斑，9s 大幅漂移 + 呼吸 scale */
+  /* 底层：四角色斑，快速漂移 + 呼吸 scale + 饱和加亮。
+     copilot 开着时就一直是"活的"状态，不区分 idle/busy —— busy 只是走得更快一点。 */
   .copilot-glow::before {
     content: "";
     position: absolute;
     inset: -40px;
     background:
-      radial-gradient(ellipse 55% 40% at 15% 12%, color-mix(in oklab, var(--glow-a) 32%, transparent) 0%, transparent 68%),
-      radial-gradient(ellipse 55% 40% at 88% 18%, color-mix(in oklab, var(--glow-b) 30%, transparent) 0%, transparent 68%),
-      radial-gradient(ellipse 50% 35% at 12% 85%, color-mix(in oklab, var(--glow-c) 28%, transparent) 0%, transparent 68%),
-      radial-gradient(ellipse 55% 40% at 90% 88%, color-mix(in oklab, var(--glow-d) 26%, transparent) 0%, transparent 68%);
-    filter: blur(22px);
-    animation: copilot-glow-drift 9s ease-in-out infinite alternate;
+      radial-gradient(ellipse 55% 40% at 15% 12%, color-mix(in oklab, var(--glow-a) 48%, transparent) 0%, transparent 68%),
+      radial-gradient(ellipse 55% 40% at 88% 18%, color-mix(in oklab, var(--glow-b) 46%, transparent) 0%, transparent 68%),
+      radial-gradient(ellipse 50% 35% at 12% 85%, color-mix(in oklab, var(--glow-c) 44%, transparent) 0%, transparent 68%),
+      radial-gradient(ellipse 55% 40% at 90% 88%, color-mix(in oklab, var(--glow-d) 42%, transparent) 0%, transparent 68%);
+    filter: blur(22px) saturate(1.2) brightness(1.08);
+    animation: copilot-glow-drift 6s ease-in-out infinite alternate;
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
   }
 
-  /* 中层：长椭圆，11s 反向漂移 + 明显旋转 */
+  /* 中层：长椭圆，反向漂移 + 明显旋转 */
   .copilot-glow-flow {
     position: absolute;
     inset: -60px;
     pointer-events: none;
     background:
-      radial-gradient(ellipse 70% 25% at 30% 45%, color-mix(in oklab, var(--glow-e) 28%, transparent) 0%, transparent 62%),
-      radial-gradient(ellipse 60% 30% at 72% 58%, color-mix(in oklab, var(--glow-a) 26%, transparent) 0%, transparent 62%),
-      radial-gradient(ellipse 40% 55% at 50% 28%, color-mix(in oklab, var(--glow-c) 22%, transparent) 0%, transparent 65%);
-    filter: blur(24px);
-    animation: copilot-glow-flow 11s ease-in-out infinite alternate;
+      radial-gradient(ellipse 70% 25% at 30% 45%, color-mix(in oklab, var(--glow-e) 44%, transparent) 0%, transparent 62%),
+      radial-gradient(ellipse 60% 30% at 72% 58%, color-mix(in oklab, var(--glow-a) 42%, transparent) 0%, transparent 62%),
+      radial-gradient(ellipse 40% 55% at 50% 28%, color-mix(in oklab, var(--glow-c) 38%, transparent) 0%, transparent 65%);
+    filter: blur(24px) saturate(1.2) brightness(1.06);
+    animation: copilot-glow-flow 7s ease-in-out infinite alternate;
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
   }
 
-  /* active 状态：同 blur 半径 + 叠 saturate/brightness（color-matrix，缓冲复用）*/
+  /* busy(streaming) 再快一点点；颜色已经默认就"活"，不需要再提亮 */
   .copilot-glow[data-state="active"]::before {
     animation-duration: 3s;
-    filter: blur(22px) saturate(1.2) brightness(1.08);
   }
   .copilot-glow[data-state="active"] .copilot-glow-flow {
     animation-duration: 4s;
-    filter: blur(24px) saturate(1.2) brightness(1.06);
   }
 
   /* 大幅漂移 —— 让人眼看得到运动 */

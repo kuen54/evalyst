@@ -51,14 +51,14 @@ export function getGlassStyleForVariant(
 
   if (variant === "tinted") {
     return {
-      backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
+      backgroundColor: "color-mix(in oklab, var(--card) 30%, transparent)",
       backgroundImage:
-        "linear-gradient(color-mix(in oklab, var(--primary) 28%, transparent), color-mix(in oklab, var(--primary) 28%, transparent))",
+        "linear-gradient(color-mix(in oklab, var(--copilot-accent) 22%, transparent), color-mix(in oklab, var(--copilot-accent) 22%, transparent))",
       backdropFilter: "blur(28px) saturate(1.3)",
       WebkitBackdropFilter: "blur(28px) saturate(1.3)",
-      borderColor: "color-mix(in oklab, var(--primary) 40%, transparent)",
+      borderColor: "color-mix(in oklab, var(--copilot-accent) 50%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.55), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 20px 50px -20px oklch(0 0 0 / 0.22), 0 4px 12px -6px oklch(0 0 0 / 0.08)",
+        "inset 0 1px 0 oklch(1 0 0 / 0.7), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 20%, transparent), 0 3px 12px -4px color-mix(in oklab, var(--copilot-accent) 30%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
       transition: baseTransition,
     }
   }

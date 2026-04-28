@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Card, CardHeader } from "@/components/ui/card"
+import { CardHeader } from "@/components/ui/card"
+import { GlassThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useT } from "@/lib/i18n/provider"
@@ -79,7 +80,7 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full text-left cursor-pointer">
-        <Card className="hover:bg-muted/50 transition-colors">
+        <GlassThin className="hover:bg-muted/50 transition-colors flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-muted-foreground">{open ? "▾" : "▸"}</span>
@@ -98,7 +99,7 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
               <span className="text-xs text-muted-foreground ml-auto">{t("results.n_rows", { n: rows.length })}</span>
             </div>
           </CardHeader>
-        </Card>
+        </GlassThin>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="ml-4 mt-2 mb-4 space-y-2">
@@ -111,8 +112,8 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
                     {labelFor(secondaryDim, sv)}
                   </Badge>
                 </div>
-                <Card
-                  className={`flex-1 p-2 ${r && r.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
+                <GlassThin
+                  className={`flex-1 p-2 flex flex-col gap-4 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10 ${r && r.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
                   {...(r
                     ? {
                         "data-copilot-context": "task_result",
@@ -164,7 +165,7 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
                   ) : (
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
-                </Card>
+                </GlassThin>
               </div>
             )
           })}
