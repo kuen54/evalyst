@@ -1,5 +1,8 @@
 import { listExperiments, getExperiment, readResults } from "@/lib/store"
 import { startBatch } from "@/lib/batch-runner"
+import { getSnapshot } from './snapshot-cache'
+import { resolveContexts } from './resolve-context'
+import type { CopilotContextRef } from './types'
 
 export interface CopilotToolContext {
   sessionId: string
@@ -111,6 +114,64 @@ export const tools: CopilotTool[] = [
         message: taskIds?.length
           ? `已触发重跑 ${taskIds.length} 条指定 task`
           : `已触发全量重跑实验 ${expId}`,
+      }
+    },
+  },
+  {
+    name: "read_page",
+    description:
+      "Search the current page for nodes matching a natural-language query. Returns the top 5 matching data nodes with their full structured content. Use this when the user asks about something visible on their page but you don't have the detail in context yet.",
+    input_schema: {
+      type: "object",
+      required: ["query"],
+      properties: {
+        query: {
+          type: "string",
+          description: "自然语言搜索词，例如 'status 为 failed 的 task' / '第三条结果的输出' / 'experiment exp_123 的失败样本'",
+        },
+      },
+    },
+    requiresConfirm: false,
+    run: async (input, ctx) => {
+      const snapshot = getSnapshot(ctx.sessionId)
+      if (!snapshot) {
+        return { matches: [], total_scanned: 0, message: '当前没有页面快照可用' }
+      }
+      const query = String(input.query ?? '').toLowerCase().trim()
+      const tokens = query.split(/\s+/).filter(t => t.length >= 2)
+      const scored = snapshot.viewport_index
+        .map(entry => {
+          const haystack = `${entry.type} ${entry.preview_text} ${(entry.ancestors ?? []).join(' ')}`.toLowerCase()
+          let score = 0
+          for (const t of tokens) if (haystack.includes(t)) score += 1
+          return { entry, score }
+        })
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5)
+      if (scored.length === 0) {
+        return {
+          matches: [],
+          total_scanned: snapshot.viewport_index.length,
+          message: `未在当前页面找到匹配 "${input.query}" 的内容`,
+        }
+      }
+      const refs: CopilotContextRef[] = scored.map((x, i) => {
+        const [type, ...rest] = x.entry.key.split(':')
+        const id = rest.join(':')
+        return { tag: i + 1, type, id }
+      })
+      const resolved = resolveContexts(refs)
+      return {
+        matches: scored.map((x, i) => {
+          const hit = resolved[i]
+          return {
+            key: x.entry.key,
+            type: x.entry.type,
+            content_tree: hit?.data ?? null,
+          }
+        }),
+        total_scanned: snapshot.viewport_index.length,
       }
     },
   },
