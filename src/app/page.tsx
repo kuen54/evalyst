@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AgentHintBanner } from "@/components/settings/agent-hint-banner"
+import { GlassRegular } from "@/components/copilot/shell"
 import { useT, useLocale } from "@/lib/i18n/provider"
 import { formatDate } from "@/lib/i18n/format"
 import { formatCostMap } from "@/lib/format"
@@ -152,11 +153,11 @@ function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, l
   const isRunning = exp.status === "running"
 
   return (
-    <Card
+    <GlassRegular
       data-copilot-context="experiment"
       data-copilot-context-id={exp.id}
       data-copilot-context-summary={`${exp.name} · ${exp.model}`}
-      className="group transition-colors hover:border-foreground/30 h-full"
+      className="group transition-colors hover:border-foreground/30 h-full flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden"
     >
       <CardHeader className="pb-1.5 pt-4 px-4">
         <div className="flex items-start justify-between gap-2 min-w-0">
@@ -204,7 +205,7 @@ function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, l
           </button>
         </div>
       </CardContent>
-    </Card>
+    </GlassRegular>
   )
 }
 
