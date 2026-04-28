@@ -1024,6 +1024,18 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.tool.name.restart_experiment": "Restart experiment",
   "copilot.tool.summary.list_experiments": "Found {total} experiments",
   "copilot.tool.summary.read_experiment_results": "{total} results",
+
+  // PR-4: Page Context + read_page + route change banner
+  "copilot.tool.name.read_page": "Read page",
+  "copilot.tool.summary.read_page_found": "Found {n} matches",
+  "copilot.tool.summary.read_page_empty": "No matches on current page",
+  "copilot.route_change.message": "Page changed. {n} context selections cleared. Consider starting a new conversation for clearer answers.",
+  "copilot.route_change.new_session": "New conversation",
+  "copilot.route_change.continue": "Keep current",
+  "copilot.page_context.header": "Current page",
+  "copilot.page_context.unknown_route": "Unknown page",
+  "copilot.session.untitled": "New conversation",
+  "copilot.session.create_failed": "Failed to create session",
   "compare.collapse_panel": "Collapse left panel",
   "compare.expand_panel": "Expand left panel",
   "compare.select_prompt_short": "Experiments",
