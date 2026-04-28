@@ -14,7 +14,7 @@ import { FilterRenderer } from "@/components/filter-renderer"
 import { useT } from "@/lib/i18n/provider"
 import type { TaskSchema, FilterValues, DatasetDef, Rubric } from "@/lib/schema/types"
 import type { LlmConfig, ModelConfig } from "@/lib/llm-config"
-import { CopilotShell } from "@/components/copilot/shell"
+import { GlassRegular } from "@/components/copilot/shell"
 
 export default function NewExperiment() {
   const router = useRouter()
@@ -134,7 +134,7 @@ export default function NewExperiment() {
   return (
     <div className="px-8 py-6 max-w-3xl mx-auto">
       <h2 className="text-lg font-semibold tracking-tight mb-8">{t("experiment.new_title")}</h2>
-      <CopilotShell className="p-6 space-y-0">
+      <GlassRegular className="p-6 space-y-0">
 
       {/* Basic info */}
       <section className="space-y-4 mb-8">
@@ -292,11 +292,11 @@ export default function NewExperiment() {
       <Separator className="mb-6" />
       <div className="flex gap-3 pb-8">
         <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting}>{t("experiment.new.save_draft")}</Button>
-        <Button onClick={() => handleSubmit(true)} disabled={submitting}>
+        <Button variant="tinted" onClick={() => handleSubmit(true)} disabled={submitting}>
           {submitting ? t("experiment.new.submitting") : t("experiment.new.save_run")}
         </Button>
       </div>
-      </CopilotShell>
+      </GlassRegular>
     </div>
   )
 }
