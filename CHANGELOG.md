@@ -8,6 +8,50 @@
 
 ## [Unreleased]
 
+### Page Context + Viewport Tool + Ambient Border（PR-4）
+
+- **自动 page context**：开 copilot 即向 LLM 注入当前页面摘要（15 种 `route_type` × 每页自定义 summary 字段，e.g. experiment_detail 含 id / name / status / progress / cost_by_currency / rubric_id）。不走 chip rail，仅在系统消息顶部渲染，"预览 LLM 将看到的 context"面板里对用户可见
+- **`read_page(query)` 工具**：LLM 可按自然语言 query 查找当前页面可见数据，服务端对 `viewport_index` 做 token 子串打分、top-5 命中复用既有 `resolveContexts()` hydrate 成 tree 返回；`requiresConfirm: false` auto-run；空 token fallback 到整句匹配，resolveContexts 异常时返回部分结果
+- **Apple Intelligence 风 ambient border glow**：`CopilotGlowFrame` 包裹主内容区，`conic-gradient + @property --glow-angle` 实现色相绕边旋转；4 状态 `data-glow=off / idle / typing / working`（周期 6s→1.8s、opacity 0→.95、saturate 1.3→1.7），对比度明显高于既有背景光；`prefers-reduced-motion` 降级为 opacity 脉冲、`prefers-reduced-transparency` 降 saturate + opacity；`typing` 信号 debounce 250ms
+- **切页清空 + banner**：`RouteChangeObserver` 监听 `usePathname`+`useSearchParams`，路由变化即清空 manual contexts（inspector / text_selection），session 有 messages 时顶部弹 amber `RouteChangeBanner` 提示"开启新对话"/"继续当前对话"（不阻断切换）
+- **统一 client→server snapshot 机制**：`/chat` + `/tool-result` POST body 新增 `client_snapshot = { page_context, viewport_index, ... }`；server 缓存到 per-session Map（`snapshot-cache.ts`），`read_page` 工具按 `sessionId` 取 snapshot；DELETE session 同步清 cache
+
+**架构落地**：
+- `src/lib/copilot/` 新增: `use-page-context.ts` hook / `collect-snapshot.ts`（DOM 扫描 + truncate 200 chars + ancestors chain）/ `snapshot-cache.ts`（in-memory Map）
+- `src/lib/copilot/tools.ts` 扩展：`CopilotToolContext { sessionId }` 接口 + `read_page` 工具
+- `src/lib/copilot/resolve-context.ts` `formatContextsForLlm` 支持 `pageContext` 参数，输出顶部 `# 当前页面` markdown 块
+- `src/components/copilot/` 新增: `glow-frame.tsx`（状态机） / `route-change-banner.tsx` / `route-change-observer.tsx`（Suspense wrapper）
+- `src/components/copilot/store.tsx` 扩展：`pageContext` / `typingSignal`（debounced 250ms）/ `routeChangeBanner` / `clearManualContexts`
+- 13 个 page 文件补 `useRegisterPageContext()`（dashboard、experiment new/detail、compare、settings list ×5、settings detail ×4、settings new ×4）
+- `src/app/globals.css` 追加 `.copilot-glow-frame` + `@property --glow-angle` + 4 状态 + 2 段 a11y 降级
+- `src/app/layout.tsx` 用 `<CopilotGlowFrame>` 包裹 `<main>`
+
+**测试**：
+- vitest：179 → 204（新增 snapshot-cache 5 + read-page-tool 9 + collect-snapshot 7 + resolve-context 扩展 4）
+- e2e smoke：9 → 11（新增 glow frame 默认 off 态 + ⌘K 开后 off→idle 切换）
+- jsdom 加入 devDependencies（collect-snapshot 测试需要 DOM）
+
+**决策记录**（spec §11）：
+| # | 决策 | 最终 |
+|---|---|---|
+| 1 | page_context 粒度 | 每页自定义 getter |
+| 2 | page_context UI 展示 | 只在 preview panel，不走 chip |
+| 3 | read_page 返回 | 结构化 tree (JSON), preview markdown 渲染 |
+| 4 | Border vs 背景光 | 共存，border 永远更亮更快 |
+| 5 | 切页 context 行为 | 清所有 + banner（不阻断） |
+| 6 | 切页 session 行为 | 保留（A），banner 提供"开启新对话" |
+| 7 | read_page 签名 | `query: string` 自然语言 |
+| 8 | Snapshot 持久化 | in-memory Map，进程重启丢失 |
+| 10 | 边框光技术 | `conic-gradient + @property --angle` |
+
+**Defer / Open Questions**（spec §13）：
+- read_page 对 `task_result:exp_id/task_id` 形 elementKey 的 experiment_id 提取：v1 简化处理，实际命中率待观察
+- Firefox < 128 降级 SVG stroke：v1 不做
+- 移动端 layout：v1 不做
+
+- Spec: `docs/superpowers/specs/2026-04-28-copilot-page-context-ambient-border-design.md`
+- Plan: `docs/superpowers/plans/2026-04-28-copilot-page-context-ambient-border.md`
+
 ### UI polish（PR #5 + #6）
 
 - **卡片线条统一 1px**：`GlassCard` / `GlassCardThin` 的 `SHADCN_CARD_DEFAULTS` 去掉 `ring-1 ring-foreground/10`（原来 border 1px + ring 1px 视觉 2px）；清掉 6 处 `GlassRegular` 手工叠加的 ring-1（experiments/[id] 进度卡、settings/datasets/[id] ×2、settings/templates/[id]、display/dataset form preview）。失败任务卡自然只剩红 border

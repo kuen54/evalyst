@@ -46,3 +46,25 @@ test("skills download endpoint returns SKILL.md", async ({ request }) => {
   expect(body).toMatch(/^---/) // SKILL.md frontmatter
   expect(body).toMatch(/evalyst-dataset/)
 })
+
+test("copilot glow frame is present with off state by default", async ({ page }) => {
+  // PR-4: CopilotGlowFrame wraps main content. When copilot panel is closed
+  // (default on first load), data-glow should be "off" and no border animates.
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+  const frame = page.locator(".copilot-glow-frame").first()
+  await expect(frame).toHaveAttribute("data-glow", "off")
+})
+
+test("copilot glow frame transitions off→idle when panel opens", async ({ page }) => {
+  // PR-4: opening copilot panel via ⌘K should flip the frame to a non-off state.
+  await page.goto("/", { waitUntil: "domcontentloaded" })
+  const frame = page.locator(".copilot-glow-frame").first()
+  await expect(frame).toHaveAttribute("data-glow", "off")
+  // ⌘K on Mac, Ctrl+K elsewhere
+  const modifier = process.platform === "darwin" ? "Meta" : "Control"
+  await page.keyboard.press(`${modifier}+k`)
+  // data-glow should change to idle (or typing / working if anything happens)
+  await expect.poll(async () => await frame.getAttribute("data-glow"), {
+    timeout: 3000,
+  }).not.toBe("off")
+})
