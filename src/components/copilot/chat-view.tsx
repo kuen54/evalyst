@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useT } from "@/lib/i18n/provider"
 import type { CopilotMessage, CopilotContextRef } from "@/lib/copilot/types"
 import { findToolMetadata } from "@/lib/copilot/tool-metadata"
+import { collectClientSnapshot } from "@/lib/copilot/collect-snapshot"
 import { ModelPicker } from "./model-picker"
 import { useCopilotStore } from "./store"
 import { colorForTag } from "./context-mask"
@@ -74,7 +75,11 @@ async function consumeSseStream(
 export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   const t = useT()
   const modelId = selectedModelId
-  const { contexts, clearContexts, removeContext, setInspectorActive, inspectorActive, setBusy } = useCopilotStore()
+  const {
+    contexts, clearContexts, removeContext,
+    setInspectorActive, inspectorActive,
+    setBusy, pageContext, bumpTypingSignal,
+  } = useCopilotStore()
   const [messages, setMessages] = useState<UiMessage[]>([])
   const [input, setInput] = useState("")
   const [sending, setSending] = useState(false)
@@ -342,7 +347,10 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
       const resp = await fetch(`/api/copilot/sessions/${sessionId}/tool-result`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ call_id, tool_name, input, denied, reason }),
+        body: JSON.stringify({
+          call_id, tool_name, input, denied, reason,
+          client_snapshot: pageContext ? collectClientSnapshot(pairSessionId, pageContext) : undefined,
+        }),
         signal: ctrl.signal,
       })
       if (!resp.ok) {
@@ -405,6 +413,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
           user_message: text,
           model_id: modelId,
           contexts: sendContexts,
+          client_snapshot: pageContext ? collectClientSnapshot(pairSessionId, pageContext) : undefined,
         }),
         signal: ctrl.signal,
       })
@@ -715,7 +724,10 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
           </button>
           <Textarea
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={e => {
+              setInput(e.target.value)
+              bumpTypingSignal()
+            }}
             onKeyDown={onKeyDown}
             placeholder={t("copilot.input_placeholder")}
             rows={inputExpanded ? 18 : 3}
