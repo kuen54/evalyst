@@ -31,7 +31,8 @@ import { buildLlmMessages } from '@/lib/copilot/build-llm-messages'
  *   5. 把 text 累积 / tool_use_end 累积 → 流 close 时统一 append 到 jsonl
  *
  * SSE 事件（与 /chat route 对齐）：
- *   { kind: 'tool_result_message', id }   — 服务端为 tool_result 分配的消息 id
+ *   { kind: 'tool_result_message', id, content, denied?, reason? }
+ *       — 服务端为 tool_result 分配的消息 id + 结果 JSON（供前端 summary 渲染）
  *   { kind: 'text', delta }
  *   { kind: 'tool_use_start' | 'tool_use_delta' | 'tool_use_end', ... } — 转发 LLM 事件
  *   { kind: 'done', assistant_message_id?, tool_use_message_ids?, usage?, stop_reason? }
@@ -132,7 +133,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const write = (payload: unknown) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
       }
-      write({ kind: 'tool_result_message', id: toolResultMsg.id })
+      // 回传 content + denied + reason 给前端，让 ToolCallCard.summarizeResult 能渲出
+      // "5/12" 这种读工具摘要。只发 id 会让占位 UiMessage 的 content 保持空串。
+      write({
+        kind: 'tool_result_message',
+        id: toolResultMsg.id,
+        content: JSON.stringify(resultContent),
+        denied: body.denied,
+        reason: body.reason,
+      })
 
       try {
         await callLlmStreaming(

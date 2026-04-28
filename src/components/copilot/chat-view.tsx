@@ -30,7 +30,7 @@ interface Props {
  */
 type ChatSseEvent =
   | { kind: "user_message"; id: string }
-  | { kind: "tool_result_message"; id: string }
+  | { kind: "tool_result_message"; id: string; content?: string; denied?: boolean; reason?: string }
   | { kind: "text"; delta: string }
   | { kind: "tool_use_start"; call_id: string; tool_name: string }
   | { kind: "tool_use_delta"; call_id: string; input_json_delta: string }
@@ -183,11 +183,19 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
       } else if (ev.kind === "tool_result_message") {
         setMessages(prev => {
           const next = prev.slice()
-          // 最近一条没 id 的 tool_result 拿这个 id（我们在 postToolResult 时 push 的占位）
+          // 最近一条没 id 的 tool_result 拿这个 id（我们在 postToolResult 时 push 的占位），
+          // 同时把服务端的 content / denied / reason 回填进去——ToolCallCard 依赖
+          // content 的 JSON 字符串通过 summarizeResult 渲出 "5/12" 这种摘要。
           for (let i = next.length - 1; i >= 0; i--) {
             const m = next[i]
             if (m.role === "tool_result" && !m.id) {
-              next[i] = { ...m, id: ev.id }
+              next[i] = {
+                ...m,
+                id: ev.id,
+                content: ev.content ?? m.content,
+                denied: ev.denied ?? m.denied,
+                reason: ev.reason ?? m.reason,
+              }
               break
             }
           }
@@ -331,22 +339,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
       // Reset order ref for this stream segment
       streamToolUseOrderRef.current = []
       await consumeSseStream(resp, makeSseHandler(pairSessionId))
-      // 流结束后，如果 tool_result 占位还没拿到 id（通常不会发生），把 content 填回服务端成功的摘要（可选）
-      // 这里不做额外处理；ToolCallCard 已经能依据 toolResult.content 渲染 summary
-      // 实际 content 是 denied 时的占位；非 denied 时应由另一段逻辑回填——但 tool_result 的 content
-      // 是后端计算的 JSON.stringify(resultContent)，前端不获知，暂依赖 toolResult.content="" 时
-      // ToolCallCard 走 summarizeResult(null) 返空串。为了用户能看到 "✅ tool_name"，把 content 标记为空对象
-      setMessages(prev => {
-        const next = prev.slice()
-        for (let i = next.length - 1; i >= 0; i--) {
-          const m = next[i]
-          if (m.role === "tool_result" && m.call_id === call_id && !denied && m.content === "") {
-            next[i] = { ...m, content: JSON.stringify({}) }
-            break
-          }
-        }
-        return next
-      })
+      // tool_result_message 事件已经回填了 content / denied / reason，这里不再需要兜底占位。
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         toast.error((e as Error).message)
