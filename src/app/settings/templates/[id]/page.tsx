@@ -106,7 +106,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
         {schema.inputs.map((inp, i) => {
           const ds = datasets.find(d => d.id === inp.dataset_id)
           return (
-            <GlassRegular key={i} className="p-3 space-y-1.5 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
+            <GlassRegular key={i} className="p-3 space-y-1.5 text-sm text-card-foreground overflow-hidden">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-[11px]">{inp.alias}</Badge>
                 <span className="text-sm">{ds?.name ?? inp.dataset_id}</span>

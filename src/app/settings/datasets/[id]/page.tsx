@@ -132,7 +132,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
 
       {/* 字段定义 */}
       <Section title={t("settings.datasets.detail.fields_title", { n: def.fields.length })}>
-        <GlassRegular className="p-0 overflow-hidden text-sm text-card-foreground ring-1 ring-foreground/10">
+        <GlassRegular className="p-0 overflow-hidden text-sm text-card-foreground">
           <table className="text-xs w-full">
             <thead className="bg-muted/50">
               <tr className="text-muted-foreground">
@@ -171,7 +171,7 @@ export default function DatasetDetailPage({ params }: { params: Promise<{ id: st
             onClick={handleShowAll}
           >{t("settings.datasets.detail.show_all", { n: totalCount })}</button>
         )}
-        <GlassRegular className="p-0 overflow-x-auto text-sm text-card-foreground ring-1 ring-foreground/10">
+        <GlassRegular className="p-0 overflow-x-auto text-sm text-card-foreground">
           <table className="text-[11px] w-full">
             <thead className="bg-muted/50">
               <tr className="text-muted-foreground">
