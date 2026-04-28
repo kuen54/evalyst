@@ -1,5 +1,7 @@
 # Copilot Glass System Implementation Plan
 
+> **Status (2026-04-28): ✅ 全部 12 task + 首轮验证后的 5 处调整均已落地。** 见文末 §"首轮验证后的调整"以及 spec §12。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Migrate copilot-mode UI from ad-hoc shell mixing to a unified 4-tier glass system (Thin / Regular / Thick / Tinted), eliminating the material inconsistencies identified in the design spec.
@@ -1237,3 +1239,134 @@ Expected: push succeeds.
 - `GlassVariant = "thin" | "regular" | "thick" | "tinted"` consistent across all references ✓
 - `useGlassStyle(variant)` signature stable ✓
 - `<GlassThin>` / `<GlassRegular>` / `<GlassThick>` / `<GlassTinted>` component names consistent ✓
+
+---
+
+## 首轮验证后的调整（2026-04-28）
+
+12 task 落地后用户用了一轮，反馈了若干问题，对应调整已全部 ship（代码 push 到 origin/main）。细节见 spec §12。
+
+### 调整 A · 引入 `--copilot-accent` token
+
+**问题**：项目 `--primary = oklch(0.25 0.015 55)` 是暗褐色（色度 0.015 ≈ 灰），原 `GlassTinted` 用 `var(--primary) 28%` 做染色 → /10 出来灰扁，不是"亮"而是"染灰"。
+
+**修**：
+- `src/app/globals.css` 新增 `--copilot-accent: oklch(0.76 0.16 225)` (sky blue, 与 glow 主色呼应) + dark 变体
+- `src/components/copilot/shell.tsx` GlassTinted 改用 copilot-accent
+- test `src/components/copilot/__tests__/shell.test.ts` 同步更新断言
+
+**Commit**: `ee3ebdd`（含调整 B、补充 Card 迁移）
+
+### 调整 B · Glow 合并 idle/busy 色度
+
+**问题**：打开 copilot 初始 glow 偏灰，点击任意位置后色度、对比度都会变深。
+
+**修**：`src/app/globals.css` 的 `.copilot-glow::before` / `.copilot-glow-flow`：
+- 把原 `[data-state="active"]` 的 `saturate(1.2) brightness(1.08)` 合并到默认状态
+- 动画速度默认 6s/7s（比原 idle 9s/11s 快）
+- `data-state="active"` 仅保留进一步提速到 3s/4s，不改色
+- `color-mix` 百分比 +10–14%（如 `32%→48%`）让色斑更"实"
+
+### 调整 C · 选中态 design token（`segmentedItem`）
+
+**问题**：非 copilot 模式下，segmentedItem 把"选中"渲染成 sky-blue 发光 —— 用户说"非 copilot 模式应该还是以前的样式"。
+
+**修**：
+- `src/lib/segmented.ts`：`segmentedItem(active, copilotOpen)` 根据 `copilotOpen` 分支输出
+  - 关：`border-foreground bg-accent/70` / `border-border hover:bg-muted/50`（shadcn 原样）
+  - 开：accent 浅染 + 顶部白高光 + accent 光圈 + accent ambient shadow
+- 5 个调用点传 `copilotOpen`（或硬编 `false`）：
+  - `src/app/experiments/new/page.tsx` — `copilotOpen`
+  - `src/components/settings/display-form-page.tsx` — `copilotOpen`
+  - `src/components/settings/relation-diagram.tsx` — `copilotOpen`
+  - `src/components/sidebar.tsx` — 硬编 `false`（sidebar 永远非 copilot 扁平）
+  - `src/components/copilot/session-list.tsx` — 硬编 `false`（panel 内永远非 copilot 扁平）
+
+**Commit**: `2f6c843`（含调整 D、E）
+
+### 调整 D · Sidebar + Copilot panel 退出玻璃系统
+
+**问题**：用户要求"只有页面中间部分应用 copilot 玻璃，最左侧导航 + 最右侧 copilot 都走非 copilot 扁平规范"。
+
+**修**：
+- `src/components/sidebar.tsx` — 删 `useGlassStyle("thin")` + tinted inline style；保持 `bg-muted/20` 实底
+- `src/components/copilot/panel.tsx` — 删 `useGlassStyle("thick")`；保持 `bg-background` 实底
+- `src/components/copilot/session-list.tsx` — 删所有 glass 应用
+- `src/components/copilot/chat-view.tsx` — 两个 send / edit-resend 按钮从 `variant="tinted"` 改回默认
+
+**Commit**: `2f6c843`
+
+**注意**：中间内容区的浮层（Dialog / Select content / compare 的 PromptInfoIcon）保留 Thick glass，因为它们从中间内容触发、在中间渲染，不算"最右侧 copilot 区"。
+
+### 调整 E · JSX display 兼容 copilot 态
+
+**问题**：用户自建 JSX display（如 `fortune_v4_dual_list.json`）的源码直接写 `<div className="bg-card border rounded-lg p-3">`，copilot 开时仍然是 bg-card 实底，看起来是扁平的。
+
+**修**：
+- `src/components/results/view-helpers.tsx`：`makeHelpers({ open, styles })` 接受可选参数，暴露 `helpers.glassStyle(variant)` 和 `helpers.glassAttr(variant)`；copilot 关时返回 `undefined`，copilot 开时返回对应档的 CSS 或属性值
+- `src/components/results/display-jsx.tsx`：在 `DisplayJsx` / `DisplayJsxCell` 组件内调用 4 档 `useGlassStyle`，传给 `makeHelpers`
+- `data/displays/fortune_v3_dual_list.json` + `fortune_v4_dual_list.json`：外层主卡 `React.createElement('div', {...})` 的 props 里加：
+  ```js
+  style: glassStyle('regular'),
+  'data-glass-variant': glassAttr('regular'),
+  ```
+
+用户后续自建 JSX display 的 pattern：
+```js
+({ result, helpers }) => {
+  const { readField, Badge, glassStyle, glassAttr } = helpers;
+  // ...
+  return React.createElement('div', {
+    className: 'border rounded-lg p-3 bg-card',     // copilot 关实底
+    style: glassStyle('regular'),                    // copilot 开玻璃
+    'data-glass-variant': glassAttr('regular'),
+  }, children);
+}
+```
+
+### 补充 · 剩余扁平 Card 全迁移（配合调整）
+
+覆盖用户反馈"还有大量卡片扁平"：
+- `src/components/settings/model-card.tsx`（LLM 模型卡）→ `<GlassRegular>`
+- `src/app/experiments/[id]/page.tsx` L170 漏的 `rounded-lg border bg-card` 平 div → `<GlassRegular>`
+- `src/app/settings/templates/[id]/page.tsx` + `src/app/settings/datasets/[id]/page.tsx` 详情页 Card → `<GlassRegular>`
+- 4 个 form pages (`template-form-page.tsx` / `dataset-form-page.tsx` / `rubric-form-page.tsx` / `display-form-page.tsx`) 内部段落 Card → `<GlassRegular>`
+- 7 个 results renderer (`single-list` / `dual-list` / `triple-grid` / `display-grouped-grid` / `display-jsx` / `bubble-auto` / `json-default`) 的行级 Card → `<GlassThin>`（数据密集用 Thin 最低扰动）
+- `src/components/settings/agent-hint-banner.tsx` → **不迁**（amber notice banner，semantic 色码信号 > 装饰；符合 spec "toast/snackbar 实底不玻璃"禁忌）
+
+**Commits**: `ee3ebdd`
+
+### 额外修 · Sidebar 折叠态 btn 居中
+
+**问题**：sidebar 收起后，底部 theme / language 按钮没水平居中。
+
+**修**：`src/components/sidebar.tsx` + `src/components/language-toggle.tsx`：底部容器从固定 `px-3` 改为响应式 `collapsed ? "px-1.5" : "px-3"`，按钮去掉 no-op 的 `mx-auto` 改 `w-full + justify-center`，图标自然居中。
+
+**Commit**: `002a863`
+
+### 最终提交范围
+
+```
+d2f7d21 docs(copilot): add glass system implementation plan (12 tasks)
+b109e44 feat(copilot): extend glass shell to 4-tier system
+61f6f23 fix(copilot): align Thin glass opacity with spec (8%)
+0f6c218 feat(copilot): add glass-tier a11y fallbacks + interactive keyframes
+96fbe6c feat(ui): add tinted variant to Button
+d2ac080 feat(dashboard): migrate ExperimentCard to GlassRegular
+bef82ad feat(experiments/new): glass-regular shell + tinted save-run CTA
+7e56398 feat(compare): 3-tier glass migration
+a3581f9 feat(settings): glass migration + active tab Tinted
+a6bcbd1 feat(experiments/detail): glass-regular for outer + all inner
+4e313d3 feat(chrome): sidebar + sticky save bar GlassThin  (后续调整 D 撤销 sidebar)
+d0c4e8c feat(copilot): panel GlassThick + send button tinted  (后续调整 D 撤销 panel + chat-view)
+7558e49 feat(ui): Dialog content → GlassThick
+cc66f54 feat(ui): Select content + custom popovers → GlassThick
+83c4420 chore(copilot): remove legacy aliases after full migration
+92368f6 fix(copilot): make useCopilotStore return no-op fallback outside provider
+85d2ab2 feat(ui): unify segmented / tab / nav active state
+ee3ebdd feat(copilot): brighter accent + glow always-active + migrate remaining Cards
+2f6c843 fix(copilot): segmented state + chrome scope + JSX display glass awareness
+002a863 fix(sidebar): center theme/language buttons when sidebar collapsed
+```
+
+Tests: 156 all green · E2E: 9/9 · tsc: clean · 全部 pushed to origin/main。

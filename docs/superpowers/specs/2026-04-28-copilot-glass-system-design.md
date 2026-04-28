@@ -50,10 +50,17 @@ Copilot 模式开启后，UI 在不同页面表现不一致：
 
 | 档 | blur | bg opacity | tint | 内阴影 | 外阴影 | 角色 |
 |---|---|---|---|---|---|---|
-| **Thin** | 16px | 8% | — | 无 | 无 | chrome / sticky 条带 / 数据单元格 |
+| **Thin** | 16px | 8% | — | 无 | 无 | sticky 条带 / 数据单元格 / results 行级卡 |
 | **Regular** | 28px | 35% | — | 顶部 1px 白高光 | `0 20px 50px -20px` 柔落影 | 页面主外壳 + 内容卡（同级同档）|
-| **Thick** | 40px | 55% | — | 顶部+底部双高光 | `0 30px 60px -15px` 明显落影 | 浮层（dialog / popover / copilot panel）|
-| **Tinted** | 28px | 35% | `color-mix(in oklab, var(--primary) 28%, transparent)` | 顶部白高光 | 同 Regular | primary CTA / active tab |
+| **Thick** | 40px | 55% | — | 顶部+底部双高光 | `0 30px 60px -15px` 明显落影 | 浮层（dialog / select content / custom popover）|
+| **Tinted** | 28px | 35% | `color-mix(in oklab, var(--copilot-accent) 22%, transparent)` 叠 | 顶部白高光 + accent 内光圈 + accent ambient | primary CTA / active tab / segmented selected |
+
+**关于 `--copilot-accent`（2026-04-28 修订加入）**：
+```css
+:root { --copilot-accent: oklch(0.76 0.16 225); } /* sky blue */
+.dark { --copilot-accent: oklch(0.62 0.14 225); }
+```
+项目原 `--primary` 是 `oklch(0.25 0.015 55)`（暗褐色、色度 0.015 ≈ 灰），直接用 `bg-primary/10` 做激活染色永远灰扁。新增这个 sky-blue accent 专用于"发光"信号，和 glow 主色呼应。Tinted 变体改用 `var(--copilot-accent)` 而非 `var(--primary)`。
 
 ### 硬性约束
 
@@ -84,37 +91,48 @@ Copilot 模式开启后，UI 在不同页面表现不一致：
 | `/compare` 每个结果格（cell Card） | **Thin** ← **降档**，避开"数据表格单元格玻璃数字漂移"禁忌 |
 | `/settings` layout 外壳 | **Regular** |
 | `/settings` 子列表卡（datasets/templates/rubrics list cards） | **Regular** |
+| `/settings` 子详情页 `/[id]` 内 Card | **Regular** |
+| `/settings` 内 form sub-section cards（template/dataset/rubric/display form） | **Regular** |
+| ModelCard（LLM 模型卡） | **Regular** |
 | `/experiments/[id]` 外壳 | **Regular** |
 | `/experiments/[id]` 内嵌 Progress / Scoring / Failed Panel | **Regular** |
-| Sidebar | **Thin** |
-| Sticky Save Bar | **Thin** |
-| Copilot Panel 自身 | **Thick** |
+| Results 行级 Card（single-list / dual-list / triple-grid / display-grouped-grid / display-jsx / bubble-auto / json-default） | **Thin** ← 数据密集稳定性 |
+| Sticky Save Bar | **Thin** + `copilot-scroll-edge-top` |
+| **Sidebar** | **实底不玻璃**（user 2026-04-28 decision：左侧导航走非 copilot 扁平规范）|
+| **Copilot Panel 自身** | **实底不玻璃**（同上：右侧 copilot 区走非 copilot 扁平规范）|
 
-### 浮层
+### 浮层（中间内容区触发）
 
 | 元素 | 档 |
 |---|---|
 | Dialog content | **Thick** |
-| Popover content | **Thick** |
-| DropdownMenu content | **Thick** |
+| Select content | **Thick** |
+| 自建 Popover divs（compare PromptInfoIcon / SessionList 在 panel 外的使用 etc.） | **Thick** |
 | Toast / Sonner | **实底不玻璃**（禁忌） |
+| Agent hint banner（amber 色通知） | **实底不玻璃**（semantic 色码信号）|
 
 ### 交互强调
 
 | 元素 | 档 |
 |---|---|
-| Primary CTA 按钮（「开始运行」、「保存并运行」、copilot send） | **Tinted** |
-| Active tab（RelationDiagram 选中项、compare schema filter 选中项、sidebar 选中项） | **Tinted** |
+| Primary CTA 按钮（「保存并运行」、experiments/new 的 Run 等，仅主内容区） | **Tinted**（只在 copilot 开时生效）|
+| Segmented control 选中（schema selector、display mode、relation-diagram tab） | **Tinted**（只在 copilot 开时生效）|
+| **Sidebar nav active** | 永远 shadcn `bg-accent/70 border-foreground`（`segmentedItem(_, false)` 硬编）|
+| **Session list active（panel 内）** | 永远 shadcn `bg-accent/70`（同上）|
 | Secondary / outline 按钮 | 保持 shadcn 原样（content-over-material） |
+
+**设计 token**：统一走 `src/lib/segmented.ts` 的 `segmentedItem(active, copilotOpen)`：
+- copilot 关：shadcn 原样（`border-foreground bg-accent/70`），不用玻璃/发光
+- copilot 开：accent 浅染 + 顶部白高光 + accent 光圈 + accent ambient shadow → "发光"
 
 ### 禁忌 · 绝对不玻璃
 
-- ❌ Textarea 输入框内部（prompt 编辑区、copilot 输入框内部）
-- ❌ Input 输入框内部
-- ❌ Code / pre 代码块内部
+- ❌ Textarea / Input / Code 内部（阅读密集）
 - ❌ Disabled 状态按钮（复用 shadcn disabled 样式）
-- ❌ Toast / Snackbar
-- ❌ Compare 内格"降到 Thin"是底线，不再往上升
+- ❌ Toast / Snackbar / amber notice banner（semantic 信号 > 装饰）
+- ❌ Compare 内格"降到 Thin"是底线
+- ❌ **Sidebar**（左侧主导航）—— 走非 copilot 扁平规范
+- ❌ **Copilot panel 自身 + 内部**（session-list / chat-view 按钮 / textarea）—— 走非 copilot 扁平规范
 - ❌ ScrollArea viewport 内部（如果内容是正文）
 
 ---
@@ -283,3 +301,51 @@ DevTools Emulate：
 - **同级同档规则优先于按角色分档**。用户明确 "页面最外层组件必须同厚度"，我们把 dashboard 卡（原倾向 Thick）也归 Regular。代价是 dashboard 卡的"数据岛感"偏弱。
 - **光晕强度保持**（不加强不减弱）。首轮先看玻璃系统本身效果，光晕后续独立调。
 - **Compare 内格降 Thin 而非维持 Regular**。触发原因是 Liquid Glass 明确禁忌"数据表格单元格玻璃"。数据稳定性 > 视觉统一。
+
+---
+
+## 12 · 首轮验证后的调整（2026-04-28）
+
+**调整 A · 引入 `--copilot-accent` token**
+- 项目 `--primary` 是 `oklch(0.25 0.015 55)`（暗褐色、色度 0.015），用于 Tinted 或 segmented 选中的染色太灰扁
+- 新增 `--copilot-accent: oklch(0.76 0.16 225)` (sky blue)，与 glow 主色呼应
+- Tinted 变体 + segmentedItem 的"发光"态都改用 copilot-accent，不走 primary
+- 决策理由：让"激活态"真正看起来"变亮"而非"染灰"
+
+**调整 B · glow 合并 idle/busy 色度**
+- 原本 idle 和 busy (streaming) 用不同 filter saturate/brightness，初始偏灰、点击后变深
+- 改为打开 copilot 就一直用 active 色度（`saturate(1.2) brightness(1.08)`）+ color-mix 百分比 +10-14%
+- busy 仅动画速度更快（3s/4s）不再换色
+- 决策理由：用户不应在同一模式下看到两种色调
+
+**调整 C · 选中态 design token `segmentedItem(active, copilotOpen)`**
+- 新建 `src/lib/segmented.ts` 统一 segmented / tab / nav 的 active 样式
+- copilot 关：回退老 shadcn（`border-foreground bg-accent/70`），不上染色/发光
+- copilot 开：accent 浅染 + 顶部白高光 + accent 光圈 + accent ambient shadow → "发光"
+- 5 个调用点：experiments/new schema selector、display-form mode selector、relation-diagram tab、sidebar nav（硬编 false）、session-list active（硬编 false）
+- 决策理由：非 copilot 模式不该看到 copilot 专属视觉语言
+
+**调整 D · Sidebar + Copilot panel 退出玻璃系统**
+- 用户明确要求"只有页面中间部分应用 copilot 玻璃，最左侧导航 + 最右侧 copilot 都走非 copilot 扁平规范"
+- `sidebar.tsx`：撤销 `GlassThin` inline style 和 active nav 的 tinted
+- `copilot/panel.tsx`：撤销 `GlassThick` inline style
+- `copilot/session-list.tsx`：撤销所有 glass 应用，active 态用 `segmentedItem(_, false)`
+- `copilot/chat-view.tsx`：两个 send/edit-resend 按钮从 `variant="tinted"` 改回默认
+- 决策理由：copilot 模式是"中间区域变玻璃"，不是"整屏变玻璃"。左右两侧是 chrome，保持 shadcn 扁平稳定
+
+**调整 E · JSX display 兼容 copilot 态**
+- `view-helpers.tsx` 的 `makeHelpers({ open, styles })` 扩展：暴露 `helpers.glassStyle(variant)` 和 `helpers.glassAttr(variant)`
+- `results/display-jsx.tsx` 在渲染器组件内调用 4 档 `useGlassStyle` 传给 helpers
+- `data/displays/fortune_v3_dual_list.json` + `fortune_v4_dual_list.json`：外层 div 加 `style: glassStyle('regular')` + `data-glass-variant: glassAttr('regular')`
+  - copilot 关 → `glassStyle()` 返回 undefined，走 `bg-card` 实底
+  - copilot 开 → inline style 覆盖，自动玻璃化
+- 文档给后续写自定义 JSX display 的人：解构 helpers 时带 `glassStyle, glassAttr`，外层主卡 div 里叠上，剩下都和以前一样写
+- 决策理由：用户自建 display 也是"主内容区"，不能强制他们只能走 built-in renderer 才享玻璃
+
+**补充 · 剩余扁平 Card 全迁移**
+- `model-card.tsx`（LLM 模型卡）→ GlassRegular
+- `experiments/[id]/page.tsx` L170 那行漏的 `rounded-lg border bg-card` div → GlassRegular
+- `settings/templates/[id]` + `settings/datasets/[id]` 内 Card → GlassRegular
+- 4 个 form pages（template / dataset / rubric / display）内部段落 Card → GlassRegular
+- 7 个 results renderer 的行级 Card → GlassThin（数据密，Thin 最低扰动）
+- `agent-hint-banner`（amber 通知）→ 不迁，保实底（semantic 色码信号 > 装饰）
