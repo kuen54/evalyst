@@ -6,10 +6,10 @@ import { useCopilotStore } from "./store"
 type GlowState = 'off' | 'idle' | 'typing' | 'working'
 
 /**
- * Apple Intelligence 风 screen edges glow —— 作为 overlay 渲染到 <main> 内，
- * 与 GlowOverlay（背景漂移）同级 sibling，不包裹 main、不改 main layout。
- * off 状态直接 return null，彻底不上 DOM；状态转移通过 data-glow 属性驱动，
- * CSS 变量切换做状态差异（rim_width / feather / speed / saturate），无 React 重渲染。
+ * Apple Intelligence 风 screen edges glow —— 路线 A · CSS 近似实现。
+ * 5 层 pastel blob 独立 drift + inset radial mask (inverse-square 近似)
+ * + mix-blend-mode: screen。作为 overlay 渲染到 <main> 内与 GlowOverlay 同级。
+ * off 状态直接 return null；状态转移通过 data-glow 属性驱动 CSS 切换 blob 动画速度与滤镜。
  */
 export function CopilotBorderGlow() {
   const { open, busy, typingSignal } = useCopilotStore()
@@ -29,5 +29,13 @@ export function CopilotBorderGlow() {
   }, [open, busy, typingSignal])
 
   if (state === 'off') return null
-  return <div className="copilot-border-glow" data-glow={state} aria-hidden />
+  return (
+    <div className="copilot-border-glow" data-glow={state} aria-hidden>
+      <div className="csg-blob csg-blob-1" />
+      <div className="csg-blob csg-blob-2" />
+      <div className="csg-blob csg-blob-3" />
+      <div className="csg-blob csg-blob-4" />
+      <div className="csg-blob csg-blob-5" />
+    </div>
+  )
 }
