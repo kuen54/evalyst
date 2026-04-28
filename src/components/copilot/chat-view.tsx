@@ -423,7 +423,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
           <div className="flex-1 min-w-0">
             <ModelPicker selectedModelId={modelId} onChange={onPickModel} />
           </div>
-          <Button size="sm" onClick={handleSend} disabled={!canSend} className="shrink-0 gap-1.5">
+          <Button variant="tinted" size="sm" onClick={handleSend} disabled={!canSend} className="shrink-0 gap-1.5">
             <span>{sending ? t("copilot.thinking") : t("copilot.send")}</span>
             {!sending && modelId && (
               <kbd className="text-[10px] opacity-70 font-mono bg-primary-foreground/15 px-1 py-px rounded">⌘↩</kbd>
@@ -472,7 +472,7 @@ function MessageRow({ msg, editing, editDraft, onEditDraftChange, onCopy, onEdit
           />
           <div className="flex items-center gap-1 justify-end">
             <Button size="sm" variant="ghost" onClick={onEditCancel}>{t("copilot.edit_cancel")}</Button>
-            <Button size="sm" onClick={onEditCommit}>{t("copilot.edit_resend")}</Button>
+            <Button variant="tinted" size="sm" onClick={onEditCommit}>{t("copilot.edit_resend")}</Button>
           </div>
         </div>
       </div>
