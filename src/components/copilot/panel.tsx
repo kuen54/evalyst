@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useT } from "@/lib/i18n/provider"
 import { useCopilotStore } from "./store"
-import { useGlassStyle } from "./shell"
 import { SessionList } from "./session-list"
 import { ChatView } from "./chat-view"
 import type { CopilotSessionMeta } from "@/lib/copilot/types"
@@ -12,7 +11,6 @@ import type { CopilotSessionMeta } from "@/lib/copilot/types"
 export function CopilotPanel() {
   const t = useT()
   const { open, setOpen, toggleOpen, width, setWidth, activeSessionId, setActiveSessionId, mounted, contexts } = useCopilotStore()
-  const glass = useGlassStyle("thick")
 
   const [sessions, setSessions] = useState<CopilotSessionMeta[]>([])
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
@@ -165,8 +163,7 @@ export function CopilotPanel() {
       <aside
         data-copilot-panel
         className="sticky top-0 h-screen shrink-0 overflow-hidden border-l border-border bg-background flex flex-col"
-        style={{ width: `${panelWidth}px`, ...glass }}
-        data-glass-variant="thick"
+        style={{ width: `${panelWidth}px` }}
         aria-hidden={!effectiveOpen}
       >
         {effectiveOpen && (

@@ -163,7 +163,7 @@ export function DisplayFormPage() {
               key={m}
               type="button"
               onClick={() => set("mode", m)}
-              className={`p-3 rounded-md border text-left transition-colors ${segmentedItem(isActive)}`}
+              className={`p-3 rounded-md border text-left transition-colors ${segmentedItem(isActive, copilotOpen)}`}
               style={copilotOpen ? (isActive ? tintedStyle : thinStyle) : undefined}
               data-glass-variant={copilotOpen ? (isActive ? "tinted" : "thin") : undefined}
             >

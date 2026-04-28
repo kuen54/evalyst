@@ -52,7 +52,7 @@ export function RelationDiagram() {
           <div key={it.key} className="contents">
             <Link
               href={it.href}
-              className={`flex-1 basis-0 min-w-0 p-4 rounded-md border text-center transition-colors cursor-pointer ${segmentedItem(isActive)}`}
+              className={`flex-1 basis-0 min-w-0 p-4 rounded-md border text-center transition-colors cursor-pointer ${segmentedItem(isActive, copilotOpen)}`}
               style={copilotOpen ? (isActive ? tintedStyle : thinStyle) : undefined}
               data-glass-variant={copilotOpen ? (isActive ? "tinted" : "thin") : undefined}
             >

@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useMemo } from "react"
-import { GlassThin } from "@/components/copilot/shell"
+import { GlassThin, useGlassStyle } from "@/components/copilot/shell"
+import { useCopilotStore } from "@/components/copilot/store"
 import { useT } from "@/lib/i18n/provider"
 import type { Display, GenericResultRecord, TaskSchema } from "@/lib/schema/types"
 import type { ResultViewProps, CellViewProps } from "./types"
@@ -80,6 +81,11 @@ export function DisplayJsx({ results, schema, display }: JsxProps) {
   const t = useT()
   const source = display.jsx?.source ?? ""
   const compiled = useCompiledJsx(source, t("results.compiler_loading"), t("results.compile_error_prefix"))
+  const { open: copilotOpen } = useCopilotStore()
+  const thinStyle = useGlassStyle("thin")
+  const regularStyle = useGlassStyle("regular")
+  const thickStyle = useGlassStyle("thick")
+  const tintedStyle = useGlassStyle("tinted")
 
   if (!compiled) return <div className="text-muted-foreground text-sm py-4">{t("results.compiler_loading")}</div>
   if (compiled.error) {
@@ -91,7 +97,10 @@ export function DisplayJsx({ results, schema, display }: JsxProps) {
     )
   }
 
-  const helpers = makeHelpers()
+  const helpers = makeHelpers({
+    open: copilotOpen,
+    styles: { thin: thinStyle, regular: regularStyle, thick: thickStyle, tinted: tintedStyle },
+  })
 
   return (
     <div className="space-y-3">
@@ -132,8 +141,16 @@ export function DisplayJsxCell({ result, schema, display }: CellViewProps & { di
   const t = useT()
   const source = display.jsx?.source ?? ""
   const compiled = useCompiledJsx(source, t("results.compiler_loading"), t("results.compile_error_prefix"))
+  const { open: copilotOpen } = useCopilotStore()
+  const thinStyle = useGlassStyle("thin")
+  const regularStyle = useGlassStyle("regular")
+  const thickStyle = useGlassStyle("thick")
+  const tintedStyle = useGlassStyle("tinted")
   if (!compiled || compiled.error) return null
-  const helpers = makeHelpers()
+  const helpers = makeHelpers({
+    open: copilotOpen,
+    styles: { thin: thinStyle, regular: regularStyle, thick: thickStyle, tinted: tintedStyle },
+  })
   return (
     <JsxBoundary errorLabel={t("results.jsx_render_error")} fallback={<pre className="text-xs font-mono">{JSON.stringify(result.output)}</pre>}>
       <JsxRenderer fn={compiled.fn} result={result} schema={schema} helpers={helpers} />

@@ -158,7 +158,7 @@ export default function NewExperiment() {
                 key={s.id}
                 type="button"
                 onClick={() => setSchemaId(s.id)}
-                className={`p-3 rounded-md border text-left transition-colors ${segmentedItem(isActive)}`}
+                className={`p-3 rounded-md border text-left transition-colors ${segmentedItem(isActive, copilotOpen)}`}
                 style={copilotOpen ? (isActive ? tintedStyle : thinStyle) : undefined}
                 data-glass-variant={copilotOpen ? (isActive ? "tinted" : "thin") : undefined}
               >

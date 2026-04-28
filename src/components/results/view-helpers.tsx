@@ -1,8 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { type CSSProperties } from "react"
 import { Badge } from "@/components/ui/badge"
 import type { GenericResultRecord } from "@/lib/schema/types"
+
+type GlassVariant = "thin" | "regular" | "thick" | "tinted"
 
 /** 从 result 里按点分路径取值：'output.answer' / 'input_preview.qa.question' / 'input_refs.qa' */
 export function readField(result: GenericResultRecord, path: string): unknown {
@@ -68,12 +70,32 @@ export function renderField(value: unknown, type: string | undefined, maxLength?
   }
 }
 
-/** 暴露给用户 JSX display 的 helpers 对象 */
-export function makeHelpers() {
+/** 暴露给用户 JSX display 的 helpers 对象。
+ *
+ * 传 `copilotGlass` 时会把 copilot 状态 + 4 档玻璃样式暴露给用户 JSX 源码，
+ * 用户可以用 `helpers.glassStyle("regular")` 取 CSSProperties，配合原有 `bg-card` 等 class
+ * 做 "copilot 关闭实底 / copilot 打开玻璃" 的切换。 */
+export function makeHelpers(copilotGlass?: {
+  open: boolean
+  styles: Record<GlassVariant, CSSProperties>
+}) {
+  const open = copilotGlass?.open ?? false
+  const styles = copilotGlass?.styles
   return {
     readField,
     formatValue,
     renderField,
     Badge,
+    /** copilot 是否打开，供 JSX 源码判断是否要叠玻璃 style */
+    copilotOpen: open,
+    /** 取出指定档的玻璃 CSSProperties；copilot 关闭时返回 undefined，由调用方决定是否应用 */
+    glassStyle: (variant: GlassVariant = "regular"): CSSProperties | undefined => {
+      if (!open) return undefined
+      return styles?.[variant]
+    },
+    /** 用于 data-glass-variant 属性；copilot 关闭时返回 undefined */
+    glassAttr: (variant: GlassVariant = "regular"): string | undefined => {
+      return open ? variant : undefined
+    },
   }
 }
