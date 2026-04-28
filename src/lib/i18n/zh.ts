@@ -1017,6 +1017,12 @@ export const zh = {
   "copilot.tool.chain_limit": "链式调用已达上限 (5)，请人工介入",
   "copilot.tool.expand": "展开详情",
   "copilot.tool.collapse": "收起详情",
+  // 工具展示名 + 摘要文案
+  "copilot.tool.name.list_experiments": "查看实验列表",
+  "copilot.tool.name.read_experiment_results": "读取实验结果",
+  "copilot.tool.name.restart_experiment": "重跑实验",
+  "copilot.tool.summary.list_experiments": "找到 {total} 个实验",
+  "copilot.tool.summary.read_experiment_results": "共 {total} 条结果",
   "compare.collapse_panel": "收起左侧面板",
   "compare.expand_panel": "展开左侧面板",
   "compare.select_prompt_short": "选择实验",

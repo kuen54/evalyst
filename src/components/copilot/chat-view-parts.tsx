@@ -41,6 +41,9 @@ export function MessageRow({ msg, editing, editDraft, onEditDraftChange, onCopy,
   const t = useT()
   if (msg.role !== "user" && msg.role !== "assistant") return null
   const isUser = msg.role === "user"
+  // 空 assistant 气泡（LLM 这轮只发了 tool_use、没发文本）不渲染空壳；
+  // streaming 期间保留以显示 ThinkingDots
+  if (msg.role === "assistant" && !msg.streaming && !msg.content) return null
   // 下方 TS 将 msg narrow 到 user | assistant 两支
   const canEdit = isUser && !!msg.id && !msg.streaming
   const canDelete = !!msg.id && !msg.streaming

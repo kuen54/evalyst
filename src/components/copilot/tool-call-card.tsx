@@ -37,6 +37,12 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
   const toolInput = toolUse.tool_input ?? {}
   const tool = findToolMetadata(toolName)
   const requiresConfirm = tool?.requiresConfirm ?? false
+  // 工具展示名走 i18n，fallback 到原始 slug（未登记的工具也能正常显示）
+  const displayName = (() => {
+    const key = `copilot.tool.name.${toolName}`
+    const translated = t(key)
+    return translated === key ? toolName : translated
+  })()
 
   // === State 3: has result (success or denied) ===
   if (toolResult) {
@@ -49,7 +55,7 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
     }
     const summary = denied
       ? t("copilot.tool.denied_summary", { reason: toolResult.reason ?? "" })
-      : summarizeResult(content)
+      : summarizeResult(toolName, content, t)
     return (
       <div
         className={`rounded-md border px-3 py-2 text-xs ${
@@ -58,7 +64,7 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
       >
         <div className="flex items-center gap-2">
           <span aria-hidden>{denied ? "🚫" : "✅"}</span>
-          <code className="font-mono">{toolName}</code>
+          <span className="font-medium">{displayName}</span>
           {summary ? <span className="text-muted-foreground">{summary}</span> : null}
           <button
             type="button"
@@ -84,7 +90,7 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
       <div className="rounded-md border px-3 py-2 text-xs bg-muted/10">
         <div className="flex items-center gap-2">
           <span aria-hidden>🔍</span>
-          <code className="font-mono">{toolName}</code>
+          <span className="font-medium">{displayName}</span>
           <span className="text-muted-foreground">{t("copilot.tool.loading")}</span>
         </div>
       </div>
@@ -96,7 +102,7 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
     <div className="rounded-md border bg-card px-3 py-3 text-xs space-y-2">
       <div className="flex items-center gap-2">
         <span aria-hidden>⚙️</span>
-        <code className="font-mono font-medium">{toolName}</code>
+        <span className="font-medium">{displayName}</span>
         <Badge variant="outline" className="text-[10px]">
           {t("copilot.tool.requires_confirm")}
         </Badge>
@@ -148,15 +154,29 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
  * 把结果对象压缩成一句话摘要。识别约定：
  *  - { error: ... } → 直接显示 error 字符串
  *  - { triggered: true, message } → 写操作成功，显示 message（fallback "done"）
- *  - { returned, total_matching } → 读操作，显示 "{返回}/{命中}"
+ *  - { returned, total_matching } → 读操作：
+ *      · list_experiments → "找到 {total_matching} 个实验"
+ *      · read_experiment_results → "共 {total_matching} 条结果"
+ *      · 其他工具 → "{returned}/{total_matching}"
  *  - 其他 → 空串（摘要位不显示）
  */
-function summarizeResult(content: unknown): string {
+function summarizeResult(
+  toolName: string,
+  content: unknown,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
   if (typeof content === "object" && content !== null) {
     const obj = content as Record<string, unknown>
     if ("error" in obj) return String(obj.error ?? "")
     if ("triggered" in obj) return String(obj.message ?? "done")
     if (typeof obj.returned === "number" && typeof obj.total_matching === "number") {
+      const total = obj.total_matching
+      if (toolName === "list_experiments") {
+        return t("copilot.tool.summary.list_experiments", { total })
+      }
+      if (toolName === "read_experiment_results") {
+        return t("copilot.tool.summary.read_experiment_results", { total })
+      }
       return `${obj.returned}/${obj.total_matching}`
     }
   }
