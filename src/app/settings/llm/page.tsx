@@ -9,6 +9,7 @@ import { StickySaveBar } from "@/components/ui/sticky-save-bar"
 import { ModelCard } from "@/components/settings/model-card"
 import { useT, useLocale } from "@/lib/i18n/provider"
 import { LOCALE_BCP47 } from "@/lib/i18n/types"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 
 function randomId(): string {
   return Math.random().toString(36).slice(2, 8)
@@ -40,6 +41,20 @@ export default function LlmConfigPage() {
       .then(r => r.json())
       .then((c: LlmConfig) => { setCfg(c); setLoading(false) })
   }, [])
+
+  useRegisterPageContext(() => ({
+    route_type: 'models_list',
+    path: '/settings/llm',
+    summary: {
+      models: (cfg?.models ?? []).map(m => ({
+        id: m.id,
+        name: m.name,
+        provider: m.api_format,
+        copilot_enabled: m.copilot_enabled ?? false,
+      })),
+    },
+    timestamp: new Date().toISOString(),
+  }), [cfg])
 
   if (loading || !cfg) return <div className="text-muted-foreground text-sm py-8">{t("common.loading")}</div>
 

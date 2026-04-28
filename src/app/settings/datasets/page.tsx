@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
 import { GlassCard } from "@/components/copilot/shell"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 import type { DatasetDef } from "@/lib/schema/types"
 
 export default function SettingsDatasetsPage() {
@@ -25,6 +26,20 @@ export default function SettingsDatasetsPage() {
   }
 
   useEffect(() => { fetchAll() }, [])
+
+  useRegisterPageContext(() => ({
+    route_type: 'datasets_list',
+    path: '/settings/datasets',
+    summary: {
+      count: datasets.length,
+      items: datasets.slice(0, 20).map(d => ({
+        id: d.id,
+        name: d.name,
+        record_count: d.record_count ?? 0,
+      })),
+    },
+    timestamp: new Date().toISOString(),
+  }), [datasets])
 
   const handleDelete = async (id: string, name: string) => {
     const ok = await confirm({

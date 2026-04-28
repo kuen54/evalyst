@@ -7,6 +7,7 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useT } from "@/lib/i18n/provider"
 import { GlassCard } from "@/components/copilot/shell"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 import type { TaskSchema } from "@/lib/schema/types"
 
 export default function SettingsTemplatesPage() {
@@ -20,6 +21,20 @@ export default function SettingsTemplatesPage() {
       setLoading(false)
     })
   }, [])
+
+  useRegisterPageContext(() => ({
+    route_type: 'templates_list',
+    path: '/settings/templates',
+    summary: {
+      count: schemas.length,
+      items: schemas.slice(0, 20).map(s => ({
+        id: s.id,
+        name: s.label ?? s.id,
+        version: s.version ?? 1,
+      })),
+    },
+    timestamp: new Date().toISOString(),
+  }), [schemas])
 
   if (loading) return <div className="text-muted-foreground py-8">{t("common.loading")}</div>
 

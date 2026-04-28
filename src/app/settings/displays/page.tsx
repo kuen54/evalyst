@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
 import { GlassCard } from "@/components/copilot/shell"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 import type { Display } from "@/lib/schema/types"
 
 export default function SettingsDisplaysPage() {
@@ -25,6 +26,16 @@ export default function SettingsDisplaysPage() {
   }
 
   useEffect(() => { fetchAll() }, [])
+
+  useRegisterPageContext(() => ({
+    route_type: 'displays_list',
+    path: '/settings/displays',
+    summary: {
+      count: displays.length,
+      items: displays.slice(0, 20).map(d => ({ id: d.id, name: d.name, mode: d.mode })),
+    },
+    timestamp: new Date().toISOString(),
+  }), [displays])
 
   const modeLabel = (mode: string) => {
     const key = `settings.displays.mode_${mode}`
