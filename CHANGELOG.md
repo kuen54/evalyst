@@ -8,7 +8,7 @@
 
 ## [Unreleased]
 
-### 🔧 PR-3 · Copilot 工具调用闭环（实现完成，待合并）
+## [0.4.0] — 2026-04-28 · Copilot 工具调用闭环
 
 Copilot 装上"手"，能调 3 个工具直接读实验数据 + 触发重跑：
 - `list_experiments(filter?)` — 发现相关实验（read，no-confirm）
@@ -31,7 +31,35 @@ Copilot 装上"手"，能调 3 个工具直接读实验数据 + 触发重跑：
 
 - Spec: `docs/superpowers/specs/2026-04-28-copilot-pr3-tool-calling-design.md`
 - Plan: `docs/superpowers/plans/2026-04-28-copilot-pr3-tool-calling.md`
-- Branch: `feat/pr3-tool-calling`
+- PRs: #3（功能落地）+ #4（pipeline 时序 debug race fixes）
+
+### 后续调试轮次修复（已并入本版本）
+
+- **appendMessage 并发写丢消息**：read-modify-writeAtomic 改成 `fs.appendFileSync`（OS 层原子 append）
+- **Auto-run 读工具并行风暴**：一轮 N 个 read tool_use_end 改成 async IIFE 串行 await
+- **abortRef 覆写不 abort 旧的**：`doStreamSend` 和 `postToolResult` 覆写前先 `abortRef.current?.abort()`
+- **SSE `controller.enqueue` 在流关后抛**：`write` helper 包 try/catch 吞掉
+- **手动 Confirm/Deny race**：ToolCallCard 按钮在 `tool_use.id`（服务端 `done` 事件回填）到之前 disabled
+- **Auto-run read 工具 race**：pendingAutoRunRef 延后到 `done` 事件再 fire，避免 server append tool_use 之前 `/tool-result` 抢跑导致 parent_id 错链
+- **`/tool-result` 孤儿 tool_result**：model 校验移到 `appendMessage` 之前
+- **tool_result 内容通过 SSE 回传**：`tool_result_message` 事件带 `content` + `denied` + `reason`，摘要能渲 "找到 21 个实验" / "共 3 条结果"
+- **client bundle 炸 fs**：split tool metadata 到独立文件，UI 不再透过 `tools.ts` 把 `@/lib/store` 拖进浏览器
+
+### 决策记录（spec §9）
+
+| # | 决策 | 最终 |
+|---|---|---|
+| 1 | Read 工具是否 confirm | 无感执行 |
+| 2 | `edit_template` 粒度 | **整体 defer**（改 prompt 仍走 template 编辑页，3 工具跑稳一轮再加回来） |
+| 3 | 链式调用上限 | 5 |
+| 4 | tool_use + tool_result 是否持久化 | 持久化 jsonl |
+| 5 | Deny 行为 | 继续对话 |
+| 6 | Fork 时 pending tool call | 作废 |
+
+### 未验证 / 等配额
+
+- Anthropic-compat（Claude-on-Vertex）live 路径没跑过
+- Spec §8 四个人工端到端场景（A 查失败并重跑 / B 发现新实验 / C Deny / D 链式上限）待 Vertex 配额恢复后人工跑一遍
 
 ## [0.3.0] — 2026-04-28 · Copilot Glass System
 
