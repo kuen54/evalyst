@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { CardHeader } from "@/components/ui/card"
-import { GlassThin } from "@/components/copilot/shell"
+import { GlassThin, GlassCardThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
@@ -136,7 +136,7 @@ function GroupCard({
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full text-left cursor-pointer">
-        <GlassThin className="hover:bg-muted/50 transition-colors flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10">
+        <GlassCardThin className="hover:bg-muted/50 transition-colors">
           <CardHeader className="py-3 px-4">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-muted-foreground">{open ? "▾" : "▸"}</span>
@@ -151,7 +151,7 @@ function GroupCard({
               })}
             </div>
           </CardHeader>
-        </GlassThin>
+        </GlassCardThin>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="ml-4 mt-2 mb-4">

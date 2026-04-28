@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { GlassThin } from "@/components/copilot/shell"
+import { GlassCardThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
 import type { GenericResultRecord } from "@/lib/schema/types"
 import type { ResultViewProps, CellViewProps } from "./types"
@@ -18,9 +18,9 @@ export function SingleListResults({ results, schema }: ResultViewProps) {
   return (
     <div className="space-y-2">
       {results.map(r => (
-        <GlassThin
+        <GlassCardThin
           key={r.task_id}
-          className={`flex flex-col gap-4 overflow-hidden rounded-xl border bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 ${r.status !== "success" ? "border-red-200" : ""}`}
+          className={`${r.status !== "success" ? "border-red-200" : ""}`}
           data-copilot-context="task_result"
           data-copilot-context-id={r.task_id}
           data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id })}
@@ -77,7 +77,7 @@ export function SingleListResults({ results, schema }: ResultViewProps) {
               <div className="text-xs text-red-500">{r.status}: {r.error?.slice(0, 200)}</div>
             )}
           </div>
-        </GlassThin>
+        </GlassCardThin>
       ))}
     </div>
   )
