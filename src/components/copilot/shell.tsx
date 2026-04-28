@@ -29,7 +29,7 @@ export function getGlassStyleForVariant(
 
   if (variant === "thin") {
     return {
-      backgroundColor: "transparent",
+      backgroundColor: "color-mix(in oklab, var(--card) 8%, transparent)",
       backdropFilter: "blur(16px) saturate(1.2)",
       WebkitBackdropFilter: "blur(16px) saturate(1.2)",
       borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
