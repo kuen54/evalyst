@@ -1837,11 +1837,11 @@ git commit -m "feat(copilot): RouteChangeBanner prompts user to fork session on 
 
 ---
 
-## Phase 7 — Ambient Border Glow (P2) — Apple Intelligence "screen edges glow" 风格
+## Phase 7 — Ambient Border Glow (P2) — Apple Intelligence "screen edges glow" 风格（路线 A · CSS 近似）
 
-**视觉目标**：一圈紧贴 `<main>` 外缘的 rim（不是外扩 bloom），2-8px 可见线 + 向内 10-20px feather，沿 `border-radius` 走圆角，conic 五色沿周长流动。**不包裹 `<main>`、不改 `<main>` layout、背景光 `.copilot-glow` 完全保留原状**。
+**视觉目标**：`<main>` 内缘的 inset volumetric glow —— 多层 pastel iridescent blob 独立漂移（近似 Perlin noise 流体感）+ `mix-blend-mode: screen` 保证深浅背景通透 + inset radial mask (inverse-square 近似) 让光只在外缘显现中心透明。**不包裹 `<main>`、不改 `<main>` layout、背景光 `.copilot-glow` 完全保留原状。** 观感 ~80% 像 Apple；若验收不过可升级路线 B（WebGL SDF + Simplex noise fragment shader）。
 
-### Task 17: CSS — `.copilot-border-glow` (mask-composite ring)
+### Task 17: CSS — `.copilot-border-glow` + 5 pastel blob + inset mask + screen blend
 
 **Files:**
 - Modify: `src/app/globals.css`
@@ -1851,77 +1851,121 @@ git commit -m "feat(copilot): RouteChangeBanner prompts user to fork session on 
 在文件末尾（现有 `.copilot-scroll-edge-*` 之后）追加：
 
 ```css
-/* ---------------- PR-4: Ambient Border Glow (Apple Intelligence 风) ---------------- */
-/* screen edges glow —— 紧贴 <main> 外缘的一圈 rim，不是外扩大 bloom。
-   技术：conic-gradient 填满 + padding 控 rim 厚度 + mask-composite:exclude 切 ring + 轻 blur feather 向内。
-   不包裹 <main>、不改 <main> layout；作为 <main> 内 overlay (sibling of GlowOverlay) 存在。 */
-
-@property --glow-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
+/* ---------------- PR-4: Ambient Border Glow (Apple Intelligence 风 · 路线 A) ---------------- */
+/* screen edges glow —— 限定在 <main> 内，5 层 pastel blob 独立漂移 + inset radial mask
+   (inverse-square 近似) + mix-blend-mode: screen。
+   不包裹 <main>、不改 <main> layout；作为 <main> 内 overlay (sibling of GlowOverlay)。 */
 
 .copilot-border-glow {
   position: absolute;
-  inset: 0;                         /* 贴 main 边框，不外扩 */
-  border-radius: var(--radius-xl);  /* 跟 main 的圆角 */
+  inset: 0;
   pointer-events: none;
   z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  mix-blend-mode: screen;
 
-  /* 可变节奏：状态切 data-glow 时这组 var 更新 */
-  --rim-width: 5px;
-  --rim-feather: 16px;
-  --glow-speed: 8s;
-  --glow-saturate: 1.4;
-
-  /* 用 padding 控制 ring 厚度：padding 区是显色区，content-box 内被 mask 透明 */
-  padding: var(--rim-width);
-  background: conic-gradient(
-    from var(--glow-angle),
-    #ff3ea5, #8a5bff, #3f8dff, #31e0c8, #ffb547, #ff3ea5
+  /* Inset vignette：中心透明、向外分段 opacity → 近似 inverse-square falloff */
+  -webkit-mask: radial-gradient(
+    ellipse 85% 88% at center,
+    transparent 0%,
+    transparent 48%,
+    hsla(0, 0%, 0%, 0.2) 62%,
+    hsla(0, 0%, 0%, 0.55) 78%,
+    hsla(0, 0%, 0%, 0.85) 92%,
+    black 100%
+  );
+  mask: radial-gradient(
+    ellipse 85% 88% at center,
+    transparent 0%,
+    transparent 48%,
+    hsla(0, 0%, 0%, 0.2) 62%,
+    hsla(0, 0%, 0%, 0.55) 78%,
+    hsla(0, 0%, 0%, 0.85) 92%,
+    black 100%
   );
 
-  /* 关键：mask-composite: exclude 让 content-box 透明，只保留 padding 环 */
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-
-  /* 轻 feather 模糊 ring，向内柔化；main 的 overflow:hidden 裁外溢 */
-  filter: blur(var(--rim-feather)) saturate(var(--glow-saturate));
-
-  animation: copilot-border-glow-spin var(--glow-speed) linear infinite;
-  transition: filter 400ms ease;
+  opacity: 0;
+  animation: csg-spring-in 900ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-@keyframes copilot-border-glow-spin { to { --glow-angle: 360deg; } }
+@keyframes csg-spring-in {
+  0%   { opacity: 0;    transform: scale(0.985); }
+  60%  { opacity: 1.05; transform: scale(1.008); }
+  100% { opacity: 1;    transform: scale(1); }
+}
 
-.copilot-border-glow[data-glow="idle"] {
-  --rim-width: 4px;  --rim-feather: 14px; --glow-speed: 8s;   --glow-saturate: 1.35;
+.csg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px);
+  will-change: transform;
 }
-.copilot-border-glow[data-glow="typing"] {
-  --rim-width: 6px;  --rim-feather: 16px; --glow-speed: 4s;   --glow-saturate: 1.55;
+
+.csg-blob-1 { top: -28%; left: -22%;     width: 62%; height: 66%; background: hsla(310, 72%, 74%, 0.60); animation: csg-drift-1 13s ease-in-out infinite alternate; }
+.csg-blob-2 { top: -18%; right: -25%;    width: 56%; height: 56%; background: hsla(200, 70%, 72%, 0.60); animation: csg-drift-2 17s ease-in-out infinite alternate; }
+.csg-blob-3 { bottom: -22%; right: -20%; width: 58%; height: 60%; background: hsla(28, 72%, 74%, 0.58);  animation: csg-drift-3 19s ease-in-out infinite alternate; }
+.csg-blob-4 { bottom: -26%; left: -18%;  width: 60%; height: 56%; background: hsla(268, 60%, 76%, 0.55); animation: csg-drift-4 11s ease-in-out infinite alternate; }
+.csg-blob-5 { top: 32%; right: -30%;     width: 42%; height: 42%; background: hsla(158, 55%, 74%, 0.52); animation: csg-drift-5 23s ease-in-out infinite alternate; }
+
+@keyframes csg-drift-1 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(14%, 10%) scale(1.14) rotate(-6deg); }
+  100% { transform: translate(-9%, 18%) scale(1.06) rotate(8deg); }
 }
+@keyframes csg-drift-2 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(-16%, 22%) scale(1.10) rotate(5deg); }
+  100% { transform: translate(12%, -11%) scale(1.08) rotate(-7deg); }
+}
+@keyframes csg-drift-3 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(-18%, -15%) scale(1.12) rotate(-4deg); }
+  100% { transform: translate(9%, -21%) scale(1.05) rotate(6deg); }
+}
+@keyframes csg-drift-4 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(20%, -14%) scale(1.08) rotate(7deg); }
+  100% { transform: translate(-13%, -19%) scale(1.11) rotate(-5deg); }
+}
+@keyframes csg-drift-5 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(-24%, 18%) scale(1.18) rotate(9deg); }
+  100% { transform: translate(-10%, -16%) scale(1.04) rotate(-8deg); }
+}
+
+.copilot-border-glow[data-glow="typing"] .csg-blob-1 { animation-duration: 8s; }
+.copilot-border-glow[data-glow="typing"] .csg-blob-2 { animation-duration: 10s; }
+.copilot-border-glow[data-glow="typing"] .csg-blob-3 { animation-duration: 11s; }
+.copilot-border-glow[data-glow="typing"] .csg-blob-4 { animation-duration: 7s; }
+.copilot-border-glow[data-glow="typing"] .csg-blob-5 { animation-duration: 13s; }
+.copilot-border-glow[data-glow="typing"]  { filter: saturate(1.1) brightness(1.04); }
+
+.copilot-border-glow[data-glow="working"] .csg-blob-1 { animation-duration: 4s; }
+.copilot-border-glow[data-glow="working"] .csg-blob-2 { animation-duration: 5s; }
+.copilot-border-glow[data-glow="working"] .csg-blob-3 { animation-duration: 6s; }
+.copilot-border-glow[data-glow="working"] .csg-blob-4 { animation-duration: 3.5s; }
+.copilot-border-glow[data-glow="working"] .csg-blob-5 { animation-duration: 7s; }
 .copilot-border-glow[data-glow="working"] {
-  --rim-width: 8px;  --rim-feather: 20px; --glow-speed: 2s;   --glow-saturate: 1.75;
+  filter: saturate(1.25) brightness(1.1);
   will-change: filter;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .copilot-border-glow { animation: none; }
+  .csg-blob { animation: none; }
+  .copilot-border-glow { animation: csg-fade-in-reduced 300ms ease-out forwards; }
+  @keyframes csg-fade-in-reduced { to { opacity: 1; } }
   .copilot-border-glow[data-glow="working"] {
-    animation: copilot-border-glow-pulse 2s ease-in-out infinite;
+    animation: csg-pulse-reduced 3s ease-in-out infinite;
   }
-  @keyframes copilot-border-glow-pulse {
-    50% { filter: blur(var(--rim-feather)) saturate(calc(var(--glow-saturate) * 0.7)); }
+  @keyframes csg-pulse-reduced {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.75; }
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .copilot-border-glow {
-    filter: blur(6px) saturate(1.0);
-  }
+  .copilot-border-glow { display: none; }
 }
 ```
 
@@ -1935,12 +1979,12 @@ CSS 校验：打开 DevTools Elements → 搜索 `copilot-border-glow`，无错�
 
 ```bash
 git add src/app/globals.css
-git commit -m "feat(copilot): ambient border glow CSS (conic + mask-composite ring, 3 active states)"
+git commit -m "feat(copilot): screen edges glow CSS (5 pastel blobs + inset mask + screen blend)"
 ```
 
 ---
 
-### Task 18: `CopilotBorderGlow` 组件 + 挂载为 `<main>` 内 sibling
+### Task 18: `CopilotBorderGlow` 组件（含 5 blob 子元素）+ 挂载为 `<main>` 内 sibling
 
 **Files:**
 - Create: `src/components/copilot/border-glow.tsx`
@@ -1959,10 +2003,10 @@ import { useCopilotStore } from "./store"
 type GlowState = 'off' | 'idle' | 'typing' | 'working'
 
 /**
- * Apple Intelligence 风 screen edges glow —— 作为 overlay 渲染到 <main> 内，
- * 与 GlowOverlay（背景漂移）同级 sibling，不包裹 main、不改 main layout。
- * off 状态直接 return null，彻底不上 DOM；状态转移通过 data-glow 属性驱动，
- * CSS 变量切换做状态差异（rim_width / feather / speed / saturate），无 React 重渲染。
+ * Apple Intelligence 风 screen edges glow —— 路线 A · CSS 近似实现。
+ * 5 层 pastel blob 独立 drift + inset radial mask (inverse-square 近似)
+ * + mix-blend-mode: screen。作为 overlay 渲染到 <main> 内与 GlowOverlay 同级。
+ * off 状态直接 return null；状态转移通过 data-glow 属性驱动 CSS 切换 blob 动画速度与滤镜。
  */
 export function CopilotBorderGlow() {
   const { open, busy, typingSignal } = useCopilotStore()
@@ -1982,7 +2026,15 @@ export function CopilotBorderGlow() {
   }, [open, busy, typingSignal])
 
   if (state === 'off') return null
-  return <div className="copilot-border-glow" data-glow={state} aria-hidden />
+  return (
+    <div className="copilot-border-glow" data-glow={state} aria-hidden>
+      <div className="csg-blob csg-blob-1" />
+      <div className="csg-blob csg-blob-2" />
+      <div className="csg-blob csg-blob-3" />
+      <div className="csg-blob csg-blob-4" />
+      <div className="csg-blob csg-blob-5" />
+    </div>
+  )
 }
 ```
 
@@ -2019,20 +2071,21 @@ import { CopilotBorderGlow } from "@/components/copilot/border-glow"
 Run: `npx tsc --noEmit && npm run dev`
 
 手动测试：
-- copilot 关：无彩色边框（组件 return null）✅
-- ⌘K 打开 copilot：一圈细 rim 沿 main 边缘缓慢流转 (idle)，颜色沿周长变化 ✅
-- 在 textarea 输入：rim 稍粗 + 加速 + 更饱和 (typing) ✅
-- 发消息 → 等流式返回：rim 最粗 + 快速流转 (working) ✅
-- 返回完成：回 idle ✅
+- copilot 关：无彩色光（组件 return null）✅
+- ⌘K 打开 copilot：5 层 pastel 云彩在 `<main>` 外缘慢速蠕动（周期 11/13/17/19/23s 质数错位），spring overshoot 入场 ✅
+- 在 textarea 输入：blob drift 加速到 7-13s + 轻微 saturate/brightness 提升 (typing) ✅
+- 发消息 → 等流式返回：blob drift 进一步加速到 3.5-7s + 更强 saturate/brightness (working) ✅
+- 返回完成：回 idle（blob 回到 11-23s 节奏）✅
 - 背景光 `.copilot-glow` 漂移应**和 fix 前完全一致**，无遮盖、无位移
 
-System Settings → Accessibility → Reduce Motion 勾选：边框不旋转，working 态有慢饱和度脉冲。
+System Settings → Accessibility → Reduce Motion 勾选：blob 停 drift；working 态走慢 opacity 脉冲。
+Reduce Transparency 勾选：整层 `display: none`（诚实降级）。
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/components/copilot/border-glow.tsx src/app/layout.tsx
-git commit -m "feat(copilot): CopilotBorderGlow as sibling overlay inside <main>, preserving layout"
+git commit -m "feat(copilot): CopilotBorderGlow overlay (pastel blobs + inset mask) inside <main>"
 ```
 
 ---

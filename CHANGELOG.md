@@ -12,7 +12,7 @@
 
 - **自动 page context**：开 copilot 即向 LLM 注入当前页面摘要（15 种 `route_type` × 每页自定义 summary 字段，e.g. experiment_detail 含 id / name / status / progress / cost_by_currency / rubric_id）。不走 chip rail，仅在系统消息顶部渲染，"预览 LLM 将看到的 context"面板里对用户可见
 - **`read_page(query)` 工具**：LLM 可按自然语言 query 查找当前页面可见数据，服务端对 `viewport_index` 做 token 子串打分、top-5 命中复用既有 `resolveContexts()` hydrate 成 tree 返回；`requiresConfirm: false` auto-run；空 token fallback 到整句匹配，resolveContexts 异常时返回部分结果
-- **Apple Intelligence 风 ambient border glow（screen edges glow）**：`CopilotBorderGlow` 作为 `<main>` 内 sibling overlay（与既有 `GlowOverlay` 并列，**不包裹** `<main>`、**不改**其 className / z-index），`conic-gradient + @property --glow-angle + mask-composite: exclude` 切出贴 `<main>` 外缘的 rim（不是外扩大 bloom）；内容区透明不遮挡；3 active 状态 `data-glow=idle/typing/working`（off 时 return null），状态差异通过 rim_width（4→8px） / feather（14→20px） / speed（8s→2s） / saturate（1.35→1.75）调节；既有背景光 `.copilot-glow` 完全保留原状；`prefers-reduced-motion` 降级为饱和度脉冲、`prefers-reduced-transparency` 降 blur + 去饱和；`typing` 信号 debounce 250ms
+- **Apple Intelligence 风 ambient border glow（screen edges glow · 路线 A CSS 近似）**：`CopilotBorderGlow` 作为 `<main>` 内 sibling overlay（与既有 `GlowOverlay` 并列，不包裹 `<main>`、不改其 className / z-index），5 层 pastel iridescent blob（magenta / sea blue / peach / lavender / mint，HSL lightness 70-78% saturation 55-75%）独立漂移（周期 11/13/17/19/23s 质数错位近似 Perlin noise 流体感）+ inset radial mask（inverse-square falloff 近似）+ `mix-blend-mode: screen`；3 active 状态 `data-glow=idle/typing/working`（off 时 return null），状态差异通过 blob drift 速度（11-23s → 7-13s → 3.5-7s）+ `saturate/brightness` 滤镜递进；入场采用 `cubic-bezier(0.34, 1.56, 0.64, 1)` overshoot spring（900ms）；既有背景光 `.copilot-glow` 完全保留原状；`prefers-reduced-motion` 降级停 drift + working 态慢 opacity 脉冲；`prefers-reduced-transparency` 整层 display:none
 - **切页清空 + banner**：`RouteChangeObserver` 监听 `usePathname`+`useSearchParams`，路由变化即清空 manual contexts（inspector / text_selection），session 有 messages 时顶部弹 amber `RouteChangeBanner` 提示"开启新对话"/"继续当前对话"（不阻断切换）
 - **统一 client→server snapshot 机制**：`/chat` + `/tool-result` POST body 新增 `client_snapshot = { page_context, viewport_index, ... }`；server 缓存到 per-session Map（`snapshot-cache.ts`），`read_page` 工具按 `sessionId` 取 snapshot；DELETE session 同步清 cache
 
@@ -23,7 +23,7 @@
 - `src/components/copilot/` 新增: `border-glow.tsx`（sibling overlay，off 时 return null） / `route-change-banner.tsx` / `route-change-observer.tsx`（Suspense wrapper）
 - `src/components/copilot/store.tsx` 扩展：`pageContext` / `typingSignal`（debounced 250ms）/ `routeChangeBanner` / `clearManualContexts`
 - 13 个 page 文件补 `useRegisterPageContext()`（dashboard、experiment new/detail、compare、settings list ×5、settings detail ×4、settings new ×4）
-- `src/app/globals.css` 追加 `.copilot-border-glow` + `@property --glow-angle` + `mask-composite: exclude` ring + 3 active 状态 + 2 段 a11y 降级
+- `src/app/globals.css` 追加 `.copilot-border-glow` + 5 blob + inset radial mask（inverse-square 近似）+ `mix-blend-mode: screen` + 3 active 状态 drift speed 递进 + spring cubic-bezier 入场 + 2 段 a11y 降级
 - `src/app/layout.tsx` `<main>` 内加 `<CopilotBorderGlow />` sibling（GlowOverlay 旁），**不包裹** `<main>`、**不改**其 className / z-index
 
 **测试**：

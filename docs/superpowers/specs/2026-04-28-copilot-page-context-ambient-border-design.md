@@ -445,23 +445,31 @@ read_page: {
 
 ### 5.3 Ambient Border Glow (P2) — Apple Intelligence "screen edges glow" 风格
 
-**视觉目标**（基于 iPhone iOS 18+ Apple Intelligence 截图确认）：
-- 一圈**紧贴主内容区外缘**的 rim，**不是**外扩大 bloom
-- rim 宽度：可见亮线 2-8px + 向**内**轻柔 feather 10-20px
-- 沿 `<main>` 的 `border-radius` 走圆角
-- conic 彩色沿周长**流动**（不是整圈一起变亮）
-- 内容区内部视觉保持可读、不被遮挡
+**视觉目标**（基于专业拆解 + iPhone iOS 18+ 实机观察）：
+- **Inset volumetric glow**：光从 `<main>` 外缘**向内**以非线性衰减（inverse-square 近似）羽化，中心透明不遮内容
+- **Holographic iridescent 色**：多个低饱和高明度（lightness 70-78%、saturation 55-75%） pastel 色混合 —— magenta / sea-blue / peach / lavender / mint，**不是**高饱和彩虹
+- **有机流动**：多层独立动画层（质数级 period：11s / 13s / 17s / 19s / 23s）避免视觉同步，近似 Perlin noise 的"蠕动"感
+- **Advanced blend mode**：`mix-blend-mode: screen` 保证深浅主题都通透不糊
+- **贴合 `<main>` 圆角**：`border-radius: inherit`
+- **包裹不侵入**：限定在 `<main>` 内（不覆盖 sidebar / copilot panel），内容透过中心透明区域仍完全可见可交互
+- **Spring 入场/出场**：`cubic-bezier(0.34, 1.56, 0.64, 1)` overshoot 近似弹簧阻尼
 
-**设计原则**（本次 fix 纠正）：
-- ❌ **不包裹 `<main>` 外层**：不新建 `CopilotGlowFrame` wrapper；不动 `<main>` 的 className / z-index / layout
-- ❌ **不用 `inset: -24px` 外扩 + `blur(28px)` 大 bloom**：那是外溢大色块，遮盖内容
-- ✅ **作为 overlay 放进 `<main>` 内**，与既有 `GlowOverlay`（背景 radial 漂移）**同级 sibling**
-- ✅ **用 `mask-composite: exclude` 技术切出 ring 形状**——conic 只显示 ring 区域，中心透明不干扰内容
-- ✅ **状态差异通过"旋转速度 + 饱和度 + rim 宽度"调节**，**不**通过 `opacity` / 整体 `blur` 放大做区分
+**实现限制（路线 A · CSS 近似）**：
+- 无 WebGL SDF，用 `radial-gradient mask` 近似 inverse-square falloff
+- 无 Perlin/Simplex noise shader，用 5 个 blurred blob + 5 条独立 drift keyframes 近似流体蠕动
+- 无 audio-reactive，音频带宽映射到 `busy` 开关（streaming 期间进 working 态）
+- 视觉上能到 Apple 观感 ~80%，近距离会看出是"几朵 pastel 云在边缘漂"
+
+**设计原则**：
+- ❌ **不包裹 `<main>` 外层**：不新建 wrapper；不动 `<main>` className / z-index / overflow
+- ❌ **不用 conic-gradient 旋转彩虹 + mask-composite: exclude ring**（上一轮 fix 的错误方向，不像 Apple 观感）
+- ✅ **作为 `<main>` 内 sibling overlay**，与既有 `GlowOverlay`（背景 radial 漂移）并列
+- ✅ **多层 blurred pastel blob + inset radial mask + `mix-blend-mode: screen`**
+- ✅ **5 blob × 5 独立 drift 动画**（prime periods 避免同步）近似流体
 
 #### 5.3.1 组件结构
 
-`src/components/copilot/border-glow.tsx`（新文件；既有 `glow-frame.tsx` 在 fix 时删除）:
+`src/components/copilot/border-glow.tsx`:
 
 ```tsx
 "use client"
@@ -471,9 +479,9 @@ import { useCopilotStore } from "./store"
 type GlowState = 'off' | 'idle' | 'typing' | 'working'
 
 /**
- * Apple Intelligence 风 screen edges glow —— 作为 overlay 渲染到 <main> 内，
- * 与 GlowOverlay（背景漂移）同级 sibling，不包裹 main、不改 main 的 layout。
- * off 状态直接 return null，彻底不上 DOM。
+ * Apple Intelligence 风 screen edges glow。
+ * 5 层 pastel blob 独立 drift + inset radial mask（inverse-square 近似）+ mix-blend-mode: screen。
+ * 限定在 <main> 范围；off 状态 return null；状态差异通过 data-glow 属性驱动。
  */
 export function CopilotBorderGlow() {
   const { open, busy, typingSignal } = useCopilotStore()
@@ -491,129 +499,190 @@ export function CopilotBorderGlow() {
   }, [open, busy, typingSignal])
 
   if (state === 'off') return null
-  return <div className="copilot-border-glow" data-glow={state} aria-hidden />
+  return (
+    <div className="copilot-border-glow" data-glow={state} aria-hidden>
+      <div className="csg-blob csg-blob-1" />
+      <div className="csg-blob csg-blob-2" />
+      <div className="csg-blob csg-blob-3" />
+      <div className="csg-blob csg-blob-4" />
+      <div className="csg-blob csg-blob-5" />
+    </div>
+  )
 }
 ```
 
-Store 字段复用 Task 6 已加的 `open` / `busy` / `typingSignal`（debounced 250ms in store）。
-
-#### 5.3.2 CSS（mask-composite ring 技术）
+#### 5.3.2 CSS（multi-blob + inset mask + blend）
 
 `src/app/globals.css` 追加：
 
 ```css
-@property --glow-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
+/* ---------------- PR-4: Ambient Border Glow (Apple Intelligence 风) ---------------- */
+/* screen edges glow —— 限定在 <main> 内，5 层 pastel blob 独立漂移 + inset radial mask
+   (inverse-square 近似) + mix-blend-mode: screen。 */
 
 .copilot-border-glow {
   position: absolute;
-  inset: 0;                         /* 贴 main 边框，不外扩 */
-  border-radius: var(--radius-xl);  /* 跟随 main 的圆角 */
+  inset: 0;
   pointer-events: none;
-  z-index: 2;                       /* 高于 GlowOverlay(z=0) 和 content(z=1)；仅发光层，不抢点击 */
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  mix-blend-mode: screen;
 
-  /* 可变节奏 */
-  --rim-width: 5px;
-  --rim-feather: 16px;
-  --glow-speed: 8s;
-  --glow-saturate: 1.4;
-
-  /* 用 padding 控制 ring 厚度：padding 区是显色区，content-box 内透明 */
-  padding: var(--rim-width);
-  background: conic-gradient(
-    from var(--glow-angle),
-    #ff3ea5, #8a5bff, #3f8dff, #31e0c8, #ffb547, #ff3ea5
+  /* Inset vignette：中心透明、向外分段 opacity → 近似 inverse-square falloff */
+  -webkit-mask: radial-gradient(
+    ellipse 85% 88% at center,
+    transparent 0%,
+    transparent 48%,
+    hsla(0, 0%, 0%, 0.2) 62%,
+    hsla(0, 0%, 0%, 0.55) 78%,
+    hsla(0, 0%, 0%, 0.85) 92%,
+    black 100%
+  );
+  mask: radial-gradient(
+    ellipse 85% 88% at center,
+    transparent 0%,
+    transparent 48%,
+    hsla(0, 0%, 0%, 0.2) 62%,
+    hsla(0, 0%, 0%, 0.55) 78%,
+    hsla(0, 0%, 0%, 0.85) 92%,
+    black 100%
   );
 
-  /* 关键：mask-composite: exclude 让 content-box 透明，只保留 padding 环 */
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-
-  /* 轻 feather 模糊 ring，让它向内柔化；main 的 overflow:hidden 会裁外溢部分 */
-  filter: blur(var(--rim-feather)) saturate(var(--glow-saturate));
-
-  animation: copilot-border-glow-spin var(--glow-speed) linear infinite;
-  transition: filter 400ms ease;
+  opacity: 0;
+  animation: csg-spring-in 900ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-@keyframes copilot-border-glow-spin { to { --glow-angle: 360deg; } }
+@keyframes csg-spring-in {
+  0%   { opacity: 0;    transform: scale(0.985); }
+  60%  { opacity: 1.05; transform: scale(1.008); }
+  100% { opacity: 1;    transform: scale(1); }
+}
 
-.copilot-border-glow[data-glow="idle"] {
-  --rim-width: 4px;  --rim-feather: 14px; --glow-speed: 8s;   --glow-saturate: 1.35;
+.csg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px);
+  will-change: transform;
 }
-.copilot-border-glow[data-glow="typing"] {
-  --rim-width: 6px;  --rim-feather: 16px; --glow-speed: 4s;   --glow-saturate: 1.55;
+
+/* pastel iridescent 色：lightness 70-78%，saturation 55-75% */
+.csg-blob-1 { top: -28%; left: -22%; width: 62%; height: 66%; background: hsla(310, 72%, 74%, 0.6);  animation: csg-drift-1 13s ease-in-out infinite alternate; }
+.csg-blob-2 { top: -18%; right: -25%; width: 56%; height: 56%; background: hsla(200, 70%, 72%, 0.6);  animation: csg-drift-2 17s ease-in-out infinite alternate; }
+.csg-blob-3 { bottom: -22%; right: -20%; width: 58%; height: 60%; background: hsla(28, 72%, 74%, 0.58); animation: csg-drift-3 19s ease-in-out infinite alternate; }
+.csg-blob-4 { bottom: -26%; left: -18%; width: 60%; height: 56%; background: hsla(268, 60%, 76%, 0.55); animation: csg-drift-4 11s ease-in-out infinite alternate; }
+.csg-blob-5 { top: 32%; right: -30%; width: 42%; height: 42%; background: hsla(158, 55%, 74%, 0.52); animation: csg-drift-5 23s ease-in-out infinite alternate; }
+
+@keyframes csg-drift-1 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(14%, 10%) scale(1.14) rotate(-6deg); }
+  100% { transform: translate(-9%, 18%) scale(1.06) rotate(8deg); }
 }
+@keyframes csg-drift-2 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(-16%, 22%) scale(1.1) rotate(5deg); }
+  100% { transform: translate(12%, -11%) scale(1.08) rotate(-7deg); }
+}
+@keyframes csg-drift-3 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(-18%, -15%) scale(1.12) rotate(-4deg); }
+  100% { transform: translate(9%, -21%) scale(1.05) rotate(6deg); }
+}
+@keyframes csg-drift-4 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(20%, -14%) scale(1.08) rotate(7deg); }
+  100% { transform: translate(-13%, -19%) scale(1.11) rotate(-5deg); }
+}
+@keyframes csg-drift-5 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(-24%, 18%) scale(1.18) rotate(9deg); }
+  100% { transform: translate(-10%, -16%) scale(1.04) rotate(-8deg); }
+}
+
+/* 状态：通过 opacity（整体亮度）+ animation-duration scale（流动快慢） 区分 */
+.copilot-border-glow[data-glow="idle"]    { }  /* 基线 */
+.copilot-border-glow[data-glow="typing"] .csg-blob { animation-duration: 7s, 9s, 11s, 6s, 13s; }
+.copilot-border-glow[data-glow="typing"] { filter: saturate(1.1) brightness(1.04); }
+.copilot-border-glow[data-glow="working"] .csg-blob { animation-duration: 4s, 5s, 6s, 3.5s, 7s; }
 .copilot-border-glow[data-glow="working"] {
-  --rim-width: 8px;  --rim-feather: 20px; --glow-speed: 2s;   --glow-saturate: 1.75;
+  filter: saturate(1.25) brightness(1.1);
   will-change: filter;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .copilot-border-glow { animation: none; }
+  .csg-blob { animation: none; }
+  .copilot-border-glow { animation: csg-fade-in-reduced 300ms ease-out forwards; }
+  @keyframes csg-fade-in-reduced { to { opacity: 1; } }
   .copilot-border-glow[data-glow="working"] {
-    animation: copilot-border-glow-pulse 2s ease-in-out infinite;
+    animation: csg-pulse-reduced 3s ease-in-out infinite;
   }
-  @keyframes copilot-border-glow-pulse {
-    50% { filter: blur(var(--rim-feather)) saturate(calc(var(--glow-saturate) * 0.7)); }
+  @keyframes csg-pulse-reduced {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.75; }
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .copilot-border-glow {
-    filter: blur(6px) saturate(1.0);
-  }
+  .copilot-border-glow { display: none; }
 }
 ```
 
+**要点**：
+- `animation-duration: 7s, 9s, 11s, 6s, 13s` 这种多值语法按 blob 类名顺序 round-robin 映射（实际上因为 5 个 blob 各自有独立 class，直接给每个 class 独立 duration 更清晰 —— 下面实施时可以展开；spec 里先标简化写法表达意图）
+- `mix-blend-mode: screen` 依赖 `<main>` 作为 stacking context parent（已 `position: relative`）
+- 圆角靠 `border-radius: inherit` 从 `<main>` 继承
+
 #### 5.3.3 状态视觉表
 
-| state | 触发条件 | 周期 | rim_width | rim_feather | saturate | 感知 |
-|---|---|---|---|---|---|---|
-| `off` | `open=false` | — | — | — | — | 组件 return null，无 DOM |
-| `idle` | `open=true` 无输入无工作 | 8s | 4px | 14px | 1.35 | 柔和细线缓慢流转 |
-| `typing` | 用户输入中（debounced 250ms） | 4s | 6px | 16px | 1.55 | 中速流转 + 稍粗 |
-| `working` | busy=true（streaming / tool running） | 2s | 8px | 20px | 1.75 | 快速流转 + 最饱和 |
+| state | 触发条件 | blob drift 周期 | saturate / brightness | 感知 |
+|---|---|---|---|---|
+| `off` | `open=false` | — | — | 组件 return null，无 DOM |
+| `idle` | `open=true` 无输入无工作 | 11/13/17/19/23s | baseline | 柔和 pastel 云彩沿边缘慢蠕动 |
+| `typing` | 用户输入中（debounced 250ms） | 6/7/9/11/13s | 1.1 / 1.04 | 中速流动，色彩略亮 |
+| `working` | busy=true（streaming / tool running） | 3.5/4/5/6/7s | 1.25 / 1.1 | 快速流动 + 更亮 |
 
-**对比背景光**：背景光（`.copilot-glow`）维持 8s idle / 4s active / saturate 1.2 原状**完全不动**；border glow 用更快旋转 + 更高饱和形成视觉分层，但只在最外缘，不干扰内部。
+**对比背景光**：`.copilot-glow` 维持 8s idle / 4s active / saturate 1.2 **完全不动**；border glow 仅在 `<main>` 外缘做 inset 羽化的 pastel 云彩，形成"深层背景光 + 外缘包裹光"两层。
 
-#### 5.3.4 挂载到 `<main>` 内部 (sibling overlay)
+#### 5.3.4 挂载（`<main>` 内 sibling overlay，不包裹）
 
-`src/app/layout.tsx` —— **不改动** `<main>` 的 className / layout，仅在 `GlowOverlay` 旁加一个 sibling：
+`src/app/layout.tsx`：
 
 ```tsx
 <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
-  <GlowOverlay />          {/* 既有：背景 radial drift —— 完全不动 */}
-  <CopilotBorderGlow />    {/* 新增：边框 rim overlay；open=false 时 return null */}
+  <GlowOverlay />          {/* 既有：背景 radial drift — 完全不动 */}
+  <CopilotBorderGlow />    {/* 新：screen edges glow overlay；open=false 时 return null */}
   <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
 </main>
 ```
 
-**关键**：`<main>` 的 `overflow: hidden` 会裁掉 ring blur 外溢的部分，只保留向内柔化；无需 `isolation: isolate` wrapper，沿用既有 stacking。
+**关键**：`<main>` className / z-index / overflow 全部保持 PR-4 之前的原状。CopilotBorderGlow 作为 sibling，自己 `absolute; inset: 0` 定位。
 
-#### 5.3.5 z-index 分层（在既有 `<main>` 里）
+#### 5.3.5 z-index 分层
 
 ```
 <main position:relative overflow:hidden>
-├── GlowOverlay        (z auto, 内部 z-index:0 的 .copilot-glow)  — 背景 drift
-├── CopilotBorderGlow  (z-index:2)                                — 边框 rim
-└── content div        (z-index:1)                                — 页面内容
+├── GlowOverlay         (z auto, 内部 z:0 的 .copilot-glow)  — 背景 drift
+├── CopilotBorderGlow   (z-index: 2)                         — screen edges glow
+└── content div         (z-index: 1)                         — 页面内容
 ```
 
-三者都是 `<main>` 的直接/间接子孙。Ring 在 z=2 浮在 content 之上，但 `pointer-events: none` 不抢点击；mask 把中心切透明，视觉也不遮挡。
+Border glow 在 z=2（content 之上）但 `pointer-events: none` 且 mask 中心透明，不抢点击不遮内容。
 
 #### 5.3.6 浏览器与 a11y
 
-- **`@property --glow-angle`**：Chrome 85+ / Safari 16.4+ / Firefox 128+ 支持；低版 Firefox 降级为静态彩色 ring（可接受）
-- **`mask-composite: exclude`**：Baseline 2023，主流浏览器齐全；仍写双供应商前缀 (`-webkit-mask-composite: xor` + `mask-composite: exclude`) 兼容 WebKit 旧版
-- **`prefers-reduced-motion`**：停止旋转，仅 `working` 态保留慢饱和度脉冲
-- **`prefers-reduced-transparency`**：降 blur + 去饱和，ring 变为静态淡色细线
-- **`will-change: filter`** 只在 `data-glow="working"` 态启用，避免常驻 GPU 层
+- **`mix-blend-mode: screen`**：所有主流浏览器支持（Chrome/Safari/Firefox/Edge）
+- **Mask radial-gradient**：CSS Masking 1 规范，Baseline 支持
+- **Spring cubic-bezier 入场**：`cubic-bezier(0.34, 1.56, 0.64, 1)` 有 overshoot，近似弹簧阻尼
+- **prefers-reduced-motion**：blob 停止动画，只做 900ms opacity fade in；working 态保留慢 opacity 脉冲
+- **prefers-reduced-transparency**：整层 `display: none`（pastel 云 + blend mode 无法在"不透明"模式下保留原意，降级为不显示更诚实）
+
+#### 5.3.7 路线 A 的已知取舍（未来可升级路线 B）
+
+- 没有真 SDF → 任意极端宽高比可能 mask 椭圆不完美，目前 `<main>` 宽高比相对稳定可接受
+- 没有真 Perlin/Simplex noise → 近看能识别出是 5 个独立 blob，不如 shader 的流体连续感
+- 没有 audio-reactive → 只用 `busy` 开关切 duration，不是细粒度实时响应
+
+以上三条若用户验收不过，升级 route B（WebGL `<canvas>` + SDF + Simplex noise fragment shader），单独立 PR。
 
 ### 5.4 Route Change Behavior (G4)
 
@@ -953,10 +1022,11 @@ Server 同时 `deleteSnapshot(sessionId)`.
 | 7 | read_page 签名 | `query: string` 自然语言 | viewport_index 摘要给 LLM 看不友好，NL 最易用 |
 | 8 | Snapshot 持久化 | in-memory Map，重启丢失 | 本地 dev 足够；未来多进程换 Redis |
 | 9 | 链式上限 | 5 (不变) | PR-3 沉淀值 |
-| 10 | 边框光技术选型 | `conic-gradient + @property --angle` + `mask-composite: exclude` ring | 唯一能做色相绕边流动；mask-composite 把 conic 裁成 ring 让中心透明不遮内容 |
+| 10 | 边框光技术选型 | 多层 pastel blurred blob + inset radial mask + `mix-blend-mode: screen`（路线 A · CSS 近似） | Apple Intelligence 是 SDF + Perlin noise shader；pure CSS 近似到 ~80%，未来可升级路线 B（WebGL `<canvas>` + fragment shader） |
 | 11 | 边框光 copilot 关时 | 组件 `return null` 完全不上 DOM | 避免对日常使用造成视觉负担 |
 | 15 | 边框光挂载方式 | 作为 `<main>` 内 sibling overlay（不包裹 main、不动 layout） | 保留既有背景光 `.copilot-glow` / `GlowOverlay` 完全不变；避免 stacking / overflow 连锁改动 |
-| 16 | 状态差异用什么 | 旋转速度 + 饱和度 + rim 宽度/feather | 不用 opacity / 整体 blur 区分（那做成了遮盖大色块，偏离 Apple 风格） |
+| 16 | 状态差异用什么 | blob drift duration（流动快慢）+ `saturate/brightness` 滤镜 | 不用 opacity 整体调暗（那做成了遮盖大色块），不用旋转 conic（观感偏离 Apple 有机流体） |
+| 17 | 入场/出场动效 | `cubic-bezier(0.34, 1.56, 0.64, 1)` overshoot spring（900ms）+ transform scale 轻微回弹 | 近似 Core Animation 弹簧阻尼，比线性 fade 有张力 |
 | 12 | Debounce typing signal | 250ms | 平衡响应性 + 避免 React 每键 re-render |
 | 13 | read_page 匹配策略 | 小写 token 子串 | v1 可解释；embedding 以后加 |
 | 14 | top-N matches | 5 | 避免 tool_result payload 过大 |
