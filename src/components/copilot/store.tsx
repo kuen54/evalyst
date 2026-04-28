@@ -1,7 +1,7 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
-import type { CopilotContextRef } from "@/lib/copilot/types"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
+import type { CopilotContextRef, PageContext } from "@/lib/copilot/types"
 
 // ---------- 全局面板状态 ----------
 // 持久化：localStorage 存 open/width/activeSessionId。
@@ -40,6 +40,16 @@ interface CopilotStore {
   // copilot 是否正在产出（用于 glow idle/active 切换）
   busy: boolean
   setBusy: (v: boolean) => void
+
+  // ---- PR-4: Page Context + typing signal + route change banner ----
+  pageContext: PageContext | null
+  setPageContext: (pc: PageContext | null) => void
+  typingSignal: number
+  bumpTypingSignal: () => void
+  routeChangeBanner: { visible: boolean; count: number } | null
+  showRouteChangeBanner: (count: number) => void
+  dismissRouteChangeBanner: () => void
+  clearManualContexts: () => { count: number }
 }
 
 const CopilotCtx = createContext<CopilotStore | null>(null)
@@ -56,6 +66,9 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   const [inspectorActive, setInspectorActive] = useState(false)
   const [contexts, setContexts] = useState<CapturedContext[]>([])
   const [busy, setBusy] = useState(false)
+  const [pageContext, setPageContextState] = useState<PageContext | null>(null)
+  const [typingSignal, setTypingSignalState] = useState(0)
+  const [routeChangeBanner, setRouteChangeBannerState] = useState<{ visible: boolean; count: number } | null>(null)
 
   // 初始化读 localStorage（SSR safe）
   useEffect(() => {
@@ -139,6 +152,38 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     try { sessionStorage.removeItem(SS_CONTEXTS) } catch {}
   }, [])
 
+  const setPageContext = useCallback((pc: PageContext | null) => {
+    setPageContextState(pc)
+  }, [])
+
+  // typing signal 内部 debounce 250ms，避免每键盘事件都 setState
+  const typingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bumpTypingSignal = useCallback(() => {
+    if (typingDebounceRef.current) return
+    typingDebounceRef.current = setTimeout(() => {
+      setTypingSignalState(n => n + 1)
+      typingDebounceRef.current = null
+    }, 250)
+  }, [])
+
+  const showRouteChangeBanner = useCallback((count: number) => {
+    setRouteChangeBannerState({ visible: true, count })
+  }, [])
+
+  const dismissRouteChangeBanner = useCallback(() => {
+    setRouteChangeBannerState(null)
+  }, [])
+
+  const clearManualContexts = useCallback((): { count: number } => {
+    let removed = 0
+    setContexts(prev => {
+      removed = prev.length
+      return []
+    })
+    try { sessionStorage.removeItem(SS_CONTEXTS) } catch {}
+    return { count: removed }
+  }, [])
+
   // 全局快捷键：⌘K / Ctrl+K 切换面板
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -176,7 +221,28 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     clearContexts,
     busy,
     setBusy,
-  }), [open, setOpen, toggleOpen, width, setWidth, activeSessionId, setActiveSessionId, mounted, inspectorActive, contexts, addContext, removeContext, clearContexts, busy])
+    // new
+    pageContext,
+    setPageContext,
+    typingSignal,
+    bumpTypingSignal,
+    routeChangeBanner,
+    showRouteChangeBanner,
+    dismissRouteChangeBanner,
+    clearManualContexts,
+  }), [
+    open, setOpen, toggleOpen,
+    width, setWidth,
+    activeSessionId, setActiveSessionId,
+    mounted,
+    inspectorActive,
+    contexts, addContext, removeContext, clearContexts,
+    busy,
+    pageContext, setPageContext,
+    typingSignal, bumpTypingSignal,
+    routeChangeBanner, showRouteChangeBanner, dismissRouteChangeBanner,
+    clearManualContexts,
+  ])
 
   return <CopilotCtx.Provider value={value}>{children}</CopilotCtx.Provider>
 }
@@ -201,6 +267,15 @@ const NOOP_STORE: CopilotStore = {
   clearContexts: () => {},
   busy: false,
   setBusy: () => {},
+  // new
+  pageContext: null,
+  setPageContext: () => {},
+  typingSignal: 0,
+  bumpTypingSignal: () => {},
+  routeChangeBanner: null,
+  showRouteChangeBanner: () => {},
+  dismissRouteChangeBanner: () => {},
+  clearManualContexts: () => ({ count: 0 }),
 }
 
 export function useCopilotStore(): CopilotStore {
