@@ -205,8 +205,9 @@
   }
   .copilot-glow[data-enabled="true"] { opacity: 1; }
 
-  /* 底层：四角色斑，快速漂移 + 呼吸 scale + 饱和加亮。
-     copilot 开着时就一直是"活的"状态，不区分 idle/busy —— busy 只是走得更快一点。 */
+  /* 底层：四角色斑，柔缓漂移 + 呼吸 scale + 饱和加亮。
+     copilot 开着时就一直是"活的"状态，不区分 idle/busy —— busy 只是走得更快一点。
+     运动节奏刻意慢（18s/22s），配合大幅位移出"很轻柔"的感觉。 */
   .copilot-glow::before {
     content: "";
     position: absolute;
@@ -217,7 +218,7 @@
       radial-gradient(ellipse 50% 35% at 12% 85%, color-mix(in oklab, var(--glow-c) 44%, transparent) 0%, transparent 68%),
       radial-gradient(ellipse 55% 40% at 90% 88%, color-mix(in oklab, var(--glow-d) 42%, transparent) 0%, transparent 68%);
     filter: blur(22px) saturate(1.2) brightness(1.08);
-    animation: copilot-glow-drift 6s ease-in-out infinite alternate;
+    animation: copilot-glow-drift 18s ease-in-out infinite alternate;
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
@@ -233,7 +234,7 @@
       radial-gradient(ellipse 60% 30% at 72% 58%, color-mix(in oklab, var(--glow-a) 42%, transparent) 0%, transparent 62%),
       radial-gradient(ellipse 40% 55% at 50% 28%, color-mix(in oklab, var(--glow-c) 38%, transparent) 0%, transparent 65%);
     filter: blur(24px) saturate(1.2) brightness(1.06);
-    animation: copilot-glow-flow 7s ease-in-out infinite alternate;
+    animation: copilot-glow-flow 22s ease-in-out infinite alternate;
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
@@ -241,10 +242,10 @@
 
   /* busy(streaming) 再快一点点；颜色已经默认就"活"，不需要再提亮 */
   .copilot-glow[data-state="active"]::before {
-    animation-duration: 3s;
+    animation-duration: 11s;
   }
   .copilot-glow[data-state="active"] .copilot-glow-flow {
-    animation-duration: 4s;
+    animation-duration: 13s;
   }
 
   /* 大幅漂移 —— 让人眼看得到运动 */
@@ -269,14 +270,16 @@
     .copilot-glow-flow { animation: none; }
   }
 
-  /* ---- 点击背景：小光点融入流动 ---- */
+  /* ---- 点击背景：小光点融入流动 ----
+     点击时刻意不拉峰值 —— 和 baseline glow 保持同一档亮度（opacity 上限 0.4，
+     color-mix 32%），避免"点下去突然变深"的视觉跳变。 */
   .copilot-glow-spawn {
     position: absolute;
     width: 160px;
     height: 160px;
     border-radius: 50%;
     transform: translate(-50%, -50%) scale(0.3) translateZ(0);
-    background: radial-gradient(circle, color-mix(in oklab, var(--spawn-color, oklch(0.82 0.10 230)) 55%, transparent) 0%, transparent 65%);
+    background: radial-gradient(circle, color-mix(in oklab, var(--spawn-color, oklch(0.82 0.10 230)) 32%, transparent) 0%, transparent 65%);
     filter: blur(18px);
     opacity: 0;
     pointer-events: none;
@@ -287,9 +290,9 @@
 
   @keyframes copilot-glow-spawn {
     0%   { transform: translate(-50%, -50%) scale(0.3) translateZ(0); opacity: 0; }
-    18%  { transform: translate(-50%, -50%) scale(1) translateZ(0); opacity: 0.9; }
-    50%  { transform: translate(calc(-50% + 10px), calc(-50% - 8px)) scale(1.18) translateZ(0); opacity: 0.72; }
-    100% { transform: translate(calc(-50% + 20px), calc(-50% - 14px)) scale(1.35) translateZ(0); opacity: 0.55; }
+    18%  { transform: translate(-50%, -50%) scale(1) translateZ(0); opacity: 0.4; }
+    50%  { transform: translate(calc(-50% + 10px), calc(-50% - 8px)) scale(1.18) translateZ(0); opacity: 0.34; }
+    100% { transform: translate(calc(-50% + 20px), calc(-50% - 14px)) scale(1.35) translateZ(0); opacity: 0.28; }
   }
 
   @keyframes copilot-inspector-pulse {

@@ -167,7 +167,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       </Collapsible>
 
       <GlassRegular
-        className="mb-6 px-4 py-3 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden"
+        className="mb-6 px-4 py-3 text-sm text-card-foreground overflow-hidden"
         data-copilot-context="experiment"
         data-copilot-context-id={experiment.id}
         data-copilot-context-summary={`${experiment.name} · ${experiment.model}`}

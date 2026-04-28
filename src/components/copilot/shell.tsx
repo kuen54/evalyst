@@ -121,7 +121,7 @@ export const GlassRegular = makeGlass("regular", "rounded-xl border bg-card")
  * 页面级主外壳（experiments/new、settings layout 等）仍用 `<GlassRegular>` 免得被 py-4 / gap-4 带偏。
  */
 const SHADCN_CARD_DEFAULTS =
-  "rounded-xl border bg-card flex flex-col gap-4 py-4 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden"
+  "rounded-xl border bg-card flex flex-col gap-4 py-4 text-sm text-card-foreground overflow-hidden"
 
 export const GlassCard = makeGlass("regular", SHADCN_CARD_DEFAULTS)
 /** Card-style glass 的 Thin 档。给数据密集场景（results 行级卡、表格单元格）用 —— blur 小 / bg opacity 低，数字稳定不漂移。 */

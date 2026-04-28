@@ -470,7 +470,7 @@ function DatasetPreviewPane({
 
   return (
     <div className="sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto">
-      <GlassRegular className="p-3 space-y-3 text-sm text-card-foreground ring-1 ring-foreground/10 overflow-hidden">
+      <GlassRegular className="p-3 space-y-3 text-sm text-card-foreground overflow-hidden">
         <div className="flex items-center gap-2">
           <h4 className="text-xs text-muted-foreground uppercase tracking-wider">{t("settings.datasets.form.preview_title")}</h4>
           {records.length > 0 && <Badge variant="outline" className="text-[10px]">{t("settings.datasets.form.preview_n_records", { n: records.length })}</Badge>}
