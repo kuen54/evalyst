@@ -16,6 +16,7 @@ import type { TaskSchema, FilterValues, DatasetDef, Rubric } from "@/lib/schema/
 import type { LlmConfig, ModelConfig } from "@/lib/llm-config"
 import { GlassRegular, useGlassStyle } from "@/components/copilot/shell"
 import { useCopilotStore } from "@/components/copilot/store"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 import { segmentedItem } from "@/lib/segmented"
 
 export default function NewExperiment() {
@@ -103,6 +104,19 @@ export default function NewExperiment() {
       .then(d => setEstimatedTasks(d.task_count ?? 0))
       .catch(() => setEstimatedTasks(null))
   }, [schema, filterValues, datasetBindings])
+
+  useRegisterPageContext(() => ({
+    route_type: 'experiment_new',
+    path: '/experiments/new',
+    summary: {
+      template_id: schemaId || null,
+      dataset_ids: Object.values(datasetBindings),
+      model_id: modelId || null,
+      rubric_id: rubricId || null,
+      estimated_tasks: estimatedTasks,
+    },
+    timestamp: new Date().toISOString(),
+  }), [schemaId, datasetBindings, modelId, rubricId, estimatedTasks])
 
   const handleSubmit = async (andRun: boolean) => {
     if (!name.trim()) { alert(t("experiment.new.name_required")); return }

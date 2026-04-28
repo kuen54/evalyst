@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AgentHintBanner } from "@/components/settings/agent-hint-banner"
 import { GlassCard } from "@/components/copilot/shell"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 import { useT, useLocale } from "@/lib/i18n/provider"
 import { formatDate } from "@/lib/i18n/format"
 import { formatCostMap } from "@/lib/format"
@@ -68,6 +69,24 @@ export default function Dashboard() {
     if (!schemaFilter) return experiments
     return experiments.filter(e => e.schema_id === schemaFilter)
   }, [experiments, schemaFilter])
+
+  useRegisterPageContext(() => ({
+    route_type: 'dashboard',
+    path: '/',
+    summary: {
+      experiments_total: experiments.length,
+      counts: { schemas: schemas.length },
+      recent: experiments.slice(0, 5).map(e => ({
+        id: e.id,
+        name: e.name,
+        status: e.status,
+        success: e.run_stats?.completed_tasks ?? 0,
+        failed: e.run_stats?.failed_tasks ?? 0,
+        created_at: e.created_at,
+      })),
+    },
+    timestamp: new Date().toISOString(),
+  }), [experiments, schemas])
 
   if (loading) return <div className="p-8 text-muted-foreground">{t("common.loading")}</div>
 

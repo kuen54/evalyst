@@ -17,6 +17,7 @@ import { useT } from "@/lib/i18n/provider"
 import { formatCostMap, formatTokens } from "@/lib/format"
 import { aggregateResults } from "@/lib/results-aggregate"
 import { GlassRegular, GlassCard } from "@/components/copilot/shell"
+import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 
 export default function ExperimentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -115,6 +116,28 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     }
     return m
   }, [annotations])
+
+  useRegisterPageContext(() => ({
+    route_type: 'experiment_detail',
+    path: `/experiments/${id}`,
+    summary: experiment ? {
+      id: experiment.id,
+      name: experiment.name,
+      status: experiment.status,
+      created_at: experiment.created_at,
+      schema_id: experiment.schema_id,
+      model: experiment.model,
+      progress: {
+        total: experiment.run_stats?.total_tasks ?? 0,
+        success: experiment.run_stats?.completed_tasks ?? 0,
+        failed: experiment.run_stats?.failed_tasks ?? 0,
+        pending: (experiment.run_stats?.total_tasks ?? 0) - (experiment.run_stats?.completed_tasks ?? 0) - (experiment.run_stats?.failed_tasks ?? 0),
+      },
+      cost_by_currency: experiment.run_stats?.total_cost_by_currency ?? {},
+      rubric_id: experiment.rubric_id ?? null,
+    } : {},
+    timestamp: new Date().toISOString(),
+  }), [experiment, id])
 
   if (!experiment) return <div className="p-8 text-muted-foreground">{t("common.loading")}</div>
 
