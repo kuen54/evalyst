@@ -166,6 +166,16 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     }, 250)
   }, [])
 
+  // Provider unmount 时清掉在飞的 debounce 计时器，避免 leaked timeout 触发 setState on unmounted。
+  useEffect(() => {
+    return () => {
+      if (typingDebounceRef.current) {
+        clearTimeout(typingDebounceRef.current)
+        typingDebounceRef.current = null
+      }
+    }
+  }, [])
+
   const showRouteChangeBanner = useCallback((count: number) => {
     setRouteChangeBannerState({ visible: true, count })
   }, [])

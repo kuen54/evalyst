@@ -21,12 +21,12 @@ export function useRegisterPageContext(
   deps: React.DependencyList,
 ): void {
   const { setPageContext } = useCopilotStore()
+  // 单 effect: deps 变 → set 新值；unmount / deps 再变前先清空。
+  // 合并成一个 effect 是故意的：避免 Strict Mode 下 split effects 在 mount→unmount→remount
+  // 的生命周期里，空依赖的 cleanup 把刚 set 的 context 立刻清掉。
   useEffect(() => {
     setPageContext(getter())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
-  useEffect(() => {
     return () => setPageContext(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, deps)
 }
