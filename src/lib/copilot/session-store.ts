@@ -168,6 +168,13 @@ export interface AppendMessageInput {
   contexts?: CopilotContextRef[]
   usage?: CopilotMessage['usage']
   model_id?: string
+  // PR-3 tool calling: 仅在 role === 'tool_use' / 'tool_result' 时填。
+  // 字段含义见 CopilotMessage 接口顶部注释。
+  call_id?: string
+  tool_name?: string
+  tool_input?: Record<string, unknown>
+  denied?: boolean
+  reason?: string
 }
 
 export function appendMessage(input: AppendMessageInput): CopilotMessage {
@@ -181,6 +188,11 @@ export function appendMessage(input: AppendMessageInput): CopilotMessage {
     timestamp: nowIso(),
     usage: input.usage,
     model_id: input.model_id,
+    call_id: input.call_id,
+    tool_name: input.tool_name,
+    tool_input: input.tool_input,
+    denied: input.denied,
+    reason: input.reason,
   }
   ensureDir(sessionsDir())
   const file = sessionPath(input.session_id)
