@@ -10,6 +10,7 @@ export interface ToolMetadata {
 export const toolMetadata: ToolMetadata[] = [
   { name: "list_experiments", requiresConfirm: false },
   { name: "read_experiment_results", requiresConfirm: false },
+  { name: "read_page", requiresConfirm: false },
   { name: "restart_experiment", requiresConfirm: true },
 ]
 
