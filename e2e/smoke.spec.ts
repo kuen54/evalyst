@@ -46,20 +46,3 @@ test("skills download endpoint returns SKILL.md", async ({ request }) => {
   expect(body).toMatch(/^---/) // SKILL.md frontmatter
   expect(body).toMatch(/evalyst-dataset/)
 })
-
-test("copilot border glow is absent before open", async ({ page }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" })
-  await expect(page.locator(".copilot-border-glow")).toHaveCount(0)
-})
-
-test("copilot border glow appears when panel opens", async ({ page }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" })
-  await expect(page.locator(".copilot-border-glow")).toHaveCount(0)
-  const modifier = process.platform === "darwin" ? "Meta" : "Control"
-  await page.keyboard.press(`${modifier}+k`)
-  const glow = page.locator(".copilot-border-glow").first()
-  await expect(glow).toBeVisible({ timeout: 3000 })
-  await expect.poll(async () => await glow.getAttribute("data-glow"), {
-    timeout: 3000,
-  }).not.toBe("off")
-})

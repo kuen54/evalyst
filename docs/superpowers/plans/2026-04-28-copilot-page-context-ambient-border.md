@@ -1837,11 +1837,24 @@ git commit -m "feat(copilot): RouteChangeBanner prompts user to fork session on 
 
 ---
 
-## Phase 7 — Ambient Border Glow (P2) — Apple Intelligence "screen edges glow" 风格（路线 A · CSS 近似）
+## Phase 7 — Ambient Border Glow (P2) — **DEFERRED** ⏸️
 
-**视觉目标**：`<main>` 内缘的 inset volumetric glow —— 多层 pastel iridescent blob 独立漂移（近似 Perlin noise 流体感）+ `mix-blend-mode: screen` 保证深浅背景通透 + inset radial mask (inverse-square 近似) 让光只在外缘显现中心透明。**不包裹 `<main>`、不改 `<main>` layout、背景光 `.copilot-glow` 完全保留原状。** 观感 ~80% 像 Apple；若验收不过可升级路线 B（WebGL SDF + Simplex noise fragment shader）。
+> **2026-04-29**：本 Phase **整体放弃**。Task 17 + Task 18（以及 Task 19 中的 2 条 border glow e2e 断言、Task 20 CHANGELOG 的 border glow bullet）全部不做。
+>
+> **原因**：3 轮视觉尝试（inset bloom / conic-gradient mask-composite ring / 5-blob pastel inset）都无法达到用户期望的 Apple Intelligence "screen edges glow" 观感。该效果真实实现是 **SDF + Simplex noise fragment shader**，CSS 做不到真 SDF / Perlin noise，只能做弱近似。用户明确要求（2026-04-29）："先把你做的 screen edges glow 代码删掉"。
+>
+> **本 PR 实际保留**：`.copilot-glow` 背景 radial drift（PR-2.5 + PR #6 定型）**完全不动**。没有新 border glow overlay。
+>
+> **未来路径**：路线 B（WebGL `<canvas>` + SDF + Simplex noise shader）单独立 PR，见 spec §5.3。
+>
+> 下面 Task 17 / 18 的原内容作为**历史参考**保留，未来若做路线 B 可能部分复用状态机结构。当前 PR 执行时请**跳过**。
 
-### Task 17: CSS — `.copilot-border-glow` + 5 pastel blob + inset mask + screen blend
+---
+
+<details>
+<summary>Task 17 / 18 历史参考（已 revert，不执行）</summary>
+
+### ~~Task 17: CSS — `.copilot-border-glow` + 5 pastel blob + inset mask + screen blend~~ **(DEFERRED)**
 
 **Files:**
 - Modify: `src/app/globals.css`
@@ -1984,7 +1997,7 @@ git commit -m "feat(copilot): screen edges glow CSS (5 pastel blobs + inset mask
 
 ---
 
-### Task 18: `CopilotBorderGlow` 组件（含 5 blob 子元素）+ 挂载为 `<main>` 内 sibling
+### ~~Task 18: `CopilotBorderGlow` 组件（含 5 blob 子元素）+ 挂载为 `<main>` 内 sibling~~ **(DEFERRED)**
 
 **Files:**
 - Create: `src/components/copilot/border-glow.tsx`
@@ -2090,6 +2103,10 @@ git commit -m "feat(copilot): CopilotBorderGlow overlay (pastel blobs + inset ma
 
 ---
 
+</details>
+
+---
+
 ## Phase 8 — e2e + 文档
 
 ### Task 19: E2E smoke test 新增
@@ -2118,24 +2135,13 @@ test('copilot open + page_context preview shows current route', async ({ page })
   }
 })
 
-test('copilot border glow absent before open, appears after open', async ({ page }) => {
-  await page.goto('/')
-  // Before open: component returns null, no element in DOM
-  await expect(page.locator('.copilot-border-glow')).toHaveCount(0)
-  // Open copilot
-  const isMac = process.platform === 'darwin'
-  await page.keyboard.press(isMac ? 'Meta+k' : 'Control+k')
-  // After open: overlay exists with a non-off state (idle / typing / working)
-  const glow = page.locator('.copilot-border-glow').first()
-  await expect(glow).toBeVisible({ timeout: 3000 })
-  await expect.poll(async () => await glow.getAttribute('data-glow')).not.toBe('off')
-})
+// NOTE: 2 border glow e2e cases DEFERRED (P2 from spec §5.3 dropped, see Phase 7 header)
 ```
 
 - [ ] **Step 2: 跑 e2e**
 
 Run: `npm run test:e2e`
-Expected: 原 9 + 2 new = 11 cases pass
+Expected: 原 9 + 1 new = 10 cases pass
 
 （若 `[data-copilot-panel]` selector 或"预览"按钮文案在实际项目里不同，以 chat-view 当前实现为准调整。）
 

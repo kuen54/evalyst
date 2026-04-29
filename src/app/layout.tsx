@@ -8,7 +8,6 @@ import { LocaleProvider } from "@/lib/i18n/provider"
 import { Sidebar } from "@/components/sidebar"
 import { CopilotStoreProvider } from "@/components/copilot/store"
 import { CopilotPanel } from "@/components/copilot/panel"
-import { CopilotBorderGlow } from "@/components/copilot/border-glow"
 import { InspectorOverlay } from "@/components/copilot/inspector-overlay"
 import { ContextMask } from "@/components/copilot/context-mask"
 import { GlowOverlay } from "@/components/copilot/glow-overlay"
@@ -49,7 +48,6 @@ export default function RootLayout({
                 <Sidebar />
                 <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
                   <GlowOverlay />
-                  <CopilotBorderGlow />
                   <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
                 </main>
                 <CopilotPanel />
