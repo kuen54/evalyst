@@ -466,6 +466,15 @@ read_page: {
 
 （原 §5.3 详细方案 v1-v3 保留在 git 历史 commit `39acf1f` / `c640cb1` / `6af7aca` / `53d9d11` + 本文件前一版，供未来复用参考。）
 
+---
+
+**2026-04-29（同日晚）后续**：路线 B（WebGL SDF + Simplex noise fragment shader）实际做了一次完整实现（5 状态机 + Inigo Quilez rounded box SDF + Ashima simplex + neon 调色板 + critically-damped spring + premultiplied alpha）。跑起来视觉上也逼近 Apple Intelligence 观感、技术角度没毛病，但用户体感**"太眼花缭乱"**，整体 drop。
+
+- **整体路径本 PR 永久 dropped**（不是再一次 defer；未来若重做请另起新 spec）
+- **代码保存在** `archive/edge-glow-webgl` 分支（完整 19 commits + spec + plan + tests）——不合 main，仅作为技术参考
+- **archive 分支内容**：`src/components/copilot/edge-glow.{tsx, -state.ts, -shader.ts}` + `docs/superpowers/specs/2026-04-29-copilot-edge-glow-webgl-design.md` + `docs/superpowers/plans/2026-04-29-copilot-edge-glow-webgl.md`
+- **main 上保留**：0 edge-glow 代码 / 0 edge-glow 文档（除本段注记）
+
 
 ### 5.4 Route Change Behavior (G4)
 

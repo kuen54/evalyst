@@ -13,6 +13,7 @@
 - **自动 page context**：开 copilot 即向 LLM 注入当前页面摘要（15 种 `route_type` × 每页自定义 summary 字段，e.g. experiment_detail 含 id / name / status / progress / cost_by_currency / rubric_id）。不走 chip rail，仅在系统消息顶部渲染，"预览 LLM 将看到的 context"面板里对用户可见
 - **`read_page(query)` 工具**：LLM 可按自然语言 query 查找当前页面可见数据，服务端对 `viewport_index` 做 token 子串打分、top-5 命中复用既有 `resolveContexts()` hydrate 成 tree 返回；`requiresConfirm: false` auto-run；空 token fallback 到整句匹配，resolveContexts 异常时返回部分结果
 - **~~Apple Intelligence 风 ambient border glow（screen edges glow · 路线 A CSS 近似）~~ DEFERRED（2026-04-29）**：3 轮 CSS 尝试（inset bloom / conic-gradient mask-composite ring / 5-blob pastel inset）都无法达到用户期望的 Apple Intelligence screen edges glow 观感。真实实现需要 SDF + Simplex noise fragment shader，CSS 做不到。代码 revert，`.copilot-glow` 背景 radial drift 保持 PR-4 前原状。留给未来路线 B（WebGL `<canvas>` + shader）单独立 PR。详见 spec §5.3
+- **~~路线 B WebGL edge glow（SDF + Simplex noise + 5 状态机）~~ DROPPED（2026-04-29 晚）**：同日完整实现了路线 B（19 commits，5 states + Inigo Quilez rounded box SDF + Ashima simplex + neon 调色板 + critically-damped spring + premultiplied alpha），但用户体感"太眼花缭乱"整体 drop，不是再 defer。代码 + spec + plan 完整保存在 `archive/edge-glow-webgl` 分支，不合 main，仅作技术参考
 - **切页清空 + banner**：`RouteChangeObserver` 监听 `usePathname`+`useSearchParams`，路由变化即清空 manual contexts（inspector / text_selection），session 有 messages 时顶部弹 amber `RouteChangeBanner` 提示"开启新对话"/"继续当前对话"（不阻断切换）
 - **统一 client→server snapshot 机制**：`/chat` + `/tool-result` POST body 新增 `client_snapshot = { page_context, viewport_index, ... }`；server 缓存到 per-session Map（`snapshot-cache.ts`），`read_page` 工具按 `sessionId` 取 snapshot；DELETE session 同步清 cache
 
@@ -41,10 +42,10 @@
 | 6 | 切页 session 行为 | 保留（A），banner 提供"开启新对话" |
 | 7 | read_page 签名 | `query: string` 自然语言 |
 | 8 | Snapshot 持久化 | in-memory Map，进程重启丢失 |
-| 10 | ~~边框光技术~~ | **DEFERRED**（留给未来路线 B WebGL shader） |
+| 10 | ~~边框光技术~~ | **DROPPED**（2026-04-29 晚：路线 B WebGL 实现完成后用户体感"太眼花缭乱"整体放弃，代码保存在 `archive/edge-glow-webgl`） |
 
 **Defer / Open Questions**（spec §13）：
-- **整个 P2 ambient border glow → WebGL shader 路线单独 PR**（2026-04-29 放弃 CSS 近似）
+- **整个 P2 ambient border glow → 最终 DROPPED**：2026-04-29 先 defer CSS（路线 A），同日晚实现 WebGL（路线 B）后用户体感"太眼花缭乱"整体放弃；代码 + spec + plan 完整保存在 `archive/edge-glow-webgl` 分支（19 commits），未来若重做请另起新 spec
 - read_page 对 `task_result:exp_id/task_id` 形 elementKey 的 experiment_id 提取：v1 简化处理，实际命中率待观察
 - Firefox < 128 降级 SVG stroke：v1 不做
 - 移动端 layout：v1 不做

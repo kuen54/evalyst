@@ -1847,6 +1847,8 @@ git commit -m "feat(copilot): RouteChangeBanner prompts user to fork session on 
 >
 > **未来路径**：路线 B（WebGL `<canvas>` + SDF + Simplex noise shader）单独立 PR，见 spec §5.3。
 >
+> **2026-04-29（同日晚）后续**：路线 B 已做过一次完整实现（19 commits，5 状态机 + Inigo Quilez rounded box SDF + Ashima simplex + neon 调色板 + critically-damped spring + premultiplied alpha）。用户体感"太眼花缭乱"**整体放弃**（不是再一次 defer）。代码 + spec + plan 完整保存在 `archive/edge-glow-webgl` 分支，不合 main，仅作技术参考；未来若重做请另起新 spec。
+>
 > 下面 Task 17 / 18 的原内容作为**历史参考**保留，未来若做路线 B 可能部分复用状态机结构。当前 PR 执行时请**跳过**。
 
 ---
