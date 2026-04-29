@@ -92,7 +92,7 @@ export function MaterialRevealOverlay() {
 
     setActive(true)
 
-    const cleanupDelay = prefersReduce ? 220 : 2000
+    const cleanupDelay = prefersReduce ? 220 : 2050
 
     const cleanup = () => {
       clearRevealCascade()
