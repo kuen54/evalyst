@@ -24,6 +24,7 @@ interface GlContext {
     u_color_phase: WebGLUniformLocation | null
     u_flash: WebGLUniformLocation | null
     u_corner_px: WebGLUniformLocation | null
+    u_amplitude: WebGLUniformLocation | null
   }
 }
 
@@ -107,6 +108,7 @@ function initGl(canvas: HTMLCanvasElement): GlContext | null {
       u_color_phase: gl.getUniformLocation(program, "u_color_phase"),
       u_flash: gl.getUniformLocation(program, "u_flash"),
       u_corner_px: gl.getUniformLocation(program, "u_corner_px"),
+      u_amplitude: gl.getUniformLocation(program, "u_amplitude"),
     },
   }
 }
@@ -190,9 +192,10 @@ export function EdgeGlow() {
 
     // Spring-integrated uniform state.
     const anim = {
-      intensity: { value: 0.22, velocity: 0 },
-      thicknessPx: { value: 3, velocity: 0 },
+      intensity: { value: 0.40, velocity: 0 },
+      thicknessPx: { value: 30, velocity: 0 },
       noiseSpeed: { value: 0.15, velocity: 0 },
+      amplitude: { value: 4, velocity: 0 },
       colorPhase: { value: 0.5, velocity: 0 },
     }
 
@@ -232,6 +235,9 @@ export function EdgeGlow() {
       ;[anim.noiseSpeed.value, anim.noiseSpeed.velocity] = springStep(
         anim.noiseSpeed.value, anim.noiseSpeed.velocity, target.noiseSpeed, dtSec,
       )
+      ;[anim.amplitude.value, anim.amplitude.velocity] = springStep(
+        anim.amplitude.value, anim.amplitude.velocity, target.amplitude, dtSec,
+      )
       ;[anim.colorPhase.value, anim.colorPhase.velocity] = springStep(
         anim.colorPhase.value, anim.colorPhase.velocity, target.colorPhase, dtSec,
       )
@@ -247,7 +253,8 @@ export function EdgeGlow() {
       gl.uniform1f(uniforms.u_noise_speed, anim.noiseSpeed.value)
       gl.uniform1f(uniforms.u_color_phase, anim.colorPhase.value)
       gl.uniform1f(uniforms.u_flash, flash)
-      gl.uniform1f(uniforms.u_corner_px, 16)
+      gl.uniform1f(uniforms.u_corner_px, 0)
+      gl.uniform1f(uniforms.u_amplitude, anim.amplitude.value)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
       rafId = requestAnimationFrame(renderFrame)
@@ -285,7 +292,7 @@ export function EdgeGlow() {
       ref={canvasRef}
       aria-hidden
       className="pointer-events-none absolute inset-0"
-      style={{ zIndex: 0 }}
+      style={{ zIndex: 999 }}
     />
   )
 }
