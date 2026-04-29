@@ -136,11 +136,25 @@ export function EdgeGlow() {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // Size canvas to its displayed box with DPR cap 2 (ResizeObserver in Task 7).
-    const rect = canvas.getBoundingClientRect()
-    const dpr = Math.min(2, window.devicePixelRatio ?? 1)
-    canvas.width = Math.max(1, Math.floor(rect.width * dpr))
-    canvas.height = Math.max(1, Math.floor(rect.height * dpr))
+    // Size canvas to its displayed box; ResizeObserver re-fires on parent changes.
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect()
+      const dpr = Math.min(2, window.devicePixelRatio ?? 1)
+      // Clamp DPR so canvas.width <= MAX_TEXTURE_SIZE in the rare edge case of
+      // extremely tall/wide viewports (guards against Safari bailing out).
+      const ctx = glCtxRef.current
+      if (ctx) {
+        const maxTex = ctx.gl.getParameter(ctx.gl.MAX_TEXTURE_SIZE) as number
+        const longest = Math.max(rect.width, rect.height)
+        const safeDpr = longest * dpr > maxTex ? Math.max(1, maxTex / longest) : dpr
+        canvas.width = Math.max(1, Math.floor(rect.width * safeDpr))
+        canvas.height = Math.max(1, Math.floor(rect.height * safeDpr))
+      } else {
+        canvas.width = Math.max(1, Math.floor(rect.width * dpr))
+        canvas.height = Math.max(1, Math.floor(rect.height * dpr))
+      }
+    }
+    resizeCanvas()
 
     const ctx = initGl(canvas)
     if (!ctx) {
@@ -149,20 +163,31 @@ export function EdgeGlow() {
     }
     glCtxRef.current = ctx
 
-    // One static draw with "processing" uniforms to verify pipeline.
-    const { gl, uniforms } = ctx
-    gl.viewport(0, 0, canvas.width, canvas.height)
-    gl.clearColor(0, 0, 0, 0)
-    gl.clear(gl.COLOR_BUFFER_BIT)
-    gl.uniform2f(uniforms.u_resolution, canvas.width, canvas.height)
-    gl.uniform1f(uniforms.u_time, 0)
-    gl.uniform1f(uniforms.u_intensity, 0.9)
-    gl.uniform1f(uniforms.u_thickness_px, 11)
-    gl.uniform1f(uniforms.u_noise_speed, 1.4)
-    gl.uniform1f(uniforms.u_color_phase, 0.3)
-    gl.uniform1f(uniforms.u_flash, 0)
-    gl.uniform1f(uniforms.u_corner_px, 16)
-    gl.drawArrays(gl.TRIANGLES, 0, 6)
+    // Draw one static frame now so user sees the band before RAF is wired.
+    const drawStatic = () => {
+      const { gl, uniforms } = ctx
+      gl.viewport(0, 0, canvas.width, canvas.height)
+      gl.clearColor(0, 0, 0, 0)
+      gl.clear(gl.COLOR_BUFFER_BIT)
+      gl.uniform2f(uniforms.u_resolution, canvas.width, canvas.height)
+      gl.uniform1f(uniforms.u_time, 0)
+      gl.uniform1f(uniforms.u_intensity, 0.9)
+      gl.uniform1f(uniforms.u_thickness_px, 11)
+      gl.uniform1f(uniforms.u_noise_speed, 1.4)
+      gl.uniform1f(uniforms.u_color_phase, 0.3)
+      gl.uniform1f(uniforms.u_flash, 0)
+      gl.uniform1f(uniforms.u_corner_px, 16)
+      gl.drawArrays(gl.TRIANGLES, 0, 6)
+    }
+    drawStatic()
+
+    // Observe size changes on the canvas's parent (the <main> element).
+    const resizeObs = new ResizeObserver(() => {
+      resizeCanvas()
+      drawStatic()
+    })
+    const parent = canvas.parentElement
+    if (parent) resizeObs.observe(parent)
 
     // Handle context loss: hide on loss, no restore attempt.
     const onLost = (e: Event) => {
@@ -172,6 +197,7 @@ export function EdgeGlow() {
     canvas.addEventListener("webglcontextlost", onLost)
 
     return () => {
+      resizeObs.disconnect()
       canvas.removeEventListener("webglcontextlost", onLost)
       if (glCtxRef.current) {
         destroyGl(glCtxRef.current)
