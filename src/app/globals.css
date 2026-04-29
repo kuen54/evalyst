@@ -453,7 +453,13 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     color-mix(in oklab, var(--copilot-accent), transparent 75%) 60vw,
     transparent 66vw
   );
-  animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  /* 双 animation：transform 单段 bezier 平滑移动，opacity 单独 linear 淡出。
+     之前单 keyframe 三段（0%/75%/100%）会在 75% 边界出现 bezier 速度不连续——
+     每段独立应用 bezier，段尾速度≈0 接段头速度≈0 读作"顿一下"。拆开后 transform
+     全程单调速度，opacity 只在末端淡出，二者互不干扰。 */
+  animation:
+    copilot-reveal-wave-translate 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards,
+    copilot-reveal-wave-fade 1250ms linear forwards;
 }
 
 .copilot-reveal-tail {
@@ -464,13 +470,14 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     color-mix(in oklab, var(--copilot-accent), transparent 85%) 50vw,
     transparent 70vw
   );
-  opacity: 0.85;
-  animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) 140ms forwards;
+  animation:
+    copilot-reveal-wave-translate 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) 140ms both,
+    copilot-reveal-tail-fade 1250ms linear 140ms both;
 }
 
-/* 亮色主题：换成 multiply blend + 深色 band。
-   浅底（oklch 0.995）上 screen 几乎无效（白+白=白），multiply 让 wave 反向变成
-   "一道深色光掠过"，contrast 反而拉满。core 用 55% 黑，accent 侧翼掺 40% 黑深化。 */
+/* 亮色主题：换成 multiply blend + 把暗色模式里的「白/蓝」位置对调。
+   暗色是 accent 侧翼 + 白 hot core；亮色是 白侧翼 + accent hot core。
+   浅底上 multiply 让 accent core 变成实蓝线扫过，contrast 拉满；白侧翼在白底上天然隐身（白*白=白）。 */
 :root:not(.dark) .copilot-reveal-wave,
 :root:not(.dark) .copilot-reveal-tail {
   mix-blend-mode: multiply;
@@ -481,13 +488,13 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     circle at 150vw 50%,
     transparent 0%,
     transparent 34vw,
-    color-mix(in oklab, color-mix(in oklab, var(--copilot-accent), black 40%), transparent 70%) 40vw,
-    color-mix(in oklab, color-mix(in oklab, var(--copilot-accent), black 40%), transparent 45%) 46vw,
-    color-mix(in oklab, black, transparent 45%) 48vw,
-    color-mix(in oklab, black, transparent 20%) 50vw,
-    color-mix(in oklab, black, transparent 45%) 52vw,
-    color-mix(in oklab, color-mix(in oklab, var(--copilot-accent), black 40%), transparent 45%) 54vw,
-    color-mix(in oklab, color-mix(in oklab, var(--copilot-accent), black 40%), transparent 70%) 60vw,
+    color-mix(in oklab, white, transparent 75%) 40vw,
+    color-mix(in oklab, white, transparent 50%) 46vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 30%) 48vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 5%) 50vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 30%) 52vw,
+    color-mix(in oklab, white, transparent 50%) 54vw,
+    color-mix(in oklab, white, transparent 75%) 60vw,
     transparent 66vw
   );
 }
@@ -497,17 +504,26 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     circle at 150vw 50%,
     transparent 0%,
     transparent 30vw,
-    color-mix(in oklab, black, transparent 88%) 50vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 85%) 50vw,
     transparent 70vw
   );
 }
 
-/* 末尾 25% opacity 淡出：避免 translateX(-100vw) 时 radial center 进入 viewport
-   导致右侧冒出镜像 band 的"幽灵双弧"观感。 */
-@keyframes copilot-reveal-wave {
-  0%   { transform: translateX(0); opacity: 1; }
-  75%  { transform: translateX(-75vw); opacity: 1; }
-  100% { transform: translateX(-100vw); opacity: 0; }
+@keyframes copilot-reveal-wave-translate {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100vw); }
+}
+
+/* opacity 在 60% 之后才开始淡出，到 100% 完全透明。
+   避免末尾 translateX(-100vw) 时 radial center 进 viewport 造成"幽灵镜像 band"。 */
+@keyframes copilot-reveal-wave-fade {
+  0%, 60% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+@keyframes copilot-reveal-tail-fade {
+  0%, 60% { opacity: 0.85; }
+  100%    { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
