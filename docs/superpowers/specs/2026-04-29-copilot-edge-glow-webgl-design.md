@@ -33,18 +33,20 @@
 ### 4.1 Layering (inside `<main>`)
 
 ```
-<main className="... relative">          z-stack:
-  <GlowOverlay/>                          z=0   背景 .copilot-glow（不动）
-  <EdgeGlow/>                             z=0   新 WebGL canvas（本 spec）
-  <div className="relative z-[1]">        z=1   children 业务内容
+<main className="... relative">           z-stack:
+  <GlowOverlay/>                           z=0     背景 .copilot-glow（不动）
+  <div className="relative z-[1]">         z=1     children 业务内容
     {children}
   </div>
+  <EdgeGlow/>                              z=999   WebGL 边缘光（本 spec，顶层画框）
 </main>
 ```
 
-Canvas 用 `position: absolute; inset: 0; pointer-events: none`，铺满 `<main>`。
+Canvas 用 `position: absolute; inset: 0; pointer-events: none; z-index: 999`，铺满 `<main>`。
 
-与 `.copilot-glow` 同 z=0：shader 内部 alpha=0 的像素让背景透出；边缘 alpha>0 的像素以直 alpha 混合叠加。**不用** `mix-blend-mode: screen`（PR-4 尝试过，在纯白卡面上不可见）。
+**关键决策（V2 2026-04-29）**：canvas 置于 UI 内容之上（"画框"效果），不是之下。Apple Intelligence 的 screen edges glow 是覆盖在屏幕 UI 之上的，让边缘像被光环包裹。因为 shader 中心区域 alpha=0（band 只在边缘），只有边缘像素遮盖 UI，内部 UI 完全可见且可交互（`pointer-events-none` 让点击穿透）。
+
+与 `.copilot-glow` 背景互不干扰（.copilot-glow 在 z=0，中心依然透过 canvas 中心可见）。**不用** `mix-blend-mode: screen`（PR-4 尝试过，在纯白卡面上不可见；且会让整个中间区域蒙上白雾）。
 
 ### 4.2 Activation
 
@@ -80,15 +82,17 @@ Canvas 用 `position: absolute; inset: 0; pointer-events: none`，铺满 `<main>
 
 ### 5.2 States & uniform targets
 
-| State | `u_intensity` | `u_thickness_px` | `u_noise_speed` | `u_color_phase` 行为 | `u_flash` |
-|---|---|---|---|---|---|
-| IDLE | 0.22 | 3 | 0.15 | `0.5 + 0.3 * sin(t * 0.25)` 慢振荡（violet↔cyan） | 0 |
-| TYPING (400ms window after latest bump) | 0.35 | 5 | 0.30 | 同 IDLE 振荡公式，`t` 乘 1.8 加速 | 0 |
-| INSPECTING (inspectorActive=true) | 0.50 | 7 | 0.45 | 锁常量 0.30（cyan 偏蓝，呼应 --copilot-accent） | 0 |
-| PROCESSING (busy=true) | 0.90 | 11 | 1.40 | `mod(t * 0.8, 1.0)` 快速单向流转 | 0 |
-| FLASH (800ms after busy ↓) | 1.0 → 0 | 14 → 11 | 1.8 → 0.15 | 保持 PROCESSING 最后相位 | 1 → 0 (exp decay) |
+| State | `u_intensity` | `u_thickness_px` | `u_noise_speed` | `u_amplitude` (V2) | `u_color_phase` 行为 | `u_flash` |
+|---|---|---|---|---|---|---|
+| IDLE | 0.35 | 14 | 0.15 | 2 | `0.5 + 0.3 * sin(t * 0.25)` 慢振荡（indigo↔cyan） | 0 |
+| TYPING (400ms window after latest bump) | 0.50 | 18 | 0.30 | 4 | 同 IDLE 振荡公式，`t` 乘 1.8 加速 | 0 |
+| INSPECTING (inspectorActive=true) | 0.65 | 22 | 0.45 | 6 | 锁常量 0.25（pure cyan，呼应 --copilot-accent sky blue） | 0 |
+| PROCESSING (busy=true) | 0.95 | 32 | 1.40 | 14 | `mod(t * 0.8, 1.0)` 快速单向流转（indigo → cyan → magenta → amber） | 0 |
+| FLASH (800ms after busy ↓) | 1.0 → 0 | 40 → 32 | 1.8 → 0.15 | 18 → 14 | 保持 PROCESSING 最后相位 | 1 → 0 (exp decay) |
 
-其中 `t` 是自组件挂载起的累计秒数（渲染循环中的 `u_time`，由 RAF 累加，pause 时冻结）。`u_color_phase` 由 state 模块每帧计算 target 后再走 spring；INSPECTING 锁常量意味着 spring 拉向 0.30，其他态 target 是时间函数。
+**关于 V2 值**：intensity / thickness / amplitude 都**显著**提高（v1 pastel + 静态 band 的值完全不够看）。u_amplitude 是 V2 新增的核心信号 —— 控制 noise 对 SDF 的位移幅度，决定波浪向内冲击的"幅度"。Processing 态 amplitude 14 意味着 band 内边缘会以最多 ±14px 的幅度随 noise 起伏，配合 noiseSpeed 1.4 产生明显的"火焰舔舐中心"感。
+
+其中 `t` 是自组件挂载起的累计秒数（渲染循环中的 `u_time`，由 RAF 累加，pause 时冻结）。`u_color_phase` 由 state 模块每帧计算 target 后再走 spring；INSPECTING 锁常量意味着 spring 拉向 0.25，其他态 target 是时间函数。
 
 ### 5.3 State composition
 
@@ -134,6 +138,8 @@ void main() {
 
 ### 6.2 Fragment
 
+**V2 (2026-04-29)**：neon chroma palette + noise-driven SDF 位移（边缘向内波浪推进，取代 v1 的平面 noise 亮度调制）。
+
 ```glsl
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
@@ -149,6 +155,7 @@ uniform float u_noise_speed;
 uniform float u_color_phase;
 uniform float u_flash;
 uniform float u_corner_px;
+uniform float u_amplitude;   // V2 — SDF displacement magnitude (px)
 
 // ----- Inigo Quilez rounded box SDF -----
 float sdRoundedBox(vec2 p, vec2 b, float r) {
@@ -156,7 +163,7 @@ float sdRoundedBox(vec2 p, vec2 b, float r) {
   return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
-// ----- Ashima simplex 2D noise (inline, standard 40-line impl) -----
+// ----- Ashima simplex 2D noise -----
 vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
 float snoise(vec2 v) {
   const vec4 C = vec4(0.211324865405187, 0.366025403784439,
@@ -184,34 +191,53 @@ float snoise(vec2 v) {
   return 130.0 * dot(m, g);
 }
 
+// ----- Neon chroma palette (V2) -----
+// 4 stops, equal-phase segments: indigo → cyan → magenta → amber → indigo
+vec3 palette(float phase) {
+  vec3 indigo  = vec3(0.29, 0.00, 0.88); // #4A00E0
+  vec3 cyan    = vec3(0.00, 1.00, 1.00); // #00FFFF
+  vec3 magenta = vec3(1.00, 0.00, 0.498); // #FF007F
+  vec3 amber   = vec3(1.00, 0.478, 0.00); // #FF7A00
+  float p = mod(phase, 1.0);
+  if (p < 0.25) return mix(indigo, cyan,    p * 4.0);
+  if (p < 0.5)  return mix(cyan,   magenta, (p - 0.25) * 4.0);
+  if (p < 0.75) return mix(magenta, amber,  (p - 0.5) * 4.0);
+                return mix(amber,   indigo, (p - 0.75) * 4.0);
+}
+
 void main() {
   vec2 uv = gl_FragCoord.xy;
   vec2 center = u_resolution * 0.5;
   vec2 half_ = u_resolution * 0.5 - u_thickness_px;
   float sdf = sdRoundedBox(uv - center, half_, u_corner_px);
 
-  // Band: 只在边框附近像素 alpha>0
-  float band_outer = smoothstep(u_thickness_px * 2.0, 0.0, sdf);
-  float band_inner = smoothstep(-u_thickness_px * 3.0, 0.0, sdf);
+  // V2: noise-driven SDF displacement — band edges wobble inward like flames.
+  // 多尺度 noise (低频主波 + 高频细节) 制造湍流流体感。
+  float n_lo = snoise(uv * 0.0025 + vec2(u_time * u_noise_speed * 0.4, 0.0));
+  float n_hi = snoise(uv * 0.008  + vec2(0.0, u_time * u_noise_speed * 0.6));
+  float n = n_lo * 0.7 + n_hi * 0.3; // [-1, 1]
+  float distorted_d = sdf + n * u_amplitude;
+
+  // Band: smoothstep shapes the glow profile inward from the edge.
+  // u_corner_px=0 时外边缘完全贴合容器矩形；"圆滑"来自 smoothstep 羽化。
+  float band_outer = smoothstep(u_thickness_px * 2.0, 0.0, distorted_d);
+  float band_inner = smoothstep(-u_thickness_px * 3.0, 0.0, distorted_d);
   float band = band_outer * band_inner;
 
-  // Simplex noise 调制
-  float n = snoise(uv * 0.003 + vec2(u_time * u_noise_speed * 0.5, 0.0));
-  n = 0.5 + 0.5 * n;
+  // Palette mixed with a noise-driven phase jitter for organic color flow.
+  vec3 col = palette(u_color_phase + n * 0.15);
+  col = mix(col, vec3(1.0), u_flash); // flash: white pop
 
-  // Palette mixing
-  vec3 violet = vec3(0.62, 0.42, 0.95);
-  vec3 cyan   = vec3(0.45, 0.85, 0.98);
-  vec3 pink   = vec3(0.97, 0.65, 0.88);
-  float phase = mod(u_color_phase + n * 0.3, 1.0);
-  vec3 col = mix(violet, cyan, smoothstep(0.0, 0.5, phase));
-  col = mix(col, pink, smoothstep(0.5, 1.0, phase));
-  col = mix(col, vec3(1.0), u_flash);
-
-  float alpha = band * n * u_intensity;
+  float alpha = band * u_intensity;   // noise no longer modulates alpha (V1 bug)
   gl_FragColor = vec4(col * alpha, alpha); // premultiplied alpha
 }
 ```
+
+**V2 shader 设计备注**：
+- 核心变化：`distorted_d = sdf + n * u_amplitude` 让 noise 在 **位置** 上扰动 band，而不只是改亮度。v1 的 `alpha = band * n` 只让 band 在原位闪烁（用户反馈"原地水波纹"）；v2 真正让 band 形状向内波浪冲击。
+- 多尺度 noise：主波 (freq 0.0025) + 细节 (freq 0.008) 相加，模仿流体湍流。
+- 4-color palette 用分段 mix 完成；0-0.25 indigo→cyan、0.25-0.5 cyan→magenta、0.5-0.75 magenta→amber、0.75-1.0 amber→indigo。循环连续。
+- alpha 不再乘 noise —— 避免 v1 的"忽明忽暗灰边缘"。intensity 本身 × band 已经给出合理的透明度分布。
 
 ### 6.3 Precision compatibility
 
@@ -223,7 +249,11 @@ Shader 输出 **premultiplied alpha**（`vec4(col * alpha, alpha)`）。Task 6 G
 
 ### 6.5 Corner radius
 
-固定 `u_corner_px = 16`，对齐 shadcn `--radius-lg`。不随状态变化。
+**V2 (2026-04-29)**：`u_corner_px = 0`（直角）。`<main>` 容器没有 `rounded-*` class，是纯直角矩形；光效外边缘必须精确对齐到矩形边缘，否则会在四角处出现"光被圆角遮住、背景矩形角落露出"的漏风（gap artifact）。
+
+内部的圆滑感来自 `smoothstep` 对 SDF 的羽化（不是 `u_corner_px` 的 SDF 圆角参数）—— 随着像素远离边缘，band 在数学上自然衰减、视觉上呈现"光带柔和包裹"效果，不靠硬圆角裁切。
+
+如果未来 `<main>` 本身改挂 `rounded-*` class，此值应改为对应像素值（shadcn `--radius-lg` = 8px，对应 `u_corner_px = 8`）。
 
 ## 7. File structure
 
@@ -350,13 +380,17 @@ useEffect(() => {
 | 6 | mix-blend-mode | 不用 | PR-4 尝试过 `screen` 在白底不可见；直 alpha 混合更可控 |
 | 7 | DPR 上限 | 2 | Retina 2× 够用；3× 无视觉收益，GPU 负担翻倍 |
 | 8 | 背景光改不改 | 完全不改 | 用户明确要求保留 PR-4-pre 原样；光效独立叠加 |
-| 9 | 颜色 palette | violet / cyan / pink | 与 `.copilot-glow` 的 glow-a/b/c 同族；INSPECTING 锁 sky-blue 呼应 `--copilot-accent` |
+| 9 ~~v1~~ | ~~violet / cyan / pink pastel~~ | **V2: indigo / cyan / magenta / amber neon** | v1 用户反馈"发灰、washed out、毫无能量感"；v2 换高饱和 neon chroma（Apple Intelligence 真实色规范） |
 | 10 | Context restore | 不实现 | webglcontextlost 罕见；restore 代码复杂；隐藏更安全 |
-| 11 | Corner radius | 固定 16px | 对齐 shadcn `--radius-lg`；状态机已经有 4 个 uniform 动，corner 再动会太复杂 |
+| 11 ~~v1~~ | ~~固定 16px~~ | **V2: 固定 0（直角）** | v1 在方角 `<main>` 上强加 16px 圆角 → 四角漏风 gap；v2 外边缘对齐容器，圆滑感由 smoothstep 羽化提供 |
 | 12 | Spring 参数 | stiffness 180 / damping 22 | 临界阻尼，无 overshoot；典型 UI 感过渡 300-400ms |
 | 13 | tool_use pending 独立态 | 合并进 PROCESSING | busy 已覆盖 chat + tool round trip；独立态增益小 |
 | 14 | audio-reactive | 不做 | 产品范围外，用户未要求 |
 | 15 | mobile layout | 不做 | Evalyst 是桌面工具，无移动端 |
+| **16 (V2)** | Z-index | canvas z-index **999**（原 0） | v1 canvas 在 UI 之下 → 内容卡覆盖 glow → 边缘断裂；v2 canvas 在 UI 之上形成"画框"包裹感。pointer-events-none 保证交互不被遮挡 |
+| **17 (V2)** | 运动方式 | noise 驱动 SDF 位移 `distorted_d = sdf + n * u_amplitude`（原：noise 调 alpha） | v1 的 band 原地闪烁像水波纹；v2 band 本身向内波浪冲击，火焰舔舐中心 |
+| **18 (V2)** | 新增 uniform `u_amplitude` | 每态值 IDLE 2 / TYPING 4 / INSPECTING 6 / PROCESSING 14 / FLASH 18→14 | 与 intensity / thickness 解耦，独立控制"波浪幅度"语义，映射 Copilot 算力强度 |
+| **19 (V2)** | 整体 intensity/thickness 上调 | intensity 0.22→0.35 起步，thickness 3→14 起步 | v1 所有数值太保守，看不出光效；v2 显著提高以匹配 Apple Intelligence 浓烈观感 |
 
 ## 13. Open questions
 
