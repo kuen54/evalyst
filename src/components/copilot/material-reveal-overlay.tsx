@@ -6,17 +6,17 @@ import { useCopilotStore } from "./store"
 /**
  * 计算某卡片受 wave 驱动的 glass transition 启动延迟（ms）。
  *
- * 波纹从 x=100vw 起，700ms 线性扫到 x=-30vw（覆盖 130vw 距离）。
- * 返回：wave 中心到达卡片中心的时刻，夹在 [0, 600] 区间。
+ * 波纹从 x=100vw 起，1050ms 线性扫到 x=-30vw（覆盖 130vw 距离）。
+ * 返回：wave 中心到达卡片中心的时刻，夹在 [0, 900] 区间。
  *
  * @param centerXvw 卡片水平中心位置（vw 单位，0=左边缘，100=右边缘）
  */
 export function computeRevealDelay(centerXvw: number): number {
   const fromVw = 100
   const totalVwTraveled = 130 // 100 → -30
-  const durationMs = 700
+  const durationMs = 1050
   const raw = ((fromVw - centerXvw) / totalVwTraveled) * durationMs
-  return Math.max(0, Math.min(600, raw))
+  return Math.max(0, Math.min(900, raw))
 }
 
 /**
@@ -58,10 +58,10 @@ export function MaterialRevealOverlay() {
     document.documentElement.dataset.copilotRevealing = "true"
     setActive(true)
 
-    const cleanupDelay = prefersReduce ? 220 : 850
+    const cleanupDelay = prefersReduce ? 220 : 1275
 
     /**
-     * 清理：重新 querySelectorAll（不用前面捕获的集合），因为 850ms 内 DOM 可能变化。
+     * 清理：重新 querySelectorAll（不用前面捕获的集合），因为 1275ms 内 DOM 可能变化。
      * 对没有 --reveal-delay 的元素调 removeProperty 是 no-op。
      */
     const cleanup = () => {
@@ -74,7 +74,7 @@ export function MaterialRevealOverlay() {
 
     const timer = setTimeout(cleanup, cleanupDelay)
 
-    // lastOpenedAt 再次变化（< 850ms 内二次打开）→ 先清再重起
+    // lastOpenedAt 再次变化（< 1275ms 内二次打开）→ 先清再重起
     return () => {
       clearTimeout(timer)
       cleanup()

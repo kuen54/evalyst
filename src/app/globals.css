@@ -442,7 +442,7 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   );
   background-size: max(360px, 22vw) 100%;
   background-repeat: no-repeat;
-  animation: copilot-reveal-wave 700ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  animation: copilot-reveal-wave 1050ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 .copilot-reveal-tail {
@@ -455,7 +455,7 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   background-size: 40vw 100%;
   background-repeat: no-repeat;
   opacity: 0.7;
-  animation: copilot-reveal-wave 700ms cubic-bezier(0.25, 0.1, 0.25, 1) 80ms forwards;
+  animation: copilot-reveal-wave 1050ms cubic-bezier(0.25, 0.1, 0.25, 1) 120ms forwards;
 }
 
 @keyframes copilot-reveal-wave {
