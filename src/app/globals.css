@@ -435,23 +435,23 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 }
 
 .copilot-reveal-wave {
-  /* radial-gradient 中心在屏外右侧（150vw 相对 div），band 从半径 28→72vw 覆盖
-     44vw 宽（配 blur 后视觉更宽），中心 50vw 处 95% 白色 hot core 穿透力强。
+  /* 暗色主题默认：白色 hot core + screen blend 扫光
+     band 从半径 34→66vw 覆盖 32vw 宽（配 blur 后视觉更宽），中心 50vw 处 95% 白色 hot core。
      10 stops 分层：outer accent 25% / inner accent 50% / white 70% / white 95% core，
      对称向两侧渐弱到 transparent，整段过渡丝滑。
      transform 动画平移整个 div，让弧段从右扫到左。 */
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 28vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 75%) 36vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 50%) 44vw,
+    transparent 34vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 40vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 50%) 46vw,
     color-mix(in oklab, white, transparent 30%) 48vw,
     color-mix(in oklab, white, transparent 5%) 50vw,
     color-mix(in oklab, white, transparent 30%) 52vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 50%) 56vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 75%) 64vw,
-    transparent 72vw
+    color-mix(in oklab, var(--copilot-accent), transparent 50%) 54vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 60vw,
+    transparent 66vw
   );
   animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
@@ -460,17 +460,54 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 25vw,
+    transparent 30vw,
     color-mix(in oklab, var(--copilot-accent), transparent 85%) 50vw,
-    transparent 75vw
+    transparent 70vw
   );
   opacity: 0.85;
   animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) 140ms forwards;
 }
 
+/* 亮色主题：换成 multiply blend + 深色 band。
+   浅底（oklch 0.995）上 screen 几乎无效（白+白=白），multiply 让 wave 反向变成
+   "一道深色光掠过"，contrast 反而拉满。core 用 55% 黑，accent 侧翼掺 40% 黑深化。 */
+:root:not(.dark) .copilot-reveal-wave,
+:root:not(.dark) .copilot-reveal-tail {
+  mix-blend-mode: multiply;
+}
+
+:root:not(.dark) .copilot-reveal-wave {
+  background-image: radial-gradient(
+    circle at 150vw 50%,
+    transparent 0%,
+    transparent 34vw,
+    color-mix(in oklab, color-mix(in oklab, var(--copilot-accent), black 40%), transparent 70%) 40vw,
+    color-mix(in oklab, color-mix(in oklab, var(--copilot-accent), black 40%), transparent 45%) 46vw,
+    color-mix(in oklab, black, transparent 45%) 48vw,
+    color-mix(in oklab, black, transparent 20%) 50vw,
+    color-mix(in oklab, black, transparent 45%) 52vw,
+    color-mix(in oklab, color-mix(in oklab, var(--copilot-accent), black 40%), transparent 45%) 54vw,
+    color-mix(in oklab, color-mix(in oklab, var(--copilot-accent), black 40%), transparent 70%) 60vw,
+    transparent 66vw
+  );
+}
+
+:root:not(.dark) .copilot-reveal-tail {
+  background-image: radial-gradient(
+    circle at 150vw 50%,
+    transparent 0%,
+    transparent 30vw,
+    color-mix(in oklab, black, transparent 88%) 50vw,
+    transparent 70vw
+  );
+}
+
+/* 末尾 25% opacity 淡出：避免 translateX(-100vw) 时 radial center 进入 viewport
+   导致右侧冒出镜像 band 的"幽灵双弧"观感。 */
 @keyframes copilot-reveal-wave {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-100vw); }
+  0%   { transform: translateX(0); opacity: 1; }
+  75%  { transform: translateX(-75vw); opacity: 1; }
+  100% { transform: translateX(-100vw); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
