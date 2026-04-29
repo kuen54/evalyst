@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { CopilotContextRef, PageContext } from "@/lib/copilot/types"
-import { applyRevealCascade } from "./material-reveal-overlay"
+import { applyRevealCascade, clearRevealCascade } from "./material-reveal-overlay"
 
 // ---------- 全局面板状态 ----------
 // 持久化：localStorage 存 open/width/activeSessionId。
@@ -108,6 +108,10 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     // override（带 delay），而不是先用 shell 的 320ms 0-delay 起跑。
     if (v && !openRef.current) {
       applyRevealCascade()
+    } else if (!v && openRef.current) {
+      // Falling edge：关面板时如果 cascade 还在 DOM 上（上次打开动效没跑完），
+      // 先清掉它让 close 走简单 320ms inline fade，否则 close 会触发反向 staggered 过渡。
+      clearRevealCascade()
     }
     setOpenState(prev => {
       if (v && !prev) setLastOpenedAt(performance.now())
@@ -118,9 +122,11 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const toggleOpen = useCallback(() => {
-    // Rising edge：见 setOpen 注释
+    // Rising/falling edge：见 setOpen 注释
     if (!openRef.current) {
       applyRevealCascade()
+    } else {
+      clearRevealCascade()
     }
     setOpenState(prev => {
       const next = !prev

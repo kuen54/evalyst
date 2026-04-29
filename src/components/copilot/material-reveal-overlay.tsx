@@ -7,12 +7,12 @@ import { useCopilotStore } from "./store"
  * 计算某卡片受 wave 驱动的 glass transition 启动延迟（ms）。
  *
  * 波纹从 x=100vw 起，1250ms 线性扫到 x=0vw（覆盖 100vw 距离）。
- * 卡片 glass 过渡在"wave 已经扫过"后才启动：统一加 700ms offset，
- * 让 wave 先行抢镜、UI 在波纹完全过境之后才翻面。
+ * 卡片 glass 过渡在"wave 已经扫过"后才启动：统一加 300ms offset，
+ * 让 wave 先行 300ms、UI 在波纹紧邻的尾波里跟随翻面。
  *
- * 最右卡 delay 700ms（wave peak 已到 44vw）；中线卡 1325ms（wave 出屏 75ms）；
- * 最左卡 1950ms（wave 出屏 700ms）。
- * 返回：夹在 [0, 1950] 区间。
+ * 最右卡 delay 300ms（wave peak 在 76vw，约 24vw 左侧）；中线卡 925ms（wave peak 26vw）；
+ * 最左卡 1550ms（wave 刚出屏 300ms）。
+ * 返回：夹在 [0, 1550] 区间。
  *
  * @param centerXvw 卡片水平中心位置（vw 单位，0=左边缘，100=右边缘）
  */
@@ -20,9 +20,9 @@ export function computeRevealDelay(centerXvw: number): number {
   const fromVw = 100
   const totalVwTraveled = 100 // 100 → 0
   const durationMs = 1250
-  const waitForWaveOffsetMs = 700
+  const waitForWaveOffsetMs = 300
   const raw = waitForWaveOffsetMs + ((fromVw - centerXvw) / totalVwTraveled) * durationMs
-  return Math.max(0, Math.min(1950, raw))
+  return Math.max(0, Math.min(1550, raw))
 }
 
 /**
@@ -92,7 +92,7 @@ export function MaterialRevealOverlay() {
 
     setActive(true)
 
-    const cleanupDelay = prefersReduce ? 220 : 2350
+    const cleanupDelay = prefersReduce ? 220 : 1950
 
     const cleanup = () => {
       clearRevealCascade()
@@ -101,9 +101,14 @@ export function MaterialRevealOverlay() {
 
     const timer = setTimeout(cleanup, cleanupDelay)
 
+    /**
+     * effect cleanup 只清 timer——不调 cleanup()，否则 React 在下一次 reveal 触发
+     * re-run 时会先跑旧 cleanup 擦掉 store.setOpen 刚写的 --reveal-delay，导致
+     * shell 提交新 inline style 时 cascade override 已经失效。
+     * 真正的 DOM 清理由 setTimeout 回调 或 store.setOpen(false) 主动调用 clearRevealCascade 负责。
+     */
     return () => {
       clearTimeout(timer)
-      cleanup()
     }
   }, [lastOpenedAt])
 
