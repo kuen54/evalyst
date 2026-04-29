@@ -406,3 +406,151 @@
   -webkit-mask-image: linear-gradient(to top, black calc(100% - 16px), transparent 100%);
 }
 
+/* ---------------- Copilot Material Reveal ---------------- */
+
+/* !important 必须：shell.tsx useGlassStyle 把 transition 作为 inline style（author 级），
+   外部规则没有 !important 则落败。`!important` 挂在 shorthand 末尾覆盖整个 transition 声明。 */
+html[data-copilot-revealing="true"] [data-glass-variant] {
+  transition:
+    background-color 280ms ease-out var(--reveal-delay, 0ms),
+    backdrop-filter  280ms ease-out var(--reveal-delay, 0ms),
+    border-color     280ms ease-out var(--reveal-delay, 0ms),
+    box-shadow       280ms ease-out var(--reveal-delay, 0ms),
+    background-image 280ms ease-out var(--reveal-delay, 0ms)
+    !important;
+}
+
+.copilot-reveal-wave,
+.copilot-reveal-tail {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  /* screen 比 overlay 在浅底上扫光更可见；screen 永远变亮（不变暗）*/
+  mix-blend-mode: screen;
+  /* 大 blur 把 gradient 真正糊成光晕，避免"色块边缘"观感 */
+  filter: blur(16px);
+  will-change: transform, filter;
+  contain: layout style paint;
+}
+
+.copilot-reveal-wave {
+  /* 暗色主题默认：白色 hot core + screen blend 扫光
+     band peak 在半径 40vw 处（较 50vw 更弯，sagitta ~154px = 21% 曲率），
+     band 从半径 30→50vw 覆盖 20vw 宽（-38% vs 32vw），更紧致的光束。
+     10 stops 分层：outer accent 25% / inner accent 50% / white 70% / white 95% core，
+     对称向两侧渐弱到 transparent，整段过渡丝滑。
+     transform 动画平移整个 div，让弧段从右扫到左。 */
+  background-image: radial-gradient(
+    circle at 150vw 50%,
+    transparent 0%,
+    transparent 30vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 34vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 50%) 38vw,
+    color-mix(in oklab, white, transparent 30%) 39vw,
+    color-mix(in oklab, white, transparent 5%) 40vw,
+    color-mix(in oklab, white, transparent 30%) 41vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 50%) 42vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 46vw,
+    transparent 50vw
+  );
+  /* 双 animation：transform 单段 bezier 平滑移动，opacity 单独 linear 淡出。
+     之前单 keyframe 三段（0%/75%/100%）会在 75% 边界出现 bezier 速度不连续——
+     每段独立应用 bezier，段尾速度≈0 接段头速度≈0 读作"顿一下"。拆开后 transform
+     全程单调速度，opacity 只在末端淡出，二者互不干扰。 */
+  animation:
+    copilot-reveal-wave-translate 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards,
+    copilot-reveal-wave-fade 1250ms linear forwards;
+}
+
+.copilot-reveal-tail {
+  background-image: radial-gradient(
+    circle at 150vw 50%,
+    transparent 0%,
+    transparent 26vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 85%) 40vw,
+    transparent 54vw
+  );
+  animation:
+    copilot-reveal-wave-translate 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) 140ms both,
+    copilot-reveal-tail-fade 1250ms linear 140ms both;
+}
+
+/* 亮色主题：换成 multiply blend + 把暗色模式里的「白/蓝」位置对调。
+   暗色是 accent 侧翼 + 白 hot core；亮色是 白侧翼 + accent hot core。
+   浅底上 multiply 让 accent core 变成实蓝线扫过，contrast 拉满；白侧翼在白底上天然隐身（白*白=白）。 */
+:root:not(.dark) .copilot-reveal-wave,
+:root:not(.dark) .copilot-reveal-tail {
+  mix-blend-mode: multiply;
+}
+
+:root:not(.dark) .copilot-reveal-wave {
+  /* 全程用 accent-soft（L=0.88 浅天蓝），只在 core 用 accent (L=0.7) 但压低到 35% alpha
+     让 multiply 后 L≈0.89（更浅）。halos 用极淡 accent-soft alpha 营造"白色halo带蓝调"视觉。 */
+  background-image: radial-gradient(
+    circle at 150vw 50%,
+    transparent 0%,
+    transparent 30vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 80%) 34vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 38vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 35%) 39vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 65%) 40vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 35%) 41vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 42vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 80%) 46vw,
+    transparent 50vw
+  );
+}
+
+:root:not(.dark) .copilot-reveal-tail {
+  background-image: radial-gradient(
+    circle at 150vw 50%,
+    transparent 0%,
+    transparent 26vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 75%) 40vw,
+    transparent 54vw
+  );
+}
+
+@keyframes copilot-reveal-wave-translate {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100vw); }
+}
+
+/* opacity 在 50% 之后才开始淡出，到 100% 完全透明。
+   R 缩小到 40vw 后末尾 10% 行程会出现轻微双弧（right arc 进 viewport），
+   提前 fade 到 50% 启动让末段 opacity 更低时双弧才出现。 */
+@keyframes copilot-reveal-wave-fade {
+  0%, 50% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+@keyframes copilot-reveal-tail-fade {
+  0%, 50% { opacity: 0.85; }
+  100%    { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-reveal-wave,
+  .copilot-reveal-tail {
+    animation: none;
+    display: none;
+  }
+  html[data-copilot-revealing="true"] [data-glass-variant] {
+    transition:
+      background-color 200ms ease,
+      backdrop-filter  200ms ease,
+      border-color     200ms ease,
+      box-shadow       200ms ease,
+      background-image 200ms ease
+      !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .copilot-reveal-wave,
+  .copilot-reveal-tail {
+    display: none;
+  }
+}
+

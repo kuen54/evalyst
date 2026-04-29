@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { CopilotContextRef, PageContext } from "@/lib/copilot/types"
+import { applyRevealCascade, clearRevealCascade } from "./material-reveal-overlay"
 
 // ---------- 全局面板状态 ----------
 // 持久化：localStorage 存 open/width/activeSessionId。
@@ -29,6 +30,8 @@ interface CopilotStore {
   activeSessionId?: string
   setActiveSessionId: (id?: string) => void
   mounted: boolean
+  /** rising-edge 时间戳，供 MaterialRevealOverlay 订阅。0 = 从未开过或刚 mount。 */
+  lastOpenedAt: number
 
   // ---- PR-2：context 共享（默认常开，面板开就生效） ----
   inspectorActive: boolean
@@ -69,6 +72,10 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   const [pageContext, setPageContextState] = useState<PageContext | null>(null)
   const [typingSignal, setTypingSignalState] = useState(0)
   const [routeChangeBanner, setRouteChangeBannerState] = useState<{ visible: boolean; count: number } | null>(null)
+  const [lastOpenedAt, setLastOpenedAt] = useState(0)
+  /** 同步追踪当前 open 值。rising edge 检测需要 sync 读，state 是异步的 */
+  const openRef = useRef(false)
+  useEffect(() => { openRef.current = open }, [open])
 
   // 初始化读 localStorage（SSR safe）
   useEffect(() => {
@@ -95,14 +102,35 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const setOpen = useCallback((v: boolean) => {
-    setOpenState(v)
+    // Rising edge：在 setOpenState 触发 React re-render（会把 shell.tsx 的 glass
+    // 新 inline style 提交到 DOM）之前，先同步把 --reveal-delay 和
+    // data-copilot-revealing 写进 DOM，这样 glass transition 启动时就能看到 cascade
+    // override（带 delay），而不是先用 shell 的 320ms 0-delay 起跑。
+    if (v && !openRef.current) {
+      applyRevealCascade()
+    } else if (!v && openRef.current) {
+      // Falling edge：关面板时如果 cascade 还在 DOM 上（上次打开动效没跑完），
+      // 先清掉它让 close 走简单 320ms inline fade，否则 close 会触发反向 staggered 过渡。
+      clearRevealCascade()
+    }
+    setOpenState(prev => {
+      if (v && !prev) setLastOpenedAt(performance.now())
+      return v
+    })
     try { localStorage.setItem(LS_OPEN, v ? "1" : "0") } catch {}
     if (!v) setInspectorActive(false) // 关面板连带退 inspector，不然 hover 高亮框留在屏上
   }, [])
 
   const toggleOpen = useCallback(() => {
+    // Rising/falling edge：见 setOpen 注释
+    if (!openRef.current) {
+      applyRevealCascade()
+    } else {
+      clearRevealCascade()
+    }
     setOpenState(prev => {
       const next = !prev
+      if (next && !prev) setLastOpenedAt(performance.now())
       try { localStorage.setItem(LS_OPEN, next ? "1" : "0") } catch {}
       if (!next) setInspectorActive(false)
       return next
@@ -223,6 +251,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     activeSessionId,
     setActiveSessionId,
     mounted,
+    lastOpenedAt,
     inspectorActive,
     setInspectorActive,
     contexts,
@@ -245,6 +274,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     width, setWidth,
     activeSessionId, setActiveSessionId,
     mounted,
+    lastOpenedAt,
     inspectorActive,
     contexts, addContext, removeContext, clearContexts,
     busy,
@@ -269,6 +299,7 @@ const NOOP_STORE: CopilotStore = {
   activeSessionId: undefined,
   setActiveSessionId: () => {},
   mounted: false,
+  lastOpenedAt: 0,
   inspectorActive: false,
   setInspectorActive: () => {},
   contexts: [],

@@ -8,6 +8,27 @@
 
 ## [Unreleased]
 
+### Copilot Material Reveal（一次性唤起动效，替代已 DROP 的 edge glow）
+
+- **触发**：copilot 面板 `open: false → true` rising-edge。⌘K / toggle 按钮均触发。关闭不播；刷新恢复 open=true 不播（首次 mount 屏蔽）
+- **视觉**：从屏幕右边缘扫向左一道 sky-blue（`--copilot-accent`）高光带 + 80ms 延后尾浪；整体 700ms 出屏，`background-position-x 100vw → -30vw`，`mix-blend-mode: overlay`
+- **Cascade**：遍历 `[data-glass-variant]` 按 `getBoundingClientRect().left` 算 `--reveal-delay` 并写 inline CSS var（0-600ms 钳位）；`html[data-copilot-revealing="true"]` override 用 `!important` 覆盖 `shell.tsx` 的 inline transition，各 card 按位置错峰从扁平翻玻璃
+- **清理**：850ms 后 fresh `querySelectorAll` 清所有 `--reveal-delay` + 清 `data-copilot-revealing` flag + unmount overlay divs
+- **A11y**：`prefers-reduced-motion: reduce` 关 overlay、cascade 均匀 200ms；`prefers-reduced-transparency: reduce` 关 overlay（玻璃自身走既有降级）
+
+**架构落地**：
+- `src/components/copilot/material-reveal-overlay.tsx` 新增：`computeRevealDelay` 纯函数 + `MaterialRevealOverlay` React 组件
+- `src/components/copilot/store.tsx` 扩展：新字段 `lastOpenedAt: number` rising-edge 时间戳
+- `src/app/globals.css` 追加：`@keyframes copilot-reveal-wave` + `.copilot-reveal-wave / .copilot-reveal-tail` + `html[data-copilot-revealing] [data-glass-variant]` 高优先级 transition override + 两条 a11y 降级段
+- `src/app/layout.tsx` 挂 `<MaterialRevealOverlay />` 于 `CopilotStoreProvider` 子树内，与 `<GlowOverlay />` 同级
+
+**测试**：
+- vitest：204 → 209（新增 computeRevealDelay 5 case，覆盖右边缘 / 中线 / 左边缘 / 负坐标钳位 / 超屏钳位）
+- e2e smoke：9 case（未增）
+
+- Spec: `docs/superpowers/specs/2026-04-29-copilot-material-reveal-design.md`
+- Plan: `docs/superpowers/plans/2026-04-29-copilot-material-reveal.md`
+
 ### Page Context + Viewport Tool（PR-4；P2 Ambient Border Glow DEFERRED）
 
 - **自动 page context**：开 copilot 即向 LLM 注入当前页面摘要（15 种 `route_type` × 每页自定义 summary 字段，e.g. experiment_detail 含 id / name / status / progress / cost_by_currency / rubric_id）。不走 chip rail，仅在系统消息顶部渲染，"预览 LLM 将看到的 context"面板里对用户可见
