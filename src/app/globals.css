@@ -426,22 +426,26 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  mix-blend-mode: overlay;
-  will-change: transform;
+  /* screen 比 overlay 在浅底上扫光更可见；screen 永远变亮（不变暗）*/
+  mix-blend-mode: screen;
+  /* 轻微 blur 让 wave 像光晕而非平铺色块 */
+  filter: blur(3px);
+  will-change: transform, filter;
   contain: layout style paint;
 }
 
 .copilot-reveal-wave {
   /* radial-gradient 中心在屏外右侧（150vw 相对 div），band 在半径 ~50vw 处。
      半径与 viewport 高度比 1:0.58，sagitta ~115px = 16% 曲率，清晰可见。
-     transform 动画平移整个 div，让弧段从右扫到左。 */
+     transform 动画平移整个 div，让弧段从右扫到左。
+     alpha 调高到 accent 45% / white 85%，配合 screen blend 做出强烈光扫感。 */
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
     transparent 40vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 75%) 46vw,
-    color-mix(in oklab, white, transparent 40%) 50vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 75%) 54vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 55%) 46vw,
+    color-mix(in oklab, white, transparent 15%) 50vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 55%) 54vw,
     transparent 60vw
   );
   animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
@@ -452,7 +456,7 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     circle at 150vw 50%,
     transparent 0%,
     transparent 35vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 92%) 50vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 80%) 50vw,
     transparent 65vw
   );
   opacity: 0.7;
