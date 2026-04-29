@@ -135,7 +135,11 @@ void main() {
 ### 6.2 Fragment
 
 ```glsl
+#ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
+#else
+precision mediump float;
+#endif
 
 uniform vec2  u_resolution;
 uniform float u_time;
@@ -205,15 +209,19 @@ void main() {
   col = mix(col, vec3(1.0), u_flash);
 
   float alpha = band * n * u_intensity;
-  gl_FragColor = vec4(col, alpha);
+  gl_FragColor = vec4(col * alpha, alpha); // premultiplied alpha
 }
 ```
 
 ### 6.3 Precision compatibility
 
-`precision highp float` 在桌面 GPU 全支持。老移动端 GPU 有可能降到 mediump，肉眼基本无差；不额外处理。
+`precision highp float` 在桌面 GPU 全支持。老移动端 GPU 可能只支持 mediump，用 `#ifdef GL_FRAGMENT_PRECISION_HIGH` guard 自动回退；mediump 下 Ashima noise 的长浮点常量可能出现轻微 banding，可接受。
 
-### 6.4 Corner radius
+### 6.4 Blend mode
+
+Shader 输出 **premultiplied alpha**（`vec4(col * alpha, alpha)`）。Task 6 GL init 必须用 `gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)` 匹配，避免半透明边缘出现黑色 halo。
+
+### 6.5 Corner radius
 
 固定 `u_corner_px = 16`，对齐 shadcn `--radius-lg`。不随状态变化。
 
