@@ -11,6 +11,7 @@ import { CopilotPanel } from "@/components/copilot/panel"
 import { InspectorOverlay } from "@/components/copilot/inspector-overlay"
 import { ContextMask } from "@/components/copilot/context-mask"
 import { GlowOverlay } from "@/components/copilot/glow-overlay"
+import { EdgeGlow } from "@/components/copilot/edge-glow"
 import { TextSelector } from "@/components/copilot/text-selector"
 import { TextSelectionMask } from "@/components/copilot/text-selection-mask"
 
@@ -48,6 +49,7 @@ export default function RootLayout({
                 <Sidebar />
                 <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
                   <GlowOverlay />
+                  <EdgeGlow />
                   <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
                 </main>
                 <CopilotPanel />
