@@ -291,7 +291,7 @@ export function EdgeGlow() {
     <canvas
       ref={canvasRef}
       aria-hidden
-      className="pointer-events-none absolute inset-0"
+      className="pointer-events-none absolute inset-0 h-full w-full"
       style={{ zIndex: 999 }}
     />
   )
