@@ -1,13 +1,17 @@
 /**
  * GLSL source for the edge-glow fragment shader.
  *
+ * V2 (2026-04-29): neon chroma palette (indigo/cyan/magenta/amber) + noise-
+ * driven SDF displacement so band edges wobble inward like flames licking the
+ * content area (instead of v1's alpha-only pastel shimmer).
+ *
  * Fragment responsibility:
- *   1. Compute SDF to a rounded rect inset by u_thickness_px from canvas edge.
- *   2. Create a 1-pixel-wide smoothstep "band" centered on the SDF zero.
- *   3. Modulate the band with Ashima simplex 2D noise scrolling by u_time.
- *   4. Mix violet / cyan / pink palette by u_color_phase + noise offset.
- *   5. White-mix-in by u_flash for the burst pop.
- *   6. Output premultiplied-alpha color; transparent pixels let background
+ *   1. Compute SDF to a square rect inset by u_thickness_px from canvas edge.
+ *   2. Perturb SDF by multi-scale simplex noise * u_amplitude (inward wave).
+ *   3. smoothstep band profile from perturbed SDF — crisp outer, soft inner.
+ *   4. 4-color neon palette mixed by u_color_phase + small noise phase jitter.
+ *   5. u_flash white-mixin for the burst pop.
+ *   6. Premultiplied-alpha output; transparent pixels let background
  *      .copilot-glow show through, colored edge pixels stack above.
  *
  * Targets WebGL 1.0 `#version 100` syntax for maximum compatibility; the
@@ -37,6 +41,7 @@ uniform float u_noise_speed;
 uniform float u_color_phase;
 uniform float u_flash;
 uniform float u_corner_px;
+uniform float u_amplitude;
 
 // ----- Inigo Quilez rounded box SDF -----
 float sdRoundedBox(vec2 p, vec2 b, float r) {
@@ -72,31 +77,44 @@ float snoise(vec2 v) {
   return 130.0 * dot(m, g);
 }
 
+// ----- Neon chroma palette -----
+// 4 stops, equal-phase segments: indigo -> cyan -> magenta -> amber -> indigo.
+vec3 palette(float phase) {
+  vec3 indigo  = vec3(0.29, 0.00, 0.88);
+  vec3 cyan    = vec3(0.00, 1.00, 1.00);
+  vec3 magenta = vec3(1.00, 0.00, 0.498);
+  vec3 amber   = vec3(1.00, 0.478, 0.00);
+  float p = mod(phase, 1.0);
+  if (p < 0.25) return mix(indigo,  cyan,    p * 4.0);
+  if (p < 0.5)  return mix(cyan,    magenta, (p - 0.25) * 4.0);
+  if (p < 0.75) return mix(magenta, amber,   (p - 0.5) * 4.0);
+                return mix(amber,   indigo,  (p - 0.75) * 4.0);
+}
+
 void main() {
   vec2 uv = gl_FragCoord.xy;
   vec2 center = u_resolution * 0.5;
-  vec2 half_ = u_resolution * 0.5 - u_thickness_px;
+  // V2.1: NO inset — SDF zero-line aligns to canvas physical edge.
+  vec2 half_ = u_resolution * 0.5;
   float sdf = sdRoundedBox(uv - center, half_, u_corner_px);
+  // sdf = 0 exactly on canvas edge; negative inward; outside = clipped.
 
-  // Band: only pixels within thickness range of the edge get alpha.
-  float band_outer = smoothstep(u_thickness_px * 2.0, 0.0, sdf);
-  float band_inner = smoothstep(-u_thickness_px * 3.0, 0.0, sdf);
-  float band = band_outer * band_inner;
+  // Multi-scale noise for organic turbulence.
+  float n_lo = snoise(uv * 0.0025 + vec2(u_time * u_noise_speed * 0.4, 0.0));
+  float n_hi = snoise(uv * 0.008  + vec2(0.0, u_time * u_noise_speed * 0.6));
+  float n = n_lo * 0.7 + n_hi * 0.3; // [-1, 1]
 
-  // Noise modulation for organic fluid motion.
-  float n = snoise(uv * 0.003 + vec2(u_time * u_noise_speed * 0.5, 0.0));
-  n = 0.5 + 0.5 * n;
+  // Inner cutoff wobbles inward — flames licking toward center.
+  // At edge (sdf=0), band = 1 ALWAYS (glow anchored to physical edge).
+  float inner_cutoff = -u_thickness_px + n * u_amplitude;
+  float band = smoothstep(inner_cutoff, 0.0, sdf);
 
-  // Palette: violet / cyan / pink.
-  vec3 violet = vec3(0.62, 0.42, 0.95);
-  vec3 cyan   = vec3(0.45, 0.85, 0.98);
-  vec3 pink   = vec3(0.97, 0.65, 0.88);
-  float phase = mod(u_color_phase + n * 0.3, 1.0);
-  vec3 col = mix(violet, cyan, smoothstep(0.0, 0.5, phase));
-  col = mix(col, pink, smoothstep(0.5, 1.0, phase));
-  col = mix(col, vec3(1.0), u_flash);
+  // Palette with small noise-driven phase jitter.
+  vec3 col = palette(u_color_phase + n * 0.15);
+  col = mix(col, vec3(1.0), u_flash); // flash: white pop
 
-  float alpha = band * n * u_intensity;
+  // Alpha: band * intensity only (V1 multiplied by noise → edge flicker).
+  float alpha = band * u_intensity;
   gl_FragColor = vec4(col * alpha, alpha); // premultiplied alpha
 }
 `
