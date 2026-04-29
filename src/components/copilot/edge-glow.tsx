@@ -117,6 +117,8 @@ export function EdgeGlow() {
   const [reducedMotion, setReducedMotion] = useState<boolean>(false)
   const [webglFailed, setWebglFailed] = useState<boolean>(false)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  // Held on ref so cleanup + Task 8's RAF handler can read the current ctx
+  // without re-subscribing the init effect on every frame.
   const glCtxRef = useRef<GlContext | null>(null)
 
   useEffect(() => {
