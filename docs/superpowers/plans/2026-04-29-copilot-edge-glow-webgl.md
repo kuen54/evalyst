@@ -1518,42 +1518,42 @@ Edit `src/components/copilot/__tests__/edge-glow-state.test.ts`. Replace the exi
 
 ```ts
 describe("computeTarget", () => {
-  it("IDLE: V2 values (intensity 0.35, thickness 14, amplitude 2)", () => {
+  it("IDLE: V2.1 values (intensity 0.40, thickness 30, amplitude 4)", () => {
     const t = computeTarget(baseSignals())
-    expect(t.intensity).toBe(0.35)
-    expect(t.thicknessPx).toBe(14)
+    expect(t.intensity).toBe(0.40)
+    expect(t.thicknessPx).toBe(30)
     expect(t.noiseSpeed).toBe(0.15)
-    expect(t.amplitude).toBe(2)
-  })
-
-  it("TYPING overrides IDLE (intensity 0.50, thickness 18, amplitude 4)", () => {
-    const t = computeTarget(baseSignals({ typing: true }))
-    expect(t.intensity).toBe(0.50)
-    expect(t.thicknessPx).toBe(18)
     expect(t.amplitude).toBe(4)
   })
 
-  it("INSPECTING overrides TYPING (intensity 0.65, thickness 22, amplitude 6, colorPhase 0.25)", () => {
-    const t = computeTarget(baseSignals({ typing: true, inspecting: true }))
-    expect(t.intensity).toBe(0.65)
-    expect(t.thicknessPx).toBe(22)
+  it("TYPING overrides IDLE (intensity 0.55, thickness 40, amplitude 6)", () => {
+    const t = computeTarget(baseSignals({ typing: true }))
+    expect(t.intensity).toBe(0.55)
+    expect(t.thicknessPx).toBe(40)
     expect(t.amplitude).toBe(6)
+  })
+
+  it("INSPECTING overrides TYPING (intensity 0.70, thickness 50, amplitude 10, colorPhase 0.25)", () => {
+    const t = computeTarget(baseSignals({ typing: true, inspecting: true }))
+    expect(t.intensity).toBe(0.70)
+    expect(t.thicknessPx).toBe(50)
+    expect(t.amplitude).toBe(10)
     expect(t.colorPhase).toBe(0.25)
   })
 
-  it("PROCESSING (busy) overrides INSPECTING (intensity 0.95, thickness 32, amplitude 14, noiseSpeed 1.4)", () => {
+  it("PROCESSING (busy) overrides INSPECTING (intensity 0.95, thickness 70, amplitude 20, noiseSpeed 1.4)", () => {
     const t = computeTarget(baseSignals({ busy: true, inspecting: true }))
     expect(t.intensity).toBe(0.95)
-    expect(t.thicknessPx).toBe(32)
+    expect(t.thicknessPx).toBe(70)
     expect(t.noiseSpeed).toBe(1.40)
-    expect(t.amplitude).toBe(14)
+    expect(t.amplitude).toBe(20)
   })
 
   it("FLASH overrides everything (uses PROCESSING-level targets)", () => {
     const t = computeTarget(baseSignals({ flashActive: true }))
     expect(t.intensity).toBe(0.95)
-    expect(t.thicknessPx).toBe(32)
-    expect(t.amplitude).toBe(14)
+    expect(t.thicknessPx).toBe(70)
+    expect(t.amplitude).toBe(20)
   })
 
   it("IDLE colorPhase oscillates with nowMs", () => {
@@ -1607,38 +1607,38 @@ Replace the four target builders:
 ```ts
 function idleTargets(nowMs: number): GlowTargets {
   return {
-    intensity: 0.35,
-    thicknessPx: 14,
+    intensity: 0.40,
+    thicknessPx: 30,
     noiseSpeed: 0.15,
-    amplitude: 2,
+    amplitude: 4,
     colorPhase: 0.5 + 0.3 * Math.sin((nowMs / 1000) * 0.25),
   }
 }
 
 function typingTargets(nowMs: number): GlowTargets {
   return {
-    intensity: 0.50,
-    thicknessPx: 18,
+    intensity: 0.55,
+    thicknessPx: 40,
     noiseSpeed: 0.30,
-    amplitude: 4,
+    amplitude: 6,
     colorPhase: 0.5 + 0.3 * Math.sin((nowMs / 1000) * 0.25 * 1.8),
   }
 }
 
 const INSPECTING_TARGETS: GlowTargets = {
-  intensity: 0.65,
-  thicknessPx: 22,
+  intensity: 0.70,
+  thicknessPx: 50,
   noiseSpeed: 0.45,
-  amplitude: 6,
+  amplitude: 10,
   colorPhase: 0.25, // pure cyan — sky-blue
 }
 
 function processingTargets(nowMs: number): GlowTargets {
   return {
     intensity: 0.95,
-    thicknessPx: 32,
+    thicknessPx: 70,
     noiseSpeed: 1.40,
-    amplitude: 14,
+    amplitude: 20,
     colorPhase: ((nowMs / 1000) * 0.8) % 1.0,
   }
 }
@@ -1656,14 +1656,13 @@ Expected: 16 tests pass (7 updated computeTarget + 4 springStep + 5 computeFlash
 ```bash
 git add src/components/copilot/edge-glow-state.ts src/components/copilot/__tests__/edge-glow-state.test.ts
 git commit -m "$(cat <<'EOF'
-feat(copilot): edge-glow V2 targets — amplitude + bump intensities
+feat(copilot): edge-glow V2.1 targets — bigger thickness + amplitude
 
-Adds u_amplitude field to GlowTargets (noise-driven SDF displacement
-magnitude). Per-state values per spec §5.2 table V2:
-  IDLE 2 / TYPING 4 / INSPECTING 6 / PROCESSING 14 / FLASH 14.
-Intensity and thickness bumped across all states so the effect is
-actually visible (v1 values were too conservative). INSPECTING
-colorPhase shifted 0.30 → 0.25 (pure cyan) for neon palette alignment.
+u_thickness_px semantic changed from "band-peak inset" to "inward reach
+distance" per spec §5.2 + §6.2 V2.1 update. Values bumped accordingly:
+  IDLE 30 / TYPING 40 / INSPECTING 50 / PROCESSING 70 / FLASH 70.
+Amplitudes: 4 / 6 / 10 / 20 / 20. Intensity across all states bumped
+to give the new wider band visible luminosity.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -1763,7 +1762,7 @@ float snoise(vec2 v) {
   return 130.0 * dot(m, g);
 }
 
-// ----- Neon chroma palette (V2) -----
+// ----- Neon chroma palette -----
 // 4 stops, equal-phase segments: indigo -> cyan -> magenta -> amber -> indigo.
 vec3 palette(float phase) {
   vec3 indigo  = vec3(0.29, 0.00, 0.88);
@@ -1780,25 +1779,26 @@ vec3 palette(float phase) {
 void main() {
   vec2 uv = gl_FragCoord.xy;
   vec2 center = u_resolution * 0.5;
-  vec2 half_ = u_resolution * 0.5 - u_thickness_px;
+  // V2.1: NO inset — SDF zero-line aligns to canvas physical edge.
+  vec2 half_ = u_resolution * 0.5;
   float sdf = sdRoundedBox(uv - center, half_, u_corner_px);
+  // sdf = 0 exactly on canvas edge; negative inward; outside = clipped.
 
-  // V2: multi-scale noise drives SDF displacement — band wobbles inward.
+  // Multi-scale noise for organic turbulence.
   float n_lo = snoise(uv * 0.0025 + vec2(u_time * u_noise_speed * 0.4, 0.0));
   float n_hi = snoise(uv * 0.008  + vec2(0.0, u_time * u_noise_speed * 0.6));
   float n = n_lo * 0.7 + n_hi * 0.3; // [-1, 1]
-  float distorted_d = sdf + n * u_amplitude;
 
-  // Band profile follows perturbed SDF.
-  float band_outer = smoothstep(u_thickness_px * 2.0, 0.0, distorted_d);
-  float band_inner = smoothstep(-u_thickness_px * 3.0, 0.0, distorted_d);
-  float band = band_outer * band_inner;
+  // Inner cutoff wobbles inward — flames licking toward center.
+  // At edge (sdf=0), band = 1 ALWAYS (glow anchored to physical edge).
+  float inner_cutoff = -u_thickness_px + n * u_amplitude;
+  float band = smoothstep(inner_cutoff, 0.0, sdf);
 
-  // Palette with small noise-driven phase jitter for organic color flow.
+  // Palette with small noise-driven phase jitter.
   vec3 col = palette(u_color_phase + n * 0.15);
   col = mix(col, vec3(1.0), u_flash); // flash: white pop
 
-  // Alpha from band * intensity only (V1 multiplied by noise → flickery).
+  // Alpha: band * intensity only (V1 multiplied by noise → edge flicker).
   float alpha = band * u_intensity;
   gl_FragColor = vec4(col * alpha, alpha); // premultiplied alpha
 }
@@ -1815,14 +1815,19 @@ Expected: clean.
 ```bash
 git add src/components/copilot/edge-glow-shader.ts
 git commit -m "$(cat <<'EOF'
-feat(copilot): edge-glow V2 shader — neon palette + SDF displacement
+feat(copilot): edge-glow V2.1 shader — anchor band to physical edge
 
-Replaces v1's pastel (violet/cyan/pink) palette with neon chroma
-(indigo/cyan/magenta/amber) per Apple Intelligence color reference.
-Adds u_amplitude uniform and noise-driven SDF displacement —
-distorted_d = sdf + n * u_amplitude — so band edges wobble inward
-like flames. Multi-scale noise (lo/hi freq) produces turbulent
-fluid feel. Alpha no longer modulated by noise (v1 flicker fix).
+Core fix: half_ = resolution/2 (no inset). SDF zero-line now aligns to
+the canvas physical edge instead of being inset by u_thickness_px.
+Result: band reaches alpha=1 exactly at the edge (v1 had ~50% alpha
+there because the peak was thickness_px inside, which together with
+noise-modulated alpha produced the "glow only visible at top" bug).
+
+Also simplified band to single smoothstep (v2's double-smoothstep
+ring is redundant once inset is gone), and dropped noise from alpha
+(now only displaces inner_cutoff for organic motion).
+
+Neon palette (indigo/cyan/magenta/amber) preserved from V2.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -1879,14 +1884,14 @@ interface GlContext {
     },
 ```
 
-**Change C**: In the init useEffect, expand the `anim` object to track `amplitude` (initial value 2 = IDLE baseline) and spring-integrate it alongside the others. Also bump the initial values of other fields to match V2 IDLE so first frame doesn't spring from v1 floor:
+**Change C**: In the init useEffect, expand the `anim` object to track `amplitude` (initial value matches V2.1 IDLE floor) and spring-integrate it alongside the others. Bump initial values of other fields to V2.1 IDLE so first frame doesn't spring from an obsolete floor:
 
 ```tsx
     const anim = {
-      intensity: { value: 0.35, velocity: 0 },
-      thicknessPx: { value: 14, velocity: 0 },
+      intensity: { value: 0.40, velocity: 0 },
+      thicknessPx: { value: 30, velocity: 0 },
       noiseSpeed: { value: 0.15, velocity: 0 },
-      amplitude: { value: 2, velocity: 0 },
+      amplitude: { value: 4, velocity: 0 },
       colorPhase: { value: 0.5, velocity: 0 },
     }
 ```
@@ -1946,7 +1951,7 @@ git commit -m "$(cat <<'EOF'
 feat(copilot): edge-glow V2 wiring — u_amplitude / z-index 999 / corner 0
 
 - Thread u_amplitude uniform through GlContext, initGl, anim, RAF.
-- Initial anim values raised to V2 IDLE floor (0.35/14/0.15/2/0.5).
+- Initial anim values raised to V2.1 IDLE floor (0.40 / 30 / 0.15 / 4 / 0.5).
 - u_corner_px 16 → 0 — outer edge matches square <main> exactly,
   no more corner gap artifacts.
 - Canvas zIndex 0 → 999 — glow now sits ABOVE UI content as a

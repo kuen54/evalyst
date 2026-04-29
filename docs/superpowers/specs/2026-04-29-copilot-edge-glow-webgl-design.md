@@ -82,15 +82,20 @@ Canvas 用 `position: absolute; inset: 0; pointer-events: none; z-index: 999`，
 
 ### 5.2 States & uniform targets
 
-| State | `u_intensity` | `u_thickness_px` | `u_noise_speed` | `u_amplitude` (V2) | `u_color_phase` 行为 | `u_flash` |
-|---|---|---|---|---|---|---|
-| IDLE | 0.35 | 14 | 0.15 | 2 | `0.5 + 0.3 * sin(t * 0.25)` 慢振荡（indigo↔cyan） | 0 |
-| TYPING (400ms window after latest bump) | 0.50 | 18 | 0.30 | 4 | 同 IDLE 振荡公式，`t` 乘 1.8 加速 | 0 |
-| INSPECTING (inspectorActive=true) | 0.65 | 22 | 0.45 | 6 | 锁常量 0.25（pure cyan，呼应 --copilot-accent sky blue） | 0 |
-| PROCESSING (busy=true) | 0.95 | 32 | 1.40 | 14 | `mod(t * 0.8, 1.0)` 快速单向流转（indigo → cyan → magenta → amber） | 0 |
-| FLASH (800ms after busy ↓) | 1.0 → 0 | 40 → 32 | 1.8 → 0.15 | 18 → 14 | 保持 PROCESSING 最后相位 | 1 → 0 (exp decay) |
+**V2.1 (2026-04-29 late)**：`u_thickness_px` 语义变更为"向内**延伸**距离"（不再是 band 中心线的 inset）。值显著上调让光效在中等尺寸 `<main>` 上清晰可见。
 
-**关于 V2 值**：intensity / thickness / amplitude 都**显著**提高（v1 pastel + 静态 band 的值完全不够看）。u_amplitude 是 V2 新增的核心信号 —— 控制 noise 对 SDF 的位移幅度，决定波浪向内冲击的"幅度"。Processing 态 amplitude 14 意味着 band 内边缘会以最多 ±14px 的幅度随 noise 起伏，配合 noiseSpeed 1.4 产生明显的"火焰舔舐中心"感。
+| State | `u_intensity` | `u_thickness_px` (inward reach) | `u_noise_speed` | `u_amplitude` | `u_color_phase` 行为 | `u_flash` |
+|---|---|---|---|---|---|---|
+| IDLE | 0.40 | 30 | 0.15 | 4 | `0.5 + 0.3 * sin(t * 0.25)` 慢振荡（indigo↔cyan） | 0 |
+| TYPING (400ms window after latest bump) | 0.55 | 40 | 0.30 | 6 | 同 IDLE 振荡公式，`t` 乘 1.8 加速 | 0 |
+| INSPECTING (inspectorActive=true) | 0.70 | 50 | 0.45 | 10 | 锁常量 0.25（pure cyan，呼应 --copilot-accent sky blue） | 0 |
+| PROCESSING (busy=true) | 0.95 | 70 | 1.40 | 20 | `mod(t * 0.8, 1.0)` 快速单向流转（indigo → cyan → magenta → amber） | 0 |
+| FLASH (800ms after busy ↓) | 1.0 → 0 | 90 → 70 | 1.8 → 0.15 | 24 → 20 | 保持 PROCESSING 最后相位 | 1 → 0 (exp decay) |
+
+**语义说明**：
+- `u_thickness_px` = 从 canvas 物理边缘向内的光晕渐隐距离（px，backing buffer 坐标；在 DPR=2 时 CSS 可感知距离 = thickness / 2）。Processing 态 70 backing px = 35 CSS px 的柔和光带，有可见存在感但不压盖内容。
+- `u_amplitude` = noise 驱动的内边界摆动幅度。Processing 态 20 backing px 意味着光晕内边界在 `-90px ~ -50px` 之间呼吸（thickness ± amplitude），产生火焰舔舐感。
+- 边缘本身（sdf=0 处）**始终** alpha=1 × intensity，无 v1 的边缘衰减问题。
 
 其中 `t` 是自组件挂载起的累计秒数（渲染循环中的 `u_time`，由 RAF 累加，pause 时冻结）。`u_color_phase` 由 state 模块每帧计算 target 后再走 spring；INSPECTING 锁常量意味着 spring 拉向 0.25，其他态 target 是时间函数。
 
@@ -138,7 +143,7 @@ void main() {
 
 ### 6.2 Fragment
 
-**V2 (2026-04-29)**：neon chroma palette + noise-driven SDF 位移（边缘向内波浪推进，取代 v1 的平面 noise 亮度调制）。
+**V2.1 (2026-04-29 late)**：根本修复 v1 / v2 的"光晕不达边缘"问题。v1/v2 的 `half_ = resolution/2 - thickness` 把 SDF 零等值面**内缩**了 `thickness` 像素，导致光晕峰值落在边缘**内侧** thickness 像素处，canvas 物理边缘反而只是衰减中段（~50% alpha）——用户看到的"glow 只在顶部出现、不覆盖完整边框"的根源。V2.1 丢弃 inset，SDF 零等值面与 canvas 物理边缘完全重合。
 
 ```glsl
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -150,12 +155,12 @@ precision mediump float;
 uniform vec2  u_resolution;
 uniform float u_time;
 uniform float u_intensity;
-uniform float u_thickness_px;
+uniform float u_thickness_px;   // V2.1: inward reach distance (px)
 uniform float u_noise_speed;
 uniform float u_color_phase;
 uniform float u_flash;
 uniform float u_corner_px;
-uniform float u_amplitude;   // V2 — SDF displacement magnitude (px)
+uniform float u_amplitude;
 
 // ----- Inigo Quilez rounded box SDF -----
 float sdRoundedBox(vec2 p, vec2 b, float r) {
@@ -191,53 +196,71 @@ float snoise(vec2 v) {
   return 130.0 * dot(m, g);
 }
 
-// ----- Neon chroma palette (V2) -----
-// 4 stops, equal-phase segments: indigo → cyan → magenta → amber → indigo
+// ----- Neon chroma palette -----
 vec3 palette(float phase) {
-  vec3 indigo  = vec3(0.29, 0.00, 0.88); // #4A00E0
-  vec3 cyan    = vec3(0.00, 1.00, 1.00); // #00FFFF
-  vec3 magenta = vec3(1.00, 0.00, 0.498); // #FF007F
-  vec3 amber   = vec3(1.00, 0.478, 0.00); // #FF7A00
+  vec3 indigo  = vec3(0.29, 0.00, 0.88);
+  vec3 cyan    = vec3(0.00, 1.00, 1.00);
+  vec3 magenta = vec3(1.00, 0.00, 0.498);
+  vec3 amber   = vec3(1.00, 0.478, 0.00);
   float p = mod(phase, 1.0);
-  if (p < 0.25) return mix(indigo, cyan,    p * 4.0);
-  if (p < 0.5)  return mix(cyan,   magenta, (p - 0.25) * 4.0);
-  if (p < 0.75) return mix(magenta, amber,  (p - 0.5) * 4.0);
-                return mix(amber,   indigo, (p - 0.75) * 4.0);
+  if (p < 0.25) return mix(indigo,  cyan,    p * 4.0);
+  if (p < 0.5)  return mix(cyan,    magenta, (p - 0.25) * 4.0);
+  if (p < 0.75) return mix(magenta, amber,   (p - 0.5) * 4.0);
+                return mix(amber,   indigo,  (p - 0.75) * 4.0);
 }
 
 void main() {
   vec2 uv = gl_FragCoord.xy;
   vec2 center = u_resolution * 0.5;
-  vec2 half_ = u_resolution * 0.5 - u_thickness_px;
+  vec2 half_ = u_resolution * 0.5;       // V2.1: NO inset — SDF 零面 = canvas 物理边缘
   float sdf = sdRoundedBox(uv - center, half_, u_corner_px);
+  // sdf = 0 exactly at canvas edge; negative (toward canvas center); positive (outside — clipped).
 
-  // V2: noise-driven SDF displacement — band edges wobble inward like flames.
-  // 多尺度 noise (低频主波 + 高频细节) 制造湍流流体感。
+  // Multi-scale noise for organic turbulence.
   float n_lo = snoise(uv * 0.0025 + vec2(u_time * u_noise_speed * 0.4, 0.0));
   float n_hi = snoise(uv * 0.008  + vec2(0.0, u_time * u_noise_speed * 0.6));
-  float n = n_lo * 0.7 + n_hi * 0.3; // [-1, 1]
-  float distorted_d = sdf + n * u_amplitude;
+  float n = n_lo * 0.7 + n_hi * 0.3;     // [-1, 1]
 
-  // Band: smoothstep shapes the glow profile inward from the edge.
-  // u_corner_px=0 时外边缘完全贴合容器矩形；"圆滑"来自 smoothstep 羽化。
-  float band_outer = smoothstep(u_thickness_px * 2.0, 0.0, distorted_d);
-  float band_inner = smoothstep(-u_thickness_px * 3.0, 0.0, distorted_d);
-  float band = band_outer * band_inner;
+  // Inner cutoff — the "inward reach" end of the glow band. Noise-modulated
+  // so the inner boundary breathes inward/outward (flames licking center).
+  float inner_cutoff = -u_thickness_px + n * u_amplitude;
+  float band = smoothstep(inner_cutoff, 0.0, sdf);
+  // At edge (sdf=0): band = 1 ALWAYS (glow anchored to physical edge).
+  // At sdf = inner_cutoff: band = 0 (glow faded out).
+  // In between: smooth falloff.
 
-  // Palette mixed with a noise-driven phase jitter for organic color flow.
+  // Palette with small noise-driven phase jitter.
   vec3 col = palette(u_color_phase + n * 0.15);
-  col = mix(col, vec3(1.0), u_flash); // flash: white pop
+  col = mix(col, vec3(1.0), u_flash);
 
-  float alpha = band * u_intensity;   // noise no longer modulates alpha (V1 bug)
+  // Alpha does NOT multiply noise (v1 flicker fix).
+  float alpha = band * u_intensity;
   gl_FragColor = vec4(col * alpha, alpha); // premultiplied alpha
 }
 ```
 
-**V2 shader 设计备注**：
-- 核心变化：`distorted_d = sdf + n * u_amplitude` 让 noise 在 **位置** 上扰动 band，而不只是改亮度。v1 的 `alpha = band * n` 只让 band 在原位闪烁（用户反馈"原地水波纹"）；v2 真正让 band 形状向内波浪冲击。
-- 多尺度 noise：主波 (freq 0.0025) + 细节 (freq 0.008) 相加，模仿流体湍流。
-- 4-color palette 用分段 mix 完成；0-0.25 indigo→cyan、0.25-0.5 cyan→magenta、0.5-0.75 magenta→amber、0.75-1.0 amber→indigo。循环连续。
-- alpha 不再乘 noise —— 避免 v1 的"忽明忽暗灰边缘"。intensity 本身 × band 已经给出合理的透明度分布。
+**V2.1 核心修复**：
+
+| 项 | v1 / v2 | V2.1 |
+|---|---|---|
+| `half_` | `resolution/2 - thickness` (inset box) | `resolution/2` (full canvas box) |
+| Band 峰值位置 | 距 canvas 边缘 thickness px 内 | **canvas 边缘本身** |
+| Band 形状 | 双 smoothstep 产品（ring） | 单 smoothstep（从边缘向内衰减） |
+| Alpha 调制 | `band × noise × intensity` | `band × intensity`（noise 只驱动位移） |
+| 边缘覆盖率 | ~50% alpha at edge | **100% alpha at edge** |
+
+配合 §5.2 中 thickness 值上调（IDLE 30 / PROCESSING 70 等），光带在 CSS 尺度上清晰可见：Processing 态光从物理边缘向内延伸 ~35 CSS px，足以被用户感知为包裹中间区域的"画框"。
+
+### 6.2.1 Canvas bounding box 注意事项
+
+Shader 假定 canvas 的 backing buffer (`u_resolution`) 精确等于其 CSS 显示尺寸 × DPR。因为 Band 紧贴 canvas 边缘，**任何 canvas bbox 与预期容器不符的偏差都会直接可见**（如 v1 的"只有顶部可见"正是此问题 + inset 叠加）。
+
+组件实现须保证：
+1. `<canvas>` 用 `absolute inset-0`（或等效定位）**完全覆盖**可见的 `<main>` 区域（sidebar 右缘到 copilot panel 左缘、viewport 上下缘）；
+2. `resizeCanvas()` 每次 ResizeObserver fire 时都读 `canvas.getBoundingClientRect()` 并按 `dpr` 更新 `canvas.width / canvas.height`；
+3. 每帧 renderFrame 中 `gl.viewport(0, 0, canvas.width, canvas.height)` 与 `gl.uniform2f(u_resolution, canvas.width, canvas.height)` 保持同步。
+
+如果 `<main>` 因为 flex 布局问题导致 bbox 偏离预期，首选解决方案是修 flex 布局，而非在 shader 中补偿。当前 layout（body flex + sidebar/main/panel 同级）已验证正确：copilot 打开时 panel shrink-0 占宽导致 main 自动 shrink。
 
 ### 6.3 Precision compatibility
 
@@ -391,6 +414,10 @@ useEffect(() => {
 | **17 (V2)** | 运动方式 | noise 驱动 SDF 位移 `distorted_d = sdf + n * u_amplitude`（原：noise 调 alpha） | v1 的 band 原地闪烁像水波纹；v2 band 本身向内波浪冲击，火焰舔舐中心 |
 | **18 (V2)** | 新增 uniform `u_amplitude` | 每态值 IDLE 2 / TYPING 4 / INSPECTING 6 / PROCESSING 14 / FLASH 18→14 | 与 intensity / thickness 解耦，独立控制"波浪幅度"语义，映射 Copilot 算力强度 |
 | **19 (V2)** | 整体 intensity/thickness 上调 | intensity 0.22→0.35 起步，thickness 3→14 起步 | v1 所有数值太保守，看不出光效；v2 显著提高以匹配 Apple Intelligence 浓烈观感 |
+| **20 (V2.1)** | SDF inset 去除 | `half_ = resolution/2`（原 `resolution/2 - thickness`） | v1/v2 的 SDF 零等值面内缩 thickness px，glow 峰值落在边缘内侧，canvas 物理边缘只剩 ~50% alpha（噪声调制后更暗）→ 用户看到"glow 只在顶部出现、未覆盖完整边框"。V2.1 让 SDF 零面与 canvas 边缘重合，边缘 band=1 始终达峰 |
+| **21 (V2.1)** | `u_thickness_px` 语义 | 从"band-peak inset"改为"inward reach"；所有态值重标（IDLE 14→30、PROCESSING 32→70） | 配合 decision 20，thickness 现在表示向内延伸距离；原数值在新语义下过小，体积感不足 |
+| **22 (V2.1)** | band 公式简化 | 单 smoothstep `smoothstep(-thickness + n*amplitude, 0, sdf)` | v2 的双 smoothstep (band_outer × band_inner) 在去除 inset 后冗余；单 smoothstep 清晰表达"边缘 1 → 内部 0" |
+| **23 (V2.1)** | alpha 去 noise | `alpha = band × intensity`（原 `band × n × intensity`） | noise 已经驱动 inner_cutoff 位移（空间维度），再调 alpha 会让边缘"忽明忽暗"；固定 alpha 让边缘稳定、波浪只体现在 depth |
 
 ## 13. Open questions
 
