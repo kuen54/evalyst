@@ -26,8 +26,50 @@ export function computeRevealDelay(centerXvw: number): number {
 }
 
 /**
+ * 同步 apply cascade：遍历 [data-glass-variant]，按 getBoundingClientRect 水平中心
+ * 写 inline CSS var --reveal-delay，再设 html[data-copilot-revealing=true]
+ * 激活高优先级 transition override。
+ *
+ * 必须在 React 提交 shell.tsx 新 inline style（closed→glass 值）之前调用，
+ * 否则浏览器会用 shell 的 inline transition 先启动 320ms 过渡，
+ * 之后再写的 --reveal-delay 不作用于 in-flight transition。
+ *
+ * 因此本函数在 store.setOpen / toggleOpen 里被同步调用，挤在 setOpenState 之前。
+ */
+export function applyRevealCascade(): void {
+  if (typeof window === "undefined") return
+  const prefersReduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  const vw = window.innerWidth
+  if (vw > 0 && !prefersReduce) {
+    document
+      .querySelectorAll<HTMLElement>("[data-glass-variant]")
+      .forEach(el => {
+        const rect = el.getBoundingClientRect()
+        const centerXvw = ((rect.left + rect.width / 2) / vw) * 100
+        el.style.setProperty("--reveal-delay", `${computeRevealDelay(centerXvw)}ms`)
+      })
+  }
+  document.documentElement.dataset.copilotRevealing = "true"
+}
+
+/**
+ * 清理 cascade 副作用：移除所有 --reveal-delay inline CSS var 和 data-copilot-revealing flag。
+ * 对没有 --reveal-delay 的元素调 removeProperty 是 no-op，幂等。
+ */
+export function clearRevealCascade(): void {
+  if (typeof document === "undefined") return
+  document
+    .querySelectorAll<HTMLElement>("[data-glass-variant]")
+    .forEach(el => el.style.removeProperty("--reveal-delay"))
+  delete document.documentElement.dataset.copilotRevealing
+}
+
+/**
  * 一次性 Material Reveal overlay：订阅 store.lastOpenedAt rising-edge，
- * 扫一道 accent 色高光带 + 让 [data-glass-variant] 按水平位置级联翻成玻璃态。
+ * 渲染扫光 overlay divs，并在结束后清理 cascade。
+ *
+ * Cascade 的 apply 已经在 store.setOpen 里同步完成（必须 pre-React-commit 才生效）；
+ * 本组件只负责渲染 `.copilot-reveal-wave` + `.copilot-reveal-tail` 和调度清理。
  *
  * 刷新页面恢复 open=true 时不触发（首次 mount 被 firstMountRef 屏蔽）。
  * 关闭 copilot 时无动作（关闭不改 lastOpenedAt）。
@@ -38,7 +80,6 @@ export function MaterialRevealOverlay() {
   const firstMountRef = useRef(true)
 
   useLayoutEffect(() => {
-    // 首次 mount（含刷新恢复 open=true 的情况）不触发
     if (firstMountRef.current) {
       firstMountRef.current = false
       return
@@ -49,38 +90,17 @@ export function MaterialRevealOverlay() {
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
-    // 计算每个 [data-glass-variant] 的 --reveal-delay 并写成 inline CSS var
-    const vw = typeof window !== "undefined" ? window.innerWidth : 0
-    if (vw > 0 && !prefersReduce) {
-      document
-        .querySelectorAll<HTMLElement>("[data-glass-variant]")
-        .forEach(el => {
-          const rect = el.getBoundingClientRect()
-          const centerXvw = ((rect.left + rect.width / 2) / vw) * 100
-          el.style.setProperty("--reveal-delay", `${computeRevealDelay(centerXvw)}ms`)
-        })
-    }
-
-    document.documentElement.dataset.copilotRevealing = "true"
     setActive(true)
 
     const cleanupDelay = prefersReduce ? 220 : 2350
 
-    /**
-     * 清理：重新 querySelectorAll（不用前面捕获的集合），因为 2350ms 内 DOM 可能变化。
-     * 对没有 --reveal-delay 的元素调 removeProperty 是 no-op。
-     */
     const cleanup = () => {
-      document
-        .querySelectorAll<HTMLElement>("[data-glass-variant]")
-        .forEach(el => el.style.removeProperty("--reveal-delay"))
-      delete document.documentElement.dataset.copilotRevealing
+      clearRevealCascade()
       setActive(false)
     }
 
     const timer = setTimeout(cleanup, cleanupDelay)
 
-    // lastOpenedAt 再次变化（< 2350ms 内二次打开）→ 先清再重起
     return () => {
       clearTimeout(timer)
       cleanup()

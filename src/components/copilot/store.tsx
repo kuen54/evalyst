@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { CopilotContextRef, PageContext } from "@/lib/copilot/types"
+import { applyRevealCascade } from "./material-reveal-overlay"
 
 // ---------- 全局面板状态 ----------
 // 持久化：localStorage 存 open/width/activeSessionId。
@@ -72,6 +73,9 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   const [typingSignal, setTypingSignalState] = useState(0)
   const [routeChangeBanner, setRouteChangeBannerState] = useState<{ visible: boolean; count: number } | null>(null)
   const [lastOpenedAt, setLastOpenedAt] = useState(0)
+  /** 同步追踪当前 open 值。rising edge 检测需要 sync 读，state 是异步的 */
+  const openRef = useRef(false)
+  useEffect(() => { openRef.current = open }, [open])
 
   // 初始化读 localStorage（SSR safe）
   useEffect(() => {
@@ -98,6 +102,13 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const setOpen = useCallback((v: boolean) => {
+    // Rising edge：在 setOpenState 触发 React re-render（会把 shell.tsx 的 glass
+    // 新 inline style 提交到 DOM）之前，先同步把 --reveal-delay 和
+    // data-copilot-revealing 写进 DOM，这样 glass transition 启动时就能看到 cascade
+    // override（带 delay），而不是先用 shell 的 320ms 0-delay 起跑。
+    if (v && !openRef.current) {
+      applyRevealCascade()
+    }
     setOpenState(prev => {
       if (v && !prev) setLastOpenedAt(performance.now())
       return v
@@ -107,6 +118,10 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const toggleOpen = useCallback(() => {
+    // Rising edge：见 setOpen 注释
+    if (!openRef.current) {
+      applyRevealCascade()
+    }
     setOpenState(prev => {
       const next = !prev
       if (next && !prev) setLastOpenedAt(performance.now())
