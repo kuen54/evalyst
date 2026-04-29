@@ -13,44 +13,48 @@ function baseSignals(overrides: Partial<GlowSignals> = {}): GlowSignals {
 }
 
 describe("computeTarget", () => {
-  it("IDLE: low intensity, thin band", () => {
+  it("IDLE: V2.1 values (intensity 0.40, thickness 30, amplitude 4)", () => {
     const t = computeTarget(baseSignals())
-    expect(t.intensity).toBe(0.22)
-    expect(t.thicknessPx).toBe(3)
+    expect(t.intensity).toBe(0.40)
+    expect(t.thicknessPx).toBe(30)
     expect(t.noiseSpeed).toBe(0.15)
+    expect(t.amplitude).toBe(4)
   })
 
-  it("TYPING overrides IDLE", () => {
+  it("TYPING overrides IDLE (intensity 0.55, thickness 40, amplitude 6)", () => {
     const t = computeTarget(baseSignals({ typing: true }))
-    expect(t.intensity).toBe(0.35)
-    expect(t.thicknessPx).toBe(5)
+    expect(t.intensity).toBe(0.55)
+    expect(t.thicknessPx).toBe(40)
+    expect(t.amplitude).toBe(6)
   })
 
-  it("INSPECTING overrides TYPING", () => {
+  it("INSPECTING overrides TYPING (intensity 0.70, thickness 50, amplitude 10, colorPhase 0.25)", () => {
     const t = computeTarget(baseSignals({ typing: true, inspecting: true }))
-    expect(t.intensity).toBe(0.50)
-    expect(t.thicknessPx).toBe(7)
-    expect(t.colorPhase).toBe(0.30)
+    expect(t.intensity).toBe(0.70)
+    expect(t.thicknessPx).toBe(50)
+    expect(t.amplitude).toBe(10)
+    expect(t.colorPhase).toBe(0.25)
   })
 
-  it("PROCESSING (busy) overrides INSPECTING", () => {
+  it("PROCESSING (busy) overrides INSPECTING (intensity 0.95, thickness 70, amplitude 20, noiseSpeed 1.4)", () => {
     const t = computeTarget(baseSignals({ busy: true, inspecting: true }))
-    expect(t.intensity).toBe(0.90)
-    expect(t.thicknessPx).toBe(11)
+    expect(t.intensity).toBe(0.95)
+    expect(t.thicknessPx).toBe(70)
     expect(t.noiseSpeed).toBe(1.40)
+    expect(t.amplitude).toBe(20)
   })
 
-  it("FLASH overrides everything (keeps PROCESSING-level targets)", () => {
+  it("FLASH overrides everything (uses PROCESSING-level targets)", () => {
     const t = computeTarget(baseSignals({ flashActive: true }))
-    expect(t.intensity).toBe(0.90)
-    expect(t.thicknessPx).toBe(11)
+    expect(t.intensity).toBe(0.95)
+    expect(t.thicknessPx).toBe(70)
+    expect(t.amplitude).toBe(20)
   })
 
   it("IDLE colorPhase oscillates with nowMs", () => {
     const a = computeTarget(baseSignals({ nowMs: 0 }))
     const b = computeTarget(baseSignals({ nowMs: 3000 }))
     expect(a.colorPhase).not.toBe(b.colorPhase)
-    // bounded 0.2..0.8 (0.5 ± 0.3)
     expect(a.colorPhase).toBeGreaterThanOrEqual(0.2)
     expect(a.colorPhase).toBeLessThanOrEqual(0.8)
     expect(b.colorPhase).toBeGreaterThanOrEqual(0.2)

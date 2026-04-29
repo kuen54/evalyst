@@ -32,6 +32,8 @@ export interface GlowTargets {
   thicknessPx: number
   /** Noise time scrolling speed */
   noiseSpeed: number
+  /** SDF displacement magnitude (px) — V2 inward wave amplitude */
+  amplitude: number
   /** Palette mix phase, 0..1 — see shader for mapping */
   colorPhase: number
 }
@@ -39,34 +41,38 @@ export interface GlowTargets {
 // State-specific target builders.
 function idleTargets(nowMs: number): GlowTargets {
   return {
-    intensity: 0.22,
-    thicknessPx: 3,
+    intensity: 0.40,
+    thicknessPx: 30,
     noiseSpeed: 0.15,
+    amplitude: 4,
     colorPhase: 0.5 + 0.3 * Math.sin((nowMs / 1000) * 0.25),
   }
 }
 
 function typingTargets(nowMs: number): GlowTargets {
   return {
-    intensity: 0.35,
-    thicknessPx: 5,
+    intensity: 0.55,
+    thicknessPx: 40,
     noiseSpeed: 0.30,
+    amplitude: 6,
     colorPhase: 0.5 + 0.3 * Math.sin((nowMs / 1000) * 0.25 * 1.8),
   }
 }
 
 const INSPECTING_TARGETS: GlowTargets = {
-  intensity: 0.50,
-  thicknessPx: 7,
+  intensity: 0.70,
+  thicknessPx: 50,
   noiseSpeed: 0.45,
-  colorPhase: 0.30, // sky-blue-ish zone
+  amplitude: 10,
+  colorPhase: 0.25, // pure cyan — sky-blue
 }
 
 function processingTargets(nowMs: number): GlowTargets {
   return {
-    intensity: 0.90,
-    thicknessPx: 11,
+    intensity: 0.95,
+    thicknessPx: 70,
     noiseSpeed: 1.40,
+    amplitude: 20,
     colorPhase: ((nowMs / 1000) * 0.8) % 1.0,
   }
 }
