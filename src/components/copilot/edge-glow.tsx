@@ -135,7 +135,10 @@ export function EdgeGlow() {
   useEffect(() => { inspectorRef.current = inspectorActive }, [inspectorActive])
 
   // typingSignal bump → record timestamp; RAF checks 400ms window.
-  useEffect(() => { lastTypingMsRef.current = performance.now() }, [typingSignal])
+  // Gate on > 0 so the initial render (typingSignal=0) doesn't register as typing.
+  useEffect(() => {
+    if (typingSignal > 0) lastTypingMsRef.current = performance.now()
+  }, [typingSignal])
 
   // Detect busy falling edge → start flash window.
   useEffect(() => {
