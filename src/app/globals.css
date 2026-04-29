@@ -427,40 +427,41 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   z-index: 9999;
   pointer-events: none;
   mix-blend-mode: overlay;
-  will-change: background-position;
+  will-change: transform;
   contain: layout style paint;
 }
 
 .copilot-reveal-wave {
-  background-image: linear-gradient(
-    90deg,
+  /* radial-gradient 中心在屏外右侧（140vw 相对 div）。band 位于半径 ~80vw 处，
+     因中心远离 viewport，弧段在 viewport 内呈"向右弯"的凹弧，替代直立竖线生硬感。
+     transform 动画平移整个 div，让弧段从右扫到左。 */
+  background-image: radial-gradient(
+    circle at 140vw 50%,
     transparent 0%,
-    color-mix(in oklab, var(--copilot-accent), transparent 82%) 35%,
-    color-mix(in oklab, white, transparent 60%) 50%,
-    color-mix(in oklab, var(--copilot-accent), transparent 82%) 65%,
-    transparent 100%
+    transparent 70vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 82%) 76vw,
+    color-mix(in oklab, white, transparent 60%) 80vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 82%) 84vw,
+    transparent 90vw
   );
-  background-size: max(360px, 22vw) 100%;
-  background-repeat: no-repeat;
-  animation: copilot-reveal-wave 1050ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 .copilot-reveal-tail {
-  background-image: linear-gradient(
-    90deg,
+  background-image: radial-gradient(
+    circle at 140vw 50%,
     transparent 0%,
-    color-mix(in oklab, var(--copilot-accent), transparent 92%) 50%,
-    transparent 100%
+    transparent 65vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 92%) 80vw,
+    transparent 95vw
   );
-  background-size: 40vw 100%;
-  background-repeat: no-repeat;
   opacity: 0.7;
-  animation: copilot-reveal-wave 1050ms cubic-bezier(0.25, 0.1, 0.25, 1) 120ms forwards;
+  animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) 140ms forwards;
 }
 
 @keyframes copilot-reveal-wave {
-  from { background-position-x: 100vw; }
-  to   { background-position-x: -30vw; }
+  from { transform: translateX(40vw); }
+  to   { transform: translateX(-90vw); }
 }
 
 @media (prefers-reduced-motion: reduce) {
