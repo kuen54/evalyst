@@ -439,9 +439,9 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     circle at 150vw 50%,
     transparent 0%,
     transparent 40vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 82%) 46vw,
-    color-mix(in oklab, white, transparent 60%) 50vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 82%) 54vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 46vw,
+    color-mix(in oklab, white, transparent 40%) 50vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 54vw,
     transparent 60vw
   );
   animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
