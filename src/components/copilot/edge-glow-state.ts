@@ -101,3 +101,21 @@ export function springStep(
   const newValue = value + newVelocity * dt
   return [newValue, newVelocity]
 }
+
+/**
+ * Flash envelope — exponential decay over 800ms window.
+ * Returns 0..1 value driving the `u_flash` uniform (white mix-in factor).
+ *
+ * Component sets flashStartMs when busy falls from true to false, clears
+ * (sets to null) after the window closes OR sets a new value on the next
+ * falling edge. The 800ms boundary is the hard cutoff.
+ */
+export const FLASH_DURATION_MS = 800
+
+export function computeFlash(flashStartMs: number | null, nowMs: number): number {
+  if (flashStartMs === null) return 0
+  const dt = nowMs - flashStartMs
+  if (dt < 0) return 0
+  if (dt >= FLASH_DURATION_MS) return 0
+  return Math.exp(-5 * (dt / 1000))
+}

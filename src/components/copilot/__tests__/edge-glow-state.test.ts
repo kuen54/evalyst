@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { computeTarget, type GlowSignals } from "../edge-glow-state"
-import { springStep } from "../edge-glow-state"
+import { computeTarget, springStep, computeFlash, FLASH_DURATION_MS, type GlowSignals } from "../edge-glow-state"
 
 function baseSignals(overrides: Partial<GlowSignals> = {}): GlowSignals {
   return {
@@ -104,5 +103,29 @@ describe("springStep", () => {
       ;[value, velocity] = springStep(value, velocity, 0, 1 / 60)
     }
     expect(value).toBeLessThan(0.05)
+  })
+})
+
+describe("computeFlash", () => {
+  it("returns 0 when flashStartMs is null", () => {
+    expect(computeFlash(null, 1000)).toBe(0)
+  })
+
+  it("returns 1 at t=0", () => {
+    expect(computeFlash(500, 500)).toBeCloseTo(1, 4)
+  })
+
+  it("decays exponentially at t=400ms", () => {
+    // exp(-5 * 0.4) = exp(-2) ~ 0.1353
+    expect(computeFlash(0, 400)).toBeCloseTo(Math.exp(-2), 3)
+  })
+
+  it("returns 0 after 800ms window closes", () => {
+    expect(computeFlash(0, FLASH_DURATION_MS + 1)).toBe(0)
+    expect(computeFlash(0, 2000)).toBe(0)
+  })
+
+  it("exports FLASH_DURATION_MS as 800", () => {
+    expect(FLASH_DURATION_MS).toBe(800)
   })
 })
