@@ -484,17 +484,20 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 }
 
 :root:not(.dark) .copilot-reveal-wave {
+  /* 全程用 accent-soft（L=0.88 浅天蓝），只在 core 用 accent (L=0.7) 但压低到 50% alpha，
+     multiply 在白底上结果从 L≈0.97（外圈近白蓝）→ L≈0.85（core 中蓝）→ 外圈。
+     halos 用极淡 accent-soft alpha 营造"白色halo带蓝调"视觉，替代暗色模式的白色 hot core。 */
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
     transparent 34vw,
-    color-mix(in oklab, white, transparent 75%) 40vw,
-    color-mix(in oklab, white, transparent 50%) 46vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 30%) 48vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 5%) 50vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 30%) 52vw,
-    color-mix(in oklab, white, transparent 50%) 54vw,
-    color-mix(in oklab, white, transparent 75%) 60vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 75%) 40vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 46vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 25%) 48vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 50%) 50vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 25%) 52vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 54vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 75%) 60vw,
     transparent 66vw
   );
 }
@@ -504,7 +507,7 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     circle at 150vw 50%,
     transparent 0%,
     transparent 30vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 85%) 50vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 70%) 50vw,
     transparent 70vw
   );
 }
