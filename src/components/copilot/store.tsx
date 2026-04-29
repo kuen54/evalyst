@@ -29,6 +29,8 @@ interface CopilotStore {
   activeSessionId?: string
   setActiveSessionId: (id?: string) => void
   mounted: boolean
+  /** rising-edge 时间戳，供 MaterialRevealOverlay 订阅。0 = 从未开过或刚 mount。 */
+  lastOpenedAt: number
 
   // ---- PR-2：context 共享（默认常开，面板开就生效） ----
   inspectorActive: boolean
@@ -69,6 +71,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   const [pageContext, setPageContextState] = useState<PageContext | null>(null)
   const [typingSignal, setTypingSignalState] = useState(0)
   const [routeChangeBanner, setRouteChangeBannerState] = useState<{ visible: boolean; count: number } | null>(null)
+  const [lastOpenedAt, setLastOpenedAt] = useState(0)
 
   // 初始化读 localStorage（SSR safe）
   useEffect(() => {
@@ -95,7 +98,10 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const setOpen = useCallback((v: boolean) => {
-    setOpenState(v)
+    setOpenState(prev => {
+      if (v && !prev) setLastOpenedAt(performance.now())
+      return v
+    })
     try { localStorage.setItem(LS_OPEN, v ? "1" : "0") } catch {}
     if (!v) setInspectorActive(false) // 关面板连带退 inspector，不然 hover 高亮框留在屏上
   }, [])
@@ -103,6 +109,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   const toggleOpen = useCallback(() => {
     setOpenState(prev => {
       const next = !prev
+      if (next && !prev) setLastOpenedAt(performance.now())
       try { localStorage.setItem(LS_OPEN, next ? "1" : "0") } catch {}
       if (!next) setInspectorActive(false)
       return next
@@ -223,6 +230,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     activeSessionId,
     setActiveSessionId,
     mounted,
+    lastOpenedAt,
     inspectorActive,
     setInspectorActive,
     contexts,
@@ -245,6 +253,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     width, setWidth,
     activeSessionId, setActiveSessionId,
     mounted,
+    lastOpenedAt,
     inspectorActive,
     contexts, addContext, removeContext, clearContexts,
     busy,
@@ -269,6 +278,7 @@ const NOOP_STORE: CopilotStore = {
   activeSessionId: undefined,
   setActiveSessionId: () => {},
   mounted: false,
+  lastOpenedAt: 0,
   inspectorActive: false,
   setInspectorActive: () => {},
   contexts: [],
