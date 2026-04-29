@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from "react"
 import { useCopilotStore } from "./store"
 import { FRAGMENT_SHADER_SOURCE, VERTEX_SHADER_SOURCE } from "./edge-glow-shader"
+import {
+  computeTarget,
+  computeFlash,
+  springStep,
+  FLASH_DURATION_MS,
+  type GlowTargets,
+} from "./edge-glow-state"
 
 interface GlContext {
   gl: WebGL2RenderingContext | WebGLRenderingContext
@@ -67,7 +74,6 @@ function initGl(canvas: HTMLCanvasElement): GlContext | null {
     return null
   }
 
-  // Fullscreen quad: 2 triangles in clip space.
   const buffer = gl.createBuffer()
   if (!buffer) {
     gl.deleteProgram(program)
@@ -85,8 +91,6 @@ function initGl(canvas: HTMLCanvasElement): GlContext | null {
   gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0)
 
   gl.useProgram(program)
-
-  // Premultiplied alpha blend (shader outputs vec4(col*alpha, alpha)).
   gl.enable(gl.BLEND)
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 
@@ -113,14 +117,35 @@ function destroyGl(ctx: GlContext) {
 }
 
 export function EdgeGlow() {
-  const { open } = useCopilotStore()
+  const { open, busy, inspectorActive, typingSignal } = useCopilotStore()
   const [reducedMotion, setReducedMotion] = useState<boolean>(false)
   const [webglFailed, setWebglFailed] = useState<boolean>(false)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  // Held on ref so cleanup + Task 8's RAF handler can read the current ctx
-  // without re-subscribing the init effect on every frame.
   const glCtxRef = useRef<GlContext | null>(null)
 
+  // Signal refs: mutated by store-subscribing effects, read from RAF loop.
+  // Keeps the heavy init effect out of the dependency-churn cycle.
+  const busyRef = useRef(busy)
+  const inspectorRef = useRef(inspectorActive)
+  const lastTypingMsRef = useRef<number>(-Infinity)
+  const flashStartRef = useRef<number | null>(null)
+  const prevBusyRef = useRef(busy)
+
+  useEffect(() => { busyRef.current = busy }, [busy])
+  useEffect(() => { inspectorRef.current = inspectorActive }, [inspectorActive])
+
+  // typingSignal bump → record timestamp; RAF checks 400ms window.
+  useEffect(() => { lastTypingMsRef.current = performance.now() }, [typingSignal])
+
+  // Detect busy falling edge → start flash window.
+  useEffect(() => {
+    if (prevBusyRef.current && !busy) {
+      flashStartRef.current = performance.now()
+    }
+    prevBusyRef.current = busy
+  }, [busy])
+
+  // Reactive prefers-reduced-motion tracking.
   useEffect(() => {
     if (typeof window === "undefined") return
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -130,18 +155,15 @@ export function EdgeGlow() {
     return () => mq.removeEventListener("change", onChange)
   }, [])
 
-  // One-shot GL init + static draw (placeholder until Task 8 adds RAF).
+  // GL lifecycle: init on mount (gated), tear down on gate change / unmount.
   useEffect(() => {
     if (!open || reducedMotion || webglFailed) return
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // Size canvas to its displayed box; ResizeObserver re-fires on parent changes.
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect()
       const dpr = Math.min(2, window.devicePixelRatio ?? 1)
-      // Clamp DPR so canvas.width <= MAX_TEXTURE_SIZE in the rare edge case of
-      // extremely tall/wide viewports (guards against Safari bailing out).
       const ctx = glCtxRef.current
       if (ctx) {
         const maxTex = ctx.gl.getParameter(ctx.gl.MAX_TEXTURE_SIZE) as number
@@ -163,33 +185,77 @@ export function EdgeGlow() {
     }
     glCtxRef.current = ctx
 
-    // Draw one static frame now so user sees the band before RAF is wired.
-    const drawStatic = () => {
+    // Spring-integrated uniform state.
+    const anim = {
+      intensity: { value: 0.22, velocity: 0 },
+      thicknessPx: { value: 3, velocity: 0 },
+      noiseSpeed: { value: 0.15, velocity: 0 },
+      colorPhase: { value: 0.5, velocity: 0 },
+    }
+
+    let rafId = 0
+    let lastFrameMs = performance.now()
+
+    const renderFrame = () => {
+      const nowMs = performance.now()
+      // Clamp dt to 1/30s so tab-switch stalls don't spring-overshoot.
+      const dtSec = Math.min((nowMs - lastFrameMs) / 1000, 1 / 30)
+      lastFrameMs = nowMs
+
+      // Clear flash marker once window closes so a subsequent busy-drop can re-trigger.
+      if (
+        flashStartRef.current !== null &&
+        nowMs - flashStartRef.current >= FLASH_DURATION_MS
+      ) {
+        flashStartRef.current = null
+      }
+
+      const signals = {
+        typing: nowMs - lastTypingMsRef.current < 400,
+        inspecting: inspectorRef.current,
+        busy: busyRef.current,
+        flashActive: flashStartRef.current !== null,
+        nowMs,
+      }
+      const target: GlowTargets = computeTarget(signals)
+      const flash = computeFlash(flashStartRef.current, nowMs)
+
+      ;[anim.intensity.value, anim.intensity.velocity] = springStep(
+        anim.intensity.value, anim.intensity.velocity, target.intensity, dtSec,
+      )
+      ;[anim.thicknessPx.value, anim.thicknessPx.velocity] = springStep(
+        anim.thicknessPx.value, anim.thicknessPx.velocity, target.thicknessPx, dtSec,
+      )
+      ;[anim.noiseSpeed.value, anim.noiseSpeed.velocity] = springStep(
+        anim.noiseSpeed.value, anim.noiseSpeed.velocity, target.noiseSpeed, dtSec,
+      )
+      ;[anim.colorPhase.value, anim.colorPhase.velocity] = springStep(
+        anim.colorPhase.value, anim.colorPhase.velocity, target.colorPhase, dtSec,
+      )
+
       const { gl, uniforms } = ctx
       gl.viewport(0, 0, canvas.width, canvas.height)
       gl.clearColor(0, 0, 0, 0)
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.uniform2f(uniforms.u_resolution, canvas.width, canvas.height)
-      gl.uniform1f(uniforms.u_time, 0)
-      gl.uniform1f(uniforms.u_intensity, 0.9)
-      gl.uniform1f(uniforms.u_thickness_px, 11)
-      gl.uniform1f(uniforms.u_noise_speed, 1.4)
-      gl.uniform1f(uniforms.u_color_phase, 0.3)
-      gl.uniform1f(uniforms.u_flash, 0)
+      gl.uniform1f(uniforms.u_time, nowMs / 1000)
+      gl.uniform1f(uniforms.u_intensity, anim.intensity.value)
+      gl.uniform1f(uniforms.u_thickness_px, anim.thicknessPx.value)
+      gl.uniform1f(uniforms.u_noise_speed, anim.noiseSpeed.value)
+      gl.uniform1f(uniforms.u_color_phase, anim.colorPhase.value)
+      gl.uniform1f(uniforms.u_flash, flash)
       gl.uniform1f(uniforms.u_corner_px, 16)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
-    }
-    drawStatic()
 
-    // Observe size changes on the canvas's parent (the <main> element).
-    const resizeObs = new ResizeObserver(() => {
-      resizeCanvas()
-      drawStatic()
-    })
+      rafId = requestAnimationFrame(renderFrame)
+    }
+    rafId = requestAnimationFrame(renderFrame)
+
+    // Resize redraws happen naturally on next RAF tick; only need to resize canvas.
+    const resizeObs = new ResizeObserver(() => { resizeCanvas() })
     const parent = canvas.parentElement
     if (parent) resizeObs.observe(parent)
 
-    // Handle context loss: hide on loss, no restore attempt.
     const onLost = (e: Event) => {
       e.preventDefault()
       setWebglFailed(true)
@@ -197,6 +263,7 @@ export function EdgeGlow() {
     canvas.addEventListener("webglcontextlost", onLost)
 
     return () => {
+      cancelAnimationFrame(rafId)
       resizeObs.disconnect()
       canvas.removeEventListener("webglcontextlost", onLost)
       if (glCtxRef.current) {
