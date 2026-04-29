@@ -6,16 +6,16 @@ describe("computeRevealDelay", () => {
     expect(computeRevealDelay(100)).toBe(0)
   })
 
-  it("returns ~292 at screen middle (centerXvw = 50)", () => {
+  it("returns ~269 at screen middle (centerXvw = 50)", () => {
     const v = computeRevealDelay(50)
-    expect(v).toBeGreaterThanOrEqual(290)
-    expect(v).toBeLessThanOrEqual(295)
+    expect(v).toBeGreaterThanOrEqual(267)
+    expect(v).toBeLessThanOrEqual(272)
   })
 
-  it("returns ~583 at left edge (centerXvw = 0)", () => {
+  it("returns ~538 at left edge (centerXvw = 0)", () => {
     const v = computeRevealDelay(0)
-    expect(v).toBeGreaterThanOrEqual(580)
-    expect(v).toBeLessThanOrEqual(585)
+    expect(v).toBeGreaterThanOrEqual(535)
+    expect(v).toBeLessThanOrEqual(542)
   })
 
   it("clamps to 600 ceiling when centerXvw is negative (off-screen left)", () => {
