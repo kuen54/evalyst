@@ -80,3 +80,24 @@ export function computeTarget(signals: GlowSignals): GlowTargets {
   if (signals.typing) return typingTargets(signals.nowMs)
   return idleTargets(signals.nowMs)
 }
+
+/**
+ * Critically-damped spring integrator.
+ *
+ * Returns [newValue, newVelocity] after stepping forward by `dt` seconds.
+ * Tuned for ~300ms to target with no overshoot at dt=1/60.
+ */
+const SPRING_STIFFNESS = 180
+const SPRING_DAMPING = 22
+
+export function springStep(
+  value: number,
+  velocity: number,
+  target: number,
+  dt: number,
+): [number, number] {
+  const acceleration = SPRING_STIFFNESS * (target - value) - SPRING_DAMPING * velocity
+  const newVelocity = velocity + acceleration * dt
+  const newValue = value + newVelocity * dt
+  return [newValue, newVelocity]
+}

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { computeTarget, type GlowSignals } from "../edge-glow-state"
+import { springStep } from "../edge-glow-state"
 
 function baseSignals(overrides: Partial<GlowSignals> = {}): GlowSignals {
   return {
@@ -63,5 +64,45 @@ describe("computeTarget", () => {
       expect(t.colorPhase).toBeGreaterThanOrEqual(0)
       expect(t.colorPhase).toBeLessThan(1)
     }
+  })
+})
+
+describe("springStep", () => {
+  it("converges from 0 toward 1 within 50 frames at 60fps", () => {
+    let value = 0
+    let velocity = 0
+    const dt = 1 / 60
+    for (let i = 0; i < 50; i++) {
+      ;[value, velocity] = springStep(value, velocity, 1, dt)
+    }
+    expect(value).toBeGreaterThan(0.99)
+    expect(value).toBeLessThan(1.01)
+  })
+
+  it("does not overshoot (critically damped)", () => {
+    let value = 0
+    let velocity = 0
+    let maxValue = 0
+    for (let i = 0; i < 120; i++) {
+      ;[value, velocity] = springStep(value, velocity, 1, 1 / 60)
+      if (value > maxValue) maxValue = value
+    }
+    // critically damped: max should not exceed target by more than 0.5%
+    expect(maxValue).toBeLessThan(1.005)
+  })
+
+  it("holds at target (no drift when value === target and velocity=0)", () => {
+    const [v1, vel1] = springStep(1, 0, 1, 1 / 60)
+    expect(v1).toBeCloseTo(1, 6)
+    expect(vel1).toBeCloseTo(0, 6)
+  })
+
+  it("handles downward transition (target 0 from value 1)", () => {
+    let value = 1
+    let velocity = 0
+    for (let i = 0; i < 60; i++) {
+      ;[value, velocity] = springStep(value, velocity, 0, 1 / 60)
+    }
+    expect(value).toBeLessThan(0.05)
   })
 })
