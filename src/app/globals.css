@@ -432,36 +432,36 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 }
 
 .copilot-reveal-wave {
-  /* radial-gradient 中心在屏外右侧（140vw 相对 div）。band 位于半径 ~80vw 处，
-     因中心远离 viewport，弧段在 viewport 内呈"向右弯"的凹弧，替代直立竖线生硬感。
+  /* radial-gradient 中心在屏外右侧（150vw 相对 div），band 在半径 ~50vw 处。
+     半径与 viewport 高度比 1:0.58，sagitta ~115px = 16% 曲率，清晰可见。
      transform 动画平移整个 div，让弧段从右扫到左。 */
   background-image: radial-gradient(
-    circle at 140vw 50%,
+    circle at 150vw 50%,
     transparent 0%,
-    transparent 70vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 82%) 76vw,
-    color-mix(in oklab, white, transparent 60%) 80vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 82%) 84vw,
-    transparent 90vw
+    transparent 40vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 82%) 46vw,
+    color-mix(in oklab, white, transparent 60%) 50vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 82%) 54vw,
+    transparent 60vw
   );
   animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 .copilot-reveal-tail {
   background-image: radial-gradient(
-    circle at 140vw 50%,
+    circle at 150vw 50%,
     transparent 0%,
-    transparent 65vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 92%) 80vw,
-    transparent 95vw
+    transparent 35vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 92%) 50vw,
+    transparent 65vw
   );
   opacity: 0.7;
   animation: copilot-reveal-wave 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) 140ms forwards;
 }
 
 @keyframes copilot-reveal-wave {
-  from { transform: translateX(40vw); }
-  to   { transform: translateX(-90vw); }
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100vw); }
 }
 
 @media (prefers-reduced-motion: reduce) {
