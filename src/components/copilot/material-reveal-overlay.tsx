@@ -7,11 +7,12 @@ import { useCopilotStore } from "./store"
  * 计算某卡片受 wave 驱动的 glass transition 启动延迟（ms）。
  *
  * 波纹从 x=100vw 起，1250ms 线性扫到 x=0vw（覆盖 100vw 距离）。
- * 卡片 glass 过渡在"wave 已经扫过"后才启动：统一加 300ms offset，
- * 让 wave 先行抢镜、UI 在波纹尾部跟随翻面（而不是同步立刻变玻璃）。
+ * 卡片 glass 过渡在"wave 已经扫过"后才启动：统一加 700ms offset，
+ * 让 wave 先行抢镜、UI 在波纹完全过境之后才翻面。
  *
- * 最右卡 delay 300ms；中线卡 925ms；最左卡 1550ms。
- * 返回：夹在 [0, 1550] 区间。
+ * 最右卡 delay 700ms（wave peak 已到 44vw）；中线卡 1325ms（wave 出屏 75ms）；
+ * 最左卡 1950ms（wave 出屏 700ms）。
+ * 返回：夹在 [0, 1950] 区间。
  *
  * @param centerXvw 卡片水平中心位置（vw 单位，0=左边缘，100=右边缘）
  */
@@ -19,9 +20,9 @@ export function computeRevealDelay(centerXvw: number): number {
   const fromVw = 100
   const totalVwTraveled = 100 // 100 → 0
   const durationMs = 1250
-  const waitForWaveOffsetMs = 300
+  const waitForWaveOffsetMs = 700
   const raw = waitForWaveOffsetMs + ((fromVw - centerXvw) / totalVwTraveled) * durationMs
-  return Math.max(0, Math.min(1550, raw))
+  return Math.max(0, Math.min(1950, raw))
 }
 
 /**
@@ -63,10 +64,10 @@ export function MaterialRevealOverlay() {
     document.documentElement.dataset.copilotRevealing = "true"
     setActive(true)
 
-    const cleanupDelay = prefersReduce ? 220 : 1900
+    const cleanupDelay = prefersReduce ? 220 : 2350
 
     /**
-     * 清理：重新 querySelectorAll（不用前面捕获的集合），因为 1900ms 内 DOM 可能变化。
+     * 清理：重新 querySelectorAll（不用前面捕获的集合），因为 2350ms 内 DOM 可能变化。
      * 对没有 --reveal-delay 的元素调 removeProperty 是 no-op。
      */
     const cleanup = () => {
@@ -79,7 +80,7 @@ export function MaterialRevealOverlay() {
 
     const timer = setTimeout(cleanup, cleanupDelay)
 
-    // lastOpenedAt 再次变化（< 1900ms 内二次打开）→ 先清再重起
+    // lastOpenedAt 再次变化（< 2350ms 内二次打开）→ 先清再重起
     return () => {
       clearTimeout(timer)
       cleanup()
