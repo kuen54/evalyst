@@ -508,57 +508,55 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   pointer-events: none;
 }
 
-/* Layer 1: 蓝色 body (multiply)。
-   stops 38→62vw 和 dark 主题对称，core peak 到 accent@80% alpha 保证在白底上够深。
-   saturate(2) contrast(1.3) 把 accent 调成可读的深蓝折射带。 */
+/* Layer 1: 蓝色 body (multiply)，peak **偏外半径**（不对称设计）。
+   Gradient center 在 150vw 屏外右侧，wave 向左扫。在 viewport 坐标里：
+     - x 越靠左 → r 越大（gradient 外圈）
+     - x 越靠右 → r 越小（gradient 内圈）
+   蓝 peak 拉到 r=54-56vw（外半径）→ 映射到 viewport 左半；内半径 r=38-50vw 让给 ::after 白核。
+   外圈 fade 短（56→62vw，6vw），内圈 fade 长（50→38vw，12vw）给中间过渡留空间。
+   saturate(2) contrast(1.3) 把 accent 调成可读深蓝。 */
 :root:not(.dark) .copilot-reveal-wave::before {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
     transparent 38vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 42vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 40%) 45vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 25%) 48vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 20%) 50vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 25%) 52vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 40%) 55vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 58vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 80%) 44vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 60%) 48vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 40%) 52vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 25%) 54vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 25%) 56vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 45%) 58vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 65%) 60vw,
     transparent 62vw
   );
   mix-blend-mode: multiply;
   filter: blur(16px) saturate(2) contrast(1.3);
 }
 
-/* Layer 2: 白色 hot core (screen)。
-   *不* 用 plus-lighter（硬 clip 出硬边），用 screen `1-(1-a)(1-b)` 平滑趋近 1 无 clip。
+/* Layer 2: 白色 hot core (screen)，peak **偏内半径**（不对称，与 ::before 镜像）。
+   白 peak 拉到 r=44-48vw（内半径）→ 映射到 viewport 右半显白；
+   整体 stops 22→55vw 保持"::after 外沿宽于 ::before"以避 spindle——
+   outer tail r=22-38 落在蓝带范围之外，screen 白×白=白 不可见（天然藏边）。
 
-   关键几何：::after 半径 25→75vw（50vw 宽），*明显宽于* ::before 的 38→62vw（24vw 宽）。
-   这样 ::after 在蓝带之外的区域（r<38 或 r>62）投射到纯白底上，screen 白×白=白，无可见效果；
-   只在蓝带覆盖处（38-62vw）把 RGB 向白拉。净视觉 = "一条连续蓝带，中间被 gently bleached"，
-   没有独立的白色 spindle 形状——和 dark 主题"accent+white 在同一 gradient 里融为一体"的读感等价。
+   viewport 效果：wave 向左扫，右半先 leading，左半 trailing。
+   所以 viewport 读作："白色 leading edge 先到（内圈白） + 蓝色 trailing（外圈蓝）"，
+   和 dark 主题"扫光时白核在前 / accent 在后"的读感一致。
 
-   如果 ::after 和 ::before 宽度接近（比如上版 40-60），::after 自身的 radial arc 形状
-   会在蓝带边缘露出来，读作"白色椭圆镶蓝边"，这就是上版的"纺锤" artifact 来源。
-
-   peak 1.0 **6vw 平顶**（r=47 到 r=53），不是单点 peak——blur(16px) 会把单点 peak 和周围低
-   alpha 的像素做大范围高斯平均，有效 peak 被稀释到 0.6 左右（screen 只到 0.84 亮度，肉眼读作"偏蓝"）。
-   平顶让 blur 中心几乎守住 1.0 有效 alpha，screen(1, blue)=1 真正压出纯白。
-   shoulders 0.7/0.35/0.1 做三段渐变；外圈 0.1 的 tail 落在白底外不可见，只为和白底平滑接续。
-   blur(16px) 对齐 dark base。 */
+   peak 1.0 4vw 平顶（r=44-48）抗 blur 稀释；shoulders 0.7/0.35/0.1 三段渐变。 */
 :root:not(.dark) .copilot-reveal-wave::after {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 25vw,
-    rgba(255, 255, 255, 0.1) 33vw,
-    rgba(255, 255, 255, 0.35) 40vw,
-    rgba(255, 255, 255, 0.7) 45vw,
-    rgba(255, 255, 255, 1) 47vw,
-    rgba(255, 255, 255, 1) 53vw,
-    rgba(255, 255, 255, 0.7) 55vw,
-    rgba(255, 255, 255, 0.35) 60vw,
-    rgba(255, 255, 255, 0.1) 67vw,
-    transparent 75vw
+    transparent 22vw,
+    rgba(255, 255, 255, 0.1) 30vw,
+    rgba(255, 255, 255, 0.35) 36vw,
+    rgba(255, 255, 255, 0.7) 42vw,
+    rgba(255, 255, 255, 1) 44vw,
+    rgba(255, 255, 255, 1) 48vw,
+    rgba(255, 255, 255, 0.7) 50vw,
+    rgba(255, 255, 255, 0.35) 52vw,
+    rgba(255, 255, 255, 0.1) 54vw,
+    transparent 55vw
   );
   mix-blend-mode: screen;
   filter: blur(16px);
