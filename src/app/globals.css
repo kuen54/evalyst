@@ -475,45 +475,79 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     copilot-reveal-tail-fade 1250ms linear 140ms both;
 }
 
-/* 亮色主题：换成 multiply blend + 把暗色模式里的「白/蓝」位置对调。
-   暗色是 accent 侧翼 + 白 hot core；亮色是 白侧翼 + accent hot core。
-   浅底上 multiply 让 accent core 变成实蓝线扫过，contrast 拉满；白侧翼在白底上天然隐身（白*白=白）。 */
-:root:not(.dark) .copilot-reveal-wave,
-:root:not(.dark) .copilot-reveal-tail {
-  mix-blend-mode: multiply;
+/* 亮色主题：双 pseudo-element 做"白 + 蓝同时可见"的光学折射感。
+   单一 blend 在白底上做不出来：multiply 能出蓝但吃白（白×白=白）；
+   screen/plus-lighter 能加白但会把蓝也推向白（1-(1-1)*(1-0.7)=1 = 白）。
+   所以拆两层：
+     ::before = 蓝色 body + multiply  → 白底上"折射出深蓝带"
+     ::after  = 白色 hot core + plus-lighter → 在蓝带上把 RGB 加爆到 1 出纯白
+   plus-lighter = RGB 相加 clamp to 1：
+     白(1) + 白底(1) = 1 = 白（白底区域不受影响）
+     白(1) + 被 multiply 压过的深蓝(~0.6) = 1 = 纯白（蓝带区域被"点亮"）
+   净效果 = 白底 → 蓝晕 → 白核 → 蓝晕 → 白底，和 dark 主题"白核 + accent 侧翼"对称。
+
+   Tail 保留单层 multiply 浅蓝尾迹，不追加亮核（尾巴本来就是衬 wave 的补位）。 */
+
+/* 父元素：清空 base 的 screen blend + blur 和自带 gradient；让 pseudo 各自管自己。
+   contain 去 paint（base 用的是 `layout style paint`）——paint 隐含 isolation: isolate，
+   会把子 pseudo 的 mix-blend-mode 框在父节点内部够不到 page 白底。
+   保留 position:fixed + inset + z-index + pointer-events 从 base 继承（不覆盖）；
+   保留 animation（translate + fade）从 base 继承。 */
+:root:not(.dark) .copilot-reveal-wave {
+  background-image: none;
+  mix-blend-mode: normal;
+  filter: none;
+  contain: layout style;
 }
 
-:root:not(.dark) .copilot-reveal-wave {
-  /* 呼应暗色主题的"accent halo → accent → white core → accent → accent halo"结构。
-     core 用显式 white（不是 transparent）—— multiply 下白×白=白无视觉差异，
-     但显式 white 让 gradient 插值走"蓝→白"渐变而不是"蓝→透明"，语义清晰、
-     未来换 blend mode 也不用改结构。两侧的 deep accent 形成 Mach band 错觉，
-     让中间的白色核读作明显的亮核——真正做到"白天扫光也有白色成分"。 */
+:root:not(.dark) .copilot-reveal-wave::before,
+:root:not(.dark) .copilot-reveal-wave::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Layer 1: 蓝色 body (multiply)。
+   stops 38→62vw 和 dark 主题对称，core peak 到 accent@80% alpha 保证在白底上够深。
+   saturate(2) contrast(1.3) 把 accent 调成可读的深蓝折射带。 */
+:root:not(.dark) .copilot-reveal-wave::before {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
     transparent 38vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 42vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 30%) 45vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 80%) 48vw,
-    white 49vw,
-    white 51vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 80%) 52vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 30%) 55vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 58vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 42vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 40%) 45vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 25%) 48vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 20%) 50vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 25%) 52vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 40%) 55vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 58vw,
     transparent 62vw
   );
-}
-
-/* 浅色主题 filter 增强：在 blur 基础上叠 saturate + contrast。
-   multiply 后的浅蓝/深蓝调经 saturate(2.0) 把 chroma 拉到更鲜艳的天蓝，
-   contrast(1.3) 让 core 和 halos 的过渡更犀利——从"柔和渐变"变"光学折射"读感。
-   dark 主题 screen blend 本身就能瞬间拉高对比，不需要额外 filter。 */
-:root:not(.dark) .copilot-reveal-wave,
-:root:not(.dark) .copilot-reveal-tail {
+  mix-blend-mode: multiply;
   filter: blur(16px) saturate(2) contrast(1.3);
 }
 
+/* Layer 2: 白色 hot core (plus-lighter)。
+   窄一圈 46→54vw（比蓝带 38-62 窄 8vw），让 core 读作"蓝带中的光点"而不是"盖住一大片"。
+   peak 90% alpha，blur 10px 比蓝带 16px 锐利——白核比周围蓝雾更"实"，读感像真光。
+   plus-lighter 只在蓝带覆盖区域可见（白底 1+1=1 无效果，蓝带 1+0.6=1 点亮到纯白）。 */
+:root:not(.dark) .copilot-reveal-wave::after {
+  background-image: radial-gradient(
+    circle at 150vw 50%,
+    transparent 0%,
+    transparent 46vw,
+    rgba(255, 255, 255, 0.4) 48vw,
+    rgba(255, 255, 255, 0.9) 50vw,
+    rgba(255, 255, 255, 0.4) 52vw,
+    transparent 54vw
+  );
+  mix-blend-mode: plus-lighter;
+  filter: blur(10px);
+}
+
+/* Tail: 单层 multiply 浅蓝尾迹。stops 不变，用 saturate+contrast 让浅蓝更凝。 */
 :root:not(.dark) .copilot-reveal-tail {
   background-image: radial-gradient(
     circle at 150vw 50%,
@@ -522,6 +556,8 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     color-mix(in oklab, var(--copilot-accent), transparent 60%) 50vw,
     transparent 70vw
   );
+  mix-blend-mode: multiply;
+  filter: blur(16px) saturate(2) contrast(1.3);
 }
 
 @keyframes copilot-reveal-wave-translate {
