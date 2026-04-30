@@ -540,18 +540,20 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
    如果 ::after 和 ::before 宽度接近（比如上版 40-60），::after 自身的 radial arc 形状
    会在蓝带边缘露出来，读作"白色椭圆镶蓝边"，这就是上版的"纺锤" artifact 来源。
 
-   peak 0.7（screen 下足够显形，不需要顶到 1），blur(16px) 对齐 dark base。 */
+   peak 1.0（screen 下必须顶到 1 才能压出纯白；上版 peak 0.7 只到 0.85 亮度，肉眼读作"还是蓝"）。
+   shoulder 0.75/0.4 配合做渐变。外圈 0.1 tail 落在白底外不可见，只为和白底平滑接续。
+   blur(16px) 对齐 dark base。 */
 :root:not(.dark) .copilot-reveal-wave::after {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
     transparent 25vw,
     rgba(255, 255, 255, 0.1) 33vw,
-    rgba(255, 255, 255, 0.3) 42vw,
-    rgba(255, 255, 255, 0.55) 47vw,
-    rgba(255, 255, 255, 0.7) 50vw,
-    rgba(255, 255, 255, 0.55) 53vw,
-    rgba(255, 255, 255, 0.3) 58vw,
+    rgba(255, 255, 255, 0.4) 42vw,
+    rgba(255, 255, 255, 0.75) 47vw,
+    rgba(255, 255, 255, 1) 50vw,
+    rgba(255, 255, 255, 0.75) 53vw,
+    rgba(255, 255, 255, 0.4) 58vw,
     rgba(255, 255, 255, 0.1) 67vw,
     transparent 75vw
   );
