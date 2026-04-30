@@ -47,7 +47,10 @@ export default function RootLayout({
             <ConfirmProvider>
               <CopilotStoreProvider>
                 <Sidebar />
-                <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
+                <main
+                  className="flex-1 h-screen flex flex-col overflow-hidden relative"
+                  style={{ viewTransitionName: "main-content" } as React.CSSProperties}
+                >
                   <GlowOverlay />
                   <MaterialRevealOverlay />
                   <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
