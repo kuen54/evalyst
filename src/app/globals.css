@@ -529,24 +529,30 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   filter: blur(16px) saturate(2) contrast(1.3);
 }
 
-/* Layer 2: 白色 hot core (plus-lighter)。
-   覆盖 42→58vw（比蓝带 38-62 内缩 4vw），和 dark 主题的 38-62 band 里"白色分布在 46-54"的比例对应。
-   从 peak 向外三段 alpha 梯度：90% → 50% → 15% → 0%，模拟自然羽化。
-   blur(16px) 与 dark 主题 base blur 对齐（原 10px 太锐），让白核边缘柔化成光晕而非"光盘"。
-   plus-lighter 只在蓝带覆盖区域可见（白底 1+1=1 无变化，蓝带 1+0.6=1 点亮到纯白）。 */
+/* Layer 2: 白色 hot core (screen)。
+   *不* 用 plus-lighter —— plus-lighter 是 RGB 硬加 clamp 到 1，alpha 一高就瞬间 clip 成纯白，
+   边缘读作"硬切"。dark 主题用的是 screen，`1 - (1-a)(1-b)` 平滑趋近 1 但不 clip，
+   任何 alpha 下过渡都连续。本 layer 改回 screen 和 dark 主题对齐。
+
+   screen 在白底上无变化（白 screen 白 = 白），只在 ::before 压暗的蓝带上把 RGB 向白拉——
+   和 plus-lighter 在蓝带上"点亮"的机制等价，但 alpha 插值更柔。
+
+   9 stops 细分 alpha 梯度 0 → 0.1 → 0.4 → 0.85 peak → 0.4 → 0.1 → 0 覆盖 40→60vw；
+   peak 0.85（原 0.9 轻微下调，配合 screen 的连续插值无需顶到 1 就很亮）。
+   filter blur(16px) 和 dark 主题 base blur 对齐。 */
 :root:not(.dark) .copilot-reveal-wave::after {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 42vw,
-    rgba(255, 255, 255, 0.15) 45vw,
-    rgba(255, 255, 255, 0.5) 48vw,
-    rgba(255, 255, 255, 0.9) 50vw,
-    rgba(255, 255, 255, 0.5) 52vw,
-    rgba(255, 255, 255, 0.15) 55vw,
-    transparent 58vw
+    transparent 40vw,
+    rgba(255, 255, 255, 0.1) 44vw,
+    rgba(255, 255, 255, 0.4) 47vw,
+    rgba(255, 255, 255, 0.85) 50vw,
+    rgba(255, 255, 255, 0.4) 53vw,
+    rgba(255, 255, 255, 0.1) 56vw,
+    transparent 60vw
   );
-  mix-blend-mode: plus-lighter;
+  mix-blend-mode: screen;
   filter: blur(16px);
 }
 
