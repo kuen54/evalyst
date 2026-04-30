@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n/provider"
 import { LanguageToggle } from "@/components/language-toggle"
 import { useCopilotStore } from "@/components/copilot/store"
 import { segmentedItem } from "@/lib/segmented"
+import { applyThemeClass, type ResolvableTheme } from "@/lib/theme/apply"
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -18,6 +19,7 @@ export function Sidebar() {
   const { open: copilotOpen } = useCopilotStore()
   // 记住 copilot 打开前的 collapsed 状态；关闭后还原
   const prevCollapsedBeforeCopilot = useRef<boolean | null>(null)
+  const themeBtnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => setMounted(true), [])
 
@@ -38,9 +40,46 @@ export function Sidebar() {
   }, [copilotOpen])
 
   const cycleTheme = () => {
-    if (theme === "light") setTheme("dark")
-    else if (theme === "dark") setTheme("system")
-    else setTheme("light")
+    let next: ResolvableTheme
+    if (theme === "light") next = "dark"
+    else if (theme === "dark") next = "system"
+    else next = "light"
+
+    const prefersReduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+    // Feature detect：不支持 API 或 a11y 要求 reduced motion → 现状 snap
+    const docWithVT = typeof document !== "undefined"
+      ? (document as Document & {
+          startViewTransition?: (cb: () => void | Promise<void>) => unknown
+        })
+      : null
+    if (prefersReduce || !docWithVT || !docWithVT.startViewTransition) {
+      setTheme(next)
+      return
+    }
+
+    // 写 origin 坐标给 radial keyframe 用（copilot 关时生效；开时 selector 不命中，无副作用）
+    const rect = themeBtnRef.current?.getBoundingClientRect()
+    if (rect) {
+      document.documentElement.style.setProperty(
+        "--theme-origin-x",
+        `${rect.left + rect.width / 2}px`
+      )
+      document.documentElement.style.setProperty(
+        "--theme-origin-y",
+        `${rect.top + rect.height / 2}px`
+      )
+    }
+
+    docWithVT.startViewTransition(() => {
+      // 同步改 DOM：View Transitions 在 callback 返回后立即取新快照，
+      // next-themes 的 className 应用走 useEffect 异步，快照抓不到——必须这里手动同步 toggle。
+      applyThemeClass(next)
+      // next-themes 更状态 + localStorage；它的 useEffect 之后会再 apply 同值，no-op。
+      setTheme(next)
+    })
   }
 
   const themeIcon = (
@@ -142,6 +181,7 @@ export function Sidebar() {
       <div className={`mt-auto pb-4 space-y-0.5 ${collapsed ? "px-1.5" : "px-3"}`}>
         {mounted && (
           <button
+            ref={themeBtnRef}
             onClick={cycleTheme}
             title={collapsed ? themeLabel : undefined}
             className={`flex items-center gap-2 rounded-md text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors ${
