@@ -475,31 +475,40 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     copilot-reveal-tail-fade 1250ms linear 140ms both;
 }
 
-/* 亮色主题：完全对齐 dark 主题的单层 9-stop 结构——只把颜色位置互换。
-   Dark:  accent 外halos → white core 中央 → accent 内halos  （screen blend，暗底发光）
-   Light: off-white 外halos → accent core 中央 → off-white 内halos  （normal blend，浅底染色）
-   "White" 位置用 rgba(218, 225, 242, X) 浅冷灰白——有颜色不是 transparent，
-   用户明确要求"一点点灰但一定要有颜色"。在白底上 normal blend 叠加显示为可见的冷调浅灰。
-   "Accent" 位置用 var(--copilot-accent) 深蓝，中心 peak 95% alpha。
-   其他所有实现（blur 16px、animation、position/inset/z-index/contain）继承 base，对齐 dark。 */
+/* 亮色主题：asymmetric 结构明确"白-左 / 蓝-右"（镜像 dark 的"蓝-左 / 白-右"）。
+   Dark 的 white 在白底上无法显形，所以光用结构镜像还不够——必须用实际浅灰白色素 + 拉开
+   off-white 和 accent 的位置（blur 16px 会把挨得太近的低 alpha 色素吞掉）。
+
+   结构：
+   - Inner 半径 r=40-46（映射 viewport 右半）: accent 深蓝 peak 95% alpha flat
+   - Outer 半径 r=54-58（映射 viewport 左半）: 浅冷灰白 peak 85% alpha flat
+   - 中间 r=48-52 做渐变过渡
+   两个 peak 都用 flat-top 2vw 抗 blur 稀释（单点 peak 会被高斯模糊稀释到 0.6 有效 alpha）。
+
+   Off-white 色值 rgb(195, 210, 235) 是明显可见的冷灰白——在白底 (254,253,249) 上
+   normal blend @0.85 alpha 后输出 (204, 217, 237)，delta 50/36/12 RGB units，
+   明确可辨识。用户 "一点点灰" 的 tolerance 内最大化可见度。 */
 :root:not(.dark) .copilot-reveal-wave {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
     transparent 38vw,
-    rgba(218, 225, 242, 0.35) 42vw,
-    rgba(218, 225, 242, 0.6) 46vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 30%) 48vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 5%) 50vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 30%) 52vw,
-    rgba(218, 225, 242, 0.6) 54vw,
-    rgba(218, 225, 242, 0.35) 58vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 5%) 40vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 5%) 44vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 30%) 46vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 60%) 48vw,
+    rgba(195, 210, 235, 0.4) 50vw,
+    rgba(195, 210, 235, 0.7) 52vw,
+    rgba(195, 210, 235, 0.85) 54vw,
+    rgba(195, 210, 235, 0.85) 56vw,
+    rgba(195, 210, 235, 0.55) 58vw,
+    rgba(195, 210, 235, 0.25) 60vw,
     transparent 62vw
   );
   mix-blend-mode: normal;
 }
 
-/* Tail: 同结构简化版本。中心用 accent 浅色，外圈淡冷灰白 */
+/* Tail: 保持 accent 浅尾迹 */
 :root:not(.dark) .copilot-reveal-tail {
   background-image: radial-gradient(
     circle at 150vw 50%,
