@@ -595,58 +595,7 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 }
 
 /* ---------------- Theme switch · View Transitions ---------------- */
-
-/* main 常驻命名：和 root 独立快照。copilot 开时 main 做 R→L wipe、root 做 chrome fade；
-   copilot 关时 root 做 radial 扩散（main 的 pseudo 走 UA 默认但被 root 的动画覆盖看不出）。
-   `view-transition-name` 只在实际 startViewTransition 时参与合成，平时无开销。 */
-main {
-  view-transition-name: main-content;
-}
-
-/* old 统一保持 opacity 1 不动——给 new 叠上来做"覆盖式"入场留底；
-   默认 UA 行为是 old 淡出，会产生"两个主题并存"的中间帧观感差。 */
-::view-transition-old(root),
-::view-transition-old(main-content) {
-  animation: none !important;
-  opacity: 1;
-}
-
-/* copilot 关：root 径向扩散（main 的 pseudo 走 UA 默认，但被 root 的扩散覆盖在上层看不出）*/
-html:not([data-copilot-open="true"]) ::view-transition-new(root) {
-  animation: theme-radial-expand 700ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-/* copilot 开：main R→L wipe（700ms）；root（chrome 区：sidebar + copilot panel + overlays）快速 fade（200ms）*/
-html[data-copilot-open="true"] ::view-transition-new(main-content) {
-  animation: theme-wipe-rl 700ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
-}
-html[data-copilot-open="true"] ::view-transition-new(root) {
-  animation: theme-fade-in 200ms ease-out both;
-}
-
-@keyframes theme-radial-expand {
-  from {
-    clip-path: circle(0 at var(--theme-origin-x, 50%) var(--theme-origin-y, 50%));
-  }
-  to {
-    clip-path: circle(150vmax at var(--theme-origin-x, 50%) var(--theme-origin-y, 50%));
-  }
-}
-
-@keyframes theme-wipe-rl {
-  from { clip-path: inset(0 0 0 100%); }
-  to   { clip-path: inset(0 0 0 0); }
-}
-
-@keyframes theme-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-new(root),
-  ::view-transition-new(main-content) {
-    animation: none !important;
-  }
-}
+/* NOTE：LightningCSS 1.32 不识别 `::view-transition-*` 伪元素 + `view-transition-name`
+   属性，在这里写会被整段 drop。改为 app/layout.tsx 里 <style dangerouslySetInnerHTML>
+   直接注入 <head>，绕开 build pipeline。 */
 
