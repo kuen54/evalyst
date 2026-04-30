@@ -485,8 +485,10 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 
 :root:not(.dark) .copilot-reveal-wave {
   /* 呼应暗色主题的"accent halo → accent → white core → accent → accent halo"结构。
-     但 multiply 在白底上白色不可见（白×白=白），所以 core 用 transparent 让白底透出来当高光。
-     两侧的 deep accent 形成 Mach band 错觉，让中间的透明区域读作明显的亮核——真正做到"白天扫光也有白色成分"。 */
+     core 用显式 white（不是 transparent）—— multiply 下白×白=白无视觉差异，
+     但显式 white 让 gradient 插值走"蓝→白"渐变而不是"蓝→透明"，语义清晰、
+     未来换 blend mode 也不用改结构。两侧的 deep accent 形成 Mach band 错觉，
+     让中间的白色核读作明显的亮核——真正做到"白天扫光也有白色成分"。 */
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
@@ -494,8 +496,8 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 42vw,
     color-mix(in oklab, var(--copilot-accent), transparent 30%) 45vw,
     color-mix(in oklab, var(--copilot-accent), transparent 80%) 48vw,
-    transparent 49vw,
-    transparent 51vw,
+    white 49vw,
+    white 51vw,
     color-mix(in oklab, var(--copilot-accent), transparent 80%) 52vw,
     color-mix(in oklab, var(--copilot-accent), transparent 30%) 55vw,
     color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 58vw,
