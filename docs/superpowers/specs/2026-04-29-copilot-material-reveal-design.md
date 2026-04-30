@@ -547,6 +547,8 @@ Wave `animation-delay: 200ms` 的问题：200ms 内 wave overlay 已渲染在最
   - "整体 cascade 效果都很卡顿"（~100 元素同时 transition 引起 paint 压力）
 - 本次完全 revert，下版本专题（可能从 CSS animation 或 mask-wipe 方向重做）
 
+**Update 2026-04-30**：已在 0.5.4 落地。尝试过 View Transitions API（v0.5.4 v1，clip-path 扫过，视觉是"扫描线"——用户放弃，归档在 `archive/theme-view-transitions`）后，最终方案是 element-level CSS transition + **镜像 reveal cascade 的完整 shorthand override**（v0.5.4 v2.1）——v0.5.3 的真实失败根因是 `*` 选择器的 paint 风暴 + `disableTransitionOnChange` 吞 transition，不是 shorthand override 本身；reveal cascade 用同样机制在产稳定。Glass 走 stagger shorthand override；非 glass chrome（body / aside / main）走无 stagger 500ms breathing crossfade。详见 `docs/superpowers/specs/2026-04-30-theme-cascade-design.md`。
+
 ### 18.5 决策记录增量
 
 | # | 决策 | 最终 |

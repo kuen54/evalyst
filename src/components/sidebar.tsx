@@ -8,6 +8,8 @@ import { useT } from "@/lib/i18n/provider"
 import { LanguageToggle } from "@/components/language-toggle"
 import { useCopilotStore } from "@/components/copilot/store"
 import { segmentedItem } from "@/lib/segmented"
+import { applyThemeClass, type ResolvableTheme } from "@/lib/theme/apply"
+import { applyThemeCascade, clearThemeCascade } from "@/lib/theme/cascade"
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -15,9 +17,11 @@ export function Sidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const t = useT()
-  const { open: copilotOpen } = useCopilotStore()
+  const { open: copilotOpen, width: copilotWidth } = useCopilotStore()
   // 记住 copilot 打开前的 collapsed 状态；关闭后还原
   const prevCollapsedBeforeCopilot = useRef<boolean | null>(null)
+  // cycle 过程中的 cleanup timeout；连点时抢旧 timeout 避免残留 delay
+  const cascadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => setMounted(true), [])
 
@@ -38,10 +42,39 @@ export function Sidebar() {
   }, [copilotOpen])
 
   const cycleTheme = () => {
-    if (theme === "light") setTheme("dark")
-    else if (theme === "dark") setTheme("system")
-    else setTheme("light")
+    let next: ResolvableTheme
+    if (theme === "light") next = "dark"
+    else if (theme === "dark") next = "system"
+    else next = "light"
+
+    // 抢前次 cycle 未跑完的 cleanup；新 cycle 写新 delay + flag，旧的由新 timeout 一起清
+    if (cascadeTimeoutRef.current) {
+      clearTimeout(cascadeTimeoutRef.current)
+      cascadeTimeoutRef.current = null
+    }
+
+    // 必须先 cascade apply（写 CSS var + 激活 flag），再 applyThemeClass（触发 transition）
+    applyThemeCascade(copilotOpen, copilotOpen ? copilotWidth : 0)
+    applyThemeClass(next)  // sync DOM class toggle，触发 transition（各元素按 --theme-cascade-delay 错峰）
+    setTheme(next)         // next-themes state + localStorage；其 useEffect 看到 class 已对，no-op
+
+    // 2000ms = max delay 1400 + transition duration 320 + 280ms 余量
+    cascadeTimeoutRef.current = setTimeout(() => {
+      clearThemeCascade()
+      cascadeTimeoutRef.current = null
+    }, 2000)
   }
+
+  // cycle 过程中 unmount（切页、热重载）时清 timeout + DOM flag，避免残留
+  useEffect(() => {
+    return () => {
+      if (cascadeTimeoutRef.current) {
+        clearTimeout(cascadeTimeoutRef.current)
+        cascadeTimeoutRef.current = null
+      }
+      clearThemeCascade()
+    }
+  }, [])
 
   const themeIcon = (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
