@@ -426,79 +426,74 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  /* screen 比 overlay 在浅底上扫光更可见；screen 永远变亮（不变暗）*/
-  mix-blend-mode: screen;
-  /* 大 blur 把 gradient 真正糊成光晕，避免"色块边缘"观感 */
-  filter: blur(16px);
-  will-change: transform, filter;
+  /* 暗色默认 color-dodge（颜色减淡）：暗底上白核触发 base/(1-src) 极端 brightness，
+     真正"光学材质"而不是平铺色块。浅色用 overlay（见下 override）。 */
+  mix-blend-mode: color-dodge;
+  /* 小 blur 让 core 保持锋利、仅外缘羽化 */
+  filter: blur(6px);
+  will-change: transform, filter, opacity;
   contain: layout style paint;
 }
 
 .copilot-reveal-wave {
-  /* 暗色主题默认：白色 hot core + screen blend 扫光
-     band peak 在半径 40vw 处（较 50vw 更弯，sagitta ~154px = 21% 曲率），
-     band 从半径 30→50vw 覆盖 20vw 宽（-38% vs 32vw），更紧致的光束。
-     10 stops 分层：outer accent 25% / inner accent 50% / white 70% / white 95% core，
-     对称向两侧渐弱到 transparent，整段过渡丝滑。
-     transform 动画平移整个 div，让弧段从右扫到左。 */
+  /* 暗色主题：band peak 在 radial 35vw（R 40→35，sagitta 154→189px, +23% 曲率）。
+     band 26-44vw 共 18vw 宽（更紧致）。
+     9 stops 快速羽化：outer transparent → accent 10% → 40% → 80% → white 98% core，
+     中心锋利两端软绒。 */
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 30vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 75%) 34vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 50%) 38vw,
-    color-mix(in oklab, white, transparent 30%) 39vw,
-    color-mix(in oklab, white, transparent 5%) 40vw,
-    color-mix(in oklab, white, transparent 30%) 41vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 50%) 42vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 75%) 46vw,
-    transparent 50vw
+    transparent 26vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 90%) 29vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 60%) 32vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 20%) 34vw,
+    color-mix(in oklab, white, transparent 2%) 35vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 20%) 36vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 60%) 38vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 90%) 41vw,
+    transparent 44vw
   );
-  /* 双 animation：transform 单段 bezier 平滑移动，opacity 单独 linear 淡出。
-     之前单 keyframe 三段（0%/75%/100%）会在 75% 边界出现 bezier 速度不连续——
-     每段独立应用 bezier，段尾速度≈0 接段头速度≈0 读作"顿一下"。拆开后 transform
-     全程单调速度，opacity 只在末端淡出，二者互不干扰。 */
+  /* Burst 动力学：transform 前 50% 时间完成 80% 距离（"先极快"），
+     后 50% 时间完成剩 20%（"滑行消散"）。opacity 在前 20% 保持满，后 80% 线性淡出。
+     700ms 总长，对标 Apple Intelligence 唤醒节奏。 */
   animation:
-    copilot-reveal-wave-translate 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards,
-    copilot-reveal-wave-fade 1250ms linear forwards;
+    copilot-reveal-wave-translate 700ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards,
+    copilot-reveal-wave-fade 700ms linear forwards;
 }
 
 .copilot-reveal-tail {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 26vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 85%) 40vw,
-    transparent 54vw
+    transparent 22vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 35vw,
+    transparent 48vw
   );
   animation:
-    copilot-reveal-wave-translate 1250ms cubic-bezier(0.25, 0.1, 0.25, 1) 140ms both,
-    copilot-reveal-tail-fade 1250ms linear 140ms both;
+    copilot-reveal-wave-translate 700ms cubic-bezier(0.2, 0.8, 0.2, 1) 90ms both,
+    copilot-reveal-tail-fade 700ms linear 90ms both;
 }
 
-/* 亮色主题：换成 multiply blend + 把暗色模式里的「白/蓝」位置对调。
-   暗色是 accent 侧翼 + 白 hot core；亮色是 白侧翼 + accent hot core。
-   浅底上 multiply 让 accent core 变成实蓝线扫过，contrast 拉满；白侧翼在白底上天然隐身（白*白=白）。 */
+/* 亮色主题：换成 overlay blend + "白/蓝"位置对调。
+   暗色是 accent 侧翼 + 白 hot core；亮色是 accent-soft 侧翼 + accent hot core。 */
 :root:not(.dark) .copilot-reveal-wave,
 :root:not(.dark) .copilot-reveal-tail {
-  mix-blend-mode: multiply;
+  mix-blend-mode: overlay;
 }
 
 :root:not(.dark) .copilot-reveal-wave {
-  /* 全程用 accent-soft（L=0.88 浅天蓝），只在 core 用 accent (L=0.7) 但压低到 35% alpha
-     让 multiply 后 L≈0.89（更浅）。halos 用极淡 accent-soft alpha 营造"白色halo带蓝调"视觉。 */
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 30vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 80%) 34vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 38vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 35%) 39vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 65%) 40vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 35%) 41vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 42vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 80%) 46vw,
-    transparent 50vw
+    transparent 26vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 85%) 29vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 32vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 15%) 34vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 40%) 35vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 15%) 36vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 38vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 85%) 41vw,
+    transparent 44vw
   );
 }
 
@@ -506,9 +501,9 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 26vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 75%) 40vw,
-    transparent 54vw
+    transparent 22vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 65%) 35vw,
+    transparent 48vw
   );
 }
 
@@ -517,16 +512,15 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   to   { transform: translateX(-100vw); }
 }
 
-/* opacity 在 50% 之后才开始淡出，到 100% 完全透明。
-   R 缩小到 40vw 后末尾 10% 行程会出现轻微双弧（right arc 进 viewport），
-   提前 fade 到 50% 启动让末段 opacity 更低时双弧才出现。 */
+/* opacity 前 20% 满亮保持，后 80% 线性淡出至 0。
+   burst 曲线前段爆发后段滑行，与此配合：动能极快→亮度消散 = 双维度"光学衰减"。 */
 @keyframes copilot-reveal-wave-fade {
-  0%, 50% { opacity: 1; }
+  0%, 20% { opacity: 1; }
   100%    { opacity: 0; }
 }
 
 @keyframes copilot-reveal-tail-fade {
-  0%, 50% { opacity: 0.85; }
+  0%, 20% { opacity: 0.85; }
   100%    { opacity: 0; }
 }
 
