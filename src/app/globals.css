@@ -475,105 +475,33 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     copilot-reveal-tail-fade 1250ms linear 140ms both;
 }
 
-/* 亮色主题：双 pseudo-element 做"白 + 蓝同时可见"的光学折射感。
-   单一 blend 在白底上做不出来：multiply 能出蓝但吃白（白×白=白）；
-   screen/plus-lighter 能加白但会把蓝也推向白（1-(1-1)*(1-0.7)=1 = 白）。
-   所以拆两层：
-     ::before = 蓝色 body + multiply  → 白底上"折射出深蓝带"
-     ::after  = 白色 hot core + plus-lighter → 在蓝带上把 RGB 加爆到 1 出纯白
-   plus-lighter = RGB 相加 clamp to 1：
-     白(1) + 白底(1) = 1 = 白（白底区域不受影响）
-     白(1) + 被 multiply 压过的深蓝(~0.6) = 1 = 纯白（蓝带区域被"点亮"）
-   净效果 = 白底 → 蓝晕 → 白核 → 蓝晕 → 白底，和 dark 主题"白核 + accent 侧翼"对称。
-
-   Tail 保留单层 multiply 浅蓝尾迹，不追加亮核（尾巴本来就是衬 wave 的补位）。 */
-
-/* 父元素：清空 base 的 screen blend + blur 和自带 gradient；让 pseudo 各自管自己。
-   contain 去 paint（base 用的是 `layout style paint`）——paint 隐含 isolation: isolate，
-   会把子 pseudo 的 mix-blend-mode 框在父节点内部够不到 page 白底。
-   保留 position:fixed + inset + z-index + pointer-events 从 base 继承（不覆盖）；
-   保留 animation（translate + fade）从 base 继承。 */
+/* 亮色主题：完全对齐 dark 主题的单层结构——只改 gradient 和 blend mode。
+   - 继承 base rule 的 position/inset/z-index/pointer-events/blur(16px)/contain/animation
+   - 把 gradient 做成 asymmetric "白-左 / 蓝-右"，镜像 dark 的"蓝-左 / 白-右"
+     - outer 半径（viewport 左）保持 transparent → page 白底透出来 = 天然白
+     - inner 半径（viewport 右）放深 accent peak = 深蓝
+   - blend mode 换成 multiply（dark 用 screen 是因为 bg 暗；light bg 白必须 multiply 才能出蓝）
+   - 其他所有实现（blur 16px、animation、contain 等）完全对齐 dark */
 :root:not(.dark) .copilot-reveal-wave {
-  background-image: none;
-  mix-blend-mode: normal;
-  filter: none;
-  contain: layout style;
-}
-
-:root:not(.dark) .copilot-reveal-wave::before,
-:root:not(.dark) .copilot-reveal-wave::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* 浅色主题重写：Contrast Gleam + Iridescent Sheer 策略（2026-04-30）。
-   废弃大面积青色 multiply/screen 叠加（用户反馈"像塑料布罩 UI"），改为：
-
-   1. **Contrast Gleam** — ::before 极微弱中性冷灰暗流（0.08 alpha）制造 Mach band 对比，
-      让 ::after 的纯白在潜意识里读作"更亮"。暗流几乎不可见但人眼会感知到。
-
-   2. **Iridescent Sheer** — ::after 中心绝对纯白 rgba(255,255,255,1)，两侧带极淡
-      冷色散（淡紫 leading / 淡青 trailing），模拟玻璃边缘的折射色散，"珠光"质感。
-
-   3. **剑锋感** — band 宽度压到 ~8vw（原 24vw 的 1/3），锐利如高光。
-
-   4. **Lens distortion** — backdrop-filter: blur + brightness 做光学透镜，
-      配 mask-image 把效应限定在 arc 范围内（不整屏 blur）。
-
-   5. **mix-blend-mode: normal** — 不再和白底打 multiply/screen 的物理架，纯 alpha 叠加。 */
-
-/* Layer 1: Contrast undertone——极微弱冷灰暗流，仅为衬托 highlight。 */
-:root:not(.dark) .copilot-reveal-wave::before {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 46vw,
-    rgba(60, 70, 100, 0.08) 50vw,
-    transparent 54vw
+    transparent 38vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 5%) 40vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 10%) 42vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 10%) 44vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 30%) 46vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 55%) 48vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 70%) 50vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 90%) 54vw,
+    transparent 58vw,
+    transparent 62vw
   );
   mix-blend-mode: multiply;
-  filter: blur(8px);
 }
 
-/* Layer 2: Iridescent Gleam——纯白中心 + 冷色散边缘 + lens 扭曲。
-   mask-image 是关键——把 ::after 的实际作用区限定在 arc 范围内，
-   这样 backdrop-filter 不会 blur 整个 viewport 背景。 */
-:root:not(.dark) .copilot-reveal-wave::after {
-  mask-image: radial-gradient(
-    circle at 150vw 50%,
-    transparent 46vw,
-    black 49vw,
-    black 51vw,
-    transparent 54vw
-  );
-  -webkit-mask-image: radial-gradient(
-    circle at 150vw 50%,
-    transparent 46vw,
-    black 49vw,
-    black 51vw,
-    transparent 54vw
-  );
-  background-image: radial-gradient(
-    circle at 150vw 50%,
-    transparent 0%,
-    transparent 47vw,
-    rgba(210, 215, 245, 0.35) 48vw,
-    rgba(245, 248, 255, 0.75) 49vw,
-    rgba(255, 255, 255, 1) 50vw,
-    rgba(248, 252, 255, 0.75) 51vw,
-    rgba(220, 240, 255, 0.35) 52vw,
-    transparent 53vw
-  );
-  backdrop-filter: blur(3px) brightness(1.05);
-  -webkit-backdrop-filter: blur(3px) brightness(1.05);
-  mix-blend-mode: normal;
-  filter: blur(1.5px);
-}
-
-/* Tail: 单层 multiply 浅蓝尾迹。stops 收紧到 40-60vw（band 20vw），
-   让 arc 曲率读得出来，不被大 band 稀释成直柱。 */
+/* Tail: 同 dark 结构，仅 blend 改 multiply + alpha 调强（深底 screen 和浅底 multiply
+   视觉强度不同）。stops 保持简单 3-stop 结构 */
 :root:not(.dark) .copilot-reveal-tail {
   background-image: radial-gradient(
     circle at 150vw 50%,
@@ -583,7 +511,6 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     transparent 60vw
   );
   mix-blend-mode: multiply;
-  filter: blur(16px) saturate(2) contrast(1.3);
 }
 
 @keyframes copilot-reveal-wave-translate {
