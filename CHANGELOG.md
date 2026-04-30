@@ -11,15 +11,18 @@
 ### Copilot Material Reveal（一次性唤起动效，替代已 DROP 的 edge glow）
 
 - **触发**：copilot 面板 `open: false → true` rising-edge。⌘K / toggle 按钮均触发。关闭不播；刷新恢复 open=true 不播（首次 mount 屏蔽）
-- **视觉**：从屏幕右边缘扫向左一道 sky-blue（`--copilot-accent`）高光带 + 80ms 延后尾浪；整体 700ms 出屏，`background-position-x 100vw → -30vw`，`mix-blend-mode: overlay`
-- **Cascade**：遍历 `[data-glass-variant]` 按 `getBoundingClientRect().left` 算 `--reveal-delay` 并写 inline CSS var（0-600ms 钳位）；`html[data-copilot-revealing="true"]` override 用 `!important` 覆盖 `shell.tsx` 的 inline transition，各 card 按位置错峰从扁平翻玻璃
-- **清理**：850ms 后 fresh `querySelectorAll` 清所有 `--reveal-delay` + 清 `data-copilot-revealing` flag + unmount overlay divs
+- **视觉**：`radial-gradient` 圆弧扫光从屏外右侧（`circle at 150vw 50%`，band 半径 ~50vw）扫入 viewport；动画 1250ms，`transform: translateX(0 → -100vw)` 单段 `cubic-bezier` + 独立 `opacity` 在末段 50→100% linear 淡出（避免末尾 `radial center` 进 viewport 的"幽灵双弧"）；尾浪 140ms 延后 + 同轨迹。`filter: blur(16px)` 让 wave 读作光晕
+- **两套主题色**：
+  - **暗色**：accent 侧翼 + 白色 hot core (95% alpha)，`mix-blend-mode: screen`（永远变亮）
+  - **浅色**：白色侧翼 + `--copilot-accent-soft` (sky blue L=0.88) halos + `--copilot-accent` 中心 (50% alpha)，`mix-blend-mode: multiply`（反向变成浅蓝光束扫过）
+- **Cascade**：`store.setOpen/toggleOpen` 检测 rising edge **同步**调 `applyRevealCascade`，先写 `--reveal-delay` CSS var + `data-copilot-revealing="true"` flag **再**让 React commit shell.tsx 新 inline style——否则浏览器会用 shell 的 inline 320ms 先起跑，后写的 delay 不作用于 in-flight transition。每卡 delay = 300ms offset + `((100 - cardX) / 100) * 1250`，clamp `[0, 1550]`。`html[data-copilot-revealing="true"]` override 用 `!important` 覆盖 shell 的 inline transition
+- **清理**：`MaterialRevealOverlay` useLayoutEffect 挂 1950ms setTimeout，setTimeout 或 store.setOpen(false) 时调 `clearRevealCascade` 清所有 `--reveal-delay` + `data-copilot-revealing`。effect return fn 只 `clearTimeout` 不调 cleanup（否则下次 rising-edge React 跑旧 cleanup 会擦掉新写的 delay）
 - **A11y**：`prefers-reduced-motion: reduce` 关 overlay、cascade 均匀 200ms；`prefers-reduced-transparency: reduce` 关 overlay（玻璃自身走既有降级）
 
 **架构落地**：
-- `src/components/copilot/material-reveal-overlay.tsx` 新增：`computeRevealDelay` 纯函数 + `MaterialRevealOverlay` React 组件
-- `src/components/copilot/store.tsx` 扩展：新字段 `lastOpenedAt: number` rising-edge 时间戳
-- `src/app/globals.css` 追加：`@keyframes copilot-reveal-wave` + `.copilot-reveal-wave / .copilot-reveal-tail` + `html[data-copilot-revealing] [data-glass-variant]` 高优先级 transition override + 两条 a11y 降级段
+- `src/components/copilot/material-reveal-overlay.tsx` 新增：`computeRevealDelay` 纯函数 + `applyRevealCascade` / `clearRevealCascade` 同步 DOM 助手 + `MaterialRevealOverlay` React 组件（渲染 `.copilot-reveal-wave` + `.copilot-reveal-tail` 两层 overlay）
+- `src/components/copilot/store.tsx` 扩展：新字段 `lastOpenedAt: number` rising-edge 时间戳 + `openRef` 同步读当前 open（state 异步）；`setOpen` / `toggleOpen` 在 `setOpenState` 之前同步调 `applyRevealCascade`（rising）或 `clearRevealCascade`（falling）
+- `src/app/globals.css` 追加：双 `@keyframes`（`copilot-reveal-wave-translate` + `copilot-reveal-wave-fade` + `copilot-reveal-tail-fade`）+ `.copilot-reveal-wave` / `.copilot-reveal-tail` radial-gradient + `:root:not(.dark)` 亮色主题 override + `html[data-copilot-revealing]` 高优先级 `!important` transition override + a11y 降级
 - `src/app/layout.tsx` 挂 `<MaterialRevealOverlay />` 于 `CopilotStoreProvider` 子树内，与 `<GlowOverlay />` 同级
 
 **测试**：

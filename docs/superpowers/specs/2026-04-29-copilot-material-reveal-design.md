@@ -1,6 +1,8 @@
 # Copilot Material Reveal · 一次性唤起波纹设计
 
 > 日期 2026-04-29 · Scope: Evalyst copilot UI · 继 edge glow 整条 DROP 后的新方案
+>
+> **NOTE (2026-04-30)**：本 spec 下文 §4-§8 的初始设计值（700ms / linear-gradient / `mix-blend-mode: overlay` / cleanup 850ms / fromVw 100 + clamp 600）反映的是 PR 开发前的架构草案。实际 shipped 版本经历多轮 tuning 后改动了核心参数，**见本文底部 §16 "Final Shipped Values" 节**。下文 §4-§8 保留作为架构/分层的设计理由说明参考。
 
 ## 1. 目标
 
@@ -357,3 +359,60 @@ const setOpen = useCallback((v: boolean) => {
 - 每次 reveal 随机 accent hue shift：不做
 - 不同页面根据内容密度调参（wave 速度/高度）：不做
 - AB 实验 on/off：不做
+
+---
+
+## 16. Final Shipped Values (2026-04-30)
+
+本 spec 初始版本的若干参数在 PR #8 开发 + tuning 过程中调整。以下是 merge 到 main 后又 revert 到 commit `43c19b1` 的最终 shipped 状态（fine-tuning 后仍觉偏差了设计意图，回退）：
+
+### 16.1 Wave 动画
+
+| 参数 | 初始设计 (§4-§7) | Shipped (43c19b1) |
+|---|---|---|
+| 动画时长 | 700ms | **1250ms** |
+| 曲线 | `cubic-bezier(0.25, 0.1, 0.25, 1)` | 同（transform 轨）+ `linear`（opacity 轨） |
+| 位移轨 | `background-position-x: 100vw → -30vw` on linear-gradient | **`transform: translateX(0 → -100vw)`** on radial-gradient |
+| Gradient 形状 | `linear-gradient(90deg, ...)` | **`radial-gradient(circle at 150vw 50%, ...)` R=50vw, band 34-66vw** |
+| Blend mode | `mix-blend-mode: overlay` | **暗色 `screen` / 浅色 `multiply`**（两套 theme override） |
+| 后处理 | 无 | **`filter: blur(16px)`**（光晕观感） |
+| Opacity | 无淡出 | **末端 60→100% linear 淡出**（mask 幽灵双弧） |
+| 双 animation 拆分 | 否 | **是**——transform bezier / opacity linear 分开走，避免 keyframe 分段 bezier 速度不连续 |
+
+### 16.2 Cascade 时序
+
+| 参数 | 初始设计 (§6) | Shipped (43c19b1) |
+|---|---|---|
+| `fromVw` | 100 | 100 |
+| `totalVwTraveled` | 130 (100 → -30) | **100** (100 → 0) |
+| `durationMs` | 700 | **1250** |
+| `waitForWaveOffsetMs` | 0（无 offset） | **350ms**（让 wave 先行，glass 尾随翻面） |
+| Clamp 上限 | 600 | **1600** (= offset + 1250) |
+| Cleanup setTimeout | 850ms | **1950ms** (= clamp + 280 transition + margin) |
+
+### 16.3 Cascade 触发时机（重要修复）
+
+初始设计假设 useLayoutEffect 里写 `--reveal-delay` 就够了。实际发现：React 提交 `shell.tsx` 新 inline style 的那一刻，`useLayoutEffect` 尚未运行，浏览器用 shell 默认 320ms 0-delay transition 就起跑了，之后再写的 `--reveal-delay` 不作用于 in-flight transition。
+
+Shipped 方案：**`store.setOpen` / `toggleOpen` 在 `setOpenState` 之前同步调 `applyRevealCascade`**（拆成纯函数），让 cascade DOM 在 React commit 新 shell style **之前** 就已经生效。`MaterialRevealOverlay` 只负责渲染 wave overlay + 调度清理；关 copilot 时 store 同步调 `clearRevealCascade` 让 close 走简单 inline fade。
+
+### 16.4 浅色主题（初始 spec 未展开）
+
+初始 spec §11 仅说"沿用现有 a11y 降级"。实际发现浅底（`oklch(0.995 ...)`）上 `screen` blend 几乎无效（白 + 白 = 白）。Shipped 方案：
+
+- `:root:not(.dark)` override：把暗色模式的**白色 hot core / accent 侧翼**位置对调——改用 **accent hot core + 白色侧翼**
+- 浅色 blend mode = `multiply`（反向变成"浅蓝光束扫过白底"）
+- core 用 `var(--copilot-accent)` 压到 50% alpha，halo 用 `var(--copilot-accent-soft)` (L=0.88) 多层 alpha 营造"近白带蓝调"渐变
+
+### 16.5 决策记录增量
+
+| # | 决策 | 最终 |
+|---|---|---|
+| 11 | Cascade 触发位置 | 不在 useLayoutEffect，而是在 `setOpen` 内同步 pre-React-commit 执行 |
+| 12 | 浅色主题 blend | `multiply`（不是 `overlay`/`screen`），白↔accent 位置对调 |
+| 13 | Gradient 形状 | radial-gradient（不是 linear），因浅色 multiply 下浅蓝 halos 读作"白色感"弧光 |
+| 14 | 动画拆分 | 双 animation 独立走（transform bezier / opacity linear），单一 keyframe 三段 bezier 分段速度不连续会读作"顿一下" |
+
+### 16.6 不包含的后续调整
+
+本次 ship 后仍 merge 过一轮更激进的 tuning（40vw 更弯 + 20vw 更窄 band + 浅色更淡 + offset 400），但随后 revert 回 43c19b1 因为那轮过度压缩。后续如果还想继续调 offset / R / blur 强度，参考 commit `4d7c153` 的参数作为"更激进"的起点。
