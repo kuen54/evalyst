@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-04-30 · Copilot Material Reveal
+
 ### Copilot Material Reveal（一次性唤起动效，替代已 DROP 的 edge glow）
 
 - **触发**：copilot 面板 `open: false → true` rising-edge。⌘K / toggle 按钮均触发。关闭不播；刷新恢复 open=true 不播（首次 mount 屏蔽）
@@ -31,6 +33,8 @@
 
 - Spec: `docs/superpowers/specs/2026-04-29-copilot-material-reveal-design.md`
 - Plan: `docs/superpowers/plans/2026-04-29-copilot-material-reveal.md`
+
+## [0.5.0] — 2026-04-29 · Copilot page context + UI polish
 
 ### Page Context + Viewport Tool（PR-4；P2 Ambient Border Glow DEFERRED）
 
