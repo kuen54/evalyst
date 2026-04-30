@@ -475,44 +475,72 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     copilot-reveal-tail-fade 1250ms linear 140ms both;
 }
 
-/* 亮色主题：换成 multiply blend + 把暗色模式里的「白/蓝」位置对调。
-   暗色是 accent 侧翼 + 白 hot core；亮色是 白侧翼 + accent hot core。
-   浅底上 multiply 让 accent core 变成实蓝线扫过，contrast 拉满；白侧翼在白底上天然隐身（白*白=白）。 */
-:root:not(.dark) .copilot-reveal-wave,
-:root:not(.dark) .copilot-reveal-tail {
-  mix-blend-mode: multiply;
+/* 亮色主题：双 pseudo-element 做"白 + 蓝同时可见"的玻璃折射感。
+   单一 blend 在白底上做不出来：multiply 能出蓝（白×蓝=深蓝）但吃白（白×白=白）；
+   screen 能出白但吃蓝。所以拆两层：
+     ::before = 蓝色 body + multiply  → 白底上"折射出深蓝带"
+     ::after  = 白色 hot core + plus-lighter → 在蓝带上叠真白光
+   plus-lighter 把 RGB 相加并 clamp to 1：
+     白 + 蓝(0.7) = clipped to 1 = 纯白  ← 蓝带区域被"亮起"成白核
+     白 + 白(1.0) = clipped to 1 = 白    ← 白底区域不受影响
+   净效果 = 白底 → 蓝晕 → 白核 → 蓝晕 → 白底，和 dark 主题"白核 + accent 侧翼"对称。*/
+
+/* Wave 父元素：清空 bg + filter + 用 normal blend，让 pseudo 各自管自己的 blend。
+   关键：去掉 `paint` 从 contain 里（基础规则有 `contain: layout style paint`），
+   因为 paint 隐含 isolation: isolate → 会把 pseudo 的 mix-blend-mode 框在父范围内
+   够不到 page 白底。只留 layout style 保持性能不影响合成路径。 */
+:root:not(.dark) .copilot-reveal-wave {
+  background-image: none;
+  mix-blend-mode: normal;
+  filter: none;
+  contain: layout style;
 }
 
-:root:not(.dark) .copilot-reveal-wave {
-  /* 浅色主题核心加深：core 改用 accent（L=0.7）@75% alpha（原 50% alpha），
-     multiply 在白底上结果 L≈0.74 → 真正能看到的"深蓝玻璃线"。
-     内环 halos 也改用 accent（不是 accent-soft）@45% alpha 形成渐变过渡，
-     外圈才回到 accent-soft 作为晕。整体从"淡淡泛蓝"拉到"明显的深蓝光柱"。
-     stops 收紧到 38→62vw。 */
+:root:not(.dark) .copilot-reveal-wave::before,
+:root:not(.dark) .copilot-reveal-wave::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Layer 1: 蓝色 body (multiply) —— stops 和 dark 主题一致 38→62vw，
+   配合 saturate(2) contrast(1.3) 把浅蓝调压成深蓝折射带 */
+:root:not(.dark) .copilot-reveal-wave::before {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
     transparent 38vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 42vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 30%) 46vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 55%) 48vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 42vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 50%) 46vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 30%) 48vw,
     color-mix(in oklab, var(--copilot-accent), transparent 25%) 50vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 55%) 52vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 30%) 54vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 60%) 58vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 30%) 52vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 50%) 54vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 75%) 58vw,
     transparent 62vw
   );
-}
-
-/* 浅色主题 filter 增强：在 blur 基础上叠 saturate + contrast。
-   multiply 后的浅蓝/深蓝调经 saturate(2.0) 把 chroma 拉到更鲜艳的天蓝，
-   contrast(1.3) 让 core 和 halos 的过渡更犀利——从"柔和渐变"变"光学折射"读感。
-   dark 主题 screen blend 本身就能瞬间拉高对比，不需要额外 filter。 */
-:root:not(.dark) .copilot-reveal-wave,
-:root:not(.dark) .copilot-reveal-tail {
+  mix-blend-mode: multiply;
   filter: blur(16px) saturate(2) contrast(1.3);
 }
 
+/* Layer 2: 白色 hot core (plus-lighter) —— 窄一圈只在 46-54vw，
+   peak 85% alpha。blur 略小（12px）让白核比蓝带更锐利，读作"真实光点"而不是晕 */
+:root:not(.dark) .copilot-reveal-wave::after {
+  background-image: radial-gradient(
+    circle at 150vw 50%,
+    transparent 0%,
+    transparent 46vw,
+    rgba(255, 255, 255, 0.35) 48vw,
+    rgba(255, 255, 255, 0.85) 50vw,
+    rgba(255, 255, 255, 0.35) 52vw,
+    transparent 54vw
+  );
+  mix-blend-mode: plus-lighter;
+  filter: blur(12px);
+}
+
+/* Tail: 保持单层蓝色尾浪，multiply + filter，stops 不变 */
 :root:not(.dark) .copilot-reveal-tail {
   background-image: radial-gradient(
     circle at 150vw 50%,
@@ -521,6 +549,8 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     color-mix(in oklab, var(--copilot-accent), transparent 60%) 50vw,
     transparent 70vw
   );
+  mix-blend-mode: multiply;
+  filter: blur(16px) saturate(2) contrast(1.3);
 }
 
 @keyframes copilot-reveal-wave-translate {
