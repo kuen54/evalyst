@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 主题切换时：glass 卡片镜像 reveal cascade 的 R→L stagger（copilot 开态）或同步 crossfade（copilot 关态）；非 glass chrome（body/aside/main）加一条 500ms 无 stagger 的 breathing crossfade，整体有呼吸感、前景有层次。
+**Goal:** 主题切换时：glass 卡片镜像 reveal cascade 的 R→L stagger（copilot 开态）或同步 crossfade（copilot 关态）；非 glass chrome（body/aside/main）走一条和 glass baseline 同 320ms 的无 stagger crossfade —— 整屏同节奏起步，开态 glass 独自做 R→L ripple。
 
 **Architecture:** glass 元素镜像 reveal cascade 的完整 transition shorthand override（已在产验证稳定）；chrome 独立 selector + 无 stagger 长 duration transition；移除 `<ThemeProvider>` 的 `disableTransitionOnChange`（否则 class 切换时 transition 被吞）。
 
@@ -17,9 +17,9 @@
 - `src/lib/theme/__tests__/cascade.test.ts` — 4 case 单测
 
 **改**：
-- `src/components/sidebar.tsx` — `cycleTheme` 重构：调 `applyThemeCascade` → `applyThemeClass` → `setTheme` → `setTimeout(clearThemeCascade, 1500)`；`cascadeTimeoutRef` 防连点残留；unmount 清
+- `src/components/sidebar.tsx` — `cycleTheme` 重构：调 `applyThemeCascade` → `applyThemeClass` → `setTheme` → `setTimeout(clearThemeCascade, 2000)`；`cascadeTimeoutRef` 防连点残留；unmount 清
 - `src/app/layout.tsx` — `<ThemeProvider>` 删 `disableTransitionOnChange` prop
-- `src/app/globals.css` — 文末追加两段：glass shorthand override（镜像 reveal cascade 结构）+ chrome breathing crossfade
+- `src/app/globals.css` — 文末追加两段：glass shorthand override（镜像 reveal cascade 结构）+ chrome 320ms crossfade（和 glass 同节奏）
 
 **文档**：
 - `CHANGELOG.md` — 0.5.4 条目
@@ -76,16 +76,16 @@ describe("applyThemeCascade + clearThemeCascade", () => {
     expect(el.style.getPropertyValue("--theme-cascade-delay")).toBe("")
   })
 
-  it("copilot open：writes per-element delay by x-position (rightmost 0, leftmost ~ startVw*10)", () => {
+  it("copilot open：writes per-element delay by x-position (rightmost 0, leftmost ~ startVw*14)", () => {
     // viewport=1000, panel=200px → startVw=80
-    // Card right edge at x=900, center=950, cx=95 → delay = (80-95)*10 = -150 → clamp to 0
+    // Card right edge at x=900, center=950, cx=95 → delay = (80-95)*14 = -210 → clamp to 0
     const right = createGlassCard({ left: 900, width: 100 })
-    // Card left edge at x=0, center=50, cx=5 → delay = (80-5)*10 = 750ms
+    // Card left edge at x=0, center=50, cx=5 → delay = (80-5)*14 = 1050ms
     const left = createGlassCard({ left: 0, width: 100 })
     applyThemeCascade(true, 200)
     expect(document.documentElement.dataset.themeCascading).toBe("true")
     expect(right.style.getPropertyValue("--theme-cascade-delay")).toBe("0ms")
-    expect(left.style.getPropertyValue("--theme-cascade-delay")).toBe("750ms")
+    expect(left.style.getPropertyValue("--theme-cascade-delay")).toBe("1050ms")
   })
 
   it("prefers-reduced-motion：no flag, no delay (让调用方继续 applyThemeClass 以 0 delay snap)", () => {
@@ -152,7 +152,7 @@ export function applyThemeCascade(copilotOpen: boolean, panelPx: number): void {
         .forEach(el => {
           const rect = el.getBoundingClientRect()
           const cx = ((rect.left + rect.width / 2) / vw) * 100
-          const delay = Math.max(0, Math.min(1000, ((startVw - cx) / 100) * 1000))
+          const delay = Math.max(0, Math.min(1400, ((startVw - cx) / 100) * 1400))
           el.style.setProperty("--theme-cascade-delay", `${delay}ms`)
         })
     }
@@ -192,7 +192,7 @@ git commit -m "feat(theme): add applyThemeCascade / clearThemeCascade helpers"
 
 ---
 
-## Task 2：CSS override rule（glass 镜像 reveal + chrome breathing）
+## Task 2：CSS override rule（glass 镜像 reveal + chrome 同 320ms crossfade）
 
 **Files:**
 - Modify: `src/app/globals.css`
@@ -217,14 +217,14 @@ html[data-theme-cascading="true"] [data-glass-variant] {
     !important;
 }
 
-/* 2. Chrome elements（非 glass 的大块背景）：breathing crossfade，无 stagger。
+/* 2. Chrome elements（非 glass 的大块背景）：和 glass baseline 同 320ms，无 stagger。
       只覆盖 body、两个 aside（sidebar + copilot panel 都是 aside）、main——
       用户感知最强的大块底色。不覆盖 text/icon/button，避免 v0.5.3 的 `*` paint 风暴。
-      500ms 比 glass 的 320ms 慢一拍，视觉读作"背景柔和变色，前景 card 依次翻面"。 */
+      关态 glass + chrome 同步 320ms 一次 crossfade；开态 chrome 快速到位，glass R→L ripple 在干净背景上可见。 */
 html[data-theme-cascading="true"] body,
 html[data-theme-cascading="true"] aside,
 html[data-theme-cascading="true"] main {
-  transition: background-color 500ms ease-out, border-color 500ms ease-out !important;
+  transition: background-color 320ms ease-out, border-color 320ms ease-out !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -249,7 +249,7 @@ Expected: no errors
 
 ```bash
 git add src/app/globals.css
-git commit -m "feat(theme): glass mirrors reveal cascade shorthand; chrome gets breathing crossfade"
+git commit -m "feat(theme): glass mirrors reveal cascade shorthand; chrome matches 320ms baseline"
 ```
 
 ---
@@ -361,11 +361,11 @@ const cycleTheme = () => {
   applyThemeClass(next)  // sync DOM class toggle，触发 transition（各元素按 --theme-cascade-delay 错峰）
   setTheme(next)         // next-themes state + localStorage；其 useEffect 看到 class 已对，no-op
 
-  // 1500ms = max delay 1000 + transition duration 320 + 180ms 余量
+  // 2000ms = max delay 1400 + transition duration 320 + 280ms 余量
   cascadeTimeoutRef.current = setTimeout(() => {
     clearThemeCascade()
     cascadeTimeoutRef.current = null
-  }, 1500)
+  }, 2000)
 }
 ```
 
@@ -470,26 +470,26 @@ node -e "console.log('navigate manually via MCP')"  # or skip; Playwright not st
 在 `CHANGELOG.md` 的 `## [Unreleased]` 下方插入：
 
 ```markdown
-## [0.5.4] — 2026-04-30 · 主题切换 cascade（glass 镜像 reveal + chrome breathing）
+## [0.5.4] — 2026-04-30 · 主题切换 cascade（glass 镜像 reveal + chrome 同 320ms crossfade）
 
-v0.5.3 defer、v0.5.4 v1（View Transitions API）被用户放弃（视觉是"扫描线"不是"每元素自己变"）后的第三次尝试。回到 element-level CSS transition 路线——但这次**镜像已经在产的 reveal cascade 机制**做 glass 卡片，同时给非 glass 大块背景（body / aside / main）加一条无 stagger 的 breathing crossfade，整体有呼吸感。
+v0.5.3 defer、v0.5.4 v1（View Transitions API）被用户放弃（视觉是"扫描线"不是"每元素自己变"）后的第三次尝试。回到 element-level CSS transition 路线——这次**镜像已经在产的 reveal cascade 机制**做 glass 卡片；非 glass 大块背景（body / aside / main）也走 320ms 同节奏 crossfade，一次全屏同步变化。
 
 ### 体验
 
-- **copilot 关**：所有 glass card 以 0 delay 同步 320ms transition；同时 body/sidebar/panel bg 500ms 柔和 crossfade —— 一次全屏呼吸
-- **copilot 开**：glass card R→L 错峰 stagger 0-1000ms（复用 reveal cascade 公式）；body/sidebar/panel bg 同时走 500ms 无 stagger crossfade —— 前景 card 依次翻面 + 背景同时柔和变色
+- **copilot 关**：所有 glass card 以 0 delay 同步 320ms transition；body/sidebar/panel bg 同步 320ms crossfade —— 一次全屏统一变色
+- **copilot 开**：glass card R→L 错峰 stagger 0-1400ms（复用 reveal cascade 公式）；body/sidebar/panel bg 同时走 320ms 无 stagger crossfade —— 背景先 settle，前景 card 依次翻面 ripple
 
 ### 架构
 
 - `src/lib/theme/cascade.ts` 新增 `applyThemeCascade(copilotOpen, panelPx)` + `clearThemeCascade()`
   - 关态：只设 `html.dataset.themeCascading="true"` flag；不写 delay（全 0）
-  - 开态：遍历 `[data-glass-variant]`，按 x 位置 + `panelPx` 换算 `(startVw - cx) / 100 * 1000` clamp [0, 1000] 写 `--theme-cascade-delay`
+  - 开态：遍历 `[data-glass-variant]`，按 x 位置 + `panelPx` 换算 `(startVw - cx) / 100 * 1400` clamp [0, 1400] 写 `--theme-cascade-delay`
   - `prefers-reduced-motion: reduce`：不写 delay、不设 flag → 调用方仍 class swap 但无动画 scope
-- `src/components/sidebar.tsx` `cycleTheme` 重构：`applyThemeCascade` → `applyThemeClass` → `setTheme` → `setTimeout(clearThemeCascade, 1500)`；`cascadeTimeoutRef` 防连点残留；unmount useEffect 清 timeout + DOM flag
+- `src/components/sidebar.tsx` `cycleTheme` 重构：`applyThemeCascade` → `applyThemeClass` → `setTheme` → `setTimeout(clearThemeCascade, 2000)`；`cascadeTimeoutRef` 防连点残留；unmount useEffect 清 timeout + DOM flag
 - `src/app/layout.tsx` **移除 `disableTransitionOnChange`** from `<ThemeProvider>`——它注入 `<style>* { transition: none !important }` 吞所有 transition；初次加载 flash 由 next-themes inline script（正交机制）保护，无影响
 - `src/app/globals.css` 新增两段：
   - Glass rule：镜像 reveal cascade 结构（完整 shorthand + delay var + 5 个 property + !important）
-  - Chrome rule：body / aside / main 500ms crossfade，无 stagger
+  - Chrome rule：body / aside / main 320ms crossfade，无 stagger（和 glass baseline 同节奏）
 
 ### 相对 v0.5.3 + v0.5.4 v1 的定位
 

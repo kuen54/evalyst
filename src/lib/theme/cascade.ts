@@ -27,7 +27,8 @@ export function applyThemeCascade(copilotOpen: boolean, panelPx: number): void {
         .forEach(el => {
           const rect = el.getBoundingClientRect()
           const cx = ((rect.left + rect.width / 2) / vw) * 100
-          const delay = Math.max(0, Math.min(1000, ((startVw - cx) / 100) * 1000))
+          // stagger window 0-1400ms：0 = 最右卡立刻起跑，1400ms = 最左卡最晚起跑
+          const delay = Math.max(0, Math.min(1400, ((startVw - cx) / 100) * 1400))
           el.style.setProperty("--theme-cascade-delay", `${delay}ms`)
         })
     }

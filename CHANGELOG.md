@@ -14,20 +14,27 @@ v0.5.3 deferred、v0.5.4 v1（View Transitions API）被放弃（视觉是"扫�
 
 ### 体验
 
-- **copilot 关**：所有 glass card 以 0 delay 同步 320ms transition；body / sidebar / panel bg 500ms 柔和 crossfade —— 一次全屏呼吸
-- **copilot 开**：glass card R→L 错峰 stagger 0-1000ms（复用 reveal cascade 公式）；body / sidebar / panel bg 同时走 500ms 无 stagger crossfade —— 前景 card 依次翻面 + 背景同时柔和变色
+- **copilot 关**：所有 glass card 以 0 delay 同步 320ms transition；body / sidebar / panel bg 同步 320ms crossfade —— 一次全屏统一 crossfade，glass 和 chrome 同节奏
+- **copilot 开**：glass card R→L 错峰 stagger 0-1400ms（复用 reveal cascade 公式）；body / sidebar / panel bg 同时走 320ms 无 stagger crossfade —— 前景 card 依次翻面 + 背景同时快速到位
 
 ### 架构
 
 - `src/lib/theme/cascade.ts` 新增 `applyThemeCascade(copilotOpen, panelPx)` + `clearThemeCascade()`
   - 关态：只设 `html.dataset.themeCascading="true"` flag；不写 delay（全 0）
-  - 开态：遍历 `[data-glass-variant]`，按 x 位置 + `panelPx` 换算 `(startVw - cx) / 100 * 1000` clamp [0, 1000] 写 `--theme-cascade-delay`
+  - 开态：遍历 `[data-glass-variant]`，按 x 位置 + `panelPx` 换算 `(startVw - cx) / 100 * 1400` clamp [0, 1400] 写 `--theme-cascade-delay`
   - `prefers-reduced-motion: reduce`：不写 delay、不设 flag → 调用方仍 class swap 但无动画 scope
-- `src/components/sidebar.tsx` `cycleTheme` 重构：`applyThemeCascade` → `applyThemeClass` → `setTheme` → `setTimeout(clearThemeCascade, 1500)`；`cascadeTimeoutRef` 防连点残留；unmount useEffect 清 timeout + DOM flag
+- `src/components/sidebar.tsx` `cycleTheme` 重构：`applyThemeCascade` → `applyThemeClass` → `setTheme` → `setTimeout(clearThemeCascade, 2000)`；`cascadeTimeoutRef` 防连点残留；unmount useEffect 清 timeout + DOM flag
 - `src/app/layout.tsx` **移除 `disableTransitionOnChange`** from `<ThemeProvider>`——它注入 `<style>* { transition: none !important }</style>` 吞所有 transition；初次加载 flash 由 next-themes inline script（正交机制）保护，无影响
 - `src/app/globals.css` 新增两段：
   - Glass rule：镜像 reveal cascade 结构（完整 shorthand + delay var + 5 个 property + !important）
-  - Chrome rule：body / aside / main 500ms crossfade，无 stagger
+  - Chrome rule：body / aside / main 320ms crossfade，无 stagger（和 glass baseline 同节奏）
+
+### Tuning
+
+首轮 smoke 后根据反馈调整：
+- 关态：chrome 500ms → **320ms**，和 glass 同步。原设计有意"breathing"差节奏，用户反馈感到刺眼；统一更干净
+- 开态：glass stagger 上限 1000ms → **1400ms**，R→L 节奏更缓，陈列感更明显
+- cleanup timeout 1500ms → **2000ms**（max delay 1400 + duration 320 + 280 buffer）
 
 ### 相对 v0.5.3 + v0.5.4 v1 的定位
 

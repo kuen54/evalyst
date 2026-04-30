@@ -13,8 +13,8 @@
 
 切主题（light ⇌ dark ⇌ system）时，让**每个 glass card UI 元素自己**按 R→L 的顺序依次变色——不是某一条"扫描线"在刷页面，而是每张卡自己翻色。
 
-- **Copilot 关**：所有 glass card 同时（0 delay）走原生 `transition` 淡入新主题色——视觉上是一次全屏柔和 crossfade，~320ms 内完成
-- **Copilot 开**：每张 glass card 按 x 位置算 R→L 错峰 delay；stagger 窗口 ~1000-1500ms；视觉上类似 reveal cascade "每张卡自己翻面"
+- **Copilot 关**：所有 glass card 同时（0 delay）走原生 `transition` 淡入新主题色；body / aside / main 同步 320ms crossfade——视觉上是一次全屏统一 crossfade，~320ms 内完成
+- **Copilot 开**：每张 glass card 按 x 位置算 R→L 错峰 delay；stagger 窗口 0-1400ms；chrome（body/aside/main）同时走 320ms 无 stagger 到位——背景先 settle，前景 card R→L ripple 视觉上类似 reveal cascade "每张卡自己翻面"
 - **绝对禁止**：cleanup 闪烁（v0.5.3 的第一坑）
 
 ## 2. 非目标
@@ -39,16 +39,16 @@
 | 2 | Glass 元素选择器 | `[data-glass-variant]`（和 reveal cascade 同） | 已有统一标记；覆盖所有主内容区的 glass card |
 | 3 | Glass CSS override 形式 | **完整 transition shorthand**（background-color, backdrop-filter, border-color, box-shadow, background-image × 5 props × var delay），**和 reveal cascade 同构** | v0.5.3 失败根因是 `*` 全选 + `disableTransitionOnChange` 吞，不是 shorthand override 本身。reveal cascade 用的就是 shorthand override 且稳定在产。不再玩"只 override delay"这种过保守姿态 |
 | 4 | Glass duration | 320ms（与 glass 平时 inline transition 一致） | 主题切换是色值插值，320ms 足够；与 reveal 的 280ms 稍异以区分语境 |
-| 5 | Glass delay 公式 | 本地 `(startVw - cx) / 100 * 1000`，clamp [0, 1000] | 不复用 `computeRevealDelay`（它有 750ms offset 等待 wave）；主题 cascade 没有 wave，stagger 窗口 0-1000ms |
+| 5 | Glass delay 公式 | 本地 `(startVw - cx) / 100 * 1400`，clamp [0, 1400] | 不复用 `computeRevealDelay`（它有 750ms offset 等待 wave）；主题 cascade 没有 wave，stagger 窗口 0-1400ms |
 | 6 | Copilot 关态 glass 行为 | 不写 delay（全 0）= 所有 glass card 同步 320ms crossfade | 用户反馈关态"不需要 R→L cascade"；simple crossfade |
 | 7 | Copilot 开态 `startVw` | `100 - panelVw`（panel 左边缘）| 和 reveal cascade 完全一致 |
-| 8 | **非 glass chrome 元素**（body / sidebar `aside` / copilot panel / main 的 bg 和 border） | 补一条 `transition: background-color 500ms ease, border-color 500ms ease`；**无 stagger**，全场同步渐变；仅在 `html[data-theme-cascading="true"]` scope 生效 | 让整体有"呼吸感"而不是背景 snap、只 card stagger 的割裂感。`500ms` 比 glass 的 320ms 长，读作"慢一拍的柔和背景变化"；无 stagger 降低复杂度 |
+| 8 | **非 glass chrome 元素**（body / sidebar `aside` / copilot panel / main 的 bg 和 border） | 补一条 `transition: background-color 320ms ease-out, border-color 320ms ease-out`；**无 stagger**，全场同步渐变；仅在 `html[data-theme-cascading="true"]` scope 生效 | 首轮 smoke 时曾用 500ms "breathing" 差节奏，用户反馈刺眼；改为与 glass 同 320ms baseline 统一更干净 |
 | 9 | 非 glass 覆盖范围 | 仅 `body`, `aside`（sidebar + copilot panel 共用 `<aside>`）, `main`；不用 `*` | `*` = v0.5.3 paint 风暴根因。手写 4-5 个 selector 覆盖用户感知最强的大块背景即可 |
 | 10 | `disableTransitionOnChange` | **从 `<ThemeProvider>` 移除** | class 切换时注入 `<style>* { transition: none !important }` 约 1 帧 → cascade 跑不起来。初次加载 flash 由 next-themes inline `<script>`（正交机制）保护 |
 | 11 | Class 切换机制 | 复用 `applyThemeClass(next)`（v0.5.4 v1 遗产保留） | 同步 DOM 改动；早于 next-themes 的 useEffect |
 | 12 | Cascade flag | `html.dataset.themeCascading = "true"` | 激活 CSS override；和 reveal cascade 的 `data-copilot-revealing` 不同命名空间 |
 | 13 | CSS var 名 | `--theme-cascade-delay` | 两个 cascade 正交，避免同元素被 reveal 和 theme 同时 cascade 时串味 |
-| 14 | Cleanup 时机 | `setTimeout 1500ms`（max delay 1000 + duration 320 + 180ms 余量，同时覆盖非 glass 500ms crossfade）| 确保所有 transition 已结束 cleanup 对 in-flight 无影响 |
+| 14 | Cleanup 时机 | `setTimeout 2000ms`（max delay 1400 + duration 320 + 280ms 余量）| 确保所有 transition 已结束 cleanup 对 in-flight 无影响 |
 | 15 | `prefers-reduced-motion: reduce` | 跳过 stagger，直接 `applyThemeClass`。允许非 glass 的 500ms breathing 照跑（reduced-motion 只是"减少运动"不是"禁 transition"），或统一 snap—— **选 snap 更稳** | a11y 安全优先 |
 | 16 | 连续快速切换 | `cascadeTimeoutRef` 在前一次 cycle 残留时 clearTimeout；新 cycle 覆盖 delay + flag；cleanup 幂等 | 简单；不加 abort |
 
@@ -81,11 +81,11 @@
 | 0 | `applyThemeClass(next)` |
 | 0 | `setTheme(next)` |
 | ~1 | 最右卡（cx 约 100 - panelVw）delay 0，开始 transition |
-| ~300 | 屏中线 cards 开始 transition（假设 startVw 约 67, cx 33 → delay ~500ms，300ms 在算 delay 区间内开始还没到） |
-| ~500 | 屏中线 cards 开始 transition |
-| ~1000 | 最左卡 delay max 约 1000ms（实际按 clamp）开始 transition |
-| 1320 | 最左卡 transition 结束（1000 delay + 320 duration）|
-| 1500 | Cleanup 清所有 `--theme-cascade-delay` + `data-theme-cascading` flag |
+| ~320 | 最右卡 transition 结束 + chrome（body/aside/main）同步完成 320ms crossfade |
+| ~500 | 屏中线 cards 开始 transition（假设 startVw 约 67, cx 33 → delay ~475ms）|
+| ~1400 | 最左卡 delay max 1400ms 开始 transition |
+| 1720 | 最左卡 transition 结束（1400 delay + 320 duration）|
+| 2000 | Cleanup 清所有 `--theme-cascade-delay` + `data-theme-cascading` flag |
 
 ## 5. 组件与文件
 
@@ -94,7 +94,7 @@
 - `src/lib/theme/__tests__/cascade.test.ts` —— 延迟分配逻辑 + CSS var 写入单测
 
 **改**：
-- `src/components/sidebar.tsx` —— `cycleTheme` 重构：调 `applyThemeCascade` → `applyThemeClass` → `setTheme` → `setTimeout(clearThemeCascade, 1500)`
+- `src/components/sidebar.tsx` —— `cycleTheme` 重构：调 `applyThemeCascade` → `applyThemeClass` → `setTheme` → `setTimeout(clearThemeCascade, 2000)`
 - `src/app/layout.tsx` —— `<ThemeProvider>` 删 `disableTransitionOnChange` prop
 - `src/app/globals.css` —— 文末追加 Theme switch cascade section：1 条 CSS override rule + 1 条 reduced-motion 降级
 
@@ -139,7 +139,8 @@ export function applyThemeCascade(copilotOpen: boolean, panelPx: number): void {
         .forEach(el => {
           const rect = el.getBoundingClientRect()
           const cx = ((rect.left + rect.width / 2) / vw) * 100
-          const delay = Math.max(0, Math.min(1000, ((startVw - cx) / 100) * 1000))
+          // stagger window 0-1400ms：0 = 最右卡立刻起跑，1400ms = 最左卡最晚起跑
+          const delay = Math.max(0, Math.min(1400, ((startVw - cx) / 100) * 1400))
           el.style.setProperty("--theme-cascade-delay", `${delay}ms`)
         })
     }
@@ -178,7 +179,7 @@ const cycleTheme = () => {
   applyThemeClass(next)
   setTheme(next)
 
-  setTimeout(clearThemeCascade, 1500)
+  setTimeout(clearThemeCascade, 2000)
 }
 ```
 
@@ -203,14 +204,15 @@ html[data-theme-cascading="true"] [data-glass-variant] {
     !important;
 }
 
-/* 2. Chrome elements（非 glass）：简单 breathing crossfade，无 stagger。
+/* 2. Chrome elements（非 glass）：和 glass baseline 同 320ms，无 stagger。
       只覆盖最显眼的大块背景 / 边框——body、两个 aside（sidebar + copilot panel）、main。
-      500ms 比 glass 的 320ms 慢一拍，整体读作"背景柔和地变色，前景 card 依次翻面"。
+      关态：chrome + glass 都 320ms 无 delay → 整屏一次性 crossfade，无节奏差。
+      开态：chrome 320ms（背景先 settle），glass 320ms + 0-1400ms stagger → R→L ripple 在干净背景上可见。
       不覆盖 text / icon / 小按钮，避免 v0.5.3 的 `*` paint 风暴。 */
 html[data-theme-cascading="true"] body,
 html[data-theme-cascading="true"] aside,
 html[data-theme-cascading="true"] main {
-  transition: background-color 500ms ease-out, border-color 500ms ease-out !important;
+  transition: background-color 320ms ease-out, border-color 320ms ease-out !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -303,10 +305,10 @@ Glass card 数量约 ~100 个同时 transition 在 `background-color` 上。mode
 | 生效范围 | `[data-glass-variant]` 元素 | 同 |
 | CSS var | `--reveal-delay` | `--theme-cascade-delay` |
 | Flag | `data-copilot-revealing` | `data-theme-cascading` |
-| Override | **full transition shorthand**（改 property + duration + delay） | **只改 delay** |
-| Offset | 750ms（wait for wave）+ stagger | 无 offset，直接 stagger 0-1000ms |
-| Max delay | 2000ms | 1000ms |
-| Cleanup delay | 2400ms | 1500ms |
+| Override | **full transition shorthand**（改 property + duration + delay） | 同 |
+| Offset | 750ms（wait for wave）+ stagger | 无 offset，直接 stagger 0-1400ms |
+| Max delay | 2000ms | 1400ms |
+| Cleanup delay | 2400ms | 2000ms |
 | 允许同时触发 | 不强制；极小概率交叠 | 同 |
 
 两个 CSS override rule 在同一个 `[data-glass-variant]` 元素上会同时 match 吗？可以。Reveal 用 `data-copilot-revealing` 选择器、theme 用 `data-theme-cascading` 选择器，同 specificity，后声明者赢。把 theme cascade 规则写在 reveal cascade 规则**之后**，theme 赢。实际发生时：theme 的完整 shorthand 覆盖 reveal 的完整 shorthand，视觉上走主题的节奏——可接受。
@@ -319,12 +321,12 @@ Glass card 数量约 ~100 个同时 transition 在 `background-color` 上。mode
 |---|---|---|---|
 | 1 | v0.5.3 | Element-level + stagger + shorthand override + **`*` 选择器**（全页） + 遇到 `disableTransitionOnChange` 吞 transition | **失败**：cleanup flicker（property 栈 widespread 撤销）+ paint 风暴（`*` 扫全页） |
 | 2 | v0.5.4 v1 | `document.startViewTransition` + clip-path wipe/radial | **被放弃**：视觉是"扫描线"，不是用户要的"每元素自己变" |
-| 3 | v0.5.4 v2.1（本 spec）| **镜像 reveal cascade** 做 glass（shorthand override + delay var，scope `[data-glass-variant]`） + 非 glass chrome 独立 breathing crossfade（body/aside/main，500ms 无 stagger） + 删 `disableTransitionOnChange` | 按本 spec 实现 |
+| 3 | v0.5.4 v2.1（本 spec）| **镜像 reveal cascade** 做 glass（shorthand override + delay var，scope `[data-glass-variant]`） + 非 glass chrome 和 glass baseline 同 320ms crossfade（body/aside/main，无 stagger） + 删 `disableTransitionOnChange` | 按本 spec 实现 |
 
 v2.1 相对 v0.5.3 的关键修正：
 1. **Scope 收窄**：`*` → `[data-glass-variant]`（glass，~30-50 元素）+ 手写 4 个 chrome selector；不再扫全页
 2. **`disableTransitionOnChange` 移除**：这是 v0.5.3 的另一个根因——即使 override 写得对，transition 也被 next-themes 吞
-3. **Chrome 独立走 crossfade**：非 glass 大块背景有呼吸感，避免"card stagger / 背景 snap"的割裂观感
+3. **Chrome 和 glass 同 320ms baseline**：首轮 v2 设计过"breathing" 差节奏（chrome 500ms），首轮 smoke 后反馈刺眼，统一 320ms 更干净（开态 chrome 先 settle，glass 独立做 R→L stagger，层次反而更清）
 
 ## 12. 测试
 
