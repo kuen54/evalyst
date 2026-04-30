@@ -530,21 +530,24 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 }
 
 /* Layer 2: 白色 hot core (plus-lighter)。
-   窄一圈 46→54vw（比蓝带 38-62 窄 8vw），让 core 读作"蓝带中的光点"而不是"盖住一大片"。
-   peak 90% alpha，blur 10px 比蓝带 16px 锐利——白核比周围蓝雾更"实"，读感像真光。
-   plus-lighter 只在蓝带覆盖区域可见（白底 1+1=1 无效果，蓝带 1+0.6=1 点亮到纯白）。 */
+   覆盖 42→58vw（比蓝带 38-62 内缩 4vw），和 dark 主题的 38-62 band 里"白色分布在 46-54"的比例对应。
+   从 peak 向外三段 alpha 梯度：90% → 50% → 15% → 0%，模拟自然羽化。
+   blur(16px) 与 dark 主题 base blur 对齐（原 10px 太锐），让白核边缘柔化成光晕而非"光盘"。
+   plus-lighter 只在蓝带覆盖区域可见（白底 1+1=1 无变化，蓝带 1+0.6=1 点亮到纯白）。 */
 :root:not(.dark) .copilot-reveal-wave::after {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 46vw,
-    rgba(255, 255, 255, 0.4) 48vw,
+    transparent 42vw,
+    rgba(255, 255, 255, 0.15) 45vw,
+    rgba(255, 255, 255, 0.5) 48vw,
     rgba(255, 255, 255, 0.9) 50vw,
-    rgba(255, 255, 255, 0.4) 52vw,
-    transparent 54vw
+    rgba(255, 255, 255, 0.5) 52vw,
+    rgba(255, 255, 255, 0.15) 55vw,
+    transparent 58vw
   );
   mix-blend-mode: plus-lighter;
-  filter: blur(10px);
+  filter: blur(16px);
 }
 
 /* Tail: 单层 multiply 浅蓝尾迹。stops 不变，用 saturate+contrast 让浅蓝更凝。 */
