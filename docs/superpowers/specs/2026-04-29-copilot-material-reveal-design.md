@@ -547,6 +547,8 @@ Wave `animation-delay: 200ms` 的问题：200ms 内 wave overlay 已渲染在最
   - "整体 cascade 效果都很卡顿"（~100 元素同时 transition 引起 paint 压力）
 - 本次完全 revert，下版本专题（可能从 CSS animation 或 mask-wipe 方向重做）
 
+**Update 2026-04-30**：已在 0.5.4 落地，走 View Transitions API 方案（不是 CSS animation 也不是 mask-wipe），见 `docs/superpowers/specs/2026-04-30-theme-cascade-design.md`。
+
 ### 18.5 决策记录增量
 
 | # | 决策 | 最终 |

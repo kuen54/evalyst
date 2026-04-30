@@ -8,6 +8,47 @@
 
 ## [Unreleased]
 
+## [0.5.4] — 2026-04-30 · 主题切换 cascade（View Transitions API）
+
+v0.5.3 defer 的主题切换 cascade 重做——换到 View Transitions API，从机制上绕开"元素级 transition + delay"的 root cause。
+
+### 体验
+
+- **copilot 关**：从主题按钮位置径向扩散 700ms，`clip-path: circle()` 从按钮 center 涨到 150vmax
+- **copilot 开**：`<main>` R→L wipe 700ms（和 reveal cascade 同方向）；sidebar + copilot panel 走 root 200ms opacity fade
+- **原则**：old snapshot 不动（`animation: none; opacity: 1`），new snapshot 叠在上层 clip-path 逐渐覆盖
+
+### 架构
+
+- `src/lib/theme/apply.ts` 新增 `applyThemeClass(next)` —— 同步 toggle `html.classList`，镜像 next-themes 内部逻辑。给 `startViewTransition` callback 用，绕开 next-themes 的 useEffect 异步
+- `src/components/sidebar.tsx` `cycleTheme` 重构：feature detect + `prefers-reduced-motion` fallback → `setTheme` snap；否则 `document.startViewTransition` wrap，callback 内同步 `applyThemeClass` + `setTheme`
+- `src/app/layout.tsx` `<main>` 加 `viewTransitionName: "main-content"` 常驻命名
+- `src/app/globals.css` 文末追加 Theme switch section：4 keyframes（radial-expand / wipe-rl / fade-in）+ pseudo-element rules by `html[data-copilot-open]` + reduced-motion 降级
+- Origin 坐标（`--theme-origin-x/y`）由 JS 读按钮 `getBoundingClientRect` 写 html style，CSS keyframe `var(fallback 50% 50%)` 读取
+
+### v0.5.3 失败到本方案的根因消除
+
+| 问题 | v0.5.3（失败） | 本方案 |
+|---|---|---|
+| Cleanup 闪烁 | `transition-property` 栈撤销补帧 | 无 element transition，pseudo 结束自动卸载 |
+| Paint 风暴 | ~100 元素同时 transition | 2 个快照 blit，走 GPU 合成层 |
+| `disableTransitionOnChange` 冲突 | 依赖 element transition 但 next-themes 短暂禁掉 | 不依赖 element transition，正交 |
+
+浏览器实测（Playwright 监听 `transitionstart`）：copilot 开态主题切换 **0 个 element transition**（v0.5.3 ~100 个）；copilot 关态 4 个（全在同一张 card 的 border sides，而非 v0.5.3 的跨全页元素蔓延）。
+
+### 测试
+
+- vitest：209 → 213（`applyThemeClass` 4 case：dark / light / system-prefers-dark / system-prefers-light）
+- 手动 smoke：Chrome × copilot closed+open × 3 theme cycle + reduced-motion bypass
+- E2E 不加（Playwright 对 View Transitions 的时序不稳定，加 e2e 反而 flaky）
+
+### Fallback
+
+浏览器不支持 `document.startViewTransition`（Firefox < 127）或 `prefers-reduced-motion: reduce` 开启 → 直接 `setTheme`，走现状 snap，无副作用。
+
+- Spec: `docs/superpowers/specs/2026-04-30-theme-cascade-design.md`
+- Plan: `docs/superpowers/plans/2026-04-30-theme-cascade.md`
+
 ## [0.5.3] — 2026-04-30 · Copilot 打开体验三件套（扫光降饱和 + panel 弹性 + 扫光从 panel 边缘起）
 
 围绕 Material Reveal 的打开动效做三项互相独立但衔接到位的改进。主题切换 cascade 仍在调试中，不在本版本。
