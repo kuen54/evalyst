@@ -8,7 +8,7 @@
 
 ## [Unreleased]
 
-## [0.5.3] — 2026-04-30 · Light Theme Reveal Wave Tuning
+## [0.5.2] — 2026-04-30 · Light Theme Reveal Wave Tuning
 
 Iteration pass on the `0.5.1` Material Reveal light theme wave after user feedback that the cyan band read as "塑料布罩 UI"（saturated plastic sheet over UI）and didn't match dark theme's 高级 aesthetic.
 

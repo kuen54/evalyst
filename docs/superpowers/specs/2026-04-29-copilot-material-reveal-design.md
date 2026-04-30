@@ -419,13 +419,13 @@ Shipped 方案：**`store.setOpen` / `toggleOpen` 在 `setOpenState` 之前同�
 
 ---
 
-## 17. Light Theme Re-tuning (v0.5.3, 2026-04-30)
+## 17. Light Theme Re-tuning (v0.5.2, 2026-04-30)
 
 v0.5.1 浅色主题 shipped 值（§16.4）使用 `accent-soft halo + accent core + multiply + saturate(2) contrast(1.3)`，用户反馈视觉上像"塑料布罩 UI"——饱和青色带太重，且和 dark 主题"高级感"差距明显。经过 17 轮 tuning commits（`cf8b27d` → `5b484cb`），最终收敛到**严格对齐 dark 主题 9-stop symmetric 结构**的方案。
 
-### 17.1 最终 shipped（v0.5.3, commit `5b484cb`）
+### 17.1 最终 shipped（v0.5.2, commit `5b484cb`）
 
-| 参数 | v0.5.1 | v0.5.3 |
+| 参数 | v0.5.1 | v0.5.2 |
 |---|---|---|
 | 结构 | `accent-soft` halos + `accent` core + extra 渐变层 | **9-stop symmetric，严格镜像 dark** |
 | 颜色位置 | `white` → `accent-soft` halos / `accent` core | **`white` → `rgba(218, 225, 242)` off-white halos / `accent` core** |
@@ -465,7 +465,7 @@ v0.5.1 浅色主题 shipped 值（§16.4）使用 `accent-soft halo + accent cor
 | `958657f` | 单层 asymmetric 蓝峰偏内 + outer transparent 露 bg | 用户 "不能用透明当白，必须有颜色" reject |
 | `cda056d` | Asymmetric 双 peak（accent 内 / off-white 外 flat 各 2vw）+ stronger 195,210,235 off-white @ 85% alpha | 用户最后手动 revert 回 symmetric，认为更干净 |
 
-### 17.4 v0.5.3 不改的部分
+### 17.4 v0.5.2 不改的部分
 
 - Cascade 机制 / `computeRevealDelay` / store 集成 / layout 挂载 / animation keyframes / a11y 降级：**全部不动**
 - Dark 主题 wave + tail base rule：**完全不动**
