@@ -508,52 +508,48 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   pointer-events: none;
 }
 
-/* Layer 1: 蓝色 body (multiply)，**symmetric** 深蓝覆盖全 band 38-62vw。
-   这层必须 symmetric 且 peak alpha 高（0.85 at r=50），给白底足够压暗量——
-   否则内圈 r<50 的白底没被压暗，::after 的 screen 在白底上白×白=白不可见。
-   关键：symmetric ::before + asymmetric ::after 才能做出"左蓝右白"的视觉。
+/* 浅色主题：**单层 asymmetric ::before**，不用 ::after 白核。
+   根本原因：white 在 multiply 白底上永远 invisible（白×白=白）；screen 在白底上也永远 invisible
+   （1-0*任=1）。所以"在白底上画白"物理不成立。dark 主题之所以能左蓝右白，是因为 bg 是暗底，
+   screen blend 能真的把像素推亮出白来。
+
+   在白底上要做 asymmetric "左蓝右白"，正解是把蓝 peak 拉到外圈（viewport 左），
+   内圈快速 fade 到 transparent → viewport 右半直接显 page 白底 = 天然的白。
+   不需要 ::after 辅助——::after 在白底上 screen 本来也看不见。
+
+   蓝 peak r=52-56 (flat 4vw) 在 viewport 左半显深蓝；r=38-46 快速 fade 让 viewport 右半
+   露出白底。外圈 fade 短（56-62vw）让左边缘锐利有"leading edge"感。
    saturate(2) contrast(1.3) 把 accent 调成可读深蓝。 */
 :root:not(.dark) .copilot-reveal-wave::before {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
     transparent 38vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 42vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 30%) 46vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 15%) 50vw,
-    color-mix(in oklab, var(--copilot-accent), transparent 30%) 54vw,
-    color-mix(in oklab, var(--copilot-accent-soft), transparent 50%) 58vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 85%) 42vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 60%) 46vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 35%) 50vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 15%) 52vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 15%) 56vw,
+    color-mix(in oklab, var(--copilot-accent), transparent 45%) 58vw,
+    color-mix(in oklab, var(--copilot-accent-soft), transparent 75%) 60vw,
     transparent 62vw
   );
   mix-blend-mode: multiply;
   filter: blur(16px) saturate(2) contrast(1.3);
 }
 
-/* Layer 2: 白色 hot core (screen)，**asymmetric**——peak 偏内圈，外圈 sharp cutoff。
-   Gradient center 在 150vw 屏外右侧。在 viewport 里 r 小 = 靠右、r 大 = 靠左。
-   白 peak 在 r=44-48vw（内圈）→ viewport 右半显白；
-   外圈 r=52 sharp cutoff（不延到 r=58 之类）→ viewport 左半 ::after 不介入 → 蓝带保留纯蓝。
-
-   关键机制：r=44-48 处 ::before 有 0.5-0.8 alpha 深蓝（symmetric 给的压暗量），
-   ::after 1.0 white screen 上去 = screen(1, darkened_blue) = 1 真正出纯白。
-   r=54-58 处 ::before 也是 0.5-0.8 深蓝但 ::after 为 0 → 留纯蓝，形成左蓝右白。
-
-   Flat-top 4vw（r=44-48）抗 blur 稀释；外圈 r=50→52 2vw 内 1→0.2→0 fade，
-   比对称版更陡，让白→蓝过渡尽量集中在 r=50 附近（viewport 中线附近），
-   读感就是"半屏蓝、半屏白，中间一条窄的 blur 过渡"。 */
+/* ::after 保留但只作为 subtle 高光点缀——在 viewport 右半 boundary 附近轻微提亮，
+   让"蓝→白"过渡柔一点。peak 0.5 低 alpha（不追求纯白），窄 range r=46-50，
+   靠 blur(16) 散成柔光。落在 viewport 中偏右，刚好在 ::before 蓝峰刚结束的地方补一层渐变。 */
 :root:not(.dark) .copilot-reveal-wave::after {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 30vw,
-    rgba(255, 255, 255, 0.15) 36vw,
-    rgba(255, 255, 255, 0.55) 40vw,
-    rgba(255, 255, 255, 0.9) 42vw,
-    rgba(255, 255, 255, 1) 44vw,
-    rgba(255, 255, 255, 1) 48vw,
-    rgba(255, 255, 255, 0.55) 50vw,
-    rgba(255, 255, 255, 0.2) 51vw,
-    transparent 52vw
+    transparent 40vw,
+    rgba(255, 255, 255, 0.2) 44vw,
+    rgba(255, 255, 255, 0.5) 48vw,
+    rgba(255, 255, 255, 0.2) 50vw,
+    transparent 53vw
   );
   mix-blend-mode: screen;
   filter: blur(16px);
