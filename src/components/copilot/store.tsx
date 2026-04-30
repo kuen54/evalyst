@@ -76,6 +76,11 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   /** 同步追踪当前 open 值。rising edge 检测需要 sync 读，state 是异步的 */
   const openRef = useRef(false)
   useEffect(() => { openRef.current = open }, [open])
+  /** 同步追踪当前 width 值，给 setOpen rising edge 在 applyRevealCascade 之前
+   *  把 panel 宽度写到 html --copilot-panel-width 上用——cascade 需要在 pre-React-commit
+   *  时读到这个值计算 startVw。 */
+  const widthRef = useRef(420)
+  useEffect(() => { widthRef.current = width }, [width])
 
   // 初始化读 localStorage（SSR safe）
   useEffect(() => {
@@ -107,6 +112,10 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     // data-copilot-revealing 写进 DOM，这样 glass transition 启动时就能看到 cascade
     // override（带 delay），而不是先用 shell 的 320ms 0-delay 起跑。
     if (v && !openRef.current) {
+      // 先把 panel 宽度写到 html，applyRevealCascade 读这个值决定 wave startVw
+      if (typeof document !== "undefined") {
+        document.documentElement.style.setProperty("--copilot-panel-width", `${widthRef.current}px`)
+      }
       applyRevealCascade()
     } else if (!v && openRef.current) {
       // Falling edge：关面板时如果 cascade 还在 DOM 上（上次打开动效没跑完），
@@ -124,6 +133,9 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   const toggleOpen = useCallback(() => {
     // Rising/falling edge：见 setOpen 注释
     if (!openRef.current) {
+      if (typeof document !== "undefined") {
+        document.documentElement.style.setProperty("--copilot-panel-width", `${widthRef.current}px`)
+      }
       applyRevealCascade()
     } else {
       clearRevealCascade()
@@ -235,12 +247,19 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   }, [toggleOpen])
 
   // 面板开启时把 html 节点打标：UI 外壳走 liquid glass 变体，让底部光晕透过壳可见。
+  // 同时把当前 panel 宽度写到 --copilot-panel-width（包括 resize 时同步更新）——
+  // reveal wave overlay 和 cascade 起点公式都要读这个值。
   useEffect(() => {
     if (typeof document === "undefined") return
     const html = document.documentElement
-    if (open) html.dataset.copilotOpen = "true"
-    else delete html.dataset.copilotOpen
-  }, [open])
+    if (open) {
+      html.dataset.copilotOpen = "true"
+      html.style.setProperty("--copilot-panel-width", `${width}px`)
+    } else {
+      delete html.dataset.copilotOpen
+      html.style.removeProperty("--copilot-panel-width")
+    }
+  }, [open, width])
 
   const value = useMemo<CopilotStore>(() => ({
     open,

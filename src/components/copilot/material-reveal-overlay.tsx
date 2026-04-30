@@ -6,23 +6,33 @@ import { useCopilotStore } from "./store"
 /**
  * 计算某卡片受 wave 驱动的 glass transition 启动延迟（ms）。
  *
- * 波纹从 x=100vw 起，1250ms 线性扫到 x=0vw（覆盖 100vw 距离）。
- * 卡片 glass 过渡在"wave 已经扫过"后才启动：统一加 350ms offset，
- * 让 wave 先行 350ms、UI 在波纹紧邻的尾波里跟随翻面。
+ * 时序：panel spring 0-450ms → wave 200ms 起步 → cascade 紧跟 wave。
+ * wave 自己的 200ms 延迟 + 550ms wait-for-wave-offset = 总基线 750ms。
+ * 卡片在 wave 已经扫过后才翻面，让 "wave 点亮 UI" 的因果感成立。
  *
- * 最右卡 delay 350ms（wave peak 在 72vw）；中线卡 975ms（wave peak 22vw）；
- * 最左卡 1600ms（wave 刚出屏 350ms）。
- * 返回：夹在 [0, 1600] 区间。
+ * 当 copilot panel 开着（~420px）时，wave overlay 从 panel 左边缘开始扫，
+ * startVw = 100 - panelVw，卡片最大 centerXvw = startVw。
  *
  * @param centerXvw 卡片水平中心位置（vw 单位，0=左边缘，100=右边缘）
+ * @param startVw 波纹起始位置（vw 单位），缺省 100（无 panel）
  */
-export function computeRevealDelay(centerXvw: number): number {
-  const fromVw = 100
-  const totalVwTraveled = 100 // 100 → 0
+export function computeRevealDelay(centerXvw: number, startVw = 100): number {
+  const totalVwTraveled = 100 // startVw → (startVw - 100)
   const durationMs = 1250
-  const waitForWaveOffsetMs = 350
-  const raw = waitForWaveOffsetMs + ((fromVw - centerXvw) / totalVwTraveled) * durationMs
-  return Math.max(0, Math.min(1600, raw))
+  const waitForWaveOffsetMs = 750 // 包含 wave 自己的 200ms 启动延迟
+  const raw = waitForWaveOffsetMs + ((startVw - centerXvw) / totalVwTraveled) * durationMs
+  return Math.max(0, Math.min(2000, raw))
+}
+
+/** 读取当前 panel 宽度（vw 单位）。未开面板或 DOM 未准备好时返回 0。 */
+function readPanelVw(): number {
+  if (typeof document === "undefined") return 0
+  const vw = window.innerWidth
+  if (vw <= 0) return 0
+  const panelEl = document.querySelector<HTMLElement>("[data-copilot-panel]")
+  if (!panelEl) return 0
+  const rect = panelEl.getBoundingClientRect()
+  return (rect.width / vw) * 100
 }
 
 /**
@@ -41,12 +51,25 @@ export function applyRevealCascade(): void {
   const prefersReduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
   const vw = window.innerWidth
   if (vw > 0 && !prefersReduce) {
+    // Panel 尚未 open（此函数在 rising edge setOpen 前同步调），readPanelVw() 返回 0 —
+    // 这正是我们要的 startVw=100（wave 从 viewport 右边缘扫）；但更自然的方案是让
+    // wave 从 panel 实际左边缘扫。由于 panel 宽度 = store.width（默认 420px）在 store
+    // layer 已知，store 把它写到 html[style] --copilot-panel-width 上。此处读 panel
+    // DOM rect 在第一次打开时还是 0（DOM 还没画），所以直接从 store 的 width 推 panelVw。
+    // 但无法在这一层访问 store；改从 html inline style 的 --copilot-panel-width 读，
+    // 而这也要 store 先同步写。rising-edge 顺序：store.setOpen → apply 到 html var →
+    // applyRevealCascade → applyRevealCascade 读 var。
+    const htmlEl = document.documentElement
+    const panelPxStr = htmlEl.style.getPropertyValue("--copilot-panel-width").trim()
+    const panelPx = parseFloat(panelPxStr.replace("px", "")) || 0
+    const panelVw = panelPx > 0 ? (panelPx / vw) * 100 : readPanelVw()
+    const startVw = 100 - panelVw
     document
       .querySelectorAll<HTMLElement>("[data-glass-variant]")
       .forEach(el => {
         const rect = el.getBoundingClientRect()
         const centerXvw = ((rect.left + rect.width / 2) / vw) * 100
-        el.style.setProperty("--reveal-delay", `${computeRevealDelay(centerXvw)}ms`)
+        el.style.setProperty("--reveal-delay", `${computeRevealDelay(centerXvw, startVw)}ms`)
       })
   }
   document.documentElement.dataset.copilotRevealing = "true"
@@ -92,7 +115,7 @@ export function MaterialRevealOverlay() {
 
     setActive(true)
 
-    const cleanupDelay = prefersReduce ? 220 : 2000
+    const cleanupDelay = prefersReduce ? 220 : 2400
 
     const cleanup = () => {
       clearRevealCascade()
