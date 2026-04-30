@@ -416,3 +416,68 @@ Shipped 方案：**`store.setOpen` / `toggleOpen` 在 `setOpenState` 之前同�
 ### 16.6 不包含的后续调整
 
 本次 ship 后仍 merge 过一轮更激进的 tuning（40vw 更弯 + 20vw 更窄 band + 浅色更淡 + offset 400），但随后 revert 回 43c19b1 因为那轮过度压缩。后续如果还想继续调 offset / R / blur 强度，参考 commit `4d7c153` 的参数作为"更激进"的起点。
+
+---
+
+## 17. Light Theme Re-tuning (v0.5.3, 2026-04-30)
+
+v0.5.1 浅色主题 shipped 值（§16.4）使用 `accent-soft halo + accent core + multiply + saturate(2) contrast(1.3)`，用户反馈视觉上像"塑料布罩 UI"——饱和青色带太重，且和 dark 主题"高级感"差距明显。经过 17 轮 tuning commits（`cf8b27d` → `5b484cb`），最终收敛到**严格对齐 dark 主题 9-stop symmetric 结构**的方案。
+
+### 17.1 最终 shipped（v0.5.3, commit `5b484cb`）
+
+| 参数 | v0.5.1 | v0.5.3 |
+|---|---|---|
+| 结构 | `accent-soft` halos + `accent` core + extra 渐变层 | **9-stop symmetric，严格镜像 dark** |
+| 颜色位置 | `white` → `accent-soft` halos / `accent` core | **`white` → `rgba(218, 225, 242)` off-white halos / `accent` core** |
+| 颜色值 | accent-soft halos @ 25/50/75% alpha + accent core @ 50% | off-white halos @ 35/60% + accent halos @ 70% + accent core @ 95% |
+| Blend mode | `mix-blend-mode: multiply` | **`mix-blend-mode: normal`** |
+| Filter | `blur(16px) saturate(2) contrast(1.3)` | **`blur(16px)`（继承 base，无 saturate/contrast）** |
+| Stops 数量 | 10 | **9（和 dark 一致）** |
+| Tail band | 30-70vw（40vw band）+ saturate(2) contrast(1.3) | **40-60vw（20vw band）+ 纯 normal blend 无 filter override** |
+
+### 17.2 关键决策
+
+**为什么是 symmetric 而不是 asymmetric？**
+用户一开始希望浅色做成"白-左 / 蓝-右"镜像 dark 的"蓝-左 / 白-右"。实际 dark 的 gradient **是 symmetric 的**（white core 在 r=50 中间，accent 在 r=42/46/54/58 halos）——用户看到的"blue-left / white-right"是 tail（140ms 延后的浅蓝 trail）+ wave 主体合成后的运动感知，不是 gradient 本身的 asymmetry。
+
+15 轮尝试过 asymmetric 单层 / 双 pseudo-element layered / mask+backdrop-filter lens effect / flat-top peak 抗 blur 等等，全部失败在某个或多个方面：
+- Spindle（白核轮廓过于明显）
+- 白边硬切（plus-lighter RGB clipping）
+- 浅色塑料布感（saturate(2) 过重）
+- 白色在白底上不可见（物理上限，多次试图"让 bg 透出来当白"都被用户 reject "必须有颜色"）
+
+收敛结论：**最干净的浅色是"对 dark 结构做颜色互换"而不是"重新设计"**。
+
+**为什么 off-white 是 rgba(218, 225, 242) 不是更深的灰？**
+用户明确"一点点灰但一定要有颜色"。在 page bg `oklch(0.995 0.002 80)` 上，此 RGB 值 normal blend @ 0.35-0.60 alpha 输出 delta ~13-22 RGB units。视觉上刚好能读作"冷调浅灰白"而不滑到"gray"。
+
+**为什么 blend mode 从 multiply 换到 normal？**
+在近白底（0.995 luminance）上，`multiply(top, 0.995 × white) ≈ top` 和 `source-over(top over white)` 数学几乎等价。但 `normal` 语义更清楚——"我只是放下像素，不做物理混色"。避免和用户沟通时绕 multiply 数学。
+
+### 17.3 被 drop 的重要探索（保留在 git log）
+
+| Commit | 方案 | Drop 原因 |
+|---|---|---|
+| `efb84e4` | 双 pseudo-element: `::before` multiply 蓝 body + `::after` plus-lighter 白核 | plus-lighter RGB clipping 导致白核边缘硬切 |
+| `7959632` | ::after blend 从 plus-lighter → screen | 渐变变柔了但白核本身太窄读作 spindle |
+| `b5f6dc2` | ::after 宽于 ::before 避 spindle + screen blend | ::before 在 inner r 处 alpha 不够深，::after 在近白底上 screen 无可见效果 |
+| `d839434` | Contrast Gleam + Iridescent Sheer + `mask-image` + `backdrop-filter: blur(3px) brightness(1.05)` | 结构过复杂，辅助层时序和主波对不齐，lens effect 微妙到用户感知不到 |
+| `958657f` | 单层 asymmetric 蓝峰偏内 + outer transparent 露 bg | 用户 "不能用透明当白，必须有颜色" reject |
+| `cda056d` | Asymmetric 双 peak（accent 内 / off-white 外 flat 各 2vw）+ stronger 195,210,235 off-white @ 85% alpha | 用户最后手动 revert 回 symmetric，认为更干净 |
+
+### 17.4 v0.5.3 不改的部分
+
+- Cascade 机制 / `computeRevealDelay` / store 集成 / layout 挂载 / animation keyframes / a11y 降级：**全部不动**
+- Dark 主题 wave + tail base rule：**完全不动**
+- 文件仅改 `src/app/globals.css` 中的 `:root:not(.dark) .copilot-reveal-wave` + `:root:not(.dark) .copilot-reveal-tail` 两个 override
+
+### 17.5 决策记录增量
+
+| # | 决策 | 最终 |
+|---|---|---|
+| 15 | 浅色结构是否 asymmetric | **否**——严格镜像 dark symmetric 结构 |
+| 16 | "白色"用什么色值 | **`rgba(218, 225, 242)` 浅冷灰白 RGB 常量**，不用 `var(--copilot-accent-soft)`（太蓝） |
+| 17 | 浅色 blend mode | `multiply` → **`normal`**（近白底上数学等价，语义更清楚） |
+| 18 | 浅色 filter | 去掉 `saturate(2) contrast(1.3)`，**只留 base 继承的 `blur(16px)`**——saturate 拉高把 accent 变饱和青色读作"塑料布" |
+| 19 | 伪元素分层 | **否**——单层 background-image 已足够，任何 pseudo 分层尝试都在 blend 隔离和时序上踩坑 |
+| 20 | `backdrop-filter` / `mask-image` 透镜效果 | **否**——在这个尺寸下感知不到，徒增复杂度 |
