@@ -609,14 +609,15 @@ html[data-theme-cascading="true"] [data-glass-variant] {
     !important;
 }
 
-/* 2. Chrome elements（非 glass 大块背景）：breathing crossfade，无 stagger。
+/* 2. Chrome elements（非 glass 大块背景）：统一 320ms，同步 glass 基线 duration，无 stagger。
+      关态：chrome 和 glass 都 320ms 无 delay → 整屏一次性 crossfade，无节奏差。
+      开态：chrome 320ms（fast snap），glass 320ms + R→L stagger → 背景先 settle，前景 card 依次翻面 ripple 可见。
       只覆盖 body / aside（sidebar + copilot panel）/ main —— 用户感知最强的大块底色。
-      不覆盖 text / icon / button，避免 v0.5.3 的 `*` paint 风暴。
-      500ms 比 glass 的 320ms 慢一拍，读作"背景柔和变色，前景 card 依次翻面"。 */
+      不覆盖 text / icon / button，避免 v0.5.3 的 `*` paint 风暴。 */
 html[data-theme-cascading="true"] body,
 html[data-theme-cascading="true"] aside,
 html[data-theme-cascading="true"] main {
-  transition: background-color 500ms ease-out, border-color 500ms ease-out !important;
+  transition: background-color 320ms ease-out, border-color 320ms ease-out !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
