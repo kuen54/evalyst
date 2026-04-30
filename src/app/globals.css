@@ -540,8 +540,10 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
    如果 ::after 和 ::before 宽度接近（比如上版 40-60），::after 自身的 radial arc 形状
    会在蓝带边缘露出来，读作"白色椭圆镶蓝边"，这就是上版的"纺锤" artifact 来源。
 
-   peak 1.0（screen 下必须顶到 1 才能压出纯白；上版 peak 0.7 只到 0.85 亮度，肉眼读作"还是蓝"）。
-   shoulder 0.75/0.4 配合做渐变。外圈 0.1 tail 落在白底外不可见，只为和白底平滑接续。
+   peak 1.0 **6vw 平顶**（r=47 到 r=53），不是单点 peak——blur(16px) 会把单点 peak 和周围低
+   alpha 的像素做大范围高斯平均，有效 peak 被稀释到 0.6 左右（screen 只到 0.84 亮度，肉眼读作"偏蓝"）。
+   平顶让 blur 中心几乎守住 1.0 有效 alpha，screen(1, blue)=1 真正压出纯白。
+   shoulders 0.7/0.35/0.1 做三段渐变；外圈 0.1 的 tail 落在白底外不可见，只为和白底平滑接续。
    blur(16px) 对齐 dark base。 */
 :root:not(.dark) .copilot-reveal-wave::after {
   background-image: radial-gradient(
@@ -549,11 +551,12 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     transparent 0%,
     transparent 25vw,
     rgba(255, 255, 255, 0.1) 33vw,
-    rgba(255, 255, 255, 0.4) 42vw,
-    rgba(255, 255, 255, 0.75) 47vw,
-    rgba(255, 255, 255, 1) 50vw,
-    rgba(255, 255, 255, 0.75) 53vw,
-    rgba(255, 255, 255, 0.4) 58vw,
+    rgba(255, 255, 255, 0.35) 40vw,
+    rgba(255, 255, 255, 0.7) 45vw,
+    rgba(255, 255, 255, 1) 47vw,
+    rgba(255, 255, 255, 1) 53vw,
+    rgba(255, 255, 255, 0.7) 55vw,
+    rgba(255, 255, 255, 0.35) 60vw,
     rgba(255, 255, 255, 0.1) 67vw,
     transparent 75vw
   );
