@@ -481,3 +481,80 @@ v0.5.1 浅色主题 shipped 值（§16.4）使用 `accent-soft halo + accent cor
 | 18 | 浅色 filter | 去掉 `saturate(2) contrast(1.3)`，**只留 base 继承的 `blur(16px)`**——saturate 拉高把 accent 变饱和青色读作"塑料布" |
 | 19 | 伪元素分层 | **否**——单层 background-image 已足够，任何 pseudo 分层尝试都在 blend 隔离和时序上踩坑 |
 | 20 | `backdrop-filter` / `mask-image` 透镜效果 | **否**——在这个尺寸下感知不到，徒增复杂度 |
+
+---
+
+## 18. Opening Experience Bundle (v0.5.3, 2026-04-30)
+
+v0.5.2 之后用户反馈了四个独立问题（浅色扫光饱和刺眼、panel 秒出来没有弹性、扫光起点和 panel 无关、缺主题切换 cascade）。本次只针对 **1/2/3**——浅色饱和、panel 弹性、扫光从 panel 左边缘起——bundle 到 v0.5.3。主题切换 cascade 尝试多轮仍有末尾卡顿 + 多次闪烁问题，整体 revert，下版本专题调整。
+
+### 18.1 浅色扫光降饱和（新增 `--copilot-wave-core-light`）
+
+| 参数 | v0.5.2 | v0.5.3 |
+|---|---|---|
+| 中心 peak color | `var(--copilot-accent)` = oklch(0.7 0.15 230) | **`var(--copilot-wave-core-light)` = oklch(0.82 0.08 230)** |
+| Chroma | 0.15 | **0.08**（砍半） |
+| Lightness | 0.7 | **0.82** |
+| Peak alpha | 95% (`transparent 5%`) | **80% (`transparent 20%`)** |
+| Halo alpha (42/58vw) | 35% | **30%** |
+| Halo alpha (46/54vw) | 60% | **50%** |
+
+新增变量专门给 wave 用，不动 `--copilot-accent` 本体——避 segmented button / tinted CTA / inspector pulse 连带变灰。
+
+### 18.2 Panel spring 弹性
+
+- 新增 `@keyframes copilot-panel-enter`：`0% { translateX(100%); opacity: 0 }` → `100% { translateX(0); opacity: 1 }`
+- `.copilot-panel-enter` 类：`animation: copilot-panel-enter 450ms cubic-bezier(0.16, 1, 0.3, 1) both` —— **easeOutExpo** 单向滑入
+- `panel.tsx` 内容 wrapper 加该类；`effectiveOpen` rising edge 内容 re-mount，CSS animation 自动重播一次
+- **刻意无 overshoot**（早先用过 `cubic-bezier(0.34, 1.8, 0.64, 1)` 12% overshoot，叠加 aside `overflow-hidden` 会让内容左沿尾段被裁，读作"弹来弹去"）；easeOutExpo 从快到慢单向到位，内部无抖动
+- 关闭无动画（保持 §2 "告别干净利落"原则）
+- `prefers-reduced-motion: reduce` 关掉动画
+
+### 18.3 扫光起点 + 三动画错开
+
+#### 18.3.1 扫光从 panel 左边缘起
+
+- `.copilot-reveal-wave` / `.copilot-reveal-tail` 加 `right: var(--copilot-panel-width, 0px)` —— wave overlay 不再覆盖 panel
+- `background-image` gradient 中心 `circle at 150vw 50%` → `circle at calc(150vw - var(--copilot-panel-width, 0px)) 50%`
+  - 亮峰在 `center - 50vw`，新位置下亮峰在 t=0 时恰好落在 `100vw - panelWidth` = panel 左边缘
+  - Panel 关闭时 var 默认 0，等价原版 `150vw`
+- `store.setOpen` / `toggleOpen` rising edge 同步把 panel 宽度写到 `html.style['--copilot-panel-width']` —— 必须在 `applyRevealCascade` **之前**同步写，否则 cascade 公式读不到正确 startVw
+- `open / width` effect 在 resize 时持续同步
+
+#### 18.3.2 三动画时序错开
+
+| 事件 | 时间窗 |
+|---|---|
+| Panel spring（`copilot-panel-enter`） | 0–450ms |
+| Wave translate | 200–1450ms（`animation-delay: 200ms`） |
+| Tail translate | 340–1590ms（`animation-delay: 340ms`） |
+| Wave fade-in（新） | 200–325ms（keyframe 0%→10% opacity 0→1） |
+| Glass cascade（per-card delay 0–1250ms） | 最早 550ms 起 |
+
+Wave `animation-delay: 200ms` 的问题：200ms 内 wave overlay 已渲染在最终起点（panel 左边缘）静止不动，视觉上"卡一下"。Fix：wave / tail 默认 `opacity: 0`，fade keyframe 起始 `0% { opacity: 0; }`，10% 处（125ms into animation）才涨到 1 —— 200ms delay 期间完全不可见，起步后 125ms 淡入，无卡顿感。
+
+#### 18.3.3 `computeRevealDelay(centerXvw, startVw=100)` 公式
+
+- 新增 `startVw` 参数：`startVw = 100 - panelVw`，panel 开着 startVw 约 67（1280viewport + 420panel 情况）
+- `waitForWaveOffsetMs` 350 → **750ms**（= wave 自己 200ms delay + 550ms wait-for-wave gap，后者从原 350ms 加大给 cascade 节奏留空间）
+- Clamp 上限 1600 → **2000ms**（对应 wave 起点从 100 → 67，最大 delay 增加）
+- Overlay cleanup 2000 → **2400ms**（max delay 2000 + 280ms transition + 余量）
+
+### 18.4 不包含的改动（defer 到下版本）
+
+- **主题切换 R→L cascade**（dark↔light）：多轮尝试过（`applyThemeCascade` / `clearThemeCascade` + CSS override rule），浅层问题（snap 的 Tinted gradient/shadow、`*` rule 替换 shorthand）都解决了，但仍有：
+  - "从右往左 cascade 之后，文字、btn 再闪几下"（cleanup 时 mass transition-property 撤销引起补帧）
+  - "整体 cascade 效果都很卡顿"（~100 元素同时 transition 引起 paint 压力）
+- 本次完全 revert，下版本专题（可能从 CSS animation 或 mask-wipe 方向重做）
+
+### 18.5 决策记录增量
+
+| # | 决策 | 最终 |
+|---|---|---|
+| 21 | 浅色扫光中心色 | 独立新增 `--copilot-wave-core-light`，不改 `--copilot-accent`（避连带影响 CTA/segmented） |
+| 22 | Panel spring 曲线 | `cubic-bezier(0.16, 1, 0.3, 1)` easeOutExpo **无 overshoot**——overshoot + overflow 裁切读作"弹来弹去" |
+| 23 | Wave 起点对齐策略 | 亮峰（center - 50vw）对齐 panel 左边缘，不是 ring 最外 transparent 边缘（选后者曾导致亮峰藏在 panel 后面不可见） |
+| 24 | Wave 起步前隐藏 | 默认 `opacity: 0` + fade keyframe 0%→10%，避免 `animation-delay` 期间 overlay 静止在边缘被看成"卡一下" |
+| 25 | 三动画衔接 | 200ms delay 错开，不完全同时起跑 |
+| 26 | 主题切换 cascade | **v0.5.3 不做**——revert 所有相关代码，下版本专题 |
+

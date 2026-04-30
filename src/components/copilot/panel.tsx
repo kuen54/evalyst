@@ -169,7 +169,7 @@ export function CopilotPanel() {
         aria-hidden={!effectiveOpen}
       >
         {effectiveOpen && (
-          <>
+          <div className="copilot-panel-enter flex flex-col h-full">
             <div
               onMouseDown={startResize}
               className={`absolute left-0 top-0 h-full w-1 cursor-col-resize z-10 ${resizing ? "bg-primary/40" : "hover:bg-primary/20"}`}
@@ -197,7 +197,7 @@ export function CopilotPanel() {
               selectedModelId={modelId}
               onPickModel={handlePickModel}
             />
-          </>
+          </div>
         )}
       </aside>
     </>

@@ -8,6 +8,49 @@
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-04-30 · Copilot 打开体验三件套（扫光降饱和 + panel 弹性 + 扫光从 panel 边缘起）
+
+围绕 Material Reveal 的打开动效做三项互相独立但衔接到位的改进。主题切换 cascade 仍在调试中，不在本版本。
+
+### 浅色扫光降饱和
+
+- 新增 `--copilot-wave-core-light: oklch(0.82 0.08 230)`——比 `--copilot-accent`（oklch 0.7 0.15 230）亮度 +0.12 / chroma 砍半，专门给浅色 reveal wave 的中心 peak 用
+- 浅色 wave 所有 stop 用 `var(--copilot-wave-core-light)` 取代 `var(--copilot-accent)`，中心 peak alpha 95% → 80%，halo 35/60% → 30/50%
+- 视觉上从"饱和天蓝"变成"柔和浅蓝"，不再有"饱和刺眼"观感；暗色主题完全不动
+
+### Panel 弹性弹出
+
+- 新增 `@keyframes copilot-panel-enter`（translateX `100%` → `0` + opacity `0` → `1`）+ `.copilot-panel-enter` 类，450ms `cubic-bezier(0.16, 1, 0.3, 1)`（easeOutExpo）
+- `panel.tsx` 把 panel 内容 wrapper 加该类，每次 `effectiveOpen` rising edge 重新 mount，CSS animation 自动重播
+- 刻意**无 overshoot**：早先 easeOutBack 12% overshoot 叠加 aside `overflow-hidden` 裁切，内容尾部被切会读作"弹来弹去"。easeOutExpo 单向滑入，内部元素不晃
+- 关闭无动画保持不变（content 直接 unmount + width 瞬间归零）
+- `prefers-reduced-motion: reduce` 关掉动画
+
+### 扫光从 panel 左边缘起 + 三动画节奏错开
+
+- `.copilot-reveal-wave` / `.copilot-reveal-tail` 加 `right: var(--copilot-panel-width, 0px)` — wave overlay 不再覆盖 panel 本体
+- Gradient 中心从 `circle at 150vw 50%` 改成 `circle at calc(150vw - var(--copilot-panel-width, 0px)) 50%` — 亮峰 `center - 50vw` 在 t=0 恰好落在 panel 左边缘（= overlay 右沿 = `100vw - panelWidth`）。Panel 关时 var 默认 0 视觉等同原版
+- Wave + tail animations 加 `200ms` / `340ms` `animation-delay` —— 让三个动画错开：panel spring 先走 0-450ms，wave 200ms 起步，cascade 紧跟。消除"衔接太挤"
+- Wave / tail 默认 `opacity: 0`，fade keyframe 改成 `0%→10% opacity 0→1`——否则 200ms animation-delay 期间 wave 会静止在 panel 边缘 200ms 读作"起点卡一下"
+- `computeRevealDelay(centerXvw, startVw=100)` 新增 `startVw` 参数，delay 公式按 panel 宽度调整；`waitForWaveOffsetMs` 350 → 750（含 wave 自己的 200ms delay + 550ms wait-for-wave gap）；clamp 上限 1600 → 2000；overlay cleanup 2000 → 2400ms
+- `store.setOpen` / `toggleOpen` rising edge 同步把 panel 宽度写到 `html.style.--copilot-panel-width`，确保 `applyRevealCascade` 读到一致的值；`open/width` effect 进一步同步 resize 期间的变化
+
+### 架构落地
+
+- `src/app/globals.css`：新增 `--copilot-wave-core-light` 变量 + `@keyframes copilot-panel-enter` + `.copilot-panel-enter` 类；改写浅色 wave 配色；wave/tail 基础 rule 加 `right` 和 `opacity: 0` 默认
+- `src/components/copilot/material-reveal-overlay.tsx`：`computeRevealDelay` 签名扩展接受 `startVw`；`applyRevealCascade` 读 `--copilot-panel-width` 算 panelVw
+- `src/components/copilot/store.tsx`：新增 `widthRef` 同步追踪 panel 宽度；`setOpen` / `toggleOpen` 在 `applyRevealCascade` 之前同步写 `--copilot-panel-width`；`open/width` effect 把 resize 同步到 CSS var
+- `src/components/copilot/panel.tsx`：panel 内容 wrapper 加 `.copilot-panel-enter` 类
+
+### 测试
+
+- vitest `computeRevealDelay` 5 case 更新期望值（新 offset 750 + clamp 2000）
+- 其它测试不受影响；TS `tsc --noEmit` clean
+
+### 已知限制
+
+- 主题切换仍走 next-themes 原生的 `disableTransitionOnChange`（所有元素 snap）；R→L cascade 的主题切换仍在调试，下版本解决
+
 ## [0.5.2] — 2026-04-30 · Light Theme Reveal Wave Tuning
 
 Iteration pass on the `0.5.1` Material Reveal light theme wave after user feedback that the cyan band read as "塑料布罩 UI"（saturated plastic sheet over UI）and didn't match dark theme's 高级 aesthetic.
