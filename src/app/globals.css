@@ -530,27 +530,30 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 }
 
 /* Layer 2: 白色 hot core (screen)。
-   *不* 用 plus-lighter —— plus-lighter 是 RGB 硬加 clamp 到 1，alpha 一高就瞬间 clip 成纯白，
-   边缘读作"硬切"。dark 主题用的是 screen，`1 - (1-a)(1-b)` 平滑趋近 1 但不 clip，
-   任何 alpha 下过渡都连续。本 layer 改回 screen 和 dark 主题对齐。
+   *不* 用 plus-lighter（硬 clip 出硬边），用 screen `1-(1-a)(1-b)` 平滑趋近 1 无 clip。
 
-   screen 在白底上无变化（白 screen 白 = 白），只在 ::before 压暗的蓝带上把 RGB 向白拉——
-   和 plus-lighter 在蓝带上"点亮"的机制等价，但 alpha 插值更柔。
+   关键几何：::after 半径 25→75vw（50vw 宽），*明显宽于* ::before 的 38→62vw（24vw 宽）。
+   这样 ::after 在蓝带之外的区域（r<38 或 r>62）投射到纯白底上，screen 白×白=白，无可见效果；
+   只在蓝带覆盖处（38-62vw）把 RGB 向白拉。净视觉 = "一条连续蓝带，中间被 gently bleached"，
+   没有独立的白色 spindle 形状——和 dark 主题"accent+white 在同一 gradient 里融为一体"的读感等价。
 
-   9 stops 细分 alpha 梯度 0 → 0.1 → 0.4 → 0.85 peak → 0.4 → 0.1 → 0 覆盖 40→60vw；
-   peak 0.85（原 0.9 轻微下调，配合 screen 的连续插值无需顶到 1 就很亮）。
-   filter blur(16px) 和 dark 主题 base blur 对齐。 */
+   如果 ::after 和 ::before 宽度接近（比如上版 40-60），::after 自身的 radial arc 形状
+   会在蓝带边缘露出来，读作"白色椭圆镶蓝边"，这就是上版的"纺锤" artifact 来源。
+
+   peak 0.7（screen 下足够显形，不需要顶到 1），blur(16px) 对齐 dark base。 */
 :root:not(.dark) .copilot-reveal-wave::after {
   background-image: radial-gradient(
     circle at 150vw 50%,
     transparent 0%,
-    transparent 40vw,
-    rgba(255, 255, 255, 0.1) 44vw,
-    rgba(255, 255, 255, 0.4) 47vw,
-    rgba(255, 255, 255, 0.85) 50vw,
-    rgba(255, 255, 255, 0.4) 53vw,
-    rgba(255, 255, 255, 0.1) 56vw,
-    transparent 60vw
+    transparent 25vw,
+    rgba(255, 255, 255, 0.1) 33vw,
+    rgba(255, 255, 255, 0.3) 42vw,
+    rgba(255, 255, 255, 0.55) 47vw,
+    rgba(255, 255, 255, 0.7) 50vw,
+    rgba(255, 255, 255, 0.55) 53vw,
+    rgba(255, 255, 255, 0.3) 58vw,
+    rgba(255, 255, 255, 0.1) 67vw,
+    transparent 75vw
   );
   mix-blend-mode: screen;
   filter: blur(16px);
