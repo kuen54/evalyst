@@ -8,6 +8,49 @@
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-04-30 · Light Theme Reveal Wave Tuning
+
+Iteration pass on the `0.5.1` Material Reveal light theme wave after user feedback that the cyan band read as "塑料布罩 UI"（saturated plastic sheet over UI）and didn't match dark theme's 高级 aesthetic.
+
+### 光色重构 —— Symmetric mirror of dark
+
+- 浅色 `.copilot-reveal-wave` 从 `0.5.1` 的"accent-soft 侧翼 + accent 中心 @ multiply blend + saturate(2) contrast(1.3)"重构为**严格镜像 dark 主题的 9-stop symmetric 结构**：
+  | r | Dark | Light |
+  |---|---|---|
+  | 38-62vw | transparent edges | transparent edges（同） |
+  | 42/58vw | accent 25% alpha | **off-white rgba(218, 225, 242) 35% alpha** |
+  | 46/54vw | accent 50% | **off-white 60%** |
+  | 48/52vw | white 70% | **accent 70%** |
+  | **50vw PEAK** | **white 95%** | **accent 95%** |
+- `mix-blend-mode: screen` → **`normal`**（在近白底上和 multiply 数学等价，语义更清楚为"纯 alpha 叠加不和底色做物理 blend"）
+- 所有其他实现（`position/inset/z-index/pointer-events/filter: blur(16px)/contain: layout style paint/animation`）**继承 base rule，完全对齐 dark**
+- 尾浪 `.copilot-reveal-tail` 同步简化：砍掉 `saturate(2) contrast(1.3)` filter，blend mode `multiply → normal`，band 30-70vw → **40-60vw**（收紧 20vw 让 radial arc 曲率读得出来，不被宽度稀释成垂直条）
+- 删除 `0.5.1` 浅色主题 override 里的 `mix-blend-mode: multiply` + 额外 filter saturate/contrast
+- **Off-white 选 `rgba(218, 225, 242)` cool-tinted light gray**：用户反馈 transparent 不行、必须"一点点灰但要有颜色"；在 page bg oklch(0.995) 上 normal blend @ 0.35/0.60 alpha 输出可见冷调浅灰
+
+### 探索过程中被 drop 的方案（全部在 git log 里）
+
+17 轮 tuning commits，尝试过但最终 revert 的方向：
+- 双 pseudo-element layered blends（`::before` multiply 蓝 body + `::after` plus-lighter / screen 白核）—— spindle 形状、harsh edges、层间 blend 隔离问题多
+- `mask-image` + `backdrop-filter: blur(3px) brightness(1.05)` 做 Contrast Gleam + Iridescent Sheer lens effect —— 结构复杂且辅助层时序和主波对不齐
+- Asymmetric 单层 peak 偏外/内半径 —— 无法同时达到"白有色"和"蓝显形"
+- Flat-top 4-6vw peak 抗 blur 稀释 —— peak 值守住了但和 ::before 宽度接近时产生纺锤感
+
+最终收敛到"**严格对齐 dark 结构 + 颜色互换 + 浅冷灰白 rgba**"是最干净的答案。
+
+### 架构落地
+
+- `src/app/globals.css`：只改 `:root:not(.dark) .copilot-reveal-wave` + `:root:not(.dark) .copilot-reveal-tail` 两个 override block。完全不动 dark 主题 base rule、pseudo-element 结构（其实没用）、animation、parent 继承链
+- **没有新文件**，**没有新测试**，**没有 JS 改动**——纯 CSS tuning 迭代
+
+### 测试
+
+- vitest 209 case 全绿（`material-reveal-overlay` `computeRevealDelay` 5 case 不受 CSS 改动影响）
+- e2e smoke 9 case 不受影响（no-crash routing + sidebar render）
+- TS `tsc --noEmit` clean
+
+- 相关 commits: `cf8b27d` → `5b484cb`（17 轮迭代，PR #10）
+
 ## [0.5.1] — 2026-04-30 · Copilot Material Reveal
 
 ### Copilot Material Reveal（一次性唤起动效，替代已 DROP 的 edge glow）
