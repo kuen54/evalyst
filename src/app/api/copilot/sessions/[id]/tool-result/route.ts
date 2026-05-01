@@ -4,14 +4,12 @@ import {
   appendMessage,
   getActiveBranch,
 } from '@/lib/copilot/session-store'
-import { callLlmStreaming } from '@/lib/copilot/llm-stream'
 import { tools } from '@/lib/copilot/tools'
 import { findTool } from '@/lib/copilot/tool-registry'
-import { toOpenaiTools, toAnthropicTools } from '@/lib/copilot/tool-adapters'
 import { getLlmConfig } from '@/lib/llm-config'
-import type { CopilotMessage, StreamEvent, ClientSnapshot } from '@/lib/copilot/types'
-import { buildLlmMessages } from '@/lib/copilot/build-llm-messages'
+import type { ClientSnapshot } from '@/lib/copilot/types'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
+import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
 
 /**
  * POST body：
@@ -21,15 +19,17 @@ import { setSnapshot } from '@/lib/copilot/snapshot-cache'
  *     input: Record<string, unknown>  // 用户确认的参数（通常与 LLM 原始 tool_input 一致）
  *     denied?: boolean             // true = 用户拒绝；false/undefined = 确认执行
  *     reason?: string              // 拒绝的可选原因
+ *     client_snapshot?: ClientSnapshot
  *   }
  *
  * 流程：
  *   1. 校验 session / body
  *   2. 链长上限 5（trailing tool_use+tool_result 对计数）→ 超过返 429
- *   3. 执行工具（或记录 denied）→ 写 tool_result 消息
- *   4. 重新拉 branch、构造 LlmMessages（含本次 tool_result）→ 发 provider-adapted tools
- *      → callLlmStreaming 重新 stream LLM
- *   5. 把 text 累积 / tool_use_end 累积 → 流 close 时统一 append 到 jsonl
+ *   3. 校验 model（race fix：必须在 append 之前，避免孤儿 tool_result）
+ *   4. 执行工具（或记录 denied）→ 写 tool_result 消息（parent_id = tail）
+ *   5. 重新拉 branch（含本次 tool_result）→ 调 `runToolAwareLlmStream`
+ *      → helper 内部做 callLlmStreaming + 累 text/tool_use + 后置顺序 append
+ *      → 回到本 route 再 emit `done`
  *
  * SSE 事件（与 /chat route 对齐）：
  *   { kind: 'tool_result_message', id, content, denied?, reason? }
@@ -42,9 +42,7 @@ import { setSnapshot } from '@/lib/copilot/snapshot-cache'
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = await params
   const session = getSession(sessionId)
-  if (!session) {
-    return jsonError(404, 'session not found')
-  }
+  if (!session) return jsonError(404, 'session not found')
 
   const body = (await req.json().catch(() => ({}))) as {
     call_id?: string
@@ -54,38 +52,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     reason?: string
     client_snapshot?: ClientSnapshot
   }
-  if (!body.call_id || typeof body.call_id !== 'string') {
-    return jsonError(400, 'call_id required')
-  }
-  if (!body.tool_name || typeof body.tool_name !== 'string') {
-    return jsonError(400, 'tool_name required')
-  }
-  if (!body.input || typeof body.input !== 'object') {
-    return jsonError(400, 'input required')
-  }
+  if (!body.call_id || typeof body.call_id !== 'string') return jsonError(400, 'call_id required')
+  if (!body.tool_name || typeof body.tool_name !== 'string') return jsonError(400, 'tool_name required')
+  if (!body.input || typeof body.input !== 'object') return jsonError(400, 'input required')
 
   // 缓存 client_snapshot（用于 read_page 工具 + page_context 注入）
-  if (body.client_snapshot) {
-    setSnapshot(sessionId, body.client_snapshot)
-  }
+  if (body.client_snapshot) setSnapshot(sessionId, body.client_snapshot)
 
   // 链长上限 5（trailing tool_use + tool_result 对）
   const branchBefore = getActiveBranch(sessionId)
   const completedPairs = countTrailingToolUsePairs(branchBefore)
-  if (completedPairs >= 5) {
-    return jsonError(429, 'chain call limit reached')
-  }
+  if (completedPairs >= 5) return jsonError(429, 'chain call limit reached')
 
-  // 在 append 之前先校验 model，避免 model 未配置时留下孤儿 tool_result 消息在 jsonl 里
+  // race fix：model 校验必须放在 appendMessage 之前，避免 model 未配置时
+  // 留下孤儿 tool_result 消息在 jsonl 里。
   const cfg = getLlmConfig()
   const modelId = session.model_id
   const model = modelId ? cfg.models.find(m => m.id === modelId && m.copilot_enabled) : undefined
-  if (!model) {
-    return jsonError(400, 'copilot model not configured or not enabled')
-  }
-  if (!model.base_url || !model.api_key) {
-    return jsonError(400, 'model missing base_url or api_key')
-  }
+  if (!model) return jsonError(400, 'copilot model not configured or not enabled')
+  if (!model.base_url || !model.api_key) return jsonError(400, 'model missing base_url or api_key')
 
   // 本条 tool_result 的 parent 指向当前 branch 末端（通常是 hanging tool_use）
   const tailId = branchBefore[branchBefore.length - 1]?.id
@@ -97,9 +82,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } else {
     // 未知 tool 直接 400：客户端说谎，不该发生
     const tool = findTool(tools, body.tool_name)
-    if (!tool) {
-      return jsonError(400, `unknown tool: ${body.tool_name}`)
-    }
+    if (!tool) return jsonError(400, `unknown tool: ${body.tool_name}`)
     try {
       resultContent = await tool.run(body.input, { sessionId })
     } catch (e) {
@@ -120,26 +103,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     parent_id: tailId,
   })
 
-  // 重新拉 branch（含刚 append 的 tool_result），构造 LLM messages
+  // 重新拉 branch（含刚 append 的 tool_result）
   const branch = getActiveBranch(sessionId, toolResultMsg.id)
-  const llmMessages = buildLlmMessages(branch, body.client_snapshot?.page_context ?? null)
 
-  // Provider-adapted tools
-  const toolsFormatted =
-    model.api_format === 'openai' ? toOpenaiTools(tools) : toAnthropicTools(tools)
-
-  // 组装流式响应
   const encoder = new TextEncoder()
-  let assistantText = ''
-  let assistantUsage: { input_tokens: number; output_tokens: number } | undefined
-  let stopReason: string | undefined
-  const pendingToolUses: Array<{ call_id: string; tool_name: string; input: Record<string, unknown>; thought_signature?: string }> = []
-
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // race fix：客户端已 abort / 流已关时 controller.enqueue 会抛
+      // "Controller is already closed"；吞掉 —— 没法再回写客户端。
       const write = (payload: unknown) => {
-        // 若客户端已 abort / 流已关，enqueue 会 throw "Controller is already closed"；
-        // 吞掉 —— 没法再回写客户端，写错误日志意义也不大。
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
         } catch { /* stream closed */ }
@@ -155,84 +127,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       })
 
       try {
-        await callLlmStreaming(
-          {
-            messages: llmMessages,
-            config: {
-              api_format: model.api_format,
-              base_url: model.base_url,
-              api_key: model.api_key,
-            },
-            model: model.model,
-            temperature: model.default_temperature ?? 1,
-            max_tokens: model.default_max_tokens ?? 4096,
-            tools: toolsFormatted,
-            signal: req.signal,
-          },
-          (ev: StreamEvent) => {
-            if (ev.type === 'text') {
-              assistantText += ev.delta
-              write({ kind: 'text', delta: ev.delta })
-            } else if (ev.type === 'tool_use_start') {
-              write({ kind: 'tool_use_start', call_id: ev.call_id, tool_name: ev.tool_name })
-            } else if (ev.type === 'tool_use_delta') {
-              write({ kind: 'tool_use_delta', call_id: ev.call_id, input_json_delta: ev.input_json_delta })
-            } else if (ev.type === 'tool_use_end') {
-              // 不 mid-stream append（避免 jsonl 写句柄竞争）；先 buffer，关流时统一落盘
-              pendingToolUses.push({
-                call_id: ev.call_id,
-                tool_name: ev.tool_name,
-                input: ev.input,
-                thought_signature: ev.thought_signature,
-              })
-              write({ kind: 'tool_use_end', call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
-            } else if (ev.type === 'done') {
-              assistantUsage = ev.usage
-              stopReason = ev.stop_reason
-            } else if (ev.type === 'error') {
-              write({ kind: 'error', message: ev.message })
-            }
-          },
-        )
-
-        // 流结束后，按顺序落盘：assistant 文本（若有）→ 每条 tool_use
-        let parentId: string | undefined = toolResultMsg.id
-        let assistantMessageId: string | undefined
-        if (assistantText.trim().length > 0) {
-          const asst: CopilotMessage = appendMessage({
-            session_id: sessionId,
-            role: 'assistant',
-            content: assistantText,
-            parent_id: parentId,
-            usage: assistantUsage,
-            model_id: model.id,
-          })
-          assistantMessageId = asst.id
-          parentId = asst.id
-        }
-        const toolUseMessageIds: string[] = []
-        for (const tu of pendingToolUses) {
-          const msg = appendMessage({
-            session_id: sessionId,
-            role: 'tool_use',
-            content: JSON.stringify(tu.input),
-            parent_id: parentId,
-            call_id: tu.call_id,
-            tool_name: tu.tool_name,
-            tool_input: tu.input,
-            thought_signature: tu.thought_signature,
-            model_id: model.id,
-          })
-          toolUseMessageIds.push(msg.id)
-          parentId = msg.id
-        }
-
+        const result = await runToolAwareLlmStream({
+          sessionId,
+          branch,
+          model,
+          tools,
+          pageContext: body.client_snapshot?.page_context ?? null,
+          startParentId: toolResultMsg.id,
+          signal: req.signal,
+          write,
+        })
+        // helper 已保证 assistant / tool_use 落盘先于这里 emit done
         write({
           kind: 'done',
-          assistant_message_id: assistantMessageId,
-          tool_use_message_ids: toolUseMessageIds,
-          usage: assistantUsage,
-          stop_reason: stopReason,
+          assistant_message_id: result.assistantMessageId,
+          tool_use_message_ids: result.toolUseMessageIds,
+          usage: result.usage,
+          stop_reason: result.stopReason,
         })
       } catch (e) {
         write({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
