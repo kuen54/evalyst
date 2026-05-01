@@ -407,7 +407,7 @@ A: `data/results/{experiment_id}/results.jsonl`。一行一条 `GenericResultRec
 A: 整个 `data/` 目录打包即可。`data/llm-config.json` 含敏感 key，分享前记得清掉。
 
 **Q: 有单测吗？**  
-A: 有。`npm test` 跑一轮（vitest，110 case ~180ms），覆盖 transform 的 10 种 op、Schema validate、成本/currency 聚合、rubric 聚合、三层 LLM config 迁移等所有纯函数。`npm run test:e2e` 跑 Playwright 的端到端 smoke（遍历所有关键路由 + `/api/skills` 下载，首次需 `npx playwright install chromium`）。CI 两个 job 都会跑。
+A: 有。`npm test` 跑一轮（vitest，217 case ~180ms），覆盖 transform 的 10 种 op、Schema validate、成本/currency 聚合、rubric 聚合、三层 LLM config 迁移等所有纯函数。`npm run test:e2e` 跑 Playwright 的端到端 smoke（遍历所有关键路由 + `/api/skills` 下载，首次需 `npx playwright install chromium`）。CI 两个 job 都会跑。
 
 ---
 
