@@ -24,16 +24,18 @@ v0.5.5 hotfix cascade 后用户三条打磨反馈：
 
 Reveal Cascade 的 glass card R→L ripple **不依赖** wave overlay（是独立 CSS transition），所以浅底 panel 打开仍有"每张卡翻面"的感知，只是没有上面那条扫光。
 
-### 3. 主题 cascade 起步对齐 reveal 首元素时刻
+### 3. 主题 cascade 起步加 offset（短停顿后起 ripple）
 
-Copilot 开态切主题时，glass card stagger 全部加 **750ms offset**，对齐"点击展开 copilot → 第一个扁平 UI 变玻璃"的耗时（reveal 是 200ms wave-self-delay + 550ms wait-for-wave-offset = 750ms）。
+Copilot 开态切主题时，glass card stagger 全部加 **300ms offset**，让"点击 → cascade 启动"有一个可感知的小停顿：
 
 - 旧公式：`stagger = clamp([0, 1400], (startVw - cx) / 100 * 1400)` → 最右卡 0ms 起跑
-- 新公式：`delay = 750 + clamp([0, 1400], (startVw - cx) / 100 * 1400)` → 最右卡 750ms 起跑
-- 最左卡最晚到 2150ms 起跑
-- cleanup timeout 2000ms → **2800ms**（offset 750 + max stagger 1400 + duration 320 + 330 buffer）
+- 新公式：`delay = 300 + clamp([0, 1400], (startVw - cx) / 100 * 1400)` → 最右卡 300ms 起跑
+- 最左卡最晚到 1700ms 起跑
+- cleanup timeout 2000ms → **2300ms**（offset 300 + max stagger 1400 + duration 320 + 280 buffer）
 
-节奏感：点击主题 → 750ms 悬停（感知"变化在发生但未到"）→ R→L ripple 从最右开始缓缓铺开 → 1720ms（= 750 + 1400 - 430）时最左卡完成。给"点击 → 反馈"一个节拍。
+（首轮 tune 给过 750ms 对齐 reveal cascade 首元素，实测读作"等太久"，降到 300ms）
+
+节奏感：点击主题 → 300ms 短停顿 → R→L ripple 从最右起，约 2s 内完成。
 
 ### 测试
 
