@@ -115,7 +115,10 @@ export function buildApiRequest(config: ApiConfig, body: Record<string, unknown>
     url: `${base}/chat/completions`,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': config.api_key,
+      // OpenAI 兼容 API 标准要求 "Authorization: Bearer <key>"。用户如果填纯 "sk-..."，
+      // 自动加前缀；已经带 "Bearer " 的原样保留（向后兼容旧用户手动加前缀的 workaround）。
+      // 对不要 Bearer 的 gateway 是破坏性变更候选 —— 有需求再加 ModelConfig.auth_no_bearer_prefix。
+      'Authorization': config.api_key.startsWith('Bearer ') ? config.api_key : `Bearer ${config.api_key}`,
     },
     body,
   }

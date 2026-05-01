@@ -386,7 +386,7 @@ Meta-prompt 模板在 `src/lib/meta-prompts/template.ts`，含完整示例可参
 A: seed 机制的设计。示例文件由 `src/lib/seeds/` 首次访问时 lazy-copy。想永久删除，从 `src/lib/seed.ts` 的种子列表移除那个 ID。
 
 **Q: 配了模型但实验一直 `error`？**  
-A: 在 `/settings/llm` 对应卡点「测试连接」确认能通。如果失败：① `base_url` 结尾别加 `/`；② OpenAI 兼容格式 Authorization 头直接是 key（不带 `Bearer` 的系统在 extra_body 自行处理）；③ 检查模型名是否存在。
+A: 在 `/settings/llm` 对应卡点「测试连接」确认能通。如果失败：① `base_url` 结尾别加 `/`；② OpenAI 兼容格式填纯 api_key 即可（会自动加 `Bearer ` 前缀）—— 如果你的 gateway 明确不要 Bearer，请开 issue 我们会补 `ModelConfig.auth_no_bearer_prefix` 选项；③ 检查模型名是否存在。
 
 **Q: 跑到一半想停？**  
 A: 实验详情页的「暂停」按钮。数据写到 `data/results/{id}/progress.json`，再进来「继续运行」会从未完成的任务继续（失败的会重试）。
