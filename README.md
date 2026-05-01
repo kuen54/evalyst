@@ -311,7 +311,7 @@ skill 本质是一份 prompt 文档 + `curl` 用法指南，平台的 REST API �
 
 类型签名见 `src/lib/types.ts` + `src/lib/schema/types.ts`。你自己写脚本 / 自己的 agent 也能跑。
 
-> **注意**：当前 API 无鉴权，适合本地开发。开源前会补 token 机制。
+> **注意**：当前 API 无鉴权（适合本地 / 单机自用）。跨网暴露请自己在前面加反向代理 + basic auth / OAuth。原生鉴权不在路线图里，需求请开 issue 讨论。
 
 ---
 
@@ -407,7 +407,7 @@ A: `data/results/{experiment_id}/results.jsonl`。一行一条 `GenericResultRec
 A: 整个 `data/` 目录打包即可。`data/llm-config.json` 含敏感 key，分享前记得清掉。
 
 **Q: 有单测吗？**  
-A: 有。`npm test` 跑一轮（vitest，217 case ~180ms），覆盖 transform 的 10 种 op、Schema validate、成本/currency 聚合、rubric 聚合、三层 LLM config 迁移等所有纯函数。`npm run test:e2e` 跑 Playwright 的端到端 smoke（遍历所有关键路由 + `/api/skills` 下载，首次需 `npx playwright install chromium`）。CI 两个 job 都会跑。
+A: 有。`npm test` 跑一轮（vitest，221 case ~180ms），覆盖 transform 的 10 种 op、Schema validate、成本/currency 聚合、rubric 聚合、三层 LLM config 迁移等所有纯函数。`npm run test:e2e` 跑 Playwright 的端到端 smoke（遍历所有关键路由 + `/api/skills` 下载，首次需 `npx playwright install chromium`）。CI 两个 job 都会跑。
 
 ---
 
