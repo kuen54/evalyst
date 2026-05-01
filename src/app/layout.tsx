@@ -15,6 +15,35 @@ import { MaterialRevealOverlay } from "@/components/copilot/material-reveal-over
 import { TextSelector } from "@/components/copilot/text-selector"
 import { TextSelectionMask } from "@/components/copilot/text-selection-mask"
 
+// Theme switch cascade rules. Injected as inline <style> instead of via globals.css
+// because Turbopack/LightningCSS silently drops these rules from the compiled CSS bundle
+// (same failure mode that v0.5.4 v1 hit with view-transition pseudos). The inline <style>
+// escape hatch bypasses the CSS pipeline entirely.
+const THEME_CASCADE_CSS = `
+html[data-theme-cascading="true"] [data-glass-variant] {
+  transition:
+    background-color 320ms ease-out var(--theme-cascade-delay, 0ms),
+    backdrop-filter  320ms ease-out var(--theme-cascade-delay, 0ms),
+    border-color     320ms ease-out var(--theme-cascade-delay, 0ms),
+    box-shadow       320ms ease-out var(--theme-cascade-delay, 0ms),
+    background-image 320ms ease-out var(--theme-cascade-delay, 0ms)
+    !important;
+}
+html[data-theme-cascading="true"] body,
+html[data-theme-cascading="true"] aside,
+html[data-theme-cascading="true"] main {
+  transition: background-color 320ms ease-out, border-color 320ms ease-out !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-cascading="true"] [data-glass-variant],
+  html[data-theme-cascading="true"] body,
+  html[data-theme-cascading="true"] aside,
+  html[data-theme-cascading="true"] main {
+    transition: none !important;
+  }
+}
+`
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -41,6 +70,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: THEME_CASCADE_CSS }} />
+      </head>
       <body className="min-h-full flex" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <LocaleProvider>

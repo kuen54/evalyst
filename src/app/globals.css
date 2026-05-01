@@ -594,38 +594,7 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   .copilot-panel-enter { animation: none; }
 }
 
-/* ---------------- Theme switch cascade ---------------- */
-
-/* 1. Glass elements：镜像 reveal cascade 结构（完整 transition shorthand override + delay var）。
-      reveal cascade 用同样形式稳定在产，验证了"shorthand override with !important"安全。
-      !important 用于覆盖 glass card 的 inline transition shorthand（useGlassStyle 产的 author 级）。 */
-html[data-theme-cascading="true"] [data-glass-variant] {
-  transition:
-    background-color 320ms ease-out var(--theme-cascade-delay, 0ms),
-    backdrop-filter  320ms ease-out var(--theme-cascade-delay, 0ms),
-    border-color     320ms ease-out var(--theme-cascade-delay, 0ms),
-    box-shadow       320ms ease-out var(--theme-cascade-delay, 0ms),
-    background-image 320ms ease-out var(--theme-cascade-delay, 0ms)
-    !important;
-}
-
-/* 2. Chrome elements（非 glass 大块背景）：统一 320ms，同步 glass 基线 duration，无 stagger。
-      关态：chrome 和 glass 都 320ms 无 delay → 整屏一次性 crossfade，无节奏差。
-      开态：chrome 320ms（fast snap），glass 320ms + R→L stagger → 背景先 settle，前景 card 依次翻面 ripple 可见。
-      只覆盖 body / aside（sidebar + copilot panel）/ main —— 用户感知最强的大块底色。
-      不覆盖 text / icon / button，避免 v0.5.3 的 `*` paint 风暴。 */
-html[data-theme-cascading="true"] body,
-html[data-theme-cascading="true"] aside,
-html[data-theme-cascading="true"] main {
-  transition: background-color 320ms ease-out, border-color 320ms ease-out !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html[data-theme-cascading="true"] [data-glass-variant],
-  html[data-theme-cascading="true"] body,
-  html[data-theme-cascading="true"] aside,
-  html[data-theme-cascading="true"] main {
-    transition: none !important;
-  }
-}
+/* Theme switch cascade rules live in src/app/layout.tsx via <style dangerouslySetInnerHTML>.
+   Moving them here would cause Turbopack/LightningCSS to silently drop the entire block
+   (same failure mode as v0.5.4 v1 — reproduced on v2.1 ship). */
 
