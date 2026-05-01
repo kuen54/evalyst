@@ -87,9 +87,6 @@
      这是 sky-blue 色调，和 glow 主色呼应，"发光"感 */
   --copilot-accent: oklch(0.7 0.15 230);
   --copilot-accent-soft: oklch(0.88 0.08 230);
-  /* 浅色主题 reveal wave 中心色——比 accent 亮 + chroma 砍半，
-     在 normal blend 叠白底下读作"柔和浅蓝"而不是"饱和天蓝" */
-  --copilot-wave-core-light: oklch(0.82 0.08 230);
 }
 
 .dark {
@@ -485,13 +482,6 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
     copilot-reveal-tail-fade 1250ms linear 340ms both;
 }
 
-/* 亮色主题：完全对齐 dark 主题的单层 9-stop 结构——只把颜色位置互换。
-   Dark:  accent 外halos → white core 中央 → accent 内halos  （screen blend，暗底发光）
-   Light: off-white 外halos → wave-core-light 中央 → off-white 内halos  （normal blend，浅底染色）
-   浅色 peak 改用 --copilot-wave-core-light（oklch 0.82 0.08 230），比 accent 亮、chroma 砍半；
-   peak alpha 从 95% → 80%，整体饱和度下调避免"电蓝"观感。
-   "White" 位置用 rgba(218, 225, 242, X) 浅冷灰白——有颜色不是 transparent，
-   用户明确要求"一点点灰但一定要有颜色"。gradient 中心 calc 同 base 对齐。 */
 /* Light mode: 彻底不显 wave/tail。浅底做"扫光"多轮 tuning（accent、off-white、wave-core-light
    的 chroma / alpha / blend mode）仍然"饱和"或"幽灵"，不符合浅色背景下的轻量感。
    Dark 模式保留——深底 screen blend 扫光有自然发光感。

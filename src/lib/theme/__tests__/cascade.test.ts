@@ -54,11 +54,14 @@ describe("applyThemeCascade + clearThemeCascade", () => {
     expect(left.style.getPropertyValue("--theme-cascade-delay")).toBe("1350ms")
   })
 
-  it("prefers-reduced-motion: no flag, no delay (caller still runs applyThemeClass for 0-delay snap)", () => {
+  it("prefers-reduced-motion: sets flag but writes no delay (uniform snap via reduced-motion media rule)", () => {
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }))
     const el = createGlassCard({ left: 0, width: 100 })
     applyThemeCascade(true, 200)
-    expect(document.documentElement.dataset.themeCascading).toBeUndefined()
+    // Flag IS set so that the @media (prefers-reduced-motion: reduce) override
+    // (transition: none !important) matches and kills both glass inline transition
+    // and chrome crossfade → uniform snap, per spec decision 15.
+    expect(document.documentElement.dataset.themeCascading).toBe("true")
     expect(el.style.getPropertyValue("--theme-cascade-delay")).toBe("")
   })
 

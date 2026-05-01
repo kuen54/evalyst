@@ -13,11 +13,11 @@ export function applyThemeCascade(copilotOpen: boolean, panelPx: number): void {
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
-  // a11y：不写 delay、不设 flag。调用方继续 applyThemeClass → 所有元素走 inline
-  // transition 0 delay 同步 crossfade，符合 reduced-motion 的"减少运动"预期。
-  if (prefersReduce) return
-
-  if (copilotOpen) {
+  // reduced-motion 下依然设 flag —— @media (prefers-reduced-motion: reduce) 规则会匹配
+  // 并 transition: none !important 覆盖 glass 的 inline 320ms transition 和 chrome 的
+  // crossfade，实现 spec 决策 15 要求的"uniform snap for reduced-motion"。
+  // 只有在 !prefersReduce 且 copilotOpen 才计算 stagger delay。
+  if (!prefersReduce && copilotOpen) {
     const vw = window.innerWidth
     if (vw > 0) {
       const panelVw = panelPx > 0 ? (panelPx / vw) * 100 : 0
@@ -38,7 +38,7 @@ export function applyThemeCascade(copilotOpen: boolean, panelPx: number): void {
         })
     }
   }
-  // copilot 关态：不写 delay（全 0 = 所有元素同步 crossfade）
+  // copilot 关态或 reduced-motion：不写 delay（全 0 = 所有元素同步 crossfade 或 snap）
 
   document.documentElement.dataset.themeCascading = "true"
 }
