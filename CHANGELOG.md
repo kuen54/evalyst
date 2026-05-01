@@ -8,6 +8,34 @@
 
 ## [Unreleased]
 
+## [0.5.7] — 2026-05-01 · audit cleanup：reduced-motion uniform snap + dead code
+
+v0.5.6 ship 后做的一轮系统性 debug 捡到的四个 finding。
+
+### Reduced-motion 行为修正（a11y）
+
+`applyThemeCascade` 之前在 `prefers-reduced-motion: reduce` 下 early-return 不设 `data-theme-cascading` flag。后果：
+- Glass card 仍走 inline 320ms transition（useGlassStyle 提供的 baseline）
+- Chrome（body / aside / main）没有 transition → snap
+- 两者节奏不同，违反 spec 决策 15"uniform snap for reduced-motion"
+
+**Fix**：reduced-motion 下依然设 flag，只跳过 delay 计算。`@media (prefers-reduced-motion: reduce)` 规则此时匹配，`transition: none !important` 覆盖 glass inline transition 和 chrome crossfade → 两者都 snap，一致。
+
+test case 同步更新："prefers-reduced-motion: sets flag but writes no delay (uniform snap via reduced-motion media rule)"。
+
+### 代码清理
+
+- **Dead CSS variable** `--copilot-wave-core-light`：v0.5.3 引入给浅色 wave peak 用，v0.5.6 浅色 wave 整体 `display:none` 后 declaration 成了唯一引用点。删除
+- **Stale comment block** 在 `globals.css` 498 行附近描述已删除的浅色 9-stop wave gradient 结构。删除
+- **`applyThemeClass` doc** 提"给 View Transition callback 用"是 v0.5.4 v1 遗留（View Transitions API 当时被放弃）。改为描述 theme cascade 的 pre-transition class toggle 用途
+
+### 验证
+
+- vitest 217/217 green
+- tsc clean, build ok
+- Playwright 实测 panel animation `animationDuration: 0.68s`、light/dark 模式 wave display:none/block 正确、cascade delay 21 张卡全部写对
+- Dev console: 0 errors / 0 warnings
+
 ## [0.5.6] — 2026-05-01 · Copilot 打开 + 主题切换的时序打磨（panel 弹性更明显 / 白天去扫光 / 主题 cascade 对齐 reveal）
 
 v0.5.5 hotfix cascade 后用户三条打磨反馈：
