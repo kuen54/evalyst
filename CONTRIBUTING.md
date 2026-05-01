@@ -50,7 +50,7 @@ data/                  运行时产出；.gitignore 的用户数据
 
 ## 提交流程
 
-1. Fork + 新建分支（`feat/xxx` / `fix/xxx`）
+1. Fork + 新建分支（`feat/xxx` / `fix/xxx` / `refactor/xxx` / `tune/xxx` / `docs/xxx`）—— slug 用 kebab-case，语义化命名
 2. 本地验证
    ```bash
    npx tsc --noEmit   # 类型必须过
@@ -59,13 +59,22 @@ data/                  运行时产出；.gitignore 的用户数据
    npm run lint       # 最好没报错（CI 里 lint 目前 continue-on-error）
    npm run build      # 能 build
    ```
-3. 手动过 UI 快乐路径 + 一两个边缘场景；如果改了数据 shape，确认老数据（`data/` 里的旧实验）打开不崩
-4. commit 信息参考本仓库历史风格（`feat(x): ...` / `fix: ...` / `refactor: ...`）
-5. 提 PR，描述写清
+3. 手动过 UI 快乐路径 + 一两个边缘场景；改了数据 shape 确认老数据（`data/` 里的旧实验）打开不崩
+4. commit 格式：`<type>(<scope>): <subject>`（types: `feat` / `fix` / `refactor` / `tune` / `docs` / `chore` / `test` / `perf` / `style` / `build` / `ci`；`tune` 专指"只改参数不改机制"）。详细规范见 `AGENTS.md` §Commit message 规范
+5. 提 PR，description **必含 4 段**：
    - 改了什么
    - 为什么这样改（设计决策 / trade-off）
    - 怎么验证（步骤）
    - 有没有向后兼容风险（对现有 `data/` 的影响）
+6. merge 策略走 **merge commit**（不用 squash），保留 branch commits 便于追溯
+
+## 版本号 + Tag（仅 maintainer）
+
+`vX.Y.Z` 是**松散里程碑**，不保证 semver——项目定位是个人评测工具，没有外部 API 稳定性承诺。Tag 由 maintainer 打在 PR 的 merge commit 上，表示"可回跳的稳定点"。
+
+contributor 不需要管 tag，PR 合并后 maintainer 会在合适时机打。如果 PR 合并的是 hotfix（上一个 tag 指向 broken state），标注会写在下一个 CHANGELOG 条目里。
+
+完整规范见 `AGENTS.md` §Tag + 版本号 / §CHANGELOG 规范。
 
 ## 我会优先 review 的
 

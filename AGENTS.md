@@ -214,19 +214,30 @@ React.createElement('div', {
 
 ## 开发流程（本仓库）
 
-### 分支 + PR
+### 分支命名
 
-所有非 trivial 改动走 feature branch + Pull Request：
+- `feat/<slug>` — 新特性
+- `fix/<slug>` — bug 修复
+- `refactor/<slug>` — 不改行为的重构
+- `tune/<slug>` — 只改参数（时长、阈值、色值等），不改机制
+- `docs/<slug>` — 纯文档
+- `archive/<slug>` — 归档已放弃的实验性方案（代码保留但不合 main）
 
-1. `git checkout -b feat/xxx`（或 `fix/xxx` / `refactor/xxx`）
-2. 开发 + 本地验证（tsc / test / e2e / build）
-3. `git push -u origin feat/xxx`
-4. `gh pr create --title "..." --body "..."` 或网页打开 PR
-5. PR description 写：**改了什么 / 为什么 / 怎么验证 / 向后兼容风险**
-6. CI 通过 + 自审后合并
-7. 合并后清理本地分支
+slug 用 kebab-case，**语义化**（`theme-cascade-v2`、`copilot-v053-opening-experience`），不写"bugfix-1"这种。
 
-**小的 typo / doc 修正**：可以直接 push main，但 commit 信息要说清。
+### PR 流程
+
+所有**非 trivial** 改动（影响 >3 文件 或 改变行为）走 feature branch + PR：
+
+1. `git checkout -b <type>/<slug>`
+2. 本地验证：`npx tsc --noEmit && npm test && npm run build`（UI 相关加 `npm run test:e2e`）
+3. `git push -u origin <type>/<slug>`
+4. `gh pr create --title "..." --body "..."`
+5. PR description 必含 4 段：**改了什么 / 为什么 / 怎么验证 / 向后兼容风险**
+6. merge 策略：**merge commit**（`gh pr merge <n> --merge` 或网页"Create a merge commit"），不要 squash —— 保留 branch commits 便于 `git log --graph` 追溯，也让 tag-on-merge-commit 语义稳定
+7. merge 后本地清理：`git branch -D <branch>`
+
+**可直接 push main 的例外**：typo 修正、comment 清理、CHANGELOG 条目微调——commit 信息说清即可。**任何行为改动、哪怕一行**，都走 PR。
 
 ### Commit message 规范
 
@@ -238,8 +249,90 @@ React.createElement('div', {
 Co-Authored-By: ...
 ```
 
-`<type>`: `feat` / `fix` / `refactor` / `docs` / `chore` / `test` / `perf` / `style` / `build` / `ci`
+`<type>`: `feat` / `fix` / `refactor` / `tune` / `docs` / `chore` / `test` / `perf` / `style` / `build` / `ci`
 
-`<scope>`: 受影响的模块（`copilot` / `ui` / `settings` / `compare` 等），没有就省
+- `feat`：新能力（新 API、新 UI、新交互路径）
+- `fix`：修复 bug（现状不符合预期行为）
+- `refactor`：重组代码但**不改外部行为**
+- `tune`：只动参数（动画时长、offset、stagger 窗口、阈值等），不改机制
+- `docs`：只改 md / 注释 / JSDoc
+- `chore`：lockfile / 配置 / 脚本之类非代码变更
 
-**AI 助手额外约定**：当你以 AI assistant 身份工作时，非 trivial 改动（>3 文件或功能性）必须开 branch + PR，**不要直接 push 到 main**。详见 `CONTRIBUTING.md` §提交流程。
+`<scope>`: 受影响的主模块（`copilot` / `theme` / `ui` / `settings` / `compare` / `i18n` / `schema` 等），没有就省。
+
+`<subject>`: 命令语气、小写开头、<70 字符。
+
+body 解释"为什么"而不是"做了什么"（diff 自己说"做了什么"）。
+
+**AI 助手额外约定**：AI assistant 身份工作时，非 trivial 改动必须走 branch + PR，不直接 push main。
+
+### Tag + 版本号
+
+**版本号是松散里程碑，不是 semver**。本项目无外部 consumer，tag 的作用是"可跳回去的稳定点"和 release notes 锚点。
+
+格式 `vX.Y.Z`：
+
+- **X (major)**：保留给重大架构变动（目前 `0.*` 表示仍在快速演化）
+- **Y (minor)**：整块新能力或新子系统（PR-3 tool calling 合进来时跳 0.4 → 0.5）
+- **Z (patch)**：Y 范围内的增量特性、显著调优、hotfix
+
+**什么时候打 tag**（收敛原则）：
+
+- ✅ 特性**稳定且短期不再改**：merge 进 main 之后观察一两天，实际使用过几轮没发现需要调的，再 tag
+- ✅ **真正的 hotfix**：前一个 tag 指向 broken state，fix 合进来后打新 tag 标明"从这个版本起才真能用"
+- ❌ **不要**每次 PR 都 tag
+- ❌ **不要**在"我以为它做完了"的瞬间 tag（很可能下个小时就发现要 tweak）
+- ❌ 同一特性 48h 内打 3 个 tag 是信号错了——polish 应该属于 `[Unreleased]`，攒一攒再一起 tag
+
+**Tag 放在哪**：**总是放在 merge commit 上**，不放在 feature branch 的 commit 上（因为 squash/rebase 可能让那个 commit 从 main 消失）：
+
+```bash
+git checkout main && git pull
+git tag -a v0.X.Y -m "v0.X.Y · <one-line summary>" <merge-commit-sha>
+git push origin v0.X.Y
+```
+
+**Broken tag 怎么办**：如果 tag 指向的 state 实测不工作，删除它（`git tag -d v0.X.Y && git push origin :refs/tags/v0.X.Y`），并在 CHANGELOG 对应条目加 `> Note: git tag <...> 已删除，首个可用版本是 <...>` 标注。条目**保留**作为设计/实现的历史记录。不重写 CHANGELOG 历史。
+
+### CHANGELOG 规范
+
+`CHANGELOG.md` 走 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 风格。
+
+**条目格式**：
+
+```md
+## [X.Y.Z] — YYYY-MM-DD · <one-line summary>
+
+<背景段：一两句话说为什么要做 / 上下文>
+
+### 体验 / 架构 / Tuning / 测试 / 归档（按需选用 header）
+
+- ...
+
+- Spec: docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md
+- Plan: docs/superpowers/plans/YYYY-MM-DD-<topic>.md
+```
+
+**工作流**：
+
+1. 开发期间往 `## [Unreleased]` 段写条目草稿
+2. 打 tag 时把 `[Unreleased]` → `[X.Y.Z] — <date> · ...`，顶部补新的 `[Unreleased]` 占位
+3. 同一特性的多轮 tune 应该**合并到一个条目里**（用 `### Tuning` 子段记录）而不是拆成多个版本
+
+**Broken tag 标注**：如上 §Tag，条目开头加 `> Note (YYYY-MM-DD)：...`。
+
+**不要**：
+- 把 CHANGELOG 当 commit log（那是 `git log` 的工作）
+- 为每个 PR 写一条 CHANGELOG 条目——除非它对应一个 tag
+- 在 `[Unreleased]` 堆无数 bullet 不消化——及时整合成条目再 tag
+
+### 回顾 / 审计节奏
+
+合完一个大 PR 之后、tag 之前：
+
+1. **实测一轮**（UI 走快乐路径 + 一两个 edge case）
+2. **看 console**：dev server 无 warning / error
+3. **读自己的 diff**：找 dead code、stale 注释、typo、doc drift
+4. 发现问题就开新 PR（`fix/` 或 `docs/`），别攒
+
+真要"审计"（比如发现某个 feature 可能引入回归），系统跑一遍：`tsc --noEmit && npm test && npm run build` + Playwright 实测 + 读关键文件。这次用 merge-audit-style 跑了一轮，捡到 reduced-motion 不一致 + 孤儿 CSS var + stale 注释（见 v0.5.7 CHANGELOG），总共 15 分钟值得。

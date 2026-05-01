@@ -2,6 +2,8 @@
 
 按 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 风格记录。版本号是松散里程碑，不是 semver —— 这是一个持续演化的工具，不是承诺 API 稳定的库。
 
+Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge 都打）。Polish 迭代应攒到 `[Unreleased]` 里，整合后再一起 tag。详细规范见 `AGENTS.md` §Tag + 版本号 / §CHANGELOG 规范。
+
 每个版本对应的 git tag 见 [Releases](https://github.com/kuen54/evalyst/releases)；每个条目的 commit 范围可以在 `Compare <prev>...<this>` 里看到完整 diff。
 
 ---
@@ -90,6 +92,8 @@ v0.5.4 ship 后用户报"copilot 开态中间区域没有 R→L cascade"。排�
 - 目视 R→L ripple 在 copilot 开态可见
 
 ## [0.5.4] — 2026-04-30 · 主题切换 cascade（glass 镜像 reveal + chrome breathing）
+
+> **Note (2026-05-01)**：该版本 ship 时 cascade 在运行时实际不工作（Turbopack/LightningCSS 静默吞了 globals.css 里的 cascade 规则）。**git tag `v0.5.4` 已删除**；首个实际可用的 cascade build 是 v0.5.5。条目保留作为设计/实现的历史记录。
 
 v0.5.3 deferred、v0.5.4 v1（View Transitions API）被放弃（视觉是"扫描线"不是"每元素自己变"）后的第三次尝试。回到 element-level CSS transition 路线——但这次**镜像已经在产稳定的 reveal cascade 机制**做 glass 卡片，同时给非 glass 大块背景（body / aside / main）加一条无 stagger 的 breathing crossfade，整体有呼吸感。
 
