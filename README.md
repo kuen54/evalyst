@@ -311,7 +311,7 @@ skill 本质是一份 prompt 文档 + `curl` 用法指南，平台的 REST API �
 
 类型签名见 `src/lib/types.ts` + `src/lib/schema/types.ts`。你自己写脚本 / 自己的 agent 也能跑。
 
-> **注意**：当前 API 无鉴权，适合本地开发。开源前会补 token 机制。
+> **注意**：当前 API 无鉴权（适合本地 / 单机自用）。跨网暴露请自己在前面加反向代理 + basic auth / OAuth。原生鉴权不在路线图里，需求请开 issue 讨论。
 
 ---
 
@@ -386,7 +386,7 @@ Meta-prompt 模板在 `src/lib/meta-prompts/template.ts`，含完整示例可参
 A: seed 机制的设计。示例文件由 `src/lib/seeds/` 首次访问时 lazy-copy。想永久删除，从 `src/lib/seed.ts` 的种子列表移除那个 ID。
 
 **Q: 配了模型但实验一直 `error`？**  
-A: 在 `/settings/llm` 对应卡点「测试连接」确认能通。如果失败：① `base_url` 结尾别加 `/`；② OpenAI 兼容格式 Authorization 头直接是 key（不带 `Bearer` 的系统在 extra_body 自行处理）；③ 检查模型名是否存在。
+A: 在 `/settings/llm` 对应卡点「测试连接」确认能通。如果失败：① `base_url` 结尾别加 `/`；② OpenAI 兼容格式填纯 api_key 即可（会自动加 `Bearer ` 前缀）—— 如果你的 gateway 明确不要 Bearer，请开 issue 我们会补 `ModelConfig.auth_no_bearer_prefix` 选项；③ 检查模型名是否存在。
 
 **Q: 跑到一半想停？**  
 A: 实验详情页的「暂停」按钮。数据写到 `data/results/{id}/progress.json`，再进来「继续运行」会从未完成的任务继续（失败的会重试）。
@@ -407,7 +407,7 @@ A: `data/results/{experiment_id}/results.jsonl`。一行一条 `GenericResultRec
 A: 整个 `data/` 目录打包即可。`data/llm-config.json` 含敏感 key，分享前记得清掉。
 
 **Q: 有单测吗？**  
-A: 有。`npm test` 跑一轮（vitest，110 case ~180ms），覆盖 transform 的 10 种 op、Schema validate、成本/currency 聚合、rubric 聚合、三层 LLM config 迁移等所有纯函数。`npm run test:e2e` 跑 Playwright 的端到端 smoke（遍历所有关键路由 + `/api/skills` 下载，首次需 `npx playwright install chromium`）。CI 两个 job 都会跑。
+A: 有。`npm test` 跑一轮（vitest，221 case ~180ms），覆盖 transform 的 10 种 op、Schema validate、成本/currency 聚合、rubric 聚合、三层 LLM config 迁移等所有纯函数。`npm run test:e2e` 跑 Playwright 的端到端 smoke（遍历所有关键路由 + `/api/skills` 下载，首次需 `npx playwright install chromium`）。CI 两个 job 都会跑。
 
 ---
 

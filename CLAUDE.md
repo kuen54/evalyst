@@ -10,7 +10,7 @@
 - 自建轻量 i18n（`src/lib/i18n/`，zh / en，localStorage 持久化）
 - `@babel/standalone` 浏览器端 JSX 编译（用户自定义展示模板）
 - `papaparse` CSV 解析（数据集表单上传）
-- 测试：`vitest`（纯函数单测，110 case）+ `playwright`（E2E smoke，9 case）
+- 测试：`vitest`（纯函数单测，221 case）+ `playwright`（E2E smoke，9 case）
 - 无数据库，文件存储（JSON + JSONL）
 
 ## 四件套 + Rubric 架构
@@ -233,7 +233,7 @@ interface Annotation {
 | `src/lib/__tests__/llm-config.migrate.test.ts` | V1/V2/V3 三层兼容 + pickModel + findPricing + isLlmConfigured |
 | `src/lib/__tests__/store.migrate.test.ts` | `migrateExperimentInMemory`（`run_stats.total_cost_usd` → `total_cost_by_currency.USD`；保留已有 `total_cost_by_currency` 不覆盖） |
 
-110 个 test case，~180ms 跑完。**只测纯函数**——API route / UI 组件不测。
+221 个 test case，~180ms 跑完。**只测纯函数**——API route / UI 组件不测。
 
 **惰性路径**：`llm-config.ts` / `annotation-store.ts` 的 `configDir()` / `resultsDir()` 是惰性函数（不在模块加载时 freeze `process.cwd()`），测试里 chdir 到 tmp 目录能生效。生产 cwd 固定，无副作用。
 
@@ -551,7 +551,7 @@ data/
 
 ```bash
 npm run dev          # http://localhost:3000（被占用时自动切到 3002 等）
-npm test             # 跑所有单测（vitest，110 case ~180ms）
+npm test             # 跑所有单测（vitest，221 case ~180ms）
 npm run test:watch   # watch 模式
 npm run test:e2e     # E2E smoke（playwright；首次需 `npx playwright install chromium`）
 ```

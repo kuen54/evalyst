@@ -8,7 +8,8 @@ import type { DatasetDef, FieldDef } from './schema/types'
 import { ensureSeeds } from './seed'
 import { ensureDir, writeAtomic } from './fs-utils'
 
-const DATASETS_DIR = path.join(process.cwd(), 'data', 'datasets')
+// 惰性解析：每次调用按当前 process.cwd() 重算，便于测试 chdir。
+function datasetsDir() { return path.join(process.cwd(), 'data', 'datasets') }
 
 // --- 核心 API ---
 
@@ -16,7 +17,7 @@ export function getDataset(id: string): { records: Record<string, unknown>[]; de
   ensureSeeds()
   const meta = readDatasetMeta(id)
   if (!meta) throw new Error(`Dataset not found: ${id}`)
-  const jsonlPath = path.join(DATASETS_DIR, `${id}.jsonl`)
+  const jsonlPath = path.join(datasetsDir(), `${id}.jsonl`)
   if (!fs.existsSync(jsonlPath)) throw new Error(`Dataset file missing: ${jsonlPath}`)
   const lines = fs.readFileSync(jsonlPath, 'utf-8').trim().split('\n').filter(Boolean)
   return { records: lines.map(l => JSON.parse(l)), def: meta }
@@ -24,13 +25,13 @@ export function getDataset(id: string): { records: Record<string, unknown>[]; de
 
 export function listDatasets(): DatasetDef[] {
   ensureSeeds()
-  ensureDir(DATASETS_DIR)
-  const files = fs.readdirSync(DATASETS_DIR).filter(f => f.endsWith('.meta.json'))
+  ensureDir(datasetsDir())
+  const files = fs.readdirSync(datasetsDir()).filter(f => f.endsWith('.meta.json'))
   return files.map(f => {
-    const raw = fs.readFileSync(path.join(DATASETS_DIR, f), 'utf-8')
+    const raw = fs.readFileSync(path.join(datasetsDir(), f), 'utf-8')
     const def = JSON.parse(raw) as DatasetDef
     // 附加 record_count：快速扫 .jsonl 行数
-    const jsonlPath = path.join(DATASETS_DIR, `${def.id}.jsonl`)
+    const jsonlPath = path.join(datasetsDir(), `${def.id}.jsonl`)
     if (fs.existsSync(jsonlPath)) {
       const content = fs.readFileSync(jsonlPath, 'utf-8')
       def.record_count = content.split('\n').filter(l => l.trim()).length
@@ -51,7 +52,7 @@ export function getDatasetSummary(id: string): {
 // --- CRUD ---
 
 function readDatasetMeta(id: string): DatasetDef | null {
-  const p = path.join(DATASETS_DIR, `${id}.meta.json`)
+  const p = path.join(datasetsDir(), `${id}.meta.json`)
   if (!fs.existsSync(p)) return null
   return JSON.parse(fs.readFileSync(p, 'utf-8'))
 }
@@ -65,7 +66,7 @@ export function createDatasetFromJson(data: {
   fields: FieldDef[]
   records: Record<string, unknown>[]
 }): DatasetDef {
-  ensureDir(DATASETS_DIR)
+  ensureDir(datasetsDir())
   if (!/^[a-z][a-z0-9_]*$/.test(data.id)) {
     throw new Error(`Invalid id: ${data.id} (lowercase letters/digits/underscores, start with letter)`)
   }
@@ -87,8 +88,8 @@ export function createDatasetFromJson(data: {
     description: data.description,
   }
   const jsonl = data.records.map(r => JSON.stringify(r)).join('\n') + '\n'
-  writeAtomic(path.join(DATASETS_DIR, `${data.id}.jsonl`), jsonl)
-  writeAtomic(path.join(DATASETS_DIR, `${data.id}.meta.json`), JSON.stringify(def, null, 2))
+  writeAtomic(path.join(datasetsDir(), `${data.id}.jsonl`), jsonl)
+  writeAtomic(path.join(datasetsDir(), `${data.id}.meta.json`), JSON.stringify(def, null, 2))
   return def
 }
 
@@ -113,7 +114,7 @@ export function updateCustomDataset(id: string, patch: {
   fields?: FieldDef[]
   records?: Record<string, unknown>[]
 }): DatasetDef {
-  ensureDir(DATASETS_DIR)
+  ensureDir(datasetsDir())
   const existing = readDatasetMeta(id)
   if (!existing) throw new Error(`Dataset not found: ${id}`)
 
@@ -140,20 +141,20 @@ export function updateCustomDataset(id: string, patch: {
     id_field: nextIdField,
     fields: nextFields,
   }
-  writeAtomic(path.join(DATASETS_DIR, `${id}.meta.json`), JSON.stringify(next, null, 2))
+  writeAtomic(path.join(datasetsDir(), `${id}.meta.json`), JSON.stringify(next, null, 2))
 
   if (patch.records) {
     if (patch.records.length === 0) throw new Error('records must be non-empty')
     const jsonl = patch.records.map(r => JSON.stringify(r)).join('\n') + '\n'
-    writeAtomic(path.join(DATASETS_DIR, `${id}.jsonl`), jsonl)
+    writeAtomic(path.join(datasetsDir(), `${id}.jsonl`), jsonl)
   }
 
   return next
 }
 
 export function deleteCustomDataset(id: string): boolean {
-  const jsonl = path.join(DATASETS_DIR, `${id}.jsonl`)
-  const meta = path.join(DATASETS_DIR, `${id}.meta.json`)
+  const jsonl = path.join(datasetsDir(), `${id}.jsonl`)
+  const meta = path.join(datasetsDir(), `${id}.meta.json`)
   let ok = false
   if (fs.existsSync(jsonl)) { fs.rmSync(jsonl); ok = true }
   if (fs.existsSync(meta)) { fs.rmSync(meta); ok = true }

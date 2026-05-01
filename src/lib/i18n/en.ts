@@ -1002,6 +1002,7 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.inspector_hint": "Click any highlighted block to share it with Copilot. Esc to exit.",
   "copilot.inspector_already": "already picked",
   "copilot.context_tag_remove": "Remove this context",
+  "copilot.context_remove_title": "Remove",
   "copilot.context_clear_all": "Clear all",
   "copilot.context_reload_toast": "After reload, {n} context(s) kept but their mask overlays are gone. Send as-is or re-pick.",
   "copilot.text_select_add": "Send to Copilot",

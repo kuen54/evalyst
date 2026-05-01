@@ -1000,6 +1000,7 @@ export const zh = {
   "copilot.inspector_hint": "点击页面任意带下划线的区块把它加入 Copilot 视野；Esc 退出",
   "copilot.inspector_already": "已圈选",
   "copilot.context_tag_remove": "移除这个 context",
+  "copilot.context_remove_title": "移除",
   "copilot.context_clear_all": "清空全部",
   "copilot.context_reload_toast": "页面刷新后，{n} 个 context 已保留但标注徽章失效。可直接发送，或重新圈选。",
   "copilot.text_select_add": "发送给 Copilot",

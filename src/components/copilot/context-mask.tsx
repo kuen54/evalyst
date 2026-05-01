@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react"
 import { useCopilotStore } from "./store"
 import { queryContextElement } from "@/lib/copilot/context-registry"
 import { usePathname } from "next/navigation"
+import { useT } from "@/lib/i18n/provider"
 
 // 对每个已捕获的 context 渲染一个 fixed 定位的彩色蒙层 + 数字徽章。
 // 核心挑战：路由切换 / resize / DOM 变化时 rect 要重算；找不到元素就隐藏（chip 保留，遮罩消失）。
@@ -32,6 +33,7 @@ function colorForTag(tag: number): string {
 
 export function ContextMask() {
   const { contexts, removeContext, open } = useCopilotStore()
+  const t = useT()
   const visible = open
   const pathname = usePathname()
   const [rects, setRects] = useState<MaskRect[]>([])
@@ -146,8 +148,8 @@ export function ContextMask() {
               onClick={() => removeContext(r.elementKey)}
               className="absolute -top-2.5 -right-2.5 pointer-events-auto w-5 h-5 rounded-full bg-white/95 hover:bg-white border flex items-center justify-center text-[11px] leading-none text-muted-foreground hover:text-destructive shadow-sm transition-colors"
               style={{ borderColor: color }}
-              title="移除"
-              aria-label="移除"
+              title={t("copilot.context_remove_title")}
+              aria-label={t("copilot.context_remove_title")}
             >
               ×
             </button>
