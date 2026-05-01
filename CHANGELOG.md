@@ -8,6 +8,25 @@
 
 ## [Unreleased]
 
+## [0.5.5] — 2026-05-01 · hotfix：theme cascade CSS 从 globals.css 挪到 inline `<style>` 绕过 Turbopack 吞规则
+
+v0.5.4 ship 后用户报"copilot 开态中间区域没有 R→L cascade"。排查发现：
+
+**Turbopack/LightningCSS 静默吞了 globals.css 文末追加的 Theme cascade section**——compiled `.next/dev/static/chunks/...css` 里 0 条匹配 `theme-cascading` 的规则，尽管上面 reveal cascade（结构几乎完全一致）正常。JS 层 `applyThemeCascade` 写 `--theme-cascade-delay` 和 flag 都对，但 CSS override 规则根本不存在，所以 computed `transition-delay` 全是 `0s`。
+
+同一失效模式 v0.5.4 v1（View Transitions API）踩过：LightningCSS 1.32 遇到某些它不完全理解的规则会直接 drop 整块，无 warning。
+
+**Fix**：把 3 条 cascade CSS 规则（glass shorthand override + chrome 320ms + reduced-motion）搬到 `src/app/layout.tsx` 里 `<head>` 的 `<style dangerouslySetInnerHTML>`，绕开整条 CSS pipeline。规则内容零改动，只换注入路径。
+
+- `src/app/layout.tsx` 新增 `THEME_CASCADE_CSS` 常量 + `<style>` 标签挂 `<head>`
+- `src/app/globals.css` 原 Theme switch cascade section 替换为引导注释指向 layout.tsx
+
+### 验证
+
+- vitest 217/217 green（helper 逻辑未变）
+- Playwright 实测：点主题按钮后 `--theme-cascade-delay` 正确写到每张 glass card，computed `transitionDelay` 读出 `0.646s / 0.235s` 等 stagger 值，`transitionTimingFunction: ease-out` 确认 CSS override 规则匹配并赢得优先级
+- 目视 R→L ripple 在 copilot 开态可见
+
 ## [0.5.4] — 2026-04-30 · 主题切换 cascade（glass 镜像 reveal + chrome breathing）
 
 v0.5.3 deferred、v0.5.4 v1（View Transitions API）被放弃（视觉是"扫描线"不是"每元素自己变"）后的第三次尝试。回到 element-level CSS transition 路线——但这次**镜像已经在产稳定的 reveal cascade 机制**做 glass 卡片，同时给非 glass 大块背景（body / aside / main）加一条无 stagger 的 breathing crossfade，整体有呼吸感。
