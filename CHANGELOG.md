@@ -8,6 +8,38 @@
 
 ## [Unreleased]
 
+## [0.5.6] — 2026-05-01 · Copilot 打开 + 主题切换的时序打磨（panel 弹性更明显 / 白天去扫光 / 主题 cascade 对齐 reveal）
+
+v0.5.5 hotfix cascade 后用户三条打磨反馈：
+
+### 1. Panel 弹出更明显：450ms → 680ms
+
+`.copilot-panel-enter` 动画时长从 450ms 拉到 680ms，仍走 easeOutExpo 无 overshoot。更"有实体感"的弹出 —— panel 内容不再"一闪就位"，用户能读到弹入轨迹。
+
+其它配套动画（wave 起步 200ms、reveal cascade 首元素 750ms、glow 8s）全部保持不变 —— 它们相对 click 原点的绝对时序仍然合理：wave 在 panel 移动中段出现、reveal cascade 首元素紧跟 panel 落位（delta ~70ms）。
+
+### 2. 白天模式关扫光
+
+浅底扫光多轮 tuning（accent → off-white → wave-core-light 砍 chroma）仍然读作"饱和"或"幽灵"。接受浅底 screen-blend 扫光天然不适合，**彻底在 `:root:not(.dark)` 下 `display: none` `.copilot-reveal-wave` + `.copilot-reveal-tail`**。Dark 模式扫光不动。
+
+Reveal Cascade 的 glass card R→L ripple **不依赖** wave overlay（是独立 CSS transition），所以浅底 panel 打开仍有"每张卡翻面"的感知，只是没有上面那条扫光。
+
+### 3. 主题 cascade 起步对齐 reveal 首元素时刻
+
+Copilot 开态切主题时，glass card stagger 全部加 **750ms offset**，对齐"点击展开 copilot → 第一个扁平 UI 变玻璃"的耗时（reveal 是 200ms wave-self-delay + 550ms wait-for-wave-offset = 750ms）。
+
+- 旧公式：`stagger = clamp([0, 1400], (startVw - cx) / 100 * 1400)` → 最右卡 0ms 起跑
+- 新公式：`delay = 750 + clamp([0, 1400], (startVw - cx) / 100 * 1400)` → 最右卡 750ms 起跑
+- 最左卡最晚到 2150ms 起跑
+- cleanup timeout 2000ms → **2800ms**（offset 750 + max stagger 1400 + duration 320 + 330 buffer）
+
+节奏感：点击主题 → 750ms 悬停（感知"变化在发生但未到"）→ R→L ripple 从最右开始缓缓铺开 → 1720ms（= 750 + 1400 - 430）时最左卡完成。给"点击 → 反馈"一个节拍。
+
+### 测试
+
+- vitest：`cascade.test.ts` "copilot open" case 更新 — rightmost 从 0ms 改 750ms、leftmost 从 1050ms 改 1800ms；217/217 tests green
+- Playwright 实测：computed `transitionDelay` 按位置落在 [0.925s, 1.528s] 的 observed range，offset 生效
+
 ## [0.5.5] — 2026-05-01 · hotfix：theme cascade CSS 从 globals.css 挪到 inline `<style>` 绕过 Turbopack 吞规则
 
 v0.5.4 ship 后用户报"copilot 开态中间区域没有 R→L cascade"。排查发现：

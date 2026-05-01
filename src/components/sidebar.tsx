@@ -58,11 +58,11 @@ export function Sidebar() {
     applyThemeClass(next)  // sync DOM class toggle，触发 transition（各元素按 --theme-cascade-delay 错峰）
     setTheme(next)         // next-themes state + localStorage；其 useEffect 看到 class 已对，no-op
 
-    // 2000ms = max delay 1400 + transition duration 320 + 280ms 余量
+    // 2800ms = offset 750 + max stagger 1400 + duration 320 + 330ms 余量
     cascadeTimeoutRef.current = setTimeout(() => {
       clearThemeCascade()
       cascadeTimeoutRef.current = null
-    }, 2000)
+    }, 2800)
   }
 
   // cycle 过程中 unmount（切页、热重载）时清 timeout + DOM flag，避免残留
