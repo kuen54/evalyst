@@ -40,16 +40,18 @@ describe("applyThemeCascade + clearThemeCascade", () => {
     expect(el.style.getPropertyValue("--theme-cascade-delay")).toBe("")
   })
 
-  it("copilot open: writes per-element delay by x-position (rightmost 0, leftmost ~ startVw*14)", () => {
+  it("copilot open: writes per-element delay with 300ms offset (rightmost=300, leftmost=300+stagger)", () => {
     // viewport=1000, panel=200px -> startVw=80
-    // Right card: left=900 width=100 -> center cx=95 -> delay = (80-95)*14 = -210 -> clamp to 0
+    // Right card: left=900 width=100 -> center cx=95 -> stagger = max(0, min(1400, (80-95)*14)) = 0
+    //   total delay = 300 (offset) + 0 = 300ms
     const right = createGlassCard({ left: 900, width: 100 })
-    // Left card: left=0 width=100 -> center cx=5 -> delay = (80-5)*14 = 1050ms
+    // Left card: left=0 width=100 -> center cx=5 -> stagger = min(1400, (80-5)*14) = 1050
+    //   total delay = 300 (offset) + 1050 = 1350ms
     const left = createGlassCard({ left: 0, width: 100 })
     applyThemeCascade(true, 200)
     expect(document.documentElement.dataset.themeCascading).toBe("true")
-    expect(right.style.getPropertyValue("--theme-cascade-delay")).toBe("0ms")
-    expect(left.style.getPropertyValue("--theme-cascade-delay")).toBe("1050ms")
+    expect(right.style.getPropertyValue("--theme-cascade-delay")).toBe("300ms")
+    expect(left.style.getPropertyValue("--theme-cascade-delay")).toBe("1350ms")
   })
 
   it("prefers-reduced-motion: no flag, no delay (caller still runs applyThemeClass for 0-delay snap)", () => {

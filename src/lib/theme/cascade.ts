@@ -22,14 +22,19 @@ export function applyThemeCascade(copilotOpen: boolean, panelPx: number): void {
     if (vw > 0) {
       const panelVw = panelPx > 0 ? (panelPx / vw) * 100 : 0
       const startVw = 100 - panelVw
+      // 给"点击主题 → cascade 启动"一点停顿感（非 0），但不到 reveal 的 750ms——
+      // 那个阈值实测读作"等太久"。300ms 是主观节拍：用户能感知"发生了什么然后 ripple"，
+      // 而不是"点了好像没反应然后才动"。
+      const OFFSET_MS = 300
+      // stagger window 0-1400ms：0 = 最右卡立刻起跑，1400ms = 最左卡最晚起跑
+      const STAGGER_MS = 1400
       document
         .querySelectorAll<HTMLElement>("[data-glass-variant]")
         .forEach(el => {
           const rect = el.getBoundingClientRect()
           const cx = ((rect.left + rect.width / 2) / vw) * 100
-          // stagger window 0-1400ms：0 = 最右卡立刻起跑，1400ms = 最左卡最晚起跑
-          const delay = Math.max(0, Math.min(1400, ((startVw - cx) / 100) * 1400))
-          el.style.setProperty("--theme-cascade-delay", `${delay}ms`)
+          const stagger = Math.max(0, Math.min(STAGGER_MS, ((startVw - cx) / 100) * STAGGER_MS))
+          el.style.setProperty("--theme-cascade-delay", `${OFFSET_MS + stagger}ms`)
         })
     }
   }

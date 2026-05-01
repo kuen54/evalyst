@@ -492,33 +492,13 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
    peak alpha 从 95% → 80%，整体饱和度下调避免"电蓝"观感。
    "White" 位置用 rgba(218, 225, 242, X) 浅冷灰白——有颜色不是 transparent，
    用户明确要求"一点点灰但一定要有颜色"。gradient 中心 calc 同 base 对齐。 */
-:root:not(.dark) .copilot-reveal-wave {
-  background-image: radial-gradient(
-    circle at calc(150vw - var(--copilot-panel-width, 0px)) 50%,
-    transparent 0%,
-    transparent 38vw,
-    rgba(218, 225, 242, 0.3) 42vw,
-    rgba(218, 225, 242, 0.5) 46vw,
-    color-mix(in oklab, var(--copilot-wave-core-light), transparent 45%) 48vw,
-    color-mix(in oklab, var(--copilot-wave-core-light), transparent 20%) 50vw,
-    color-mix(in oklab, var(--copilot-wave-core-light), transparent 45%) 52vw,
-    rgba(218, 225, 242, 0.5) 54vw,
-    rgba(218, 225, 242, 0.3) 58vw,
-    transparent 62vw
-  );
-  mix-blend-mode: normal;
-}
-
-/* Tail: 同结构简化版本。中心用 wave-core-light 浅调，外圈淡冷灰白 */
+/* Light mode: 彻底不显 wave/tail。浅底做"扫光"多轮 tuning（accent、off-white、wave-core-light
+   的 chroma / alpha / blend mode）仍然"饱和"或"幽灵"，不符合浅色背景下的轻量感。
+   Dark 模式保留——深底 screen blend 扫光有自然发光感。
+   注意 Reveal Cascade 的 glass-card R→L ripple 不依赖 wave overlay，仍会正常跑。 */
+:root:not(.dark) .copilot-reveal-wave,
 :root:not(.dark) .copilot-reveal-tail {
-  background-image: radial-gradient(
-    circle at calc(150vw - var(--copilot-panel-width, 0px)) 50%,
-    transparent 0%,
-    transparent 40vw,
-    color-mix(in oklab, var(--copilot-wave-core-light), transparent 65%) 50vw,
-    transparent 60vw
-  );
-  mix-blend-mode: normal;
+  display: none !important;
 }
 
 @keyframes copilot-reveal-wave-translate {
@@ -584,9 +564,10 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 }
 
 .copilot-panel-enter {
-  /* easeOutExpo 450ms：快进入 + 缓收尾，无 overshoot——
-     内部内容一次性平滑滑入就位，不会 overshoot 导致"弹来弹去"。 */
-  animation: copilot-panel-enter 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* easeOutExpo 680ms：更明显的弹性落位，无 overshoot——
+     内部内容一次性平滑滑入就位，不会 overshoot 导致"弹来弹去"。
+     比 450ms 感知更"有实体感"，用户要求的更明显弹出效果。 */
+  animation: copilot-panel-enter 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
