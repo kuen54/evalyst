@@ -6,9 +6,11 @@ import type { GenericResultRecord } from './schema/types'
 import { getLlmConfig, pickModel } from './llm-config'
 import { ensureDir, writeAtomic } from './fs-utils'
 
-const DATA_DIR = path.join(process.cwd(), 'data')
-const EXPERIMENTS_DIR = path.join(DATA_DIR, 'experiments')
-const RESULTS_DIR = path.join(DATA_DIR, 'results')
+// 惰性解析：每次调用都按当前 process.cwd() 重新计算，便于测试 chdir。
+// 生产 cwd 固定，无副作用。对齐 llm-config.ts / annotation-store.ts 约定。
+function dataDir() { return path.join(process.cwd(), 'data') }
+function experimentsDir() { return path.join(dataDir(), 'experiments') }
+function resultsDir() { return path.join(dataDir(), 'results') }
 
 // --- Migration helpers (in-memory only; never writes back) ---
 
@@ -47,24 +49,24 @@ function migrateResultInMemory(raw: Record<string, unknown>): GenericResultRecor
 // --- Experiments ---
 
 export function listExperiments(): ExperimentConfig[] {
-  ensureDir(EXPERIMENTS_DIR)
-  const files = fs.readdirSync(EXPERIMENTS_DIR).filter(f => f.endsWith('.json'))
+  ensureDir(experimentsDir())
+  const files = fs.readdirSync(experimentsDir()).filter(f => f.endsWith('.json'))
   return files
     .map(f => {
-      const data = fs.readFileSync(path.join(EXPERIMENTS_DIR, f), 'utf-8')
+      const data = fs.readFileSync(path.join(experimentsDir(), f), 'utf-8')
       return migrateExperimentInMemory(JSON.parse(data) as ExperimentConfig)
     })
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
 }
 
 export function getExperiment(id: string): ExperimentConfig | null {
-  const filePath = path.join(EXPERIMENTS_DIR, `${id}.json`)
+  const filePath = path.join(experimentsDir(), `${id}.json`)
   if (!fs.existsSync(filePath)) return null
   return migrateExperimentInMemory(JSON.parse(fs.readFileSync(filePath, 'utf-8')))
 }
 
 export function createExperiment(req: CreateExperimentRequest): ExperimentConfig {
-  ensureDir(EXPERIMENTS_DIR)
+  ensureDir(experimentsDir())
   const now = new Date().toISOString()
   const llmCfg = getLlmConfig()
   const selected = pickModel(llmCfg, req.model_id)
@@ -101,32 +103,32 @@ export function updateExperiment(id: string, updates: Partial<ExperimentConfig>)
 }
 
 export function deleteExperiment(id: string): boolean {
-  const filePath = path.join(EXPERIMENTS_DIR, `${id}.json`)
+  const filePath = path.join(experimentsDir(), `${id}.json`)
   if (!fs.existsSync(filePath)) return false
   fs.unlinkSync(filePath)
-  const resultsDir = path.join(RESULTS_DIR, id)
-  if (fs.existsSync(resultsDir)) {
-    fs.rmSync(resultsDir, { recursive: true })
+  const expResultsDir = path.join(resultsDir(), id)
+  if (fs.existsSync(expResultsDir)) {
+    fs.rmSync(expResultsDir, { recursive: true })
   }
   return true
 }
 
 function writeExperiment(config: ExperimentConfig) {
-  ensureDir(EXPERIMENTS_DIR)
-  writeAtomic(path.join(EXPERIMENTS_DIR, `${config.id}.json`), JSON.stringify(config, null, 2))
+  ensureDir(experimentsDir())
+  writeAtomic(path.join(experimentsDir(), `${config.id}.json`), JSON.stringify(config, null, 2))
 }
 
 // --- Results (JSONL) ---
 
 export function appendResult(experimentId: string, result: GenericResultRecord) {
-  const dir = path.join(RESULTS_DIR, experimentId)
+  const dir = path.join(resultsDir(), experimentId)
   ensureDir(dir)
   const filePath = path.join(dir, 'results.jsonl')
   fs.appendFileSync(filePath, JSON.stringify(result) + '\n')
 }
 
 export function readResults(experimentId: string): GenericResultRecord[] {
-  const filePath = path.join(RESULTS_DIR, experimentId, 'results.jsonl')
+  const filePath = path.join(resultsDir(), experimentId, 'results.jsonl')
   if (!fs.existsSync(filePath)) return []
   const content = fs.readFileSync(filePath, 'utf-8').trim()
   if (!content) return []
@@ -143,13 +145,13 @@ export function readResults(experimentId: string): GenericResultRecord[] {
 // --- Progress ---
 
 export function getProgress(experimentId: string): ProgressState | null {
-  const filePath = path.join(RESULTS_DIR, experimentId, 'progress.json')
+  const filePath = path.join(resultsDir(), experimentId, 'progress.json')
   if (!fs.existsSync(filePath)) return null
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
 }
 
 export function writeProgress(progress: ProgressState) {
-  const dir = path.join(RESULTS_DIR, progress.experiment_id)
+  const dir = path.join(resultsDir(), progress.experiment_id)
   ensureDir(dir)
   writeAtomic(path.join(dir, 'progress.json'), JSON.stringify(progress, null, 2))
 }

@@ -5,15 +5,16 @@ import path from 'path'
 import type { TaskSchema } from './types'
 import { ensureDir, writeAtomic } from '../fs-utils'
 
-const SCHEMAS_DIR = path.join(process.cwd(), 'data', 'schemas')
+// 惰性解析：每次调用按当前 process.cwd() 重算，便于测试 chdir。
+function schemasDir() { return path.join(process.cwd(), 'data', 'schemas') }
 
 export function listUserSchemas(): TaskSchema[] {
-  ensureDir(SCHEMAS_DIR)
-  const files = fs.readdirSync(SCHEMAS_DIR).filter(f => f.endsWith('.json'))
+  ensureDir(schemasDir())
+  const files = fs.readdirSync(schemasDir()).filter(f => f.endsWith('.json'))
   const out: TaskSchema[] = []
   for (const f of files) {
     try {
-      const raw = fs.readFileSync(path.join(SCHEMAS_DIR, f), 'utf-8')
+      const raw = fs.readFileSync(path.join(schemasDir(), f), 'utf-8')
       const d = JSON.parse(raw) as TaskSchema
       out.push({ ...d, source: 'user' })
     } catch {
@@ -24,7 +25,7 @@ export function listUserSchemas(): TaskSchema[] {
 }
 
 export function getUserSchema(id: string): TaskSchema | null {
-  const p = path.join(SCHEMAS_DIR, `${id}.json`)
+  const p = path.join(schemasDir(), `${id}.json`)
   if (!fs.existsSync(p)) return null
   try {
     const d = JSON.parse(fs.readFileSync(p, 'utf-8')) as TaskSchema
@@ -35,18 +36,18 @@ export function getUserSchema(id: string): TaskSchema | null {
 }
 
 export function createUserSchema(schema: TaskSchema): TaskSchema {
-  ensureDir(SCHEMAS_DIR)
+  ensureDir(schemasDir())
   if (!/^[a-z][a-z0-9_]*$/.test(schema.id)) {
     throw new Error(`Invalid id: ${schema.id} (lowercase letters/digits/underscores, start with letter)`)
   }
   const toWrite = { ...schema, source: undefined }
   delete (toWrite as Record<string, unknown>).source
-  writeAtomic(path.join(SCHEMAS_DIR, `${schema.id}.json`), JSON.stringify(toWrite, null, 2))
+  writeAtomic(path.join(schemasDir(), `${schema.id}.json`), JSON.stringify(toWrite, null, 2))
   return { ...schema, source: 'user' }
 }
 
 export function deleteUserSchema(id: string): boolean {
-  const p = path.join(SCHEMAS_DIR, `${id}.json`)
+  const p = path.join(schemasDir(), `${id}.json`)
   if (!fs.existsSync(p)) return false
   fs.rmSync(p)
   return true

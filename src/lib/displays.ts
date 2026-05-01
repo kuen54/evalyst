@@ -10,7 +10,8 @@ import path from 'path'
 import type { Display } from './schema/types'
 import { ensureDir, writeAtomic } from './fs-utils'
 
-const DISPLAYS_DIR = path.join(process.cwd(), 'data', 'displays')
+// 惰性解析：每次调用按当前 process.cwd() 重算，便于测试 chdir。
+function displaysDir() { return path.join(process.cwd(), 'data', 'displays') }
 
 // --- 内置 displays ---
 
@@ -62,11 +63,11 @@ const BUILTIN_MAP = new Map(BUILTINS.map(d => [d.id, d]))
 // --- API ---
 
 export function listDisplays(): Display[] {
-  ensureDir(DISPLAYS_DIR)
+  ensureDir(displaysDir())
   const userDisplays: Display[] = []
-  const files = fs.readdirSync(DISPLAYS_DIR).filter(f => f.endsWith('.json'))
+  const files = fs.readdirSync(displaysDir()).filter(f => f.endsWith('.json'))
   for (const f of files) {
-    const raw = fs.readFileSync(path.join(DISPLAYS_DIR, f), 'utf-8')
+    const raw = fs.readFileSync(path.join(displaysDir(), f), 'utf-8')
     try {
       const d = JSON.parse(raw) as Display
       userDisplays.push({ ...d, source: 'user' })
@@ -79,7 +80,7 @@ export function listDisplays(): Display[] {
 
 export function getDisplay(id: string): Display | null {
   if (BUILTIN_MAP.has(id)) return BUILTIN_MAP.get(id)!
-  const p = path.join(DISPLAYS_DIR, `${id}.json`)
+  const p = path.join(displaysDir(), `${id}.json`)
   if (!fs.existsSync(p)) return null
   try {
     const d = JSON.parse(fs.readFileSync(p, 'utf-8')) as Display
@@ -90,7 +91,7 @@ export function getDisplay(id: string): Display | null {
 }
 
 export function createUserDisplay(display: Display): Display {
-  ensureDir(DISPLAYS_DIR)
+  ensureDir(displaysDir())
   if (BUILTIN_MAP.has(display.id)) {
     throw new Error(`Cannot override builtin display: ${display.id}`)
   }
@@ -98,13 +99,13 @@ export function createUserDisplay(display: Display): Display {
     throw new Error(`Invalid id: ${display.id} (only lowercase letters/digits/underscores, must start with letter)`)
   }
   const toWrite: Display = { ...display, source: 'user' }
-  writeAtomic(path.join(DISPLAYS_DIR, `${display.id}.json`), JSON.stringify(toWrite, null, 2))
+  writeAtomic(path.join(displaysDir(), `${display.id}.json`), JSON.stringify(toWrite, null, 2))
   return toWrite
 }
 
 export function deleteUserDisplay(id: string): boolean {
   if (BUILTIN_MAP.has(id)) return false
-  const p = path.join(DISPLAYS_DIR, `${id}.json`)
+  const p = path.join(displaysDir(), `${id}.json`)
   if (!fs.existsSync(p)) return false
   fs.rmSync(p)
   return true
