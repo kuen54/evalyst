@@ -17,6 +17,7 @@ import type {
   CopilotSessionIndex,
   CopilotContextRef,
   CopilotRole,
+  ToolResultContent,
 } from './types'
 
 // 惰性路径（测试里 chdir 有效）
@@ -257,4 +258,32 @@ export function pruneMessageAndDescendants(sessionId: string, messageId: string)
   }
 
   return Array.from(toRemove)
+}
+
+// ---------- v2 · ToolResultContent 兼容 ----------
+//
+// tool_result 消息的 `content` 在 jsonl 里仍是 JSON string，但语义分两期：
+//   v1（老数据）：content = JSON.stringify(rawOutput)，无 kind 字段
+//   v2（新数据）：content = JSON.stringify(ToolResultContent)，带 kind: inline | ref | compacted
+//
+// 读取侧统一走此函数，input 既可是 string（刚从 jsonl 读出）也可是已 parse 的对象；
+// 不带 kind 视为老格式，包装成 {kind:'inline', value:<原样>}。
+
+export function normalizeToolResult(content: unknown): ToolResultContent {
+  let parsed: unknown = content
+  if (typeof content === 'string') {
+    try {
+      parsed = JSON.parse(content)
+    } catch {
+      // 不是合法 JSON 就当裸字符串 inline
+      return { kind: 'inline', value: content }
+    }
+  }
+  if (parsed && typeof parsed === 'object' && 'kind' in parsed) {
+    const k = (parsed as { kind: unknown }).kind
+    if (k === 'inline' || k === 'ref' || k === 'compacted') {
+      return parsed as ToolResultContent
+    }
+  }
+  return { kind: 'inline', value: parsed }
 }

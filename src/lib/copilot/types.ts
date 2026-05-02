@@ -6,6 +6,21 @@
 export type CopilotRole = 'user' | 'assistant' | 'tool_use' | 'tool_result'
 
 /**
+ * v2 tool_result 三态内容：
+ * - `inline`：小 payload，LLM 直接看完整 value
+ * - `ref`：超过 maxResultSizeChars 时 payloadGuardHook 落盘 data/copilot/tool-results/{sid}/{ref}.json，
+ *   transcript 里只放 preview（500 字）+ ref URL，LLM 需要细节时调 read_tool_result(ref)
+ * - `compacted`：microCompact 把老 tool_result 压成 summary；原 ref（若有）保留
+ *
+ * jsonl 存储：CopilotMessage.content 仍是 string（JSON.stringify(ToolResultContent)），
+ * 向后兼容既有裸 output 数据——normalizeToolResult 读时包装为 {kind:'inline', value:...}。
+ */
+export type ToolResultContent =
+  | { kind: 'inline'; value: unknown }
+  | { kind: 'ref'; ref: string; preview: string }
+  | { kind: 'compacted'; summary: string; ref?: string }
+
+/**
  * 单条消息。PR-3 不把 CopilotMessage 拆成 discriminated union（plan §5.1 里的方案），
  * 而是在同一个 interface 上加一组可选字段——只在 role === 'tool_use' / 'tool_result'
  * 的消息上填。理由：CopilotMessage 贯穿 session-store / chat-view / chat route 等多个文件，
