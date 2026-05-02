@@ -6,7 +6,7 @@ import {
   autoTitleSessionIfNeeded,
   updateSession,
 } from '@/lib/copilot/session-store'
-import { tools } from '@/lib/copilot/tools'
+import { TOOLS } from '@/lib/copilot/tools/registry'
 import type { CopilotContextRef, ClientSnapshot } from '@/lib/copilot/types'
 import { getLlmConfig } from '@/lib/llm-config'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           sessionId,
           branch,
           model,
-          tools,
+          tools: TOOLS,
           pageContext: body.client_snapshot?.page_context ?? null,
           startParentId: userMsg.id,
           signal: req.signal,

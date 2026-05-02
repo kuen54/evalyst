@@ -4,8 +4,7 @@ import {
   appendMessage,
   getActiveBranch,
 } from '@/lib/copilot/session-store'
-import { tools } from '@/lib/copilot/tools'
-import { findTool } from '@/lib/copilot/tool-registry'
+import { TOOLS, toolByName } from '@/lib/copilot/tools/registry'
 import { getLlmConfig } from '@/lib/llm-config'
 import type { ClientSnapshot } from '@/lib/copilot/types'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
@@ -81,10 +80,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     resultContent = { denied: true, reason: body.reason ?? '' }
   } else {
     // 未知 tool 直接 400：客户端说谎，不该发生
-    const tool = findTool(tools, body.tool_name)
+    const tool = toolByName.get(body.tool_name)
     if (!tool) return jsonError(400, `unknown tool: ${body.tool_name}`)
     try {
-      resultContent = await tool.run(body.input, { sessionId })
+      resultContent = await tool.call(body.input, { session_id: sessionId, signal: req.signal })
     } catch (e) {
       // 工具错误不 500：LLM 看到 error 字段后可以决定下一步
       resultContent = { error: e instanceof Error ? e.message : String(e) }
@@ -131,7 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           sessionId,
           branch,
           model,
-          tools,
+          tools: TOOLS,
           pageContext: body.client_snapshot?.page_context ?? null,
           startParentId: toolResultMsg.id,
           signal: req.signal,

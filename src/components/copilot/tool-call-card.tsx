@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useT } from "@/lib/i18n/provider"
 import type { CopilotMessage } from "@/lib/copilot/types"
-import { findToolMetadata } from "@/lib/copilot/tool-metadata"
+import { needsConfirm } from "@/lib/copilot/tools/metadata-client"
 
 interface Props {
   toolUse: CopilotMessage
@@ -35,8 +35,7 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
 
   const toolName = toolUse.tool_name ?? ""
   const toolInput = toolUse.tool_input ?? {}
-  const tool = findToolMetadata(toolName)
-  const requiresConfirm = tool?.requiresConfirm ?? false
+  const requiresConfirm = needsConfirm(toolName)
   // 工具展示名走 i18n，fallback 到原始 slug（未登记的工具也能正常显示）
   const displayName = (() => {
     const key = `copilot.tool.name.${toolName}`

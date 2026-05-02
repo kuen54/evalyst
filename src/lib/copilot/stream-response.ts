@@ -24,7 +24,7 @@ import { callLlmStreaming } from './llm-stream'
 import { appendMessage } from './session-store'
 import { buildLlmMessages } from './build-llm-messages'
 import { toOpenaiTools, toAnthropicTools } from './tool-adapters'
-import type { CopilotTool } from './tools'
+import type { AnyToolDescriptor } from './tools/registry'
 import type { CopilotMessage, PageContext, StreamEvent } from './types'
 import type { ModelConfig } from '../llm-config'
 
@@ -33,8 +33,8 @@ export interface RunStreamParams {
   /** 已经拉好的 active branch（含上游消息，新 user / tool_result 已 append） */
   branch: CopilotMessage[]
   model: ModelConfig
-  /** tools.ts 的 tools 数组（server 侧完整工具） */
-  tools: CopilotTool[]
+  /** Server-side tool descriptors（manual array from tools/registry.ts） */
+  tools: readonly AnyToolDescriptor[]
   pageContext: PageContext | null
   /** 新 assistant / 首条 tool_use 的 parent_id 起点（通常是刚 append 的 user / tool_result 的 id） */
   startParentId: string | undefined
