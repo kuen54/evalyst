@@ -136,76 +136,69 @@ class BatchRunner {
     })
     writeProgress(progress)
 
-    let running = 0
-    let taskIndex = 0
     const errors: Array<{ task_id: string; error: string; timestamp: string }> = []
+    const inFlight = new Set<Promise<void>>()
 
-    const runNext = async (): Promise<void> => {
-      while (taskIndex < pendingTasks.length && !this.stopped) {
-        if (running >= this.concurrency) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          continue
-        }
-
-        const task = pendingTasks[taskIndex++]
-        running++
-
-        this.executeTask(task)
-          .then(result => {
-            appendResult(this.config.id, result)
-            completedIds.add(task.task_id)
-            completedCount++
-            if (result.status !== 'success') {
-              failedCount++
-              failedIds.add(task.task_id)
-              errors.push({
-                task_id: task.task_id,
-                error: result.error || result.status,
-                timestamp: new Date().toISOString(),
-              })
-            } else {
-              failedIds.delete(task.task_id)
-            }
-
-            if (typeof result.input_tokens === 'number') totalInputTokens += result.input_tokens
-            if (typeof result.output_tokens === 'number') totalOutputTokens += result.output_tokens
-            if (typeof result.cost_value === 'number') {
-              const ccy = result.cost_currency || 'USD'
-              totalCostByCurrency[ccy] = (totalCostByCurrency[ccy] ?? 0) + result.cost_value
-            }
-
-            progress.completed_tasks = completedCount
-            progress.failed_tasks = failedCount
-            progress.completed_task_ids = Array.from(completedIds)
-            progress.failed_task_ids = Array.from(failedIds)
-            progress.updated_at = new Date().toISOString()
-            progress.error_log = errors.slice(-20)
-            progress.total_input_tokens = totalInputTokens
-            progress.total_output_tokens = totalOutputTokens
-            progress.total_cost_by_currency = { ...totalCostByCurrency }
-            writeProgress(progress)
-
-            updateExperiment(this.config.id, {
-              run_stats: {
-                total_tasks: total, completed_tasks: completedCount, failed_tasks: failedCount,
-                started_at: progress.started_at,
-                total_input_tokens: totalInputTokens,
-                total_output_tokens: totalOutputTokens,
-                total_cost_by_currency: { ...totalCostByCurrency },
-              },
+    const runOne = (task: Task): Promise<void> =>
+      this.executeTask(task)
+        .then(result => {
+          appendResult(this.config.id, result)
+          completedIds.add(task.task_id)
+          completedCount++
+          if (result.status !== 'success') {
+            failedCount++
+            failedIds.add(task.task_id)
+            errors.push({
+              task_id: task.task_id,
+              error: result.error || result.status,
+              timestamp: new Date().toISOString(),
             })
+          } else {
+            failedIds.delete(task.task_id)
+          }
+
+          if (typeof result.input_tokens === 'number') totalInputTokens += result.input_tokens
+          if (typeof result.output_tokens === 'number') totalOutputTokens += result.output_tokens
+          if (typeof result.cost_value === 'number') {
+            const ccy = result.cost_currency || 'USD'
+            totalCostByCurrency[ccy] = (totalCostByCurrency[ccy] ?? 0) + result.cost_value
+          }
+
+          progress.completed_tasks = completedCount
+          progress.failed_tasks = failedCount
+          progress.completed_task_ids = Array.from(completedIds)
+          progress.failed_task_ids = Array.from(failedIds)
+          progress.updated_at = new Date().toISOString()
+          progress.error_log = errors.slice(-20)
+          progress.total_input_tokens = totalInputTokens
+          progress.total_output_tokens = totalOutputTokens
+          progress.total_cost_by_currency = { ...totalCostByCurrency }
+          writeProgress(progress)
+
+          updateExperiment(this.config.id, {
+            run_stats: {
+              total_tasks: total, completed_tasks: completedCount, failed_tasks: failedCount,
+              started_at: progress.started_at,
+              total_input_tokens: totalInputTokens,
+              total_output_tokens: totalOutputTokens,
+              total_cost_by_currency: { ...totalCostByCurrency },
+            },
           })
-          .catch(() => { /* errors handled in executeTask */ })
-          .finally(() => { running-- })
+        })
+        .catch(() => { /* errors handled in executeTask */ })
+
+    // Promise pool 并发控制: inFlight 维护"正在跑"的 promise；满 concurrency 就 await Promise.race
+    // 等任一完成再加新的；循环结束 Promise.all 等收尾。this.stopped 触发时 break 循环，in-flight
+    // 的 task 继续跑完（executeTask 内部尊重 this.abortController.signal）。
+    for (const task of pendingTasks) {
+      if (this.stopped) break
+      const p = runOne(task).finally(() => { inFlight.delete(p) })
+      inFlight.add(p)
+      if (inFlight.size >= this.concurrency) {
+        await Promise.race(inFlight)
       }
     }
-
-    const workers = Array.from({ length: this.concurrency }, () => runNext())
-    await Promise.all(workers)
-
-    while (running > 0) {
-      await new Promise(resolve => setTimeout(resolve, 100))
-    }
+    await Promise.all(inFlight)
 
     const finalStatus = this.stopped ? 'paused' : 'completed'
     progress.status = finalStatus
