@@ -10,6 +10,55 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-05-02 · audit cleanup M1-M5：核心重构 + 约定对齐 + race fix
+
+2026-05-01 的系统性代码审计定位到 19 条 finding（必须改 3 / 值得改 6 / 可以不改 / 不要改）。本版本把"一周全面"路径的 9 条 + 一条 regression 过程中捞到的 chained tool UX race 全部清掉，分 6 个 PR（#18-#23）落地。
+
+### 约定对齐 / 用户侧（M1 · PR #18）
+
+- **F1** `refactor(fs)`：6 个 fs 存储模块（`store / rubric-store / seed / displays / datasets / schema/user-schema-store`）的顶层 `const XXX_DIR = path.join(process.cwd(), ...)` → 惰性函数 `xxxDir()`。对齐 AGENTS.md §测试约定 + 已有正确范例 `llm-config.ts` / `annotation-store.ts` / `copilot/session-store.ts`
+- **F2** `i18n(copilot)`：`context-mask.tsx` 硬编中文 "移除" 走 `t("copilot.context_remove_title")`。zh + en 成对加 key
+- **F3** `docs`：CLAUDE.md（3 处）+ README Q&A 测试数字 110 → 221（反映实际 vitest count）
+- **F7** `feat(llm-client)`：OpenAI `Authorization` header 自动加 `Bearer ` 前缀（`startsWith("Bearer ")` 保留已有 workaround 值），新增 4 条 `buildApiRequest` 单测
+  > **破坏性候选**：明确不要 Bearer 的 OpenAI-compat gateway 会开始失败。实测 Sankuai AIGC 网关接受 Bearer 前缀（既有用户配置 + M5 批量跑 + copilot 工具调用全链路通）。如有需求开 issue 加 `ModelConfig.auth_no_bearer_prefix`
+- **F9** `docs(readme)`：删 "开源前会补 token 机制" 过期 footnote，改成当前现状（跨网暴露自己加反代）
+
+### 纯函数测试补完（M2 · PR #19）
+
+- **F8** `test(template-builder)`：给 `form-state.ts` 270 行纯函数加 `__tests__`，30 cases 覆盖 empty helpers + `parseEqualsValue` 5 种输入（间接）+ `buildSchemaFromForm` happy path + 10 条 validation 分支 + `formFromSchema` + **round-trip 幂等**（`formFromSchema(buildSchemaFromForm(f).schema!) === f`）。217 → 247（+30）
+
+### Copilot 架构重构（M3-M4 · PR #20-21）
+
+- **F4** `refactor(copilot)` · 抽 `runToolAwareLlmStream` helper：新 `src/lib/copilot/stream-response.ts`（158 行）封装 "调 callLlmStreaming + 累 text/tool_use + 后置按顺序 appendMessage"。`/chat/route.ts` 207 → 131（−76），`/tool-result/route.ts` 275 → 186（−89）。逐字保留 [0.4.0] 的 5 条 PR-3 race fix（appendFileSync 原子 append · controller.enqueue 流关后抛 try/catch · tool_use 落盘先于 emit done · abort signal 透传 · serializeMessagesForProvider alternation 合并）
+- **F5** `refactor(copilot)` · `chat-view.tsx` 拆分：812 → **300** 行。新 `use-chat-stream.ts`（497 行）= SSE 解析 + messages state + send/confirmTool/denyTool/deleteMessage/editUserMessage；新 `context-chip-rail.tsx`（113 行）= 圈选按钮 + chip 行 + preview 面板。toast / i18n 通过 props 注入 hook（`onError` + `tI18nXxx`），hook 内不 import sonner / useT —— 解耦 + 未来可测
+
+### Batch-runner 机制替换（M5 · PR #22）
+
+- **F6** `refactor(batch-runner)`：`BatchRunner.run` 从 "N workers × while-loop × running counter × 100ms polling × 二段收尾" 换成标准 Promise pool（`inFlight Set + Promise.race + Promise.all`）。314 → 306 行。保留 100% byte-identical：`stop()` + resume 分支 + 精准 retry (`taskIds` filter) + 每 task 完成 `writeProgress` 节奏 + 最终 `paused`/`completed` status + `executeTask` + `globalThis.__activeRunners` 单例/HMR
+
+### UX race fix（PR #23）
+
+- **observed during M3 regression**：实时流 Copilot tool use 的 Confirm/Deny 按钮会 stale disabled，直到刷新页面才恢复
+- **根因**：`useChatStream` 的 `done` handler 在 `setMessages` 的 functional updater 里读 `streamToolUseOrderRef.current`，updater 外紧跟着清 ref。React 19 concurrent 下 updater 可能在 commit 阶段异步运行 —— 此时 ref 已 = `[]` → for-loop 零迭代 → tool_use 的 `m.id` 永远不回填 → `persistedOnServer: false` → 按钮 disabled。Page reload 从服务端拉真 id 才恢复
+- **Fix**（14 行）：capture-before-mutate —— 先同步把 ref 值捕获到 local snapshot 再清 ref；updater 用 snapshot
+
+### 验证
+
+- vitest：217 → 251（+34，F7 +4、F8 +30）
+- tsc：clean · build：全 27 路由产出正常 · e2e smoke：9/9
+- lint：45 问题全部 pre-existing（CI `continue-on-error`，本轮未引入新问题）
+- 手动回归：M3 tool chain 3/3（normal chat / auto-run read / confirm-or-deny）· M4 chat-view UI 5/5（session load / input expand / send / edit user msg / chip rail）· M5 单条 retry + pause→resume 3/3 · UX race fix 实测修复前 `confirmDisabled:true` / 修复后 `confirmEnabled:true,denyEnabled:true` 立即可用
+
+### 文档
+
+- Spec: `docs/superpowers/specs/2026-05-01-audit-cleanup-m1-m5-design.md`
+- Plan: `docs/superpowers/plans/2026-05-01-audit-cleanup-m1-m5.md`
+
+### Pre-existing 观察（非本版本引入，留记录）
+
+- `completed_tasks` 可能超 `total_tasks`：experiment schema 版本变更导致 task_id 格式改变时（如 `X_user_pref` ↔ `box:X|user:Y`），resume 后老 `completedIds` 不匹配新 tasks → 新 task 全 pending → counter 超 total。batch-runner 初始化段 M5 完全没动，这是 PR-3 时代数据迁移缺陷
+- Lint 45 问题：`react-hooks/set-state-in-effect`（i18n provider / 多数 pages 的 loadData effect / material-reveal-overlay 等）+ `transform.ts:72` `Unused eslint-disable directive`。ESLint 9 升级后更严格的 hooks 规则命中，CI 目前 `continue-on-error`
+
 ## [0.5.7] — 2026-05-01 · audit cleanup：reduced-motion uniform snap + dead code
 
 v0.5.6 ship 后做的一轮系统性 debug 捡到的四个 finding。
