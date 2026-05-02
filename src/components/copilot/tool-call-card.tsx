@@ -46,15 +46,18 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
   // === State 3: has result (success or denied) ===
   if (toolResult) {
     const denied = toolResult.denied === true
-    let content: unknown = null
+    let parsed: unknown = null
     try {
-      content = toolResult.content ? JSON.parse(toolResult.content) : null
+      parsed = toolResult.content ? JSON.parse(toolResult.content) : null
     } catch {
       /* content 解析失败时保持 null，展开时 fallback 到原始字符串 */
     }
+    // v2：parsed 可能是 ToolResultContent union。拆开后 summarizeResult 拿 value，
+    // pre 展开按 kind 决定：inline 展 value；ref 展 preview + ref；compacted 展 summary。
+    const unwrapped = unwrapV2Content(parsed)
     const summary = denied
       ? t("copilot.tool.denied_summary", { reason: toolResult.reason ?? "" })
-      : summarizeResult(toolName, content, t)
+      : summarizeResult(toolName, unwrapped.displayValue, t)
     return (
       <div
         className={`rounded-md border px-3 py-2 text-xs ${
@@ -76,7 +79,7 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
         </div>
         {expanded && (
           <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap bg-background/60 p-2 rounded max-h-60 overflow-auto">
-            {content !== null ? JSON.stringify(content, null, 2) : (toolResult.content ?? "")}
+            {unwrapped.previewText ?? (toolResult.content ?? "")}
           </pre>
         )}
       </div>
@@ -180,4 +183,41 @@ function summarizeResult(
     }
   }
   return ""
+}
+
+/**
+ * v2 tool_result content 是 ToolResultContent union：
+ *   { kind: "inline", value }    —— 小 payload，value 即原始 output
+ *   { kind: "ref", ref, preview } —— 大 payload 已落盘
+ *   { kind: "compacted", summary, ref? } —— microCompact 压缩后
+ *
+ * 向后兼容 v1：不带 kind 的裸 output 当 inline 看。
+ */
+function unwrapV2Content(parsed: unknown): { displayValue: unknown; previewText: string | null } {
+  if (parsed && typeof parsed === "object" && "kind" in parsed) {
+    const p = parsed as { kind: string; value?: unknown; ref?: string; preview?: string; summary?: string }
+    if (p.kind === "inline") {
+      return {
+        displayValue: p.value ?? null,
+        previewText: p.value !== undefined ? JSON.stringify(p.value, null, 2) : null,
+      }
+    }
+    if (p.kind === "ref") {
+      return {
+        displayValue: null,
+        previewText: `${p.preview ?? ""}\n\n[Full result available via read_tool_result("${p.ref}")]`,
+      }
+    }
+    if (p.kind === "compacted") {
+      return {
+        displayValue: null,
+        previewText: p.summary ?? "",
+      }
+    }
+  }
+  // v1 fallback：parsed 本身就是 raw output
+  return {
+    displayValue: parsed,
+    previewText: parsed !== null ? JSON.stringify(parsed, null, 2) : null,
+  }
 }
