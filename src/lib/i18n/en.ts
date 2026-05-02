@@ -1006,7 +1006,6 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.context_clear_all": "Clear all",
   "copilot.context_reload_toast": "After reload, {n} context(s) kept but their mask overlays are gone. Send as-is or re-pick.",
   "copilot.text_select_add": "Send to Copilot",
-  "copilot.preview_system_message": "Preview context sent to LLM",
   "copilot.context_stale_title": "This entity is stale (deleted or no longer resolvable). It will be marked missing when sent.",
   // Copilot tool calling (PR-3)
   "copilot.tool.loading": "Running…",

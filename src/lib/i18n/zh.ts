@@ -1004,7 +1004,6 @@ export const zh = {
   "copilot.context_clear_all": "清空全部",
   "copilot.context_reload_toast": "页面刷新后，{n} 个 context 已保留但标注徽章失效。可直接发送，或重新圈选。",
   "copilot.text_select_add": "发送给 Copilot",
-  "copilot.preview_system_message": "预览 LLM 将看到的 context",
   "copilot.context_stale_title": "这个对象已失效（被删或刷新后找不到），发送时会被标记为 missing",
   // Copilot tool calling (PR-3)
   "copilot.tool.loading": "查询中…",
