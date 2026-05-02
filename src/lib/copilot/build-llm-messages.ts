@@ -13,6 +13,7 @@
 import type { CopilotMessage, CopilotContextRef } from './types'
 import type { LlmMessage } from '../llm-client'
 import { resolveContexts, formatContextsForLlm } from './resolve-context'
+import { normalizeToolResult } from './session-store'
 
 export const COPILOT_SYSTEM_PROMPT = `You are Evalyst Copilot, a helpful assistant embedded in the Evalyst LLM evaluation platform.
 You help users analyze experiment results, debug prompts, and iterate on evaluations.
@@ -55,11 +56,24 @@ export function buildLlmMessages(
       })
     } else if (m.role === 'tool_result') {
       if (!m.call_id) continue
+      // v2：content 是 JSON.stringify(ToolResultContent)。送给 LLM 前按 kind 决定可见内容：
+      //   inline    → 完整 value JSON（老行为等价）
+      //   ref       → preview + 提示用 read_tool_result(ref) 回捞
+      //   compacted → summary 占位（原 payload 已释放）
+      // normalizeToolResult 处理了裸字符串 / 裸对象的向后兼容。
+      const parsed = normalizeToolResult(m.content)
+      let visible: string
+      if (parsed.kind === 'inline') {
+        visible = JSON.stringify(parsed.value ?? null)
+      } else if (parsed.kind === 'ref') {
+        visible = `${parsed.preview}\n\n[Full result available via read_tool_result(ref="${parsed.ref}")]`
+      } else {
+        visible = parsed.summary
+      }
       out.push({
         role: 'tool_result',
         call_id: m.call_id,
-        // content 已在 /tool-result route 里 JSON.stringify 过（denied / error / 正常结果都走同一字段）
-        content: m.content,
+        content: visible,
       })
     }
   }
