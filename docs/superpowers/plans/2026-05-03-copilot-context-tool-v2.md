@@ -12,6 +12,91 @@
 
 ---
 
+## 现有代码对照表（必读）
+
+原 plan 在没读现有代码的情况下写成。实施前必须读本节，避免按错误的假设写代码。**设计目标按 spec 不动**；**session 数据不向后兼容已被用户确认接受**（见下方 §数据迁移）；原 plan 里对既有文件的假设错了的地方在此纠正。
+
+### 既有文件映射
+
+| 既有文件 | 现状 | 改动策略 |
+|---|---|---|
+| `src/lib/copilot/tools.ts` | 191 行，含 `CopilotTool` interface + 4 工具定义 | **整文件删除**。`CopilotTool` → 新 `ToolDescriptor`（见 Task 1.1），4 工具拆到 `src/lib/copilot/tools/*.ts` |
+| `src/lib/copilot/tool-registry.ts` | 11 行，`findTool` / `assertKnownTool` 线性查 | **整文件替换**。新 `src/lib/copilot/tools/registry.ts` 走 `toolByName` Map（见 Task 1.7）|
+| `src/lib/copilot/tool-metadata.ts` | 19 行，client-safe `{ name, requiresConfirm }[]` | **整文件删除**。UI 读 `ToolDescriptor.metadata` 或通过新 barrel export |
+| `src/lib/copilot/tool-adapters.ts` | 20 行，`toOpenaiTools` / `toAnthropicTools` | **适配**。接收 `ToolDescriptor[]` 而非 `CopilotTool[]`，字段 `inputSchema` 替代 `input_schema` |
+| `src/lib/copilot/snapshot-cache.ts` | 20 行，**已正确实现** `set/get/delete + Map` | **保留不动**。Task 4.2 只需验证 `/chat` / `/tool-result` 路由已调用 `setSnapshot` 且未把 snapshot 塞 transcript |
+| `src/lib/copilot/resolve-context.ts` | 374 行，`resolveContexts(refs[])` 批量 + `formatContextsForLlm` | **扩展**。Task 4.4 在这里 append `resolveContextById(sessionId, ctxId)`，保留既有函数 |
+| `src/lib/copilot/session-store.ts` | 260 行，JSONL append-only + fork | **扩展**。Task 3.2 加 `normalizeToolResult` 读取兜底；Task 4.4 加 `getSessionContext(sessionId, ctxId)` 查 active_contexts |
+| `src/lib/copilot/types.ts` | 134 行，`CopilotMessage` 有 `role: 'user'\|'assistant'\|'tool_use'\|'tool_result'` + content:string + tool_* sibling 字段 | **按 spec §7.1 迁移**。`role='tool_use'` / `'tool_result'` 改为 `role='tool'`，`content` 改为 `ToolResultContent` union。破坏既有 JSONL 数据（见下方）|
+| `src/lib/copilot/stream-response.ts` | 158 行，接收 `CopilotTool[]` 走 adapter | **适配**。参数改 `ToolDescriptor[]`，dispatch 改走 `toolByName` Map；Task 1.8 |
+| `src/lib/copilot/build-llm-messages.ts` | 67 行 | **重写**。Task 4.1 / 4.6 替换为 SystemHeader + 按 ToolResultContent 分渲染 |
+| `src/app/api/copilot/sessions/[id]/chat/route.ts` | 现有路由，`import { tools } from '@/lib/copilot/tools'` | **适配**。import 路径改走新 barrel `@/lib/copilot/tools`（index.ts） |
+| `src/app/api/copilot/sessions/[id]/tool-result/route.ts` | 同上 | 同上 |
+
+### 既有函数签名纠正
+
+原 plan 里几处伪代码假设错了（async / 函数名）。真实签名：
+
+| 函数 | 原 plan 假设 | 真实情况 |
+|---|---|---|
+| `listExperiments` | `async` | **sync**，from `@/lib/store` |
+| `readResults` | `readResultsJsonl` | 真名 `readResults`，**sync**，from `@/lib/store` |
+| `getExperiment` | `readExperiment` 且 `async` | 真名 `getExperiment`，**sync**，from `@/lib/store` |
+| `startBatch` | 无明确返回 | 返回 `{ totalTasks }`，第 3 参数 concurrency 默认给 3（`ExperimentConfig` 无 concurrency 字段） |
+| Template CRUD | `readSchema` / `writeSchema` | 实际 `readUserSchema` / `writeUserSchema` from `@/lib/schema/user-schema-store`（实施时 grep 确认） |
+| Dataset / Display / Rubric CRUD | `readDataset` / `readDisplay` / `readRubric` | 分别在 `@/lib/datasets`、`@/lib/displays`、`@/lib/rubric-store`（实施时 grep 确认具体 export 名） |
+
+### CopilotMessage schema 迁移（破坏性）
+
+Spec §7.1 定义 `role: 'tool'` + `content: ToolResultContent` union。既有 JSONL 是 `role: 'tool_use' \| 'tool_result'` + `content: string` + tool_* sibling 字段。**用户已确认 session 数据不兼容 OK**。实施方案：
+
+1. **新增迁移脚本**（M3 Task 3.2 范围）`src/lib/copilot/migrate-sessions.ts`：
+   - 读 `data/copilot/sessions/*.jsonl`
+   - 合并相邻的 `tool_use` + `tool_result`（按 call_id 配对）成新 `role: 'tool'` 消息
+   - 把 tool_result 的 `content: string` 包装成 `{ kind: "inline", value: JSON.parse(content) }`
+   - 原地覆写 jsonl（事前手动备份 `data/copilot/sessions.bak/`，脚本不负责备份）
+2. **或**：加 `normalizeToolResult` 读时兼容（见 spec §8.1），运行时即时转换，不迁移文件。
+3. **或**：放弃既有 session 数据（用户开发阶段可接受）— 删 `data/copilot/index.json` + `data/copilot/sessions/*.jsonl`，copilot 首次启动自动重建。
+
+**推荐选项 3**（最简，用户明示 OK）。M3 实施时加一条 dev 注释说明："若要保留旧会话，运行一次迁移脚本；否则清空 data/copilot/ 即可。"
+
+### 既有测试需要清理
+
+以下 `__tests__` 文件涉及被删除 / 替换的 API，实施时要同步删除或重写：
+
+| 测试文件 | 处置 |
+|---|---|
+| `src/lib/copilot/__tests__/tools.test.ts` | 删除或重写成 per-tool tests |
+| `src/lib/copilot/__tests__/tool-adapters.test.ts` | 重写（`ToolDescriptor` 接口变了） |
+| `src/lib/copilot/__tests__/session-store.test.ts` | 验证新 `CopilotMessage` schema；若保留 tool_use/tool_result 角色历史测试，改为测新的 `role='tool'` |
+
+### 下游 consumer 同步
+
+除 `src/lib/copilot/` 和 `src/app/api/copilot/` 外，以下也需关注：
+
+- `src/components/copilot/tool-call-card.tsx` — 读 `tool-metadata.ts`（将被删），M2 起改走 `ToolDescriptor.metadata`（可能从 client-safe 导出点拿）。注意 "use client" 组件不能直接 import server-side `tools/` 文件（有 `fs` 依赖），需通过新的 client-safe `tool-metadata-client.ts` 或类似 barrel 导出纯 metadata 列表。
+- `src/components/copilot/chat-view.tsx` — 消费 `ctxPreview` 状态（M5 Task 5.1 删除）
+- `src/components/copilot/context-chip-rail.tsx` — 删 preview 按钮（M5 Task 5.1）+ 加 chip expand（M5 Task 5.2）
+
+### 执行顺序小调整
+
+原 plan 的 M1-M6 基本不动。**小修正**：
+
+- M1 Task 1.7 从 "新建 tool-registry.ts" 改为 "**删除既有 tool-registry.ts + tool-metadata.ts**，新建 `tools/registry.ts` + `tools/metadata-client.ts`（client-safe mirror for UI）"
+- M1 Task 1.8 stream-response 改造时，需同时适配 `tool-adapters.ts` 接收 `ToolDescriptor[]`（原 plan 未涵盖这个依赖）
+- M4 Task 4.2 snapshot-cache 服务端化 → 现有已实现，只需**验证 chat / tool-result route 未把 snapshot push 到 transcript**（若已规范则本 task 零改动）
+- M3 Task 3.2 session-store 读兼容 → 改为"Session 迁移决策"节（见上"数据迁移"方案 3：放弃既有数据）
+- 数据破坏性改动集中在 M3（CopilotMessage schema 迁移），**M3 完成前提醒用户备份 / 清空 data/copilot/**
+
+### 不变的东西
+
+- Spec §3 三核心原则不变
+- M1-M6 总体范围和顺序不变
+- 总预估 3-4 周不变
+- 所有 TDD / 每任务 commit / 每 M 验证点不变
+
+---
+
 ## 全局规则
 
 - TDD：每个纯函数任务 `写测试 → 跑测试失败 → 写实现 → 跑测试通过 → 提交`
