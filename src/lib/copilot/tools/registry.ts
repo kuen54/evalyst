@@ -4,6 +4,7 @@ import { restartExperimentTool } from "./restart-experiment"
 import { readPageTool } from "./read-page"
 import { readToolResultTool } from "./read-tool-result"
 import { readContextTool } from "./read-context"
+import { readResourceTool } from "./read-resource"
 import type { ToolDescriptor } from "./types"
 
 // Tool 作者内部用 ToolDescriptor<Input, Output> 拿强类型；registry 用宽松 any-input
@@ -21,6 +22,7 @@ export const TOOLS: ReadonlyArray<AnyToolDescriptor> = [
   readPageTool,
   readToolResultTool,
   readContextTool,
+  readResourceTool,
 ] as const
 
 export const toolByName = new Map<string, AnyToolDescriptor>(
