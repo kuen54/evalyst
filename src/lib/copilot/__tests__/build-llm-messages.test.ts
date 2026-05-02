@@ -146,5 +146,36 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     // Only COPILOT_SYSTEM_PROMPT, no header
     expect(systemMsgs.length).toBe(1)
   })
+
+  it("microCompact: 5 read tool_results → older 2 become summary, newest 3 stay as ref/inline", () => {
+    // 5 consecutive read-only tool_results using list_experiments (read-only in registry).
+    // Config in build-llm-messages keeps recent 3 → first 2 should be compacted.
+    const branch: CopilotMessage[] = [
+      { id: "u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
+    ]
+    for (let i = 1; i <= 5; i++) {
+      branch.push(toolUseMsg(`c${i}`, "list_experiments"))
+      branch.push(
+        toolResultMsg(`c${i}`, {
+          kind: "ref",
+          ref: `ref://tool-result/tr_${i}`,
+          preview: `preview_${i}`,
+        }),
+      )
+    }
+    const msgs = buildLlmMessages(branch)
+    const toolResults = msgs.filter((m) => m.role === "tool_result")
+    expect(toolResults).toHaveLength(5)
+
+    // First 2 → compacted summary text ("archived tool result")
+    expect(toolResults[0].content).toContain("archived tool result")
+    expect(toolResults[1].content).toContain("archived tool result")
+
+    // Newest 3 → preview + read_tool_result hint (ref kind rendering)
+    for (let i = 2; i < 5; i++) {
+      expect(toolResults[i].content).toContain(`preview_${i + 1}`)
+      expect(toolResults[i].content).toContain("read_tool_result")
+    }
+  })
 })
 

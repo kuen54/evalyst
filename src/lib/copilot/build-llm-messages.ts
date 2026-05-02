@@ -16,6 +16,10 @@ import type { CopilotMessage, CopilotContextRef } from './types'
 import type { LlmMessage } from '../llm-client'
 import { normalizeToolResult } from './session-store'
 import { buildSystemHeader } from './system-header'
+import { microCompact } from './micro-compact'
+
+/** v2 §5.6: 保留最近 N 条可重放（read-only）tool_result 的完整形态，老的压成 summary。 */
+const MICRO_COMPACT_KEEP_RECENT_READ_RESULTS = 3
 
 export const COPILOT_SYSTEM_PROMPT = `You are Evalyst Copilot, a helpful assistant embedded in the Evalyst LLM evaluation platform.
 You help users analyze experiment results, debug prompts, and iterate on evaluations.
@@ -58,7 +62,13 @@ export function buildLlmMessages(
     })
   }
 
-  for (const m of branch) {
+  // v2 §5.6: 进入 transcript 迭代前先 microCompact —— 把老的可重放 tool_result
+  // 压成 summary，保最近 N 条原样。LLM 如需详情走 read_tool_result(ref)。
+  const compacted = microCompact(branch, {
+    keepRecentReadResults: MICRO_COMPACT_KEEP_RECENT_READ_RESULTS,
+  })
+
+  for (const m of compacted) {
     if (m.role === 'user') {
       out.push({ role: 'user', content: m.content })
     } else if (m.role === 'assistant') {
