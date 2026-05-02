@@ -240,16 +240,26 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           pendingAutoRunRef.current.push({ call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
         }
       } else if (ev.kind === "done") {
+        // Race fix: React 19 concurrent 下，setMessages 的 functional updater 可能在
+        // commit 阶段异步运行 —— 若此时 streamToolUseOrderRef.current 已被下面清空（= []），
+        // updater 内 for-loop 会零迭代，tool_use 消息的 m.id 永远不会回填。前端
+        // ToolCallCard 的 persistedOnServer 随之为 false，Confirm/Deny 按钮被卡死
+        // disabled 直到用户刷新页面（服务端已持久化，重新 GET /sessions/{id} 拿真 id 才好）。
+        // 修复：先捕获 ref 值到 local 再清 ref；updater 用 local snapshot 而非 ref.current。
+        const orderSnapshot = streamToolUseOrderRef.current
+        streamToolUseOrderRef.current = []
+        const pending = pendingAutoRunRef.current
+        pendingAutoRunRef.current = []
+
         // 关掉最后一条 streaming assistant
         setMessages(prev => {
           const next = prev.slice()
           const toolIds = ev.tool_use_message_ids ?? []
-          // 按 streamToolUseOrderRef 的顺序把 id 赋到对应 tool_use 消息
-          const order = streamToolUseOrderRef.current
+          // 按 orderSnapshot 的顺序把 id 赋到对应 tool_use 消息
           let orderCursor = 0
-          for (let i = 0; i < next.length && orderCursor < order.length; i++) {
+          for (let i = 0; i < next.length && orderCursor < orderSnapshot.length; i++) {
             const m = next[i]
-            if (m.role === "tool_use" && !m.id && m.call_id === order[orderCursor]) {
+            if (m.role === "tool_use" && !m.id && m.call_id === orderSnapshot[orderCursor]) {
               if (toolIds[orderCursor]) {
                 next[i] = { ...m, id: toolIds[orderCursor], streaming: false }
               }
@@ -270,11 +280,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           }
           return next
         })
-        streamToolUseOrderRef.current = []
         // 现在 server 已经把所有本轮的 tool_use append 到 jsonl 了，可以放心 auto-run read 工具。
         // 写工具（requiresConfirm=true）等用户点 Confirm 再走，走同一个 postToolResult 路径。
-        const pending = pendingAutoRunRef.current
-        pendingAutoRunRef.current = []
         // 必须串行（await 每个）：若并行 POST /tool-result，多个请求读同一 branch、
         // 各自 append tool_result + 调 LLM → appendMessage 虽然现在用 append-mode 不会丢消息，
         // 但多条 tool_result 的 parent_id 都会错位指向 /chat 末端而不是各自的 tool_use。
