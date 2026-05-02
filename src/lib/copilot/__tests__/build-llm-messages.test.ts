@@ -86,13 +86,65 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     expect(tr?.content).toContain("experiments")
   })
 
-  it("system prompt appears exactly once", () => {
+  it("system prompt is always first", () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
     ]
     const msgs = buildLlmMessages(branch)
-    const systems = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
-    expect(systems.length).toBeGreaterThanOrEqual(1)
-    expect(systems[0].content).toBe(COPILOT_SYSTEM_PROMPT)
+    expect(msgs[0].role).toBe("system")
+    if (msgs[0].role === "system") expect(msgs[0].content).toBe(COPILOT_SYSTEM_PROMPT)
+  })
+
+  it("SystemHeader system message is added when page context is present", () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
+    ]
+    const msgs = buildLlmMessages(branch, {
+      route_type: "compare",
+      path: "/compare",
+      summary: {},
+      timestamp: "t",
+    })
+    const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
+    // first is COPILOT_SYSTEM_PROMPT; second is SystemHeader JSON
+    expect(systemMsgs.length).toBeGreaterThanOrEqual(2)
+    expect(systemMsgs[1].content).toContain("Session context")
+    expect(systemMsgs[1].content).toContain("route_type")
+    expect(systemMsgs[1].content).toContain("compare")
+  })
+
+  it("SystemHeader includes ctx_N for each user-circled context", () => {
+    const branch: CopilotMessage[] = [
+      {
+        id: "m_u1",
+        session_id: "s",
+        role: "user",
+        content: "hi",
+        timestamp: "t",
+        contexts: [
+          { tag: 1, type: "experiment", id: "exp_A" },
+          { tag: 2, type: "task_field", id: "output.answer", extra: { experiment_id: "exp_A" } },
+        ],
+      },
+    ]
+    const msgs = buildLlmMessages(branch, null)
+    const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
+    const header = systemMsgs.find((s) => s.content.startsWith("Session context"))
+    expect(header).toBeTruthy()
+    expect(header!.content).toContain("ctx_1")
+    expect(header!.content).toContain("ctx_2")
+    // no inline-resolution → no exp_A body leaked into system header
+    expect(header!.content).not.toContain("\"name\":")
+  })
+
+  it("SystemHeader is not added when there are neither contexts nor page_context", () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
+    ]
+    const msgs = buildLlmMessages(branch, null)
+    const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
+    // Only COPILOT_SYSTEM_PROMPT, no header
+    expect(systemMsgs.length).toBe(1)
   })
 })
+

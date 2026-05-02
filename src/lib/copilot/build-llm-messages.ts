@@ -1,25 +1,36 @@
 // ---------- Build LlmMessage[] from CopilotMessage[] branch ----------
 // 把 Copilot 会话的一条 active branch 序列化为发给 LLM 的 messages 数组。
-// 原先埋在 /chat route 里；PR-3 Task 5 抽出来，让 /chat route 和 /tool-result route
-// 共用同一套逻辑（并补齐 tool_use / tool_result 的处理）。
 //
-// 注意：顶部加一条固定 system prompt；当前分支最后一条 user 消息挂的 contexts
-// 会 resolve 成第二条 system message（把 context 块给 LLM 看）。
+// v2（spec §5.10）：顶部两条 system message —— 固定 prompt + JSON 形 SystemHeader。
+// SystemHeader 只含 route_type + path + active_contexts（ref + summary）；
+// 不再把 context markdown / page snapshot 塞进来。LLM 需要细节时调：
+//   - read_context(id, scope) 拿用户圈选过的 context
+//   - read_resource(type, id, fields?) 顺藤摸其他平台资源
+//   - read_page(query) 查当前页 DOM 索引
+//   - read_tool_result(ref) 回捞落盘的 tool_result
 //
 // Anthropic user/assistant 严格交替约束由 serializeMessagesForProvider 在
-// provider 序列化阶段统一处理（合并连续的 assistant text + tool_use 为一条复合
-// 消息），此处不需要额外交织。
+// provider 序列化阶段统一处理，此处不交织。
 
 import type { CopilotMessage, CopilotContextRef } from './types'
 import type { LlmMessage } from '../llm-client'
-import { resolveContexts, formatContextsForLlm } from './resolve-context'
 import { normalizeToolResult } from './session-store'
+import { buildSystemHeader } from './system-header'
 
 export const COPILOT_SYSTEM_PROMPT = `You are Evalyst Copilot, a helpful assistant embedded in the Evalyst LLM evaluation platform.
 You help users analyze experiment results, debug prompts, and iterate on evaluations.
 Respond in the user's language — if they write in Chinese, reply in Chinese; if English, reply in English.
 Be concise and specific; prefer code or concrete examples over abstract advice.
-When the user has shared context (圈选的对象，以 <context tag="N" ...> 标注), refer to them by their tag number in your answer (例如 "根据你圈的 #1 这个实验..."). Never fabricate data that wasn't shared.`
+
+You have access to tools for progressive disclosure:
+- read_context(id, scope?): Fetch details of a user-circled context (system_header.active_contexts[i].id, e.g. "ctx_1"). scope="self" (default) or "parent" for surrounding data.
+- read_resource(type, id, fields?): Fetch any platform resource (experiment/template/dataset/display/rubric) by id. Use when you need something not already circled — e.g. an experiment's linked template.
+- read_experiment_results(experiment_id, ...): Read task-level results with filtering.
+- read_page(query): Search the current page DOM for info the user sees.
+- read_tool_result(ref): Retrieve a previously persisted large tool result by its ref URL.
+- restart_experiment(experiment_id, task_ids?): Re-run an experiment or specific tasks. Destructive — user must confirm.
+
+When the user circles context, refer to it by its chip tag ("根据你圈的 #1 这个实验..."). Don't fabricate data that wasn't shared.`
 
 export function buildLlmMessages(
   branch: CopilotMessage[],
@@ -27,14 +38,24 @@ export function buildLlmMessages(
 ): LlmMessage[] {
   const out: LlmMessage[] = [{ role: 'system', content: COPILOT_SYSTEM_PROMPT }]
 
-  // 把当前分支最后一条 user 消息挂的 contexts 渲染成第二条 system message。
+  // 当前分支最后一条 user 消息挂的 contexts 渲染成 SystemHeader 并塞第二条 system message。
   // 历史 user 消息可能有 contexts，但那是旧状态，不再重放。
-  const lastUser = [...branch].reverse().find(m => m.role === 'user')
-  const refs = lastUser?.contexts ?? []
-  const resolved = refs.length > 0 ? resolveContexts(refs as CopilotContextRef[]) : []
-  const ctxText = formatContextsForLlm(resolved, pageContext)
-  if (ctxText) {
-    out.push({ role: 'system', content: ctxText })
+  const lastUser = [...branch].reverse().find((m) => m.role === 'user')
+  const refs = (lastUser?.contexts ?? []) as CopilotContextRef[]
+  const header = buildSystemHeader({
+    route_type: pageContext?.route_type,
+    path: pageContext?.path,
+    page_context: pageContext,
+    contexts: refs,
+    // v1 → v2 转场：不做 inline 预解（异步 + fs 依赖），一律 ref-only。
+    // LLM 看到 ctx_N 后按需 read_context 拉详情。后续可按遥测决定是否加
+    // resolveInline（同步读少量资源，仅小 payload 时塞 inline）。
+  })
+  if (refs.length > 0 || pageContext) {
+    out.push({
+      role: 'system',
+      content: 'Session context (JSON):\n' + JSON.stringify(header, null, 2),
+    })
   }
 
   for (const m of branch) {
