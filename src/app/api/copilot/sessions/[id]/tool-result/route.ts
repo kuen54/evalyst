@@ -5,6 +5,7 @@ import {
   getActiveBranch,
 } from '@/lib/copilot/session-store'
 import { TOOLS, toolByName } from '@/lib/copilot/tools/registry'
+import { runTool } from '@/lib/copilot/tool-runtime'
 import { getLlmConfig } from '@/lib/llm-config'
 import type { ClientSnapshot } from '@/lib/copilot/types'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
@@ -83,7 +84,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const tool = toolByName.get(body.tool_name)
     if (!tool) return jsonError(400, `unknown tool: ${body.tool_name}`)
     try {
-      resultContent = await tool.call(body.input, { session_id: sessionId, signal: req.signal })
+      // 走 runTool 以穿过 postToolCallHooks（M3 payloadGuard 会在这里做落盘 +
+      // ref 替换）。skipConfirm=true：用户已在 UI 点 Confirm 才会走到这个 route，
+      // 绕过 preToolCall 的 confirmGateHook 避免死锁。
+      const r = await runTool(tool, body.input, { session_id: sessionId, signal: req.signal }, { skipConfirm: true })
+      if (r.kind === 'done') {
+        resultContent = r.output
+      } else if (r.kind === 'denied') {
+        resultContent = { error: `tool denied by server hook: ${r.reason}` }
+      } else {
+        // 理论上 skipConfirm=true 不该走到这；防御性兜底
+        resultContent = { error: 'unexpected: tool awaiting confirm in /tool-result route' }
+      }
     } catch (e) {
       // 工具错误不 500：LLM 看到 error 字段后可以决定下一步
       resultContent = { error: e instanceof Error ? e.message : String(e) }
