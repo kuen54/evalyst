@@ -19,6 +19,7 @@ export const CLIENT_TOOL_METADATA: ClientToolMetadata[] = [
   { name: "restart_experiment", isReadOnly: false, isDestructive: true },
   { name: "read_page", isReadOnly: true, isDestructive: false },
   { name: "read_tool_result", isReadOnly: true, isDestructive: false },
+  { name: "read_context", isReadOnly: true, isDestructive: false },
 ]
 
 export function findClientToolMetadata(name: string): ClientToolMetadata | null {

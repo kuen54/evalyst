@@ -91,7 +91,7 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
     ]
     const msgs = buildLlmMessages(branch)
-    const systems = msgs.filter((m) => m.role === "system")
+    const systems = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
     expect(systems.length).toBeGreaterThanOrEqual(1)
     expect(systems[0].content).toBe(COPILOT_SYSTEM_PROMPT)
   })

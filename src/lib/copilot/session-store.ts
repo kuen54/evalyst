@@ -287,3 +287,22 @@ export function normalizeToolResult(content: unknown): ToolResultContent {
   }
   return { kind: 'inline', value: parsed }
 }
+
+// ---------- v2 · active contexts 查询 ----------
+//
+// session 里"当前有效"的圈选 = active branch 里最后一条 user 消息的 contexts。
+// 历史 user 消息的 contexts 是当时圈的，不代表当前视图；只取最新那条。
+// read_context 工具按 ctx_N （= tag） 找对应 ref。
+
+export function getActiveContexts(sessionId: string): CopilotContextRef[] {
+  const branch = getActiveBranch(sessionId)
+  const lastUser = [...branch].reverse().find((m) => m.role === 'user')
+  return lastUser?.contexts ?? []
+}
+
+export function getActiveContextByTag(
+  sessionId: string,
+  tag: number,
+): CopilotContextRef | undefined {
+  return getActiveContexts(sessionId).find((c) => c.tag === tag)
+}
