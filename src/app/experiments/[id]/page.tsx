@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState, useCallback, use, useMemo } from "react"
+import { useEffect, useState, useCallback, use, useMemo, memo } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -175,17 +175,16 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
         <CollapsibleTrigger className="mb-2 text-muted-foreground text-sm hover:text-foreground transition-colors cursor-pointer px-2 py-1 rounded hover:bg-accent">
           {configOpen ? "▾" : "▸"} {t("experiment.detail.config_title")} &middot; {experiment.model} / t={experiment.temperature}
         </CollapsibleTrigger>
-        <CollapsibleContent>
-          <GlassCard className="mb-4">
+        <CollapsibleContent style={{ contain: "layout paint" }}>
+          <Card className="mb-4">
             <CardContent className="pt-4">
-              <pre className="text-xs font-mono whitespace-pre-wrap max-h-80 overflow-auto">
-                {experiment.prompt_template}
-              </pre>
-              {experiment.notes && (
-                <p className="text-sm text-muted-foreground mt-2">{t("experiment.detail.notes")}: {experiment.notes}</p>
-              )}
+              <ExperimentPromptPreview
+                template={experiment.prompt_template}
+                notes={experiment.notes}
+                notesLabel={t("experiment.detail.notes")}
+              />
             </CardContent>
-          </GlassCard>
+          </Card>
         </CollapsibleContent>
       </Collapsible>
 
@@ -357,6 +356,21 @@ function summarizeResult(r: GenericResultRecord): string {
   }
   return parts.join(" · ") || "(empty)"
 }
+
+const ExperimentPromptPreview = memo(function ExperimentPromptPreview({
+  template,
+  notes,
+  notesLabel,
+}: { template: string; notes?: string; notesLabel: string }) {
+  return (
+    <>
+      <pre className="text-xs font-mono whitespace-pre-wrap max-h-80 overflow-auto">{template}</pre>
+      {notes && (
+        <p className="text-sm text-muted-foreground mt-2">{notesLabel}: {notes}</p>
+      )}
+    </>
+  )
+})
 
 function FailedPanel({ results, onRetryTask, running, t }: {
   results: GenericResultRecord[]
