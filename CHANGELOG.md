@@ -11,6 +11,11 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 ## [Unreleased]
 
 - **LLM client**：`buildApiRequest` 的 Anthropic 分支支持 `Authorization: Bearer` 网关场景 —— `api_key` 以 `"Bearer "` 开头时切到 `Authorization` header 不再发 `x-api-key`，官方 Anthropic API `sk-ant-...` key 行为不变。美团 `aigc.sankuai.com/v1/anthropic/v1` 这类 gateway 可直接用。触发自 Opus 4.6 Copilot v2 回归测试（2026-05-03）。PR #25
+- **perf(experiment-detail)**：Playwright 实测定位到实验详情页三处成本点，一并清掉：
+  - 配置折叠卡展开/收起 100-150ms long task（backdrop-filter + Collapsible 高度动画 + 底部 52 失败 + 104 result 反流）。改法：内嵌 `GlassCard` → 普通 `Card` 去 blur；`CollapsibleContent` 加 `contain: layout paint` 切反流溢出；prompt 源码 `<pre>` 抽成 `React.memo` 子组件
+  - 运行中 polling 每秒盲拉 547KB `/results` → 改为每秒只拉 `experiment + progress`，只在 `completed_tasks / failed_tasks` 变化时增量拉 `/results`。空转秒从 547KB 降到 ~10KB
+  - `statsAgg`（原在 early return 之后每次 render 都跑 `aggregateResults`）上移到 `useMemo`；`FailedPanel` 外层 `React.memo` + 内部 `failed` `useMemo`；`handleRun / handleRetryTask / handleStop` 改 `useCallback` 让 memo 生效
+- **feat(api)**：`/api/experiments/[id]/results` 支持 `?exclude=field,field` 按顶层字段裁剪响应体。默认不改，向后兼容。留给前端需要瘦身时显式传（上条的 polling 改动暂未用，但生态可用）
 
 ## [0.7.0] — 2026-05-03 · Copilot v2：上下文 + 工具系统重构
 
