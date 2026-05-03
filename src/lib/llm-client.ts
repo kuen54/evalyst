@@ -101,11 +101,17 @@ export async function callLlm(
 export function buildApiRequest(config: ApiConfig, body: Record<string, unknown>): ApiRequestSpec {
   const base = config.base_url.replace(/\/$/, '')
   if (config.api_format === 'anthropic') {
+    // 默认走官方 Anthropic 的 x-api-key。有些 gateway（如美团 aigc.sankuai.com
+    // 的 /v1/anthropic/v1 入口）只收 `Authorization: Bearer`，所以当 api_key
+    // 以 "Bearer " 开头时切到 Authorization header，不再发 x-api-key。
+    const useBearer = config.api_key.startsWith('Bearer ')
     return {
       url: `${base}/messages`,
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': config.api_key,
+        ...(useBearer
+          ? { Authorization: config.api_key }
+          : { 'x-api-key': config.api_key }),
         'anthropic-version': '2023-06-01',
       },
       body,
