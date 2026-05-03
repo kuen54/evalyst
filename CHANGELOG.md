@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+- **LLM client**：`buildApiRequest` 的 Anthropic 分支支持 `Authorization: Bearer` 网关场景 —— `api_key` 以 `"Bearer "` 开头时切到 `Authorization` header 不再发 `x-api-key`，官方 Anthropic API `sk-ant-...` key 行为不变。美团 `aigc.sankuai.com/v1/anthropic/v1` 这类 gateway 可直接用。触发自 Opus 4.6 Copilot v2 回归测试（2026-05-03）。PR #25
+
 ## [0.7.0] — 2026-05-03 · Copilot v2：上下文 + 工具系统重构
 
 从"一次性 context 注入 + 硬编码 4 工具"重构为"progressive disclosure：system prompt 恒定小 + LLM 按需 tool 拉详情"。三个参考 repo（claude-code-best / hermes-agent / openclaw）综合借鉴，但不做 subagent / 跨 session 记忆 / MCP / 可插拔 ContextEngine（主动划边界避免过度设计）。
