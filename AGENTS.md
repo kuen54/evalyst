@@ -156,13 +156,23 @@ JSON 粘贴入口仍保留给 "AI agent 整份产出" 这一种场景（new 页�
 
 ## Copilot & Glass UI 约定
 
-完整 spec 在 `docs/superpowers/specs/2026-04-28-copilot-glass-system-design.md`；快速总结如下。
+完整 spec 在 `docs/superpowers/specs/2026-04-28-copilot-glass-system-design.md`；v2 架构（工具 + 上下文）spec 在 `docs/superpowers/specs/2026-05-03-copilot-context-tool-v2-design.md`。快速总结如下。
 
 ### 做 copilot UI 相关改动前先读
 
 1. `CLAUDE.md` 的 Copilot + Glass 章节
 2. Spec §12「首轮验证后的调整」—— 记录了三处反直觉的强约束
 3. 项目记忆 `feedback_copilot_glass_scope.md`
+
+### 加 / 改 copilot 工具
+
+- 每工具一文件 `src/lib/copilot/tools/{name}.ts`，`export const xxxTool: ToolDescriptor<Input, Output>`
+- 必填 metadata：`isReadOnly` / `isDestructive` / `maxResultSizeChars`；可选 `requiresConfirm`（覆盖 isDestructive 默认）
+- `isDestructive: true` 自动走 preToolCall confirmGateHook → UI 弹 Confirm 卡
+- 超 `maxResultSizeChars` 的 output 自动被 payloadGuardHook 落盘到 `data/copilot/tool-results/{sid}/tr_xxx.json`，transcript 留 preview + ref
+- Registry 登记两处：`tools/registry.ts` (TOOLS) + `tools/metadata-client.ts` (CLIENT_TOOL_METADATA)，`metadata-client-sync.test.ts` 强制对齐
+- 读工具（`isReadOnly: true`）会参与 `microCompact` 压缩；写工具不会（保留完整执行痕迹）
+- UI 视觉变体走 `tool-call-card.tsx` 的 `VARIANT_BY_TOOL`：context / resource / retrieval / write / default。写工具默认命中 write（通过 metadata.isDestructive 兜底）
 
 ### 玻璃档位选择
 
