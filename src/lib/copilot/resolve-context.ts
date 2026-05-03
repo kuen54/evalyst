@@ -372,3 +372,97 @@ function safeStringify(v: unknown): string {
     return String(v)
   }
 }
+
+// ---------- v2 · per-id + per-scope resolver ----------
+//
+// read_context(id, scope) 工具的后端实现。id 是 "ctx_N"；session-scoped，
+// 指向 active branch 最后一条 user 消息 contexts 里 tag===N 的那条 ref。
+//
+// scope 语义（spec §5.10.4 表）：
+//   self   —— 只含对象本身最小信息
+//   parent —— 对象 + 上一层元数据（task_field → 完整 task_result；task_result → + experiment 元数据）
+//   full   —— 预留，当前与 parent 等价
+//
+// 返 null 表示 ctx_N 在当前 session 里不存在（可能是用户已取消圈选）。
+
+import { getActiveContextByTag } from './session-store'
+
+export type ContextScope = 'self' | 'parent' | 'full'
+
+export interface ScopedContextResolution {
+  type: string
+  ref: CopilotContextRef
+  self_value: unknown
+  parent_value?: unknown
+  full_value?: unknown
+}
+
+function parseCtxId(ctxId: string): number | null {
+  const m = ctxId.match(/^ctx_(\d+)$/)
+  if (!m) return null
+  return Number(m[1])
+}
+
+function getByPath(obj: unknown, path: string): unknown {
+  return path.split('.').reduce<unknown>((o, k) => {
+    if (o && typeof o === 'object') return (o as Record<string, unknown>)[k]
+    return undefined
+  }, obj)
+}
+
+export function resolveContextById(
+  session_id: string,
+  ctx_id: string,
+): ScopedContextResolution | null {
+  const tag = parseCtxId(ctx_id)
+  if (tag === null) return null
+
+  const ref = getActiveContextByTag(session_id, tag)
+  if (!ref) return null
+
+  // 复用既有 resolveContextSelf：拿到 .data（完整结构化数据）
+  const resolved = resolveContextSelf(ref)
+  if (resolved.status !== 'ok') return null
+
+  switch (ref.type) {
+    case 'task_field': {
+      const extra = (ref.extra ?? {}) as { experiment_id?: string; task_id?: string; field?: string }
+      const field = extra.field ?? ref.id
+      const taskId = extra.task_id
+      const expId = extra.experiment_id
+      if (!expId || !taskId) {
+        return { type: ref.type, ref, self_value: resolved.data }
+      }
+      const results = readResults(expId)
+      const task = results.find((r) => r.task_id === taskId)
+      const fieldValue =
+        task && task.status === 'success'
+          ? getByPath(task.output, field)
+          : undefined
+      return {
+        type: ref.type,
+        ref,
+        // self：只 field 自己
+        self_value: { targeted_field: field, targeted_value: fieldValue },
+        // parent：带出整条 task
+        parent_value: { targeted_field: field, targeted_value: fieldValue, task },
+      }
+    }
+
+    case 'task_result': {
+      const extra = (ref.extra ?? {}) as { experiment_id?: string }
+      const expId = extra.experiment_id
+      const exp = expId ? getExperiment(expId) : null
+      return {
+        type: ref.type,
+        ref,
+        self_value: resolved.data,
+        parent_value: exp ? { task: resolved.data, experiment: exp } : undefined,
+      }
+    }
+
+    // experiment / template / dataset / display / rubric / rubric_stats / text_selection
+    default:
+      return { type: ref.type, ref, self_value: resolved.data }
+  }
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { CopilotMessage, CopilotContextRef, PageContext } from "@/lib/copilot/types"
-import { findToolMetadata } from "@/lib/copilot/tool-metadata"
+import { needsConfirm } from "@/lib/copilot/tools/metadata-client"
 import { collectClientSnapshot } from "@/lib/copilot/collect-snapshot"
 import { useCopilotStore } from "./store"
 import type { UiMessage } from "./chat-view-parts"
@@ -235,8 +235,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         streamToolUseOrderRef.current.push(ev.call_id)
         // Auto-run read 工具：先入队，等 `done` 事件到（此时 server 已 append tool_use）再真正 POST。
         // 立即 POST 会和 /chat 的 post-stream append 竞争，产生 parent_id 错链（tool_result 挂到 user 而不是 tool_use）。
-        const tool = findToolMetadata(ev.tool_name)
-        if (tool && !tool.requiresConfirm) {
+        if (!needsConfirm(ev.tool_name)) {
           pendingAutoRunRef.current.push({ call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
         }
       } else if (ev.kind === "done") {

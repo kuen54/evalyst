@@ -1004,7 +1004,11 @@ export const zh = {
   "copilot.context_clear_all": "清空全部",
   "copilot.context_reload_toast": "页面刷新后，{n} 个 context 已保留但标注徽章失效。可直接发送，或重新圈选。",
   "copilot.text_select_add": "发送给 Copilot",
-  "copilot.preview_system_message": "预览 LLM 将看到的 context",
+  "copilot.chip.expand_detail": "查看详情",
+  "copilot.chip.loading": "加载中...",
+  "copilot.chip.within": "位于",
+  "copilot.chip.value_label": "内容",
+  "copilot.chip.metadata_label": "元数据",
   "copilot.context_stale_title": "这个对象已失效（被删或刷新后找不到），发送时会被标记为 missing",
   // Copilot tool calling (PR-3)
   "copilot.tool.loading": "查询中…",
@@ -1018,6 +1022,11 @@ export const zh = {
   "copilot.tool.chain_limit": "链式调用已达上限 (5)，请人工介入",
   "copilot.tool.expand": "展开详情",
   "copilot.tool.collapse": "收起详情",
+  // 按 tool 类型分 variant 渲染用的标题/徽章
+  "copilot.tool.read_context.title": "读取圈选",
+  "copilot.tool.read_resource.title": "读取资源",
+  "copilot.tool.read_tool_result.title": "回拉历史",
+  "copilot.tool.write.badge": "写操作",
   // 工具展示名 + 摘要文案
   "copilot.tool.name.list_experiments": "查看实验列表",
   "copilot.tool.name.read_experiment_results": "读取实验结果",

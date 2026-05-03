@@ -1,20 +1,20 @@
-import type { CopilotTool } from "./tools"
+import type { AnyToolDescriptor } from "./tools/registry"
 
-export function toOpenaiTools(tools: CopilotTool[]) {
-  return tools.map(t => ({
+export function toOpenaiTools(tools: readonly AnyToolDescriptor[]) {
+  return tools.map((t) => ({
     type: "function" as const,
     function: {
       name: t.name,
       description: t.description,
-      parameters: t.input_schema,
+      parameters: t.inputSchema,
     },
   }))
 }
 
-export function toAnthropicTools(tools: CopilotTool[]) {
-  return tools.map(t => ({
+export function toAnthropicTools(tools: readonly AnyToolDescriptor[]) {
+  return tools.map((t) => ({
     name: t.name,
     description: t.description,
-    input_schema: t.input_schema,
+    input_schema: t.inputSchema,
   }))
 }

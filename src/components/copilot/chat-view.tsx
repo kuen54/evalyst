@@ -46,13 +46,13 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   const [editingId, setEditingId] = useState<string | undefined>(undefined)
   const [editDraft, setEditDraft] = useState("")
   const [ctxStatus, setCtxStatus] = useState<Record<string, "ok" | "missing" | "error">>({})
-  const [ctxPreview, setCtxPreview] = useState<string>("")
   const [inputExpanded, setInputExpanded] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // 每次 contexts 变动，向服务端 resolve 拿 per-ref status 和格式化的 system_message
+  // 每次 contexts 变动，向服务端 resolve 拿 per-ref status（chip 状态显示用）。
+  // v2 起 LLM 不再消费这段 system_message，前端也不再展示 preview 面板。
   useEffect(() => {
-    if (contexts.length === 0) { setCtxStatus({}); setCtxPreview(""); return }
+    if (contexts.length === 0) { setCtxStatus({}); return }
     const refs = contexts.map(c => ({ tag: c.tag, type: c.type, id: c.id, extra: c.extra }))
     let cancelled = false
     fetch("/api/copilot/contexts/resolve", {
@@ -61,11 +61,11 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
       body: JSON.stringify({ refs }),
     })
       .then(r => r.json())
-      .then((d: { resolved: Array<{ type: string; id: string; status: "ok" | "missing" | "error" }>; system_message: string }) => {
+      .then((d: { resolved: Array<{ type: string; id: string; status: "ok" | "missing" | "error" }> }) => {
         if (cancelled) return
         const m: Record<string, "ok" | "missing" | "error"> = {}
         for (const res of d.resolved) m[`${res.type}:${res.id}`] = res.status
-        setCtxStatus(m); setCtxPreview(d.system_message || "")
+        setCtxStatus(m)
       })
       .catch(() => { /* ignore */ })
     return () => { cancelled = true }
@@ -177,7 +177,6 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         <ContextChipRail
           contexts={contexts}
           ctxStatus={ctxStatus}
-          ctxPreview={ctxPreview}
           inspectorActive={inspectorActive}
           onInspectorToggle={() => setInspectorActive(!inspectorActive)}
           onRemoveContext={removeContext}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { tools } from '../tools'
+import { toolByName } from '../tools/registry'
 import { setSnapshot, deleteSnapshot } from '../snapshot-cache'
 import type { ClientSnapshot } from '../types'
 
@@ -14,7 +14,8 @@ vi.mock('../resolve-context', () => ({
   }))),
 }))
 
-const readPage = tools.find(t => t.name === 'read_page')!
+const readPage = toolByName.get('read_page')!
+const ctx = { session_id: 'sess', signal: new AbortController().signal }
 
 function makeSnap(sessionId: string, entries: Array<{ key: string; type: string; preview_text: string; ancestors?: string[] }>): ClientSnapshot {
   return {
@@ -34,12 +35,12 @@ describe('read_page tool', () => {
 
   it('exists and has query input schema', () => {
     expect(readPage).toBeTruthy()
-    expect(readPage.requiresConfirm).toBe(false)
-    expect(readPage.input_schema.required).toContain('query')
+    expect(readPage.metadata.isDestructive).toBe(false)
+    expect((readPage.inputSchema as { required?: string[] }).required).toContain('query')
   })
 
   it('returns empty result with message when no snapshot', async () => {
-    const r = await readPage.run({ query: 'anything' }, { sessionId: 'sess' }) as {
+    const r = (await readPage.call({ query: 'anything' }, ctx)) as {
       matches: unknown[]; total_scanned: number; message?: string
     }
     expect(r.matches).toEqual([])
@@ -52,7 +53,7 @@ describe('read_page tool', () => {
       { key: 'task_result:t1', type: 'task_result', preview_text: 'apple pie' },
       { key: 'task_result:t2', type: 'task_result', preview_text: 'banana bread' },
     ]))
-    const r = await readPage.run({ query: 'xylophone' }, { sessionId: 'sess' }) as {
+    const r = (await readPage.call({ query: 'xylophone' }, ctx)) as {
       matches: unknown[]; total_scanned: number; message?: string
     }
     expect(r.matches).toEqual([])
@@ -65,7 +66,7 @@ describe('read_page tool', () => {
       { key: 'task_result:t1', type: 'task_result', preview_text: 'failed: connection timeout' },
       { key: 'task_result:t2', type: 'task_result', preview_text: 'success: 200 ok' },
     ]))
-    const r = await readPage.run({ query: 'failed' }, { sessionId: 'sess' }) as {
+    const r = (await readPage.call({ query: 'failed' }, ctx)) as {
       matches: Array<{ key: string }>
     }
     expect(r.matches.length).toBe(1)
@@ -78,7 +79,7 @@ describe('read_page tool', () => {
       { key: 'b', type: 'task_result', preview_text: 'failed' },
       { key: 'c', type: 'task_result', preview_text: 'timeout' },
     ]))
-    const r = await readPage.run({ query: 'failed timeout' }, { sessionId: 'sess' }) as {
+    const r = (await readPage.call({ query: 'failed timeout' }, ctx)) as {
       matches: Array<{ key: string }>
     }
     expect(r.matches[0].key).toBe('a') // 2 hits beats 1
@@ -89,7 +90,7 @@ describe('read_page tool', () => {
       key: `t${i}`, type: 'task_result', preview_text: 'failed hit',
     }))
     setSnapshot('sess', makeSnap('sess', entries))
-    const r = await readPage.run({ query: 'failed' }, { sessionId: 'sess' }) as {
+    const r = (await readPage.call({ query: 'failed' }, ctx)) as {
       matches: unknown[]
     }
     expect(r.matches.length).toBe(5)
@@ -99,7 +100,7 @@ describe('read_page tool', () => {
     setSnapshot('sess', makeSnap('sess', [
       { key: 'task_result:t1', type: 'task_result', preview_text: 'failed' },
     ]))
-    const r = await readPage.run({ query: 'failed' }, { sessionId: 'sess' }) as {
+    const r = (await readPage.call({ query: 'failed' }, ctx)) as {
       matches: Array<{ content_tree: unknown }>
     }
     expect(r.matches[0].content_tree).toBeTruthy()
@@ -111,8 +112,7 @@ describe('read_page tool', () => {
       { key: 'task_result:t1', type: 'task_result', preview_text: 'a b status ok' },
       { key: 'task_result:t2', type: 'task_result', preview_text: 'nothing' },
     ]))
-    // Query has all 1-char tokens normally → would filter to empty → fallback to whole query
-    const r = await readPage.run({ query: 'a b' }, { sessionId: 'sess' }) as {
+    const r = (await readPage.call({ query: 'a b' }, ctx)) as {
       matches: Array<{ key: string }>; total_scanned: number
     }
     expect(r.matches.length).toBe(1)
@@ -127,7 +127,7 @@ describe('read_page tool', () => {
     setSnapshot('sess', makeSnap('sess', [
       { key: 'task_result:t1', type: 'task_result', preview_text: 'failed' },
     ]))
-    const r = await readPage.run({ query: 'failed' }, { sessionId: 'sess' }) as {
+    const r = (await readPage.call({ query: 'failed' }, ctx)) as {
       matches: Array<{ key: string; content_tree: unknown }>; message?: string
     }
     expect(r.matches.length).toBe(1)

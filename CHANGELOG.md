@@ -10,6 +10,42 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Copilot v2 · 上下文 + 工具系统重构（2026-05-03）
+
+从"一次性 context 注入 + 硬编码 4 工具"重构为"progressive disclosure：system prompt 恒定小 + LLM 按需 tool 拉详情"。三个参考 repo（claude-code-best / hermes-agent / openclaw）综合借鉴，但不做 subagent / 跨 session 记忆 / MCP / 可插拔 ContextEngine（主动划边界避免过度设计）。
+
+- **Tool system**：`ToolDescriptor` + metadata + manual array registry（`src/lib/copilot/tools/`）。每工具一文件；`isDestructive` / `requiresConfirm` / `maxResultSizeChars` / `isReadOnly` 四字段元数据驱动 Confirm gate / 落盘护栏 / micro-compact
+- **Hooks**：`preToolCall`（confirmGate + auditLog）+ `postToolCall`（payloadGuard + telemetry）。Confirm 完全从 UI 搬到 metadata，runTool 主入口串链
+- **Tool result 护栏**：超 `maxResultSizeChars` 的 output 自动落盘到 `data/copilot/tool-results/{sid}/{tr_xxx}.json`，transcript 只留 500 字 preview + `ref://tool-result/tr_xxx`。`ToolResultContent` = inline | ref | compacted 三态 union；`normalizeToolResult` 读时兼容老 jsonl（裸 JSON string 包装成 inline），`data/copilot/sessions/` 不需要迁移
+- **Context 分层**：`SystemHeader` 只放 `route_type + path + active_contexts[{id, type, ref, summary, within}]`，LLM 看到 `ctx_N` 后按需调工具拉详情。原 `formatContextsForLlm` 的 markdown context 墙 + page snapshot 全部退出 system prompt，snapshot 留服务端 `snapshot-cache`
+- **3 个新 read 工具**：
+  - `read_context(id, scope?)` — 查用户圈选过的 ctx_N，`scope=self|parent|full` 按需升级（task_field parent 带整条 task）
+  - `read_resource(type, id, fields?)` — 顺藤摸瓜查用户没圈但需要的资源（experiment/template/dataset/display/rubric），支持字段子集裁剪
+  - `read_tool_result(ref)` — 按 ref 回捞落盘的大 tool output
+- **Aggregation**：`read_experiment_results` 加 `group_by` (`error_type` / `score_bucket` / `task_id`) + `aggregate` (`count` / `pass_rate` / `avg_score` / `sample_ids`) + `filter` (`score_lt` / `score_gte` / `error_contains`)，让工具内置聚合代替主 LLM 遍历原始数据
+- **Micro-compact**：`build-llm-messages` 组装前跑一次，老的可重放（read-only）tool_result 压成 `{kind:'compacted', summary, ref?}`，保最近 3 条；cache 前缀稳定，10 轮对话不再因老 tool_result 撑爆上下文
+- **第一个写工具 `edit_template`**：`isDestructive: true` 自动走 Confirm；shallow-merge patch 到 schema，version 自动 +1。验证 metadata → Confirm → hook → 落盘全链路
+- **UI 规格调整**：
+  - 删除 "预览 LLM 将看到的 context" 折叠面板（v2 LLM 不再看这段 markdown，保留会误导）
+  - Chip 本身可展开看详情（懒调 `/api/copilot/contexts/resolve`，component state 缓存），`×` 保持独立 remove 按钮
+  - `tool-call-card` 按 tool name 路由 variant：`context` / `resource` / `retrieval` / `write` / `default`，写操作带 amber 边框 + "写操作" badge，`read_resource` 的 type/id 可点击跳详情页
+- **JSON 语义截断**：`truncateJsonSemantic`（搬自 hermes `_truncate_tool_call_args_json`），预留给 tool args / preview 防 provider reject
+- **破坏性 / 迁移**：**无**。既有 `data/copilot/sessions/*.jsonl` 的 `tool_result.content`（裸 JSON string）被 `normalizeToolResult` 读时包装为 `{kind:'inline', value:...}`；`role: 'tool_use' | 'tool_result'` 保留不动。老会话零改动继续可用
+
+### 测试 / 验证
+
+- 新增约 100 test case（vitest 265 → 364）：types / truncate / registry / hooks / runTool / tool-result-store / read-tool-result / system-header / resolve-context-by-id / read-context / read-resource / read-experiment-results aggregation / micro-compact / build-llm-messages（v2 三 kind + header + compact）/ edit-template / metadata-client-sync
+- E2E smoke `e2e/copilot-v2.spec.ts`：root HTTP 200 + 无 pageerror + `/api/copilot/sessions` 正常 + 预览面板不存在
+- 全量：`tsc --noEmit` + 364 vitest + 27 路由 build + 1 playwright chromium，全绿
+
+### 参考来源对照
+
+- 借鉴：claude-code-best `buildTool` + `toolResultStorage` + `microCompact` + `useCanUseTool`；hermes-agent `_truncate_tool_call_args_json` + `session_search` 聚合精神；openclaw `before/after-tool-call` 钩子位
+- 不做：subagent / AgentTool、跨 session 记忆（四类 taxonomy）、MCP 生态、ContextEngine 可插拔、`autoCompact` 全量 summary、四源权限矩阵、FTS5 session 搜索、Active Memory + LanceDB
+
+- Spec: `docs/superpowers/specs/2026-05-03-copilot-context-tool-v2-design.md`
+- Plan: `docs/superpowers/plans/2026-05-03-copilot-context-tool-v2.md`
+
 ## [0.6.0] — 2026-05-02 · audit cleanup M1-M5：核心重构 + 约定对齐 + race fix
 
 2026-05-01 的系统性代码审计定位到 19 条 finding（必须改 3 / 值得改 6 / 可以不改 / 不要改）。本版本把"一周全面"路径的 9 条 + 一条 regression 过程中捞到的 chained tool UX race 全部清掉，分 6 个 PR（#18-#23）落地。
