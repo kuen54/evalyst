@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState, useCallback, use, useMemo, memo } from "react"
+import { useEffect, useState, useCallback, use, useMemo, memo, startTransition } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -161,13 +161,26 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     timestamp: new Date().toISOString(),
   }), [experiment, id])
 
+  const viewBundle = useMemo(() => {
+    if (!experiment) return null
+    const schema = schemas.find(s => s.id === experiment.schema_id)
+    const effectiveDisplayId = experiment.display_id ?? schema?.display_id
+    const display = displays.find(d => d.id === effectiveDisplayId)
+    const view = pickView(schema, display)
+    return { schema, display, view, ViewComp: view.component }
+  }, [experiment, schemas, displays])
+
+  // 把 ViewComp 的 JSX 节点 memo 住：Collapsible 之类状态 toggle 时 experiment/schemas/displays/results 都没变，
+  // React 拿缓存的 element 引用直接复用，跳过 104 个 result item 的 diff（层级下的虚拟 DOM 树可能是 2K+ 节点）。
+  const resultsNode = useMemo(() => {
+    if (!viewBundle || !viewBundle.schema || results.length === 0) return null
+    const { ViewComp, schema } = viewBundle
+    return <ViewComp results={results} schema={schema} />
+  }, [viewBundle, results])
+
   if (!experiment) return <div className="p-8 text-muted-foreground">{t("common.loading")}</div>
 
-  const schema = schemas.find(s => s.id === experiment.schema_id)
-  const effectiveDisplayId = experiment.display_id ?? schema?.display_id
-  const display = displays.find(d => d.id === effectiveDisplayId)
-  const view = pickView(schema, display)
-  const ViewComp = view.component
+  const schema = viewBundle?.schema
 
   const stats = experiment.run_stats || progress
   const progressPct = stats && stats.total_tasks > 0
@@ -183,12 +196,12 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
           {rubric && <Badge variant="outline" className="text-[11px]">✅ {rubric.name}</Badge>}
         </div>
 
-      <Collapsible open={configOpen} onOpenChange={setConfigOpen}>
+      <Collapsible open={configOpen} onOpenChange={(v) => startTransition(() => setConfigOpen(v))}>
         <CollapsibleTrigger className="mb-2 text-muted-foreground text-sm hover:text-foreground transition-colors cursor-pointer px-2 py-1 rounded hover:bg-accent">
           {configOpen ? "▾" : "▸"} {t("experiment.detail.config_title")} &middot; {experiment.model} / t={experiment.temperature}
         </CollapsibleTrigger>
         <CollapsibleContent style={{ contain: "layout paint" }}>
-          <Card className="mb-4">
+          <GlassCard className="mb-4">
             <CardContent className="pt-4">
               <ExperimentPromptPreview
                 template={experiment.prompt_template}
@@ -196,7 +209,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                 notesLabel={t("experiment.detail.notes")}
               />
             </CardContent>
-          </Card>
+          </GlassCard>
         </CollapsibleContent>
       </Collapsible>
 
@@ -246,7 +259,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       </GlassRegular>
 
       {rubric && aggregate && (
-        <Collapsible open={scoringOpen} onOpenChange={setScoringOpen}>
+        <Collapsible open={scoringOpen} onOpenChange={(v) => startTransition(() => setScoringOpen(v))} style={{ contain: "layout paint" }}>
           <GlassCard
             className="mb-6 border-emerald-200/60"
             data-copilot-context="rubric_stats"
@@ -348,7 +361,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
         <>
           <Separator className="mb-4" />
           <h3 className="text-sm font-medium text-muted-foreground mb-4">{t("experiment.detail.results_title")} ({results.length})</h3>
-          {schema && <ViewComp results={results} schema={schema} />}
+          {resultsNode}
         </>
       )}
       </GlassRegular>
@@ -404,7 +417,7 @@ function FailedPanelImpl({ results, onRetryTask, running, t }: {
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={(v) => startTransition(() => setOpen(v))} style={{ contain: "layout paint" }}>
       <GlassCard className="mb-6 border-red-200/60">
         <CardContent className="pt-4">
           <CollapsibleTrigger className="w-full text-left">

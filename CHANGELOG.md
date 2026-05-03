@@ -16,6 +16,11 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
   - 运行中 polling 每秒盲拉 547KB `/results` → 改为每秒只拉 `experiment + progress`，只在 `completed_tasks / failed_tasks` 变化时增量拉 `/results`。空转秒从 547KB 降到 ~10KB
   - `statsAgg`（原在 early return 之后每次 render 都跑 `aggregateResults`）上移到 `useMemo`；`FailedPanel` 外层 `React.memo` + 内部 `failed` `useMemo`；`handleRun / handleRetryTask / handleStop` 改 `useCallback` 让 memo 生效
 - **feat(api)**：`/api/experiments/[id]/results` 支持 `?exclude=field,field` 按顶层字段裁剪响应体。默认不改，向后兼容。留给前端需要瘦身时显式传（上条的 polling 改动暂未用，但生态可用）
+- **perf(experiment-detail) round 2**：折叠卡长任务收尾 —— 在严守 copilot 玻璃一致性前提下（上轮为省 blur 把 `GlassCard` → `Card` 的 swap 已全部回退），用 React 19 `startTransition` + `useMemo(resultsNode)` 组合继续下砍：
+  - `setConfigOpen` / `setScoringOpen` / FailedPanel `setOpen` 都用 `startTransition` 包起来 → Collapsible 状态切换变 non-urgent transition，click-to-paint 关键路径只剩 state 提交
+  - `viewBundle` + `resultsNode`（即 `<ViewComp results={results} schema={schema} />` 节点）抽 `useMemo`，父组件因 configOpen 状态变更重渲染时，React element 引用稳定 → 跳过 104 条 result item 的 diff（~2K 节点）
+  - FailedPanel / Scoring Collapsible 外层加 `contain: layout paint` 保底
+  - **实测**：config Collapsible toggle 从 140-170ms（150ms long task）降到 **12-21ms（0 long task）**，-92% / -100%。完整 before/after 数据和放弃方案见 `docs/perf-report-2026-05-03.md`
 
 ## [0.7.0] — 2026-05-03 · Copilot v2：上下文 + 工具系统重构
 
