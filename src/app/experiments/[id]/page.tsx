@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState, useCallback, use, useMemo } from "react"
+import { useEffect, useState, useCallback, use, useMemo, memo } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -33,8 +33,10 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
   const [aggregate, setAggregate] = useState<RubricAggregate | null>(null)
   const [scoringOpen, setScoringOpen] = useState(true)
 
-  const fetchExperiment = useCallback(() => {
-    fetch(`/api/experiments/${id}`).then(r => r.json()).then(setExperiment)
+  const fetchExperiment = useCallback(async (): Promise<ExperimentConfig | null> => {
+    const exp = await fetch(`/api/experiments/${id}`).then(r => r.json()).catch(() => null)
+    if (exp) setExperiment(exp)
+    return exp
   }, [id])
 
   const fetchProgress = useCallback(() => {
@@ -78,15 +80,21 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     if (experiment?.status !== "running") return
-    const interval = setInterval(() => {
-      fetchExperiment()
+    let lastKey = `${experiment.run_stats?.completed_tasks ?? 0}:${experiment.run_stats?.failed_tasks ?? 0}`
+    const interval = setInterval(async () => {
+      const exp = await fetchExperiment()
       fetchProgress()
-      fetchResults()
+      if (!exp) return
+      const key = `${exp.run_stats?.completed_tasks ?? 0}:${exp.run_stats?.failed_tasks ?? 0}`
+      if (key !== lastKey) {
+        fetchResults()
+        lastKey = key
+      }
     }, 1000)
     return () => clearInterval(interval)
   }, [experiment?.status, fetchExperiment, fetchProgress, fetchResults])
 
-  const handleRun = async (resume = false, taskIds?: string[]) => {
+  const handleRun = useCallback(async (resume = false, taskIds?: string[]) => {
     await fetch(`/api/experiments/${id}/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -94,17 +102,17 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     })
     fetchExperiment()
     fetchProgress()
-  }
+  }, [id, fetchExperiment, fetchProgress])
 
-  const handleRetryTask = async (taskId: string) => {
+  const handleRetryTask = useCallback(async (taskId: string) => {
     await handleRun(true, [taskId])
-  }
+  }, [handleRun])
 
-  const handleStop = async () => {
+  const handleStop = useCallback(async () => {
     await fetch(`/api/experiments/${id}/stop`, { method: "POST" })
     fetchExperiment()
     fetchProgress()
-  }
+  }, [id, fetchExperiment, fetchProgress])
 
   // 按 task_id 索引最新 annotation（evaluator=human）
   const annotationByTask = useMemo(() => {
@@ -116,6 +124,20 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     }
     return m
   }, [annotations])
+
+  const statsAgg = useMemo(() => {
+    const stats = experiment?.run_stats || progress
+    if (stats && (stats.total_input_tokens != null || stats.total_cost_by_currency != null)) {
+      return {
+        total_input_tokens: stats.total_input_tokens,
+        total_output_tokens: stats.total_output_tokens,
+        total_cost_by_currency: stats.total_cost_by_currency ?? {},
+        has_token_data: stats.total_input_tokens != null,
+        has_cost_data: stats.total_cost_by_currency != null && Object.keys(stats.total_cost_by_currency).length > 0,
+      }
+    }
+    return aggregateResults(results)
+  }, [experiment?.run_stats, progress, results])
 
   useRegisterPageContext(() => ({
     route_type: 'experiment_detail',
@@ -151,16 +173,6 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
   const progressPct = stats && stats.total_tasks > 0
     ? Math.round((stats.completed_tasks / stats.total_tasks) * 100) : 0
 
-  const statsAgg = stats && (stats.total_input_tokens != null || stats.total_cost_by_currency != null)
-    ? {
-        total_input_tokens: stats.total_input_tokens,
-        total_output_tokens: stats.total_output_tokens,
-        total_cost_by_currency: stats.total_cost_by_currency ?? {},
-        has_token_data: stats.total_input_tokens != null,
-        has_cost_data: stats.total_cost_by_currency != null && Object.keys(stats.total_cost_by_currency).length > 0,
-      }
-    : aggregateResults(results)
-
   return (
     <div className="px-6 py-4">
       <GlassRegular className="p-6">
@@ -175,17 +187,16 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
         <CollapsibleTrigger className="mb-2 text-muted-foreground text-sm hover:text-foreground transition-colors cursor-pointer px-2 py-1 rounded hover:bg-accent">
           {configOpen ? "▾" : "▸"} {t("experiment.detail.config_title")} &middot; {experiment.model} / t={experiment.temperature}
         </CollapsibleTrigger>
-        <CollapsibleContent>
-          <GlassCard className="mb-4">
+        <CollapsibleContent style={{ contain: "layout paint" }}>
+          <Card className="mb-4">
             <CardContent className="pt-4">
-              <pre className="text-xs font-mono whitespace-pre-wrap max-h-80 overflow-auto">
-                {experiment.prompt_template}
-              </pre>
-              {experiment.notes && (
-                <p className="text-sm text-muted-foreground mt-2">{t("experiment.detail.notes")}: {experiment.notes}</p>
-              )}
+              <ExperimentPromptPreview
+                template={experiment.prompt_template}
+                notes={experiment.notes}
+                notesLabel={t("experiment.detail.notes")}
+              />
             </CardContent>
-          </GlassCard>
+          </Card>
         </CollapsibleContent>
       </Collapsible>
 
@@ -358,13 +369,28 @@ function summarizeResult(r: GenericResultRecord): string {
   return parts.join(" · ") || "(empty)"
 }
 
-function FailedPanel({ results, onRetryTask, running, t }: {
+const ExperimentPromptPreview = memo(function ExperimentPromptPreview({
+  template,
+  notes,
+  notesLabel,
+}: { template: string; notes?: string; notesLabel: string }) {
+  return (
+    <>
+      <pre className="text-xs font-mono whitespace-pre-wrap max-h-80 overflow-auto">{template}</pre>
+      {notes && (
+        <p className="text-sm text-muted-foreground mt-2">{notesLabel}: {notes}</p>
+      )}
+    </>
+  )
+})
+
+function FailedPanelImpl({ results, onRetryTask, running, t }: {
   results: GenericResultRecord[]
   onRetryTask: (taskId: string) => void
   running: boolean
   t: (k: string, v?: Record<string, string | number>) => string
 }) {
-  const failed = results.filter(r => r.status !== "success")
+  const failed = useMemo(() => results.filter(r => r.status !== "success"), [results])
   const [open, setOpen] = useState(true)
   const [busy, setBusy] = useState<Set<string>>(new Set())
 
@@ -417,3 +443,5 @@ function FailedPanel({ results, onRetryTask, running, t }: {
     </Collapsible>
   )
 }
+
+const FailedPanel = memo(FailedPanelImpl)
