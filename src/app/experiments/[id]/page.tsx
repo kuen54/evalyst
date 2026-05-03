@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, use, useMemo, memo } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -188,7 +188,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
           {configOpen ? "▾" : "▸"} {t("experiment.detail.config_title")} &middot; {experiment.model} / t={experiment.temperature}
         </CollapsibleTrigger>
         <CollapsibleContent style={{ contain: "layout paint" }}>
-          <Card className="mb-4">
+          <GlassCard className="mb-4">
             <CardContent className="pt-4">
               <ExperimentPromptPreview
                 template={experiment.prompt_template}
@@ -196,7 +196,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                 notesLabel={t("experiment.detail.notes")}
               />
             </CardContent>
-          </Card>
+          </GlassCard>
         </CollapsibleContent>
       </Collapsible>
 
@@ -246,7 +246,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       </GlassRegular>
 
       {rubric && aggregate && (
-        <Collapsible open={scoringOpen} onOpenChange={setScoringOpen}>
+        <Collapsible open={scoringOpen} onOpenChange={setScoringOpen} style={{ contain: "layout paint" }}>
           <GlassCard
             className="mb-6 border-emerald-200/60"
             data-copilot-context="rubric_stats"
@@ -404,7 +404,7 @@ function FailedPanelImpl({ results, onRetryTask, running, t }: {
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={setOpen} style={{ contain: "layout paint" }}>
       <GlassCard className="mb-6 border-red-200/60">
         <CardContent className="pt-4">
           <CollapsibleTrigger className="w-full text-left">
