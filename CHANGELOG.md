@@ -10,17 +10,34 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-- **LLM client**：`buildApiRequest` 的 Anthropic 分支支持 `Authorization: Bearer` 网关场景 —— `api_key` 以 `"Bearer "` 开头时切到 `Authorization` header 不再发 `x-api-key`，官方 Anthropic API `sk-ant-...` key 行为不变。美团 `aigc.sankuai.com/v1/anthropic/v1` 这类 gateway 可直接用。触发自 Opus 4.6 Copilot v2 回归测试（2026-05-03）。PR #25
-- **perf(experiment-detail)**：Playwright 实测定位到实验详情页三处成本点，一并清掉：
-  - 配置折叠卡展开/收起 100-150ms long task（backdrop-filter + Collapsible 高度动画 + 底部 52 失败 + 104 result 反流）。改法：内嵌 `GlassCard` → 普通 `Card` 去 blur；`CollapsibleContent` 加 `contain: layout paint` 切反流溢出；prompt 源码 `<pre>` 抽成 `React.memo` 子组件
-  - 运行中 polling 每秒盲拉 547KB `/results` → 改为每秒只拉 `experiment + progress`，只在 `completed_tasks / failed_tasks` 变化时增量拉 `/results`。空转秒从 547KB 降到 ~10KB
-  - `statsAgg`（原在 early return 之后每次 render 都跑 `aggregateResults`）上移到 `useMemo`；`FailedPanel` 外层 `React.memo` + 内部 `failed` `useMemo`；`handleRun / handleRetryTask / handleStop` 改 `useCallback` 让 memo 生效
-- **feat(api)**：`/api/experiments/[id]/results` 支持 `?exclude=field,field` 按顶层字段裁剪响应体。默认不改，向后兼容。留给前端需要瘦身时显式传（上条的 polling 改动暂未用，但生态可用）
-- **perf(experiment-detail) round 2**：折叠卡长任务收尾 —— 在严守 copilot 玻璃一致性前提下（上轮为省 blur 把 `GlassCard` → `Card` 的 swap 已全部回退），用 React 19 `startTransition` + `useMemo(resultsNode)` 组合继续下砍：
-  - `setConfigOpen` / `setScoringOpen` / FailedPanel `setOpen` 都用 `startTransition` 包起来 → Collapsible 状态切换变 non-urgent transition，click-to-paint 关键路径只剩 state 提交
-  - `viewBundle` + `resultsNode`（即 `<ViewComp results={results} schema={schema} />` 节点）抽 `useMemo`，父组件因 configOpen 状态变更重渲染时，React element 引用稳定 → 跳过 104 条 result item 的 diff（~2K 节点）
-  - FailedPanel / Scoring Collapsible 外层加 `contain: layout paint` 保底
-  - **实测**：config Collapsible toggle 从 140-170ms（150ms long task）降到 **12-21ms（0 long task）**，-92% / -100%。完整 before/after 数据和放弃方案见 `docs/perf-report-2026-05-03.md`
+## [0.7.1] — 2026-05-04 · 实验详情页性能清扫 + Anthropic Bearer gateway
+
+Playwright 驱动的两轮实验详情页优化（PR #26 + #27），把重实验下 config Collapsible 的 click-to-paint 从 169ms（含 151ms long task）砍到 14ms（0 long task），-92%。守住 copilot 玻璃一致性 —— round 1 曾把 `GlassCard` → `Card` 拿来省 backdrop-filter 成本，round 2 被用户纠正后全部回退，改用 `startTransition` + `useMemo` 等纯 React 手段达到更好效果。顺手加一条 LLM client 的 Bearer gateway 适配（PR #25）。
+
+### 体验（最终态）
+
+- **config / scoring / FailedPanel Collapsible**：三处 `onOpenChange` 包 `startTransition` → Collapsible 状态切换变 non-urgent transition，click-to-paint 关键路径只剩 state 提交；`contain: layout paint` 在 CollapsibleContent 和 Collapsible 外层保底切反流传播
+- **ViewComp 不再每次 toggle 都 diff 104 项**：`viewBundle`（schema/display/view/ViewComp 派生链）+ `resultsNode`（`<ViewComp />` 节点）抽 `useMemo`，父组件因 `configOpen` 状态变更重渲染时 React element 引用稳定，跳过 ~2K 虚拟 DOM diff
+- **Running polling 增量化**：原来每秒盲拉 `experiment + progress + results`，results 单次 547KB；改为每秒只拉 `experiment + progress`，仅在 `completed_tasks / failed_tasks` 变化时增量拉 results。空转秒从 547KB 降到 ~10KB
+- **其他 memoization 清扫**：`statsAgg`（原在 early return 之后每次 render 跑 `aggregateResults`）上移 `useMemo`；`FailedPanel` 外层 `React.memo` + 内部 `failed` `useMemo`；`handleRun / handleRetryTask / handleStop` 改 `useCallback`
+- **prompt 源码 `<pre>`**：抽 `ExperimentPromptPreview` `React.memo` 子组件，不随父 state 重渲染
+
+### 架构
+
+- **LLM client**：`buildApiRequest` 的 Anthropic 分支支持 `Authorization: Bearer` 网关场景 —— `api_key` 以 `"Bearer "` 开头时切到 `Authorization` header 不再发 `x-api-key`；官方 Anthropic API `sk-ant-...` key 行为不变。美团 `aigc.sankuai.com/v1/anthropic/v1` 这类 gateway 可直接用。PR #25
+- **`/api/experiments/[id]/results`**：加 `?exclude=field,field` 顶层字段裁剪参数，默认不改向后兼容。当前 polling 改动暂未用，留给前端后续按需瘦身
+
+### 验证
+
+- Playwright 实测：config Collapsible toggle 5 次稳定 **12-21ms / 0 long task**（vs baseline 169ms / 151ms long task）
+- 6 维深度 debug（D1 代码 re-review / D2 重实验完整回归 / D3 Rubric scoring / D4 状态边界 / D5 跨页面 smoke / D6 copilot context）全过，0 runtime error
+- 全套回归：tsc + vitest 376/376 + build + e2e smoke 10/10（copilot-v2.spec 冷编首次偶发 flake，retry 稳）
+
+### 注意事项（教训）
+
+- **禁止拿 `GlassCard → Card` swap 换微性能**。round 1 里那处 swap 破坏了跨 Collapsible 的玻璃视觉一致性，被用户纠正后在 round 2 全部回退。perf 优化必须用 containment / memo / transition / lazy mount 等非视觉手段。细节见记忆 `feedback_glass_over_perf.md`
+
+- Report: `docs/perf-report-2026-05-03.md`
 
 ## [0.7.0] — 2026-05-03 · Copilot v2：上下文 + 工具系统重构
 
