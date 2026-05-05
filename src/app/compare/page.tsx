@@ -11,9 +11,11 @@ import type { ExperimentConfig } from "@/lib/types"
 import type { GenericResultRecord, TaskSchema, Display } from "@/lib/schema/types"
 import { pickView } from "@/components/results/registry"
 import { GlassRegular, GlassThin } from "@/components/copilot/shell"
+import { GlassStickyHeader } from "@/components/copilot/sticky-chrome"
 import { useGlassStyle } from "@/components/copilot/shell"
 import { useCopilotStore } from "@/components/copilot/store"
 import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { PreviewCard } from "@base-ui/react/preview-card"
 
 function formatLatency(ms: number | undefined): string {
   if (!ms) return "-"
@@ -251,21 +253,32 @@ function PromptInfoIcon({ prompt, t }: { prompt: string; t: (k: string, v?: Reco
   const { open: copilotOpen } = useCopilotStore()
   const glassStyle = useGlassStyle("thick")
   return (
-    <div className="relative inline-flex items-center group/info shrink-0">
-      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-default">
+    <PreviewCard.Root>
+      <PreviewCard.Trigger
+        delay={120}
+        closeDelay={120}
+        render={<span />}
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-default shrink-0"
+      >
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="8" cy="8" r="6.5" />
           <path d="M8 11.5v-.5" />
           <path d="M8 9.5c0-1.5 2-1.5 2-3a2 2 0 1 0-4 0" />
         </svg>
-      </span>
-      <div className="hidden group-hover/info:block absolute top-full left-0 z-50 pt-1">
-        <div className="w-[480px] max-h-[60vh] overflow-auto bg-popover border border-border rounded-lg shadow-lg p-4" style={copilotOpen ? { ...glassStyle } : undefined} data-glass-variant={copilotOpen ? "thick" : undefined}>
-          <div className="text-xs font-medium text-muted-foreground mb-2">{t("compare.prompt_template")}</div>
-          <pre className="text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground font-mono">{prompt}</pre>
-        </div>
-      </div>
-    </div>
+      </PreviewCard.Trigger>
+      <PreviewCard.Portal>
+        <PreviewCard.Positioner side="bottom" align="start" sideOffset={4} collisionPadding={12} className="z-50">
+          <PreviewCard.Popup
+            className="w-[480px] max-h-[60vh] overflow-auto bg-popover border border-border rounded-lg shadow-lg p-4"
+            style={copilotOpen ? { ...glassStyle } : undefined}
+            data-glass-variant={copilotOpen ? "thick" : undefined}
+          >
+            <div className="text-xs font-medium text-muted-foreground mb-2">{t("compare.prompt_template")}</div>
+            <pre className="text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground font-mono">{prompt}</pre>
+          </PreviewCard.Popup>
+        </PreviewCard.Positioner>
+      </PreviewCard.Portal>
+    </PreviewCard.Root>
   )
 }
 
@@ -325,8 +338,8 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
 
   return (
     <div className="grid gap-y-3" style={{ gridTemplateColumns: colTemplate }}>
-      <GlassThin
-        className="col-span-full grid gap-3 sticky top-0 z-10 pb-3 border-b border-border copilot-scroll-edge-bottom"
+      <GlassStickyHeader
+        className="col-span-full grid gap-3"
         style={{ gridTemplateColumns: "subgrid" }}
       >
         <div className="text-sm font-medium text-muted-foreground self-end">{t("compare.input_col")}</div>
@@ -350,7 +363,7 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
             </div>
           </div>
         ))}
-      </GlassThin>
+      </GlassStickyHeader>
 
       {rows.length === 0 && (
         <div className="col-span-full text-center text-muted-foreground py-8">{t("compare.no_match")}</div>
