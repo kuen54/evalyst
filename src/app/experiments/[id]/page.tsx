@@ -16,7 +16,7 @@ import type { RubricAggregate } from "@/lib/annotation-store"
 import { useT } from "@/lib/i18n/provider"
 import { formatCostMap, formatTokens } from "@/lib/format"
 import { aggregateResults } from "@/lib/results-aggregate"
-import { GlassRegular, GlassCard } from "@/components/copilot/shell"
+import { GlassRegular, GlassCard, GlassSuccess, GlassDanger } from "@/components/copilot/shell"
 import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
 
 export default function ExperimentDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -260,7 +260,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
 
       {rubric && aggregate && (
         <Collapsible open={scoringOpen} onOpenChange={(v) => startTransition(() => setScoringOpen(v))} style={{ contain: "layout paint" }}>
-          <GlassCard
+          <GlassSuccess
             className="mb-6 border-emerald-200/60"
             data-copilot-context="rubric_stats"
             data-copilot-context-id={experiment.id}
@@ -340,7 +340,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                 )}
               </CollapsibleContent>
             </CardContent>
-          </GlassCard>
+          </GlassSuccess>
         </Collapsible>
       )}
 
@@ -418,7 +418,7 @@ function FailedPanelImpl({ results, onRetryTask, running, t }: {
 
   return (
     <Collapsible open={open} onOpenChange={(v) => startTransition(() => setOpen(v))} style={{ contain: "layout paint" }}>
-      <GlassCard className="mb-6 border-red-200/60">
+      <GlassDanger className="mb-6 border-red-200/60">
         <CardContent className="pt-4">
           <CollapsibleTrigger className="w-full text-left">
             <div className="flex items-center gap-3 text-sm">
@@ -452,7 +452,7 @@ function FailedPanelImpl({ results, onRetryTask, running, t }: {
             </div>
           </CollapsibleContent>
         </CardContent>
-      </GlassCard>
+      </GlassDanger>
     </Collapsible>
   )
 }

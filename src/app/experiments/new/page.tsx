@@ -14,18 +14,14 @@ import { FilterRenderer } from "@/components/filter-renderer"
 import { useT } from "@/lib/i18n/provider"
 import type { TaskSchema, FilterValues, DatasetDef, Rubric } from "@/lib/schema/types"
 import type { LlmConfig, ModelConfig } from "@/lib/llm-config"
-import { GlassRegular, useGlassStyle } from "@/components/copilot/shell"
-import { useCopilotStore } from "@/components/copilot/store"
+import { GlassRegular } from "@/components/copilot/shell"
+import { GlassSegmentedItem } from "@/components/copilot/glass-segmented"
 import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
-import { segmentedItem } from "@/lib/segmented"
 
 export default function NewExperiment() {
   const router = useRouter()
   const t = useT()
   const [submitting, setSubmitting] = useState(false)
-  const { open: copilotOpen } = useCopilotStore()
-  const thinStyle = useGlassStyle("thin")
-  const tintedStyle = useGlassStyle("tinted")
 
   // Schema registry
   const [schemas, setSchemas] = useState<TaskSchema[]>([])
@@ -168,17 +164,15 @@ export default function NewExperiment() {
             {schemas.map(s => {
               const isActive = schemaId === s.id
               return (
-              <button
+              <GlassSegmentedItem
                 key={s.id}
-                type="button"
-                onClick={() => setSchemaId(s.id)}
-                className={`p-3 rounded-md border text-left transition-colors ${segmentedItem(isActive, copilotOpen)}`}
-                style={copilotOpen ? (isActive ? tintedStyle : thinStyle) : undefined}
-                data-glass-variant={copilotOpen ? (isActive ? "tinted" : "thin") : undefined}
+                active={isActive}
+                className="p-3 text-left"
+                render={<button type="button" onClick={() => setSchemaId(s.id)} />}
               >
                 <div className="font-medium text-sm">{s.label}</div>
                 {s.description && <div className="text-xs text-muted-foreground mt-1">{s.description}</div>}
-              </button>
+              </GlassSegmentedItem>
               )
             })}
           </div>
