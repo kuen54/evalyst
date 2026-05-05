@@ -207,6 +207,36 @@ JSON 粘贴入口仍保留给 "AI agent 整份产出" 这一种场景（new 页�
 
 `src/lib/segmented.ts` 的 `segmentedItem(active)` helper 只处理 copilot 关闭态的 class，给 `sidebar.tsx` / `copilot/session-list.tsx` 这种"永远不走玻璃"的位置用（两处硬编不在 copilot 主内容区）。
 
+### 主 CTA 约定（**一页一个 tinted 名额**）
+
+页面上承担**主动作**（"开始 / 保存 / 创建 / 运行"）的 CTA 用 `<Button variant="tinted">`，让用户一眼看到"这里点"。**严格规则：一个页面同时只能有一个 tinted 主 CTA**，不然"主"的信号稀释。具体裁定：
+
+**占名额的位置**：
+- `<Button variant="tinted">`
+- `<GlassSegmentedItem>` 里当前 active 的那一项（玻璃 active tinted，属于"tab 级视觉主角"）
+
+**不占名额的位置**：
+- Sidebar 导航 active 项 —— `segmentedItem(active)` 硬编 shadcn 扁平，永不 tinted
+- Copilot panel 内部的任何高亮 —— 永远扁平
+
+**裁定表（现状 2026-05-06 PR 3 后）**：
+
+| 页面 | 名额占用 | 主 CTA |
+|---|---|---|
+| `/` dashboard | 无 | 顶栏"新建实验" tinted；空态同文案 **outline**（避免两个 tinted） |
+| `/experiments/new` | 无 | "开始实验" tinted；"保存为草稿" outline |
+| `/experiments/[id]` | 无 | Run / Resume 互斥显示 tinted；Pause / Retry outline |
+| `/compare` | 无 | 无主 CTA |
+| `/settings/**`（layout 带 RelationDiagram） | ✅ RelationDiagram 当前 tab tinted | 顶栏"新建"保持 `default`；StickySaveBar 保存保持 `default`；详情页"编辑"保持 `default` —— 全部**不加 tinted** |
+
+**互斥显示的按钮可共享名额**（如 Run / Resume / Pause / Retry 按 experiment.status 互斥渲染，同时只出现一个，共用一个 tinted 名额不算违反）。
+
+**新加按钮的决策流**：
+1. 这是"主动作"吗？否 → `default` / `outline` / `ghost`
+2. 是主动作。看所在页的名额状态（先查 RelationDiagram tab / 既有 tinted）
+   - 已有 → **保持 default**（让名额归首个占位者）
+   - 没有 → `tinted`
+
 ### JSX display 兼容 copilot 态
 
 用户自建 JSX display 写外层主卡时必须用 helpers API：
