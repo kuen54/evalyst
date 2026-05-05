@@ -8,9 +8,8 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { RequiredMark } from "@/components/ui/field-label"
 import { StickySaveBar } from "@/components/ui/sticky-save-bar"
-import { useGlassStyle, GlassRegular } from "@/components/copilot/shell"
-import { useCopilotStore } from "@/components/copilot/store"
-import { segmentedItem } from "@/lib/segmented"
+import { GlassRegular } from "@/components/copilot/shell"
+import { GlassSegmentedItem } from "@/components/copilot/glass-segmented"
 import { useT } from "@/lib/i18n/provider"
 import type { TFn } from "@/lib/i18n/provider"
 import type { DisplayColumn, DisplayMode, Display, TaskSchema, GenericResultRecord } from "@/lib/schema/types"
@@ -58,9 +57,6 @@ export function DisplayFormPage() {
   const [form, setForm] = useState<FormState>(emptyState)
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Array<{ field: string; message: string }>>([])
-  const { open: copilotOpen } = useCopilotStore()
-  const thinStyle = useGlassStyle("thin")
-  const tintedStyle = useGlassStyle("tinted")
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }))
 
@@ -153,13 +149,11 @@ export function DisplayFormPage() {
           {(["table", "grouped_grid", "jsx"] as const).map(m => {
             const isActive = form.mode === m
             return (
-            <button
+            <GlassSegmentedItem
               key={m}
-              type="button"
-              onClick={() => set("mode", m)}
-              className={`p-3 rounded-md border text-left transition-colors ${segmentedItem(isActive, copilotOpen)}`}
-              style={copilotOpen ? (isActive ? tintedStyle : thinStyle) : undefined}
-              data-glass-variant={copilotOpen ? (isActive ? "tinted" : "thin") : undefined}
+              active={isActive}
+              className="p-3 text-left"
+              render={<button type="button" onClick={() => set("mode", m)} />}
             >
               <div className="font-medium text-sm">
                 {m === "table" ? t("settings.displays.form.mode_table_btn") : m === "grouped_grid" ? t("settings.displays.form.mode_grouped_grid_btn") : t("settings.displays.form.mode_jsx_btn")}
@@ -171,7 +165,7 @@ export function DisplayFormPage() {
                   ? t("settings.displays.form.mode_grouped_grid_desc")
                   : t("settings.displays.form.mode_jsx_desc")}
               </div>
-            </button>
+            </GlassSegmentedItem>
             )
           })}
         </div>

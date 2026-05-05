@@ -12,6 +12,24 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### 体验
 
+- **Scoring / FailedPanel / AgentHintBanner 统一成 "玻璃 + 语义"**：原 AgentHintBanner 明确"不玻璃（semantic 色 > 装饰）"的规则废除，现在三个带语义色的卡都是玻璃档（`GlassSuccess` 绿 / `GlassDanger` 红 / `GlassWarning` 黄），配方 = Regular 材质 + 语义 border + 语义 ambient shadow。copilot 关态仍 fallback 到 shadcn 扁平（class 级 `border-amber-200 bg-amber-50/50` 等）
+- **Segmented 控件 3 处视觉统一**：RelationDiagram / display mode picker / experiments/new task picker 原本各处手写 `useGlassStyle("thin") + useGlassStyle("tinted") + segmentedItem(active, copilotOpen)` 三件套；现在都走 `<GlassSegmentedItem active render={...}>` 一行组件
+
+### 架构
+
+- **Copilot 玻璃梯度系统 6 档 → 9 档（6 primitive + 3 semantic）**：新增 `success` / `warning` / `danger` 三档语义 primitive。配方 = Regular 材质 + tailwind-500 色的 oklch border（emerald/amber/red）+ 弱语义 ambient shadow
+- **新组件 `<GlassSuccess>` / `<GlassWarning>` / `<GlassDanger>`**：通过 `makeGlass(variant, SHADCN_CARD_DEFAULTS)` 工厂导出，和 `GlassCard` / `GlassCardThin` 同构。copilot 关态继续走默认 `bg-card` + className 上的语义 border
+- **新组件 `<GlassSegmentedItem active render={...}>`**（`src/components/copilot/glass-segmented.tsx`）：render prop 支持 button/Link/a 任意 element（用 React.cloneElement 注入 className + style + data-glass-variant）。内部封装 thin ↔ tinted variant 自动切换 + copilot 开/关两套 state class
+- **`src/lib/segmented.ts` 瘦身**：去掉 copilot 开态分支（搬进 `GlassSegmentedItem`），签名从 `segmentedItem(active, copilotOpen)` 简化为 `segmentedItem(active)`。保留给 sidebar / session-list 这种"永远不走玻璃"的位置用
+
+### 文档 / 记忆
+
+- CLAUDE.md §Copilot Glass UI 系统：4 档 + Tinted → 9 档（6 primitive + 3 semantic）对照表；加入"semantic 可玻璃"例外规则
+- AGENTS.md §玻璃档位选择：重写档位表 —— 覆盖 sticky chrome / segmented item / semantic 的组件化入口；明确"新调用点一律用 `<GlassSegmentedItem>` / `<GlassStickyHeader/Footer>` / `<GlassSuccess/Warning/Danger>`，不要再手写 `useGlassStyle` 三件套"
+- feedback memory `feedback_copilot_glass_scope.md`：把原"semantic 色 > 装饰 → 不玻璃"规则改成"semantic 可玻璃（Regular + 语义 border + 语义 ambient）"；补 `segmentedItem(active)` 新签名
+
+### 体验
+
 - **Compare 页 prompt preview popup 修复被遮**：表头 hover info icon 的 prompt 弹窗从 `absolute z-50` 手写，换成 `base-ui` 的 `PreviewCard` —— portal 到 body + Floating UI flip/shift 定位，逃出 sticky header 的 stacking context（Chromium 对 sticky + backdrop-filter 绘制顺序不严格按 spec，之前会被 row cells 盖住）
 - **Compare 表头 + StickySaveBar 升玻璃悬浮条**：原 `GlassThin + pb-3 / -mx-6 px-6 border-t bg-background + copilot-scroll-edge-*` 拼凑档位错；改用专用的 sticky chrome 档，有 rounded / padding / 方向性阴影 / 切边高光 / 材质厚度 —— 解决"边缘直角 / 字贴边 / 材质浑浊 / 缺 elevation / 缺边缘高光"一揽子问题
 

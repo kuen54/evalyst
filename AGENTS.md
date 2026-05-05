@@ -174,29 +174,38 @@ JSON 粘贴入口仍保留给 "AI agent 整份产出" 这一种场景（new 页�
 - 读工具（`isReadOnly: true`）会参与 `microCompact` 压缩；写工具不会（保留完整执行痕迹）
 - UI 视觉变体走 `tool-call-card.tsx` 的 `VARIANT_BY_TOOL`：context / resource / retrieval / write / default。写工具默认命中 write（通过 metadata.isDestructive 兜底）
 
-### 玻璃档位选择
+### 玻璃档位选择（9 档：6 primitive + 3 semantic）
 
 | 角色 | 档 |
 |---|---|
-| 页面主外壳 + 内容卡 | **GlassRegular** |
-| Sticky 条 / 数据密集行级卡 / 表格 cell | **GlassThin** |
+| 页面主外壳 + 内容卡 | **GlassRegular** / **GlassCard** |
+| 数据密集行级卡 / 表格 cell | **GlassThin** / **GlassCardThin** |
 | Dialog / Select content / 自建浮层 | **GlassThick** |
-| primary CTA / segmented selected | Button `variant="tinted"` 或手工 `tintedStyle` |
+| Primary CTA / active tab | Button `variant="tinted"` 或手工 `useGlassStyle("tinted")` |
+| Sticky 顶部结构条 | **`<GlassStickyHeader>`**（chrome-up 档 + 向下投影） |
+| Sticky 底部结构条 | **`<GlassStickyFooter>`**（chrome-down 档 + 向上投影） |
+| Segmented item / nav selected | **`<GlassSegmentedItem active render={...}>`** (thin ↔ tinted 自动切) |
+| 正向状态卡（评分 / ok） | **GlassSuccess**（emerald border + ambient） |
+| 提示 / 引导 banner | **GlassWarning**（amber border + ambient） |
+| 错误 / 警告卡（failed / err） | **GlassDanger**（red border + ambient） |
 | ❌ Sidebar / Copilot panel / panel 内部 | **不玻璃**，走 shadcn 扁平 |
-| ❌ Toast / amber 通知 banner | **不玻璃**，semantic 色 > 装饰 |
+| ❌ Toast / Sonner | **不玻璃**，HIG 明确 toast 不玻璃 |
 
 **同档不 DOM 嵌套**（Regular 套 Regular 浑浊）。Dashboard 的多张 Regular 卡并排不算嵌套 —— 它们是网格同级。
+
+**Semantic 档的 border class 要保留**：`<GlassSuccess className="border-emerald-200/60">` / `<GlassDanger className="border-red-200/60">` / `<GlassWarning className="border-amber-200 bg-amber-50/50">`。copilot 开态 inline `borderColor` 接管；关态 class 级 border 色是 shadcn 扁平 fallback。
 
 ### 色 token
 
 - **激活/发光色用 `var(--copilot-accent)`**（sky blue），**不要用 `var(--primary)`**。项目 primary 是暗褐色，/10 染色灰扁
 - 玻璃 border 用 `color-mix(in oklab, var(--border) 50%, transparent)`，不用实色（破坏玻璃感）
+- Semantic 档 border / shadow 用 tailwind-500 色的 oklch 值（emerald `oklch(0.696 0.17 162.48)` / amber `oklch(0.769 0.188 70.08)` / red `oklch(0.637 0.237 25.33)`）
 
 ### Segmented 选中态
 
-所有 segmented control / tab / active 项走 `segmentedItem(active, copilotOpen)`：
-- `copilotOpen` 传真（主内容区）→ 两套样式（关态 shadcn + 开态 accent 发光）
-- `copilotOpen` 硬编 `false`（sidebar / session-list）→ 永远 shadcn 扁平
+**新调用点一律用 `<GlassSegmentedItem active render={...}>`** —— 不要再手写 `useGlassStyle("thin/tinted")` + `data-glass-variant` + `segmentedItem(active, copilotOpen)` 三件套。
+
+`src/lib/segmented.ts` 的 `segmentedItem(active)` helper 只处理 copilot 关闭态的 class，给 `sidebar.tsx` / `copilot/session-list.tsx` 这种"永远不走玻璃"的位置用（两处硬编不在 copilot 主内容区）。
 
 ### JSX display 兼容 copilot 态
 

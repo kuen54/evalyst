@@ -310,7 +310,7 @@ src/components/copilot/
 ├── chat-view.tsx              # markdown 渲染 + 流式 token + chip rail + expand textarea
 ├── context-chip-rail.tsx      # 圈选按钮 + chip 行（v2: chip 可展开看详情，懒加载 /contexts/resolve）
 ├── tool-call-card.tsx         # v2: variant 路由（context/resource/retrieval/write/default）
-├── shell.tsx                  # 4 档玻璃系统 + useGlassStyle hook（见下）
+├── shell.tsx                  # 9 档玻璃系统 + useGlassStyle hook（见下）
 ├── store.tsx                  # React Context 全局状态 + localStorage/sessionStorage 持久化
 ├── inspector-overlay.tsx      # DevTools 风格元素圈选
 ├── context-mask.tsx           # 彩色蒙层 + 数字徽章 + × 移除按钮
@@ -368,32 +368,52 @@ UI 节点通过 DOM 属性声明自己是哪种 context：
 
 **elementKey 消歧**：`task_result` / `task_field` 的 elementKey 会带 `${experiment_id}/` 前缀，`queryContextElement` 按 `extra.experiment_id` 过滤匹配 DOM —— 用于 compare 页两张卡片共享同 `task_id` 时的 context 分隔。
 
-## Copilot Glass UI 系统（4 档 + Tinted）
+## Copilot Glass UI 系统（6 primitive + 3 semantic）
 
 Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（关闭时恢复 shadcn 扁平）。设计参考 Apple HIG Materials + Liquid Glass + MD3 elevation —— spec 全文在 `docs/superpowers/specs/2026-04-28-copilot-glass-system-design.md`，实施计划在 `docs/superpowers/plans/2026-04-28-copilot-glass-system.md`。
 
-### 4 档梯度
+### 9 档梯度（6 primitive + 3 semantic）
+
+**Primitive（材质 + 高度 + 基础配色）**：
 
 | 档 | blur | bg opacity (亮) | 典型角色 |
 |---|---|---|---|
-| **Thin** | 16px | 8% | sticky 条带、数据单元格、results 行级卡 |
-| **Regular** | 28px | 35% | 页面主外壳 + 内容卡（默认档） |
-| **Thick** | 40px | 55% | 浮层（Dialog / Select content / 自建 popover） |
-| **Tinted** | 28px | 35% + accent 22% | primary CTA、segmented selected |
+| **thin** | 16px | 8% | 数据密集行级卡 / 表格单元格 |
+| **regular** | 28px | 35% | 页面主外壳 + 内容卡（默认档） |
+| **thick** | 40px | 55% | 浮层（Dialog / Select content / 自建 popover） |
+| **tinted** | 28px | 35% + accent 22% | primary CTA / segmented selected / active tab |
+| **chrome-up** | 28px | 35% + 顶部切边高光 + **向下**投影 | sticky 顶部结构条（compare header 等） |
+| **chrome-down** | 28px | 35% + 底部切边高光 + **向上**投影 | sticky 底部结构条（StickySaveBar 等） |
 
-组件 `GlassThin` / `GlassRegular` / `GlassThick` / `GlassTinted` 从 `@/components/copilot/shell` 导出；非 JSX 场景用 `useGlassStyle(variant)` hook 取 `CSSProperties`。
+**Semantic（Regular 材质 + 语义 border + 语义 ambient shadow）**：
+
+| 档 | 语义色 (oklch) | 典型角色 |
+|---|---|---|
+| **success** | emerald-500 `oklch(0.696 0.17 162.48)` | 正向状态卡（Scoring Collapsible 等） |
+| **warning** | amber-500 `oklch(0.769 0.188 70.08)` | 提示 / 引导 banner（AgentHintBanner 等） |
+| **danger** | red-500 `oklch(0.637 0.237 25.33)` | 错误 / 警告卡（FailedPanel 等） |
+
+Semantic 档的 border 色 class（如 `border-emerald-200/60`）要**保留在 className 上**，作为 copilot 关闭态（shadcn 扁平）下的 border fallback——inline `borderColor` 只在 copilot 开时生效。
+
+组件 `GlassThin` / `GlassRegular` / `GlassThick` / `GlassTinted` / `GlassCard` / `GlassCardThin` / `GlassSuccess` / `GlassWarning` / `GlassDanger` 从 `@/components/copilot/shell` 导出。`GlassStickyHeader` / `GlassStickyFooter` 从 `@/components/copilot/sticky-chrome` 导出。`GlassSegmentedItem` 从 `@/components/copilot/glass-segmented` 导出。非 JSX 场景用 `useGlassStyle(variant)` hook 取 `CSSProperties`。
 
 ### `--copilot-accent` 而非 `--primary`
 
 项目 `--primary = oklch(0.25 0.015 55)` 是暗褐色（色度 0.015 基本 = 灰）。`bg-primary/10` 做激活染色出来灰扁不像"亮"。`--copilot-accent: oklch(0.76 0.16 225)` (sky blue, 与 glow 主色呼应) 才是 Tinted 和激活态的正确色。**动 copilot 玻璃 / segmented / primary CTA 染色时都用 copilot-accent，不要 primary。**
 
-### Segmented 选中态 token
+### Segmented 选中态
 
-`src/lib/segmented.ts` 的 `segmentedItem(active, copilotOpen)` 是统一的 class 生成函数：
-- copilot 关 → 回退 shadcn 原样（`border-foreground bg-accent/70`）
-- copilot 开 → accent 浅染 + 顶部白高光 + accent 光圈 + accent ambient shadow（"发光"而非"染色"）
+**`<GlassSegmentedItem>` (`src/components/copilot/glass-segmented.tsx`)** 是 segmented control / active tab / nav item 的统一组件。通过 `render` prop 支持 `<button>` / `<Link>` / `<a>` 等任意底层 element：
+```tsx
+<GlassSegmentedItem active={isActive} className="p-3 text-left" render={<button type="button" onClick={...} />}>
+  ...
+</GlassSegmentedItem>
+```
 
-应用在 segmented 按钮 / tab / nav selected 上。`sidebar.tsx` 和 `copilot/session-list.tsx` 硬编 `false`（见下一段）。
+- copilot 关 → 回退 shadcn 扁平（`border-foreground bg-accent/70` / 普通 border）
+- copilot 开 → active 走 Tinted 配方 + accent 发光边 + accent ambient shadow（"发光"而非"染色"）；inactive 走 Thin 配方
+
+`src/lib/segmented.ts` 的 `segmentedItem(active)` helper 只处理 copilot 关闭态的 class（给 `sidebar.tsx` / `copilot/session-list.tsx` 这种"永远不走玻璃"的位置用）。**新 segmented 调用点请一律用 `<GlassSegmentedItem>`**，不要再手写 `useGlassStyle("thin/tinted")` + `data-glass-variant` 三件套。
 
 ### 玻璃作用域（**重要**）
 
@@ -402,8 +422,9 @@ Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（
 - **Sidebar** —— 左侧主导航。`bg-muted/20` 实底
 - **Copilot panel 自身 + 内部**（session-list / chat-view 按钮 / textarea）—— 右侧 copilot 区
 - **Toast / Sonner** —— HIG 明确 toast 不玻璃
-- **Agent hint banner**（amber 色通知）—— semantic 色码信号 > 装饰
 - **Textarea / Input / Code 内部** —— 阅读密集
+
+**例外**：带语义色的状态卡（Scoring / FailedPanel）和通知 banner（AgentHintBanner）通过 `GlassSuccess` / `GlassDanger` / `GlassWarning` **走玻璃 + 语义 border + 语义 ambient shadow**，而不是扁平 —— 这是 2026-05 统一的规则（原"amber banner 不玻璃"约定已废除）。copilot 关闭时 fallback 到 class 级 `border-amber-200 bg-amber-50/50` 等 shadcn 扁平。
 
 中间内容区触发的**浮层**（Dialog / Select content / compare 的 PromptInfoIcon / custom popover divs）保留 Thick 玻璃，因为它们视觉上是"在中间渲染的浮层"。
 
