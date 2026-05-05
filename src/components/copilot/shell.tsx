@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from "react"
 import { useCopilotStore } from "./store"
 
-export type GlassVariant = "thin" | "regular" | "thick" | "tinted"
+export type GlassVariant = "thin" | "regular" | "thick" | "tinted" | "chrome-up" | "chrome-down"
 
 const baseTransition =
   "background-color 320ms ease, backdrop-filter 320ms ease, border-color 320ms ease, box-shadow 320ms ease, background-image 320ms ease"
@@ -11,11 +11,13 @@ const baseTransition =
 /**
  * Pure function to compute glass style for a given variant and open state.
  *
- * Copilot 玻璃梯度系统 4 档：
- * - thin     — chrome / sticky / 数据单元格（blur 16, bg transparent）
- * - regular  — 页面主外壳 + 内容卡（blur 28, bg 35% card）
- * - thick    — 浮层 / copilot panel / dialog（blur 40, bg 55% card, 更重阴影）
- * - tinted   — primary CTA / active tab（blur 28, bg 35% card + primary 染色）
+ * Copilot 玻璃梯度系统 6 档：
+ * - thin        — chrome / sticky / 数据单元格（blur 16, bg transparent）
+ * - regular     — 页面主外壳 + 内容卡（blur 28, bg 35% card）
+ * - thick       — 浮层 / copilot panel / dialog（blur 40, bg 55% card, 更重阴影）
+ * - tinted      — primary CTA / active tab（blur 28, bg 35% card + accent 染色）
+ * - chrome-up   — sticky 顶部结构条（Regular 材质 + 顶部切边高光 + 向下投影）
+ * - chrome-down — sticky 底部结构条（Regular 材质 + 底部切边高光 + 向上投影）
  *
  * copilot 关闭时返回 transition-only style，让外部 className 的 bg-card/bg-background 原样工作。
  */
@@ -63,6 +65,32 @@ export function getGlassStyleForVariant(
     }
   }
 
+  if (variant === "chrome-up") {
+    // Sticky 顶部结构条：Regular 材质 + 方向性阴影（顶部切边高光 + 向下投影悬浮感）
+    return {
+      backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
+      backdropFilter: "blur(28px) saturate(1.25)",
+      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
+      borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
+      boxShadow:
+        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 8px 24px -12px oklch(0 0 0 / 0.22), 0 2px 6px -2px oklch(0 0 0 / 0.08)",
+      transition: baseTransition,
+    }
+  }
+
+  if (variant === "chrome-down") {
+    // Sticky 底部结构条：Regular 材质 + 方向性阴影（底部切边高光 + 向上投影悬浮感）
+    return {
+      backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
+      backdropFilter: "blur(28px) saturate(1.25)",
+      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
+      borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
+      boxShadow:
+        "inset 0 -1px 0 oklch(1 0 0 / 0.6), inset 0 1px 0 oklch(1 0 0 / 0.08), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 -8px 24px -12px oklch(0 0 0 / 0.22), 0 -2px 6px -2px oklch(0 0 0 / 0.08)",
+      transition: baseTransition,
+    }
+  }
+
   // regular (default)
   return {
     backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
@@ -76,11 +104,13 @@ export function getGlassStyleForVariant(
 }
 
 /**
- * Copilot 玻璃梯度系统 4 档：
- * - thin     — chrome / sticky / 数据单元格（blur 16, bg transparent）
- * - regular  — 页面主外壳 + 内容卡（blur 28, bg 35% card）
- * - thick    — 浮层 / copilot panel / dialog（blur 40, bg 55% card, 更重阴影）
- * - tinted   — primary CTA / active tab（blur 28, bg 35% card + primary 染色）
+ * Copilot 玻璃梯度系统 6 档：
+ * - thin        — chrome / sticky / 数据单元格（blur 16, bg transparent）
+ * - regular     — 页面主外壳 + 内容卡（blur 28, bg 35% card）
+ * - thick       — 浮层 / copilot panel / dialog（blur 40, bg 55% card, 更重阴影）
+ * - tinted      — primary CTA / active tab（blur 28, bg 35% card + accent 染色）
+ * - chrome-up   — sticky 顶部结构条（Regular 材质 + 向下投影）
+ * - chrome-down — sticky 底部结构条（Regular 材质 + 向上投影）
  *
  * copilot 关闭时返回 transition-only style，让外部 className 的 bg-card/bg-background 原样工作。
  */
