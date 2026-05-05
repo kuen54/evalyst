@@ -44,6 +44,10 @@ yarn-error.log*
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/.playwright-mcp/
+
+# local agent / subagent scratch
+/.agents/
 
 # typescript
 *.tsbuildinfo

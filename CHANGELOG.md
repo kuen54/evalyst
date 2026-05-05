@@ -10,6 +10,23 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### 体验
+
+- **Compare 页 prompt preview popup 修复被遮**：表头 hover info icon 的 prompt 弹窗从 `absolute z-50` 手写，换成 `base-ui` 的 `PreviewCard` —— portal 到 body + Floating UI flip/shift 定位，逃出 sticky header 的 stacking context（Chromium 对 sticky + backdrop-filter 绘制顺序不严格按 spec，之前会被 row cells 盖住）
+- **Compare 表头 + StickySaveBar 升玻璃悬浮条**：原 `GlassThin + pb-3 / -mx-6 px-6 border-t bg-background + copilot-scroll-edge-*` 拼凑档位错；改用专用的 sticky chrome 档，有 rounded / padding / 方向性阴影 / 切边高光 / 材质厚度 —— 解决"边缘直角 / 字贴边 / 材质浑浊 / 缺 elevation / 缺边缘高光"一揽子问题
+
+### 架构
+
+- **Copilot 玻璃梯度系统 4 档 → 6 档**：新增 `chrome-up` / `chrome-down` 两档 primitive，配方基于 Regular（blur 28 / bg 35% card）+ 方向性 boxShadow（顶部条向下投影 / 底部条向上投影） + 方向切边 inset 高光。给"sticky 结构条"这类语义角色一个一等 variant，不再每处手搓 shadow
+- **新 pattern 组件 `GlassStickyHeader` / `GlassStickyFooter`**：封装 `sticky top-0 z-10` / `sticky bottom-0 z-10` + `rounded-xl` + `px-4 py-3` + copilot 关闭态 `bg-background border-{t,b}` fallback（关态回到 shadcn 扁平，开态 inline 玻璃接管）
+- **删 `copilot-scroll-edge-*` CSS 死代码**：mask 渐变让 sticky chrome 底/顶淡出融入内容，和"悬浮在内容之上"的语义方向相反，新变体用 drop shadow 正确表达 elevation，两条 CSS + `prefers-reduced-motion` 里的降级 selector 一起清
+
+### 测试
+
+- `getGlassStyleForVariant` unit test 从 5 个补到 7 个（chrome-up/down 的切边高光方向 + 投影方向 assert）
+- 4 处调用点迁移：compare 表头、`StickySaveBar`（被 llm/dataset/display/rubric form 4 页复用）
+- Playwright 两态实测：copilot 开态 chrome-up/chrome-down 正确应用玻璃配方；关态 fallback 到 `bg-background border-{t,b}` shadcn 扁平
+
 ## [0.7.1] — 2026-05-04 · 实验详情页性能清扫 + Anthropic Bearer gateway
 
 Playwright 驱动的两轮实验详情页优化（PR #26 + #27），把重实验下 config Collapsible 的 click-to-paint 从 169ms（含 151ms long task）砍到 14ms（0 long task），-92%。守住 copilot 玻璃一致性 —— round 1 曾把 `GlassCard` → `Card` 拿来省 backdrop-filter 成本，round 2 被用户纠正后全部回退，改用 `startTransition` + `useMemo` 等纯 React 手段达到更好效果。顺手加一条 LLM client 的 Bearer gateway 适配（PR #25）。
