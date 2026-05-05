@@ -370,9 +370,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .copilot-press-squish,
-  .copilot-hover-lift,
-  .copilot-scroll-edge-top,
-  .copilot-scroll-edge-bottom {
+  .copilot-hover-lift {
     transition: none !important;
     animation: none !important;
   }
@@ -394,16 +392,6 @@
   html[data-copilot-open="true"] .copilot-hover-lift:hover {
     transform: translateY(-1px);
   }
-}
-
-/* 用于 sticky 表头 / 吸底条下方 8–24px mask gradient 软边 */
-.copilot-scroll-edge-bottom {
-  mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent 100%);
-}
-.copilot-scroll-edge-top {
-  mask-image: linear-gradient(to top, black calc(100% - 16px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to top, black calc(100% - 16px), transparent 100%);
 }
 
 /* ---------------- Copilot Material Reveal ---------------- */
