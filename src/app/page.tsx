@@ -112,7 +112,7 @@ export default function Dashboard() {
             >{t("common.clear")}</button>
           )}
           <Link href="/experiments/new">
-            <Button size="sm">{t("dashboard.new_btn")}</Button>
+            <Button size="sm" variant="tinted">{t("dashboard.new_btn")}</Button>
           </Link>
         </div>
       </div>
@@ -134,7 +134,7 @@ export default function Dashboard() {
             <p className="text-sm mb-5">{schemaFilter ? t("dashboard.empty_filtered_hint") : t("dashboard.empty_all_hint")}</p>
             {!schemaFilter && (
               <Link href="/experiments/new">
-                <Button size="sm">{t("dashboard.new_btn")}</Button>
+                <Button size="sm" variant="outline">{t("dashboard.new_btn")}</Button>
               </Link>
             )}
           </div>
