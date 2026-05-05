@@ -105,7 +105,7 @@ export function SessionList({ sessions, activeSessionId, onSelect, onCreate, onR
                     </div>
                   ) : (
                     <div
-                      className={`flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer transition-colors ${segmentedItem(s.id === activeSessionId, false)}`}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer transition-colors ${segmentedItem(s.id === activeSessionId)}`}
                       onClick={() => {
                         onSelect(s.id)
                         setListOpen(false)

@@ -163,7 +163,7 @@ export function Sidebar() {
               title={collapsed ? link.label : undefined}
               className={`flex items-center gap-2 rounded-md transition-colors text-[13px] ${
                 collapsed ? "justify-center px-2 py-2" : "px-2.5 py-1.5"
-              } ${segmentedItem(isActive, false)}`}
+              } ${segmentedItem(isActive)}`}
             >
               {link.icon}
               {!collapsed && link.label}
