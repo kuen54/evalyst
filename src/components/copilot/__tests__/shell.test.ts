@@ -34,10 +34,18 @@ describe("getGlassStyleForVariant", () => {
     expect(result.boxShadow).toContain("0 30px 60px -15px")
   })
 
-  it("tinted variant: blur 28px with copilot-accent color-mix overlay", () => {
+  it("tinted variant: single-layer accent 14% bg + accent border + accent ambient shadow (aligned with GlassSegmentedItem active)", () => {
     const result = getGlassStyleForVariant("tinted", true)
     expect(result.backdropFilter).toContain("blur(28px)")
-    expect(result.backgroundImage).toContain("var(--copilot-accent)")
+    // 单层 accent bg（不再是 card 30% + gradient 双层）
+    expect(result.backgroundColor).toContain("var(--copilot-accent)")
+    expect(result.backgroundColor).toContain("14%")
+    expect(result.backgroundImage).toBeUndefined()
+    // accent 发光边
+    expect(result.borderColor).toContain("var(--copilot-accent)")
+    expect(result.borderColor).toContain("55%")
+    // accent ambient 外光（40% accent）
+    expect(result.boxShadow).toMatch(/0 3px 10px -2px color-mix\(in oklab, var\(--copilot-accent\) 40%/)
   })
 
   it("chrome-up variant: regular material + top edge highlight + downward shadow", () => {
