@@ -37,9 +37,30 @@ export function InspectorOverlay() {
   const [hoverRect, setHoverRect] = useState<DOMRect | null>(null)
   const [hoverInfo, setHoverInfo] = useState<{ type: string; id: string; summary?: string } | null>(null)
   const [bursts, setBursts] = useState<Burst[]>([])
+  const [hintCenterPx, setHintCenterPx] = useState<number | null>(null)
   const rafRef = useRef<number | null>(null)
   const lastPointRef = useRef<{ x: number; y: number } | null>(null)
   const burstIdRef = useRef(0)
+
+  // 跟踪中间内容区（<main>）的水平中心，让 hint banner 在 sidebar 和 copilot panel 之间居中，
+  // 而不是相对整个 viewport。sidebar 折叠 / copilot panel resize / 窗口 resize 时都会更新。
+  useEffect(() => {
+    if (!inspectorActive) return
+    const main = document.querySelector("main")
+    if (!main) return
+    const update = () => {
+      const r = main.getBoundingClientRect()
+      setHintCenterPx(r.left + r.width / 2)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(main)
+    window.addEventListener("resize", update)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener("resize", update)
+    }
+  }, [inspectorActive])
 
   useEffect(() => {
     if (!inspectorActive) return
@@ -198,7 +219,8 @@ export function InspectorOverlay() {
       {inspectorActive && (
         <div
           data-copilot-overlay
-          className="fixed top-3 left-1/2 -translate-x-1/2 z-[9998]"
+          className="fixed top-3 -translate-x-1/2 z-[9998]"
+          style={{ left: hintCenterPx != null ? `${hintCenterPx}px` : "50%" }}
         >
           <div className="bg-primary text-primary-foreground text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-primary-foreground/70 animate-pulse" />
@@ -207,7 +229,7 @@ export function InspectorOverlay() {
               className="ml-2 text-[11px] opacity-80 hover:opacity-100 underline-offset-2 hover:underline cursor-pointer"
               onClick={() => setInspectorActive(false)}
             >
-              {t("copilot.inspector_exit")}
+              {t("copilot.inspector_exit_hint")}
             </button>
           </div>
         </div>
