@@ -420,33 +420,43 @@ export function resolveContextById(
       const taskId = extra.task_id
       const expId = extra.experiment_id
       if (!expId || !taskId) {
-        return { type: ref.type, ref, self_value: resolved.data }
+        return { type: ref.type, ref, self_value: manifestTaskField(field, undefined, 'self') }
       }
       const results = readResults(expId)
       const task = results.find((r) => r.task_id === taskId)
-      const fieldValue =
-        task && task.status === 'success'
-          ? getByPath(task.output, field)
-          : undefined
+      const fieldValue = task && task.status === 'success'
+        ? getByPath(task.output, field)
+        : undefined
+      const taskMeta = task ? {
+        task_id: task.task_id,
+        status: task.status,
+        latency_ms: task.latency_ms,
+        input_tokens: task.input_tokens,
+        output_tokens: task.output_tokens,
+        cost_value: task.cost_value,
+        cost_currency: task.cost_currency,
+      } : undefined
       return {
         type: ref.type,
         ref,
-        // self：只 field 自己
-        self_value: { targeted_field: field, targeted_value: fieldValue },
-        // parent：带出整条 task
-        parent_value: { targeted_field: field, targeted_value: fieldValue, task },
+        self_value: manifestTaskField(field, fieldValue, 'self'),
+        parent_value: manifestTaskField(field, fieldValue, 'parent', taskMeta),
       }
     }
 
     case 'task_result': {
       const extra = (ref.extra ?? {}) as { experiment_id?: string }
       const expId = extra.experiment_id
-      const exp = expId ? getExperiment(expId) : null
+      if (!expId) return { type: ref.type, ref, self_value: resolved.data }
+      const results = readResults(expId)
+      const found = results.find((r) => r.task_id === ref.id)
+      if (!found) return { type: ref.type, ref, self_value: resolved.data }
+      const exp = getExperiment(expId)
       return {
         type: ref.type,
         ref,
-        self_value: resolved.data,
-        parent_value: exp ? { task: resolved.data, experiment: exp } : undefined,
+        self_value: manifestTaskResult(found, 'self'),
+        parent_value: exp ? manifestTaskResult(found, 'parent', exp) : undefined,
       }
     }
 
