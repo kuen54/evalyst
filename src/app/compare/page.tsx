@@ -226,7 +226,7 @@ export default function ComparePage() {
           )}
         </div>
 
-        <div className="overflow-auto min-w-0 p-6">
+        <div className="overflow-auto min-w-0 px-6 pb-6">
           {selectedIds.length < 2 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               {t("compare.pick_hint")}
