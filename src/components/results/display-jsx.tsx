@@ -29,7 +29,7 @@ class JsxBoundary extends React.Component<{ children: React.ReactNode; fallback:
   render() {
     if (this.state.hasError) {
       return (
-        <div className="border border-red-200 bg-red-50 rounded p-3 text-xs text-red-600">
+        <div className="border border-red-500/40 bg-red-500/10 rounded p-3 text-xs text-red-600 dark:text-red-300">
           <div className="font-medium mb-1">{this.props.errorLabel}</div>
           <pre className="font-mono text-[11px] whitespace-pre-wrap">{this.state.err?.message}</pre>
         </div>
@@ -90,7 +90,7 @@ export function DisplayJsx({ results, schema, display }: JsxProps) {
   if (!compiled) return <div className="text-muted-foreground text-sm py-4">{t("results.compiler_loading")}</div>
   if (compiled.error) {
     return (
-      <div className="border border-red-200 bg-red-50 rounded p-3 text-xs text-red-600">
+      <div className="border border-red-500/40 bg-red-500/10 rounded p-3 text-xs text-red-600 dark:text-red-300">
         <div className="font-medium mb-1">{t("results.jsx_compile_error")}</div>
         <pre className="font-mono text-[11px] whitespace-pre-wrap">{compiled.error}</pre>
       </div>

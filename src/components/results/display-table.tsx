@@ -47,7 +47,7 @@ export function DisplayTable({ results, display }: ResultViewProps & { display: 
         {filtered.map(r => (
           <div
             key={r.task_id}
-            className={`grid gap-2 py-2 px-3 items-start ${r.status !== "success" ? "bg-red-50" : ""}`}
+            className={`grid gap-2 py-2 px-3 items-start ${r.status !== "success" ? "bg-red-500/10" : ""}`}
             style={{ gridTemplateColumns: colTemplate }}
           >
             {cfg.columns.map(c => (

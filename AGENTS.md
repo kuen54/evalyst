@@ -261,6 +261,21 @@ React.createElement('div', {
 
 玻璃组件必须挂 `data-glass-variant` 属性才能被这三条规则选中降级。`makeGlass` 工厂自动挂。手写 inline glass style 时记得带 `data-glass-variant={copilotOpen ? "regular" : undefined}`。
 
+### 轻量 tinted 表面（**不要再写 `bg-{color}-50`**）
+
+Badge / inline 状态行 / 错误小格 / 软提示这些不占 9 档玻璃档位的"带色表面"，统一走 alpha 配方：
+
+```
+✅ bg-{color}-500/10  border-{color}-500/30–40  text-{color}-700 dark:text-{color}-300
+❌ bg-{color}-50      border-{color}-200        text-{color}-700              # dark 模式刺眼
+```
+
+alpha 叠在 `bg-card` 之上，亮模式看到淡彩、暗模式看到柔和深彩，不用成对写 `dark:bg-*-950/X`。详细 spec 在 CLAUDE.md 对应小节。
+
+**例外**：
+- 500-tier 饱和色点（状态 dot / 进度条填充）无需 dark 变体
+- 整张状态卡 / banner 走 `<GlassSuccess>` / `<GlassWarning>` / `<GlassDanger>`，不属这条
+
 ## 开发流程（本仓库）
 
 ### 分支命名

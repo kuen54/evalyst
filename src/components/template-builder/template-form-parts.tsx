@@ -166,12 +166,12 @@ export function JsonApplyPane({ onApply, t }: { onApply: (schema: TaskSchema) =>
         className="flex-1 min-h-0 font-mono text-xs"
       />
       {error && (
-        <div className="mt-2 p-2 rounded bg-red-50 border border-red-200 text-xs text-red-700 shrink-0">
+        <div className="mt-2 p-2 rounded bg-red-500/10 border border-red-500/40 text-xs text-red-700 dark:text-red-300 shrink-0">
           {error}
         </div>
       )}
       {parsedPreview && !error && (
-        <div className="mt-2 p-2 rounded bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 shrink-0">
+        <div className="mt-2 p-2 rounded bg-emerald-500/10 border border-emerald-500/40 text-xs text-emerald-700 dark:text-emerald-300 shrink-0">
           {t("settings.templates.tform.paste_applied_badge")}<span className="font-mono">{String(parsedPreview.id)}</span> · {String(parsedPreview.label)}
         </div>
       )}

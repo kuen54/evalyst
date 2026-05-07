@@ -12,7 +12,9 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### 体验
 
+- **暗色模式下 tinted 表面修复（badge / 错误格 / 软提示）**：Schema 徽章（dashboard 卡片右上角色标）+ compare 错误格（`error: fetch failed` 那种）+ JSON paste / template 表单里的红绿小提示框，过去一律用 `bg-{color}-50 border-{color}-200 text-{color}-700`，亮色模式下是柔和淡彩，**暗色模式下直接变成一块块刺眼的亮色贴纸**（底色 `*-50` 是近白 hex 常量，`dark:` 没兜底）。现在统一换成 alpha 配方 `bg-{color}-500/10 border-{color}-500/30–40 text-{color}-700 dark:text-{color}-300` —— alpha 叠在 `bg-card` 之上，两边模式下都柔和。顺手修掉 compare 错误格"关 copilot 更刺眼"的症状（原先 copilot 开时 GlassThin inline bg 覆盖了 className，关时 `bg-red-50` 接管）。CLAUDE.md / AGENTS.md 的 Glass UI 章节加小节「轻量 tinted 表面」明确规范，禁止后续新位置再写 `bg-{color}-50`
 - **Compare 页两列贯穿 + 标题进左列**：`/compare` 原本顶部 "实验对比" 标题独占一行，左右两列从下面才开始切，左/右上角各空一大块。现在标题和左列折叠按钮并排放进**左列顶部**（折叠时一起隐藏），右列从大卡片最顶端开始（输入/V4-fortune-2/V4-fortune-1 sticky header 直接顶到顶），两列之间的竖向 border 一通到底。`GlassRegular` 去掉 `p-6`，padding 内移到两列各自，分割线贯穿整张大卡。信息密度 ↑、视觉重量 ↓
+- **Compare 右列 sticky header bleed 修复**：PR34 把 padding 从外层 GlassRegular 挪到右列 `overflow-auto p-6` 后，sticky header 上方留了 24px 顶 padding 属于滚动区，滚动时内容从这 24px 缝冒到表头上方。copilot 开态被 chrome-up 的 blur + 投影糊成虚影还算正常；copilot 关态 fallback 到扁平 `bg-card`，header 只覆盖自身 box，缝透明，内容硬生生露出。现在右列 padding-top 跟 `useCopilotStore().open` 联动：关 → pt-0 顶到大卡顶无缝；开 → pt-6 让 chrome 浮在 24px 留白里，bleed 被 blur 接管成玻璃层级表现。transition-[padding] 300ms 同步 baseTransition
 - **Sticky chrome 关 copilot 时回归 shadcn 扁平**：`GlassStickyHeader` / `GlassStickyFooter` 在 copilot 关闭态原本仍带 `rounded-xl`，配合 `bg-background border-t/b` 出现"半截药丸"——四角圆角但只有单边 border。现在 `rounded-xl` 收敛进 copilot 开态分支；关闭态变成 `bg-card border-{t,b}` 的直角扁平条（暗色下 `--background` 比 `--card` 深一档，与外层卡面错色，所以挑 card 与卡面齐平、只靠 border 划分）。影响：`/compare` 顶栏 + `/settings/**` 表单底部 StickySaveBar
 - **Inspector hint banner 文案简化 + 中间内容区居中**：
   - 文案：「点击页面任意带下划线的区块把它加入 Copilot 视野；Esc 退出」→「点击页面任意区域和 Copilot 展开聊聊」
