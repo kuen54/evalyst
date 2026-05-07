@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-05-07 · v0.8.0 后五波 polish (PR #31–35)
+
+v0.8.0 把 copilot 玻璃 UI 系统从 4 档重做成 9 档之后的一轮 polish —— 都是用户实测发现的"差一口气"的 visual bug，不改任何架构。内容涵盖：tinted CTA 可读性、Inspector hint 文案/居中/层级、sticky chrome 关态 fallback 扁平化、compare 两列贯穿布局 + sticky bleed 修复、暗色模式下轻量 tinted 表面统一规范。期间也收口了 2 条设计规范（"一页一个 tinted 名额"的续写 + 轻量 tinted 表面的 alpha 配方），防止后续位置再重踩同样的坑。
+
 ### 体验
 
 - **暗色模式下 tinted 表面修复（badge / 错误格 / 软提示）**：Schema 徽章（dashboard 卡片右上角色标）+ compare 错误格（`error: fetch failed` 那种）+ JSON paste / template 表单里的红绿小提示框，过去一律用 `bg-{color}-50 border-{color}-200 text-{color}-700`，亮色模式下是柔和淡彩，**暗色模式下直接变成一块块刺眼的亮色贴纸**（底色 `*-50` 是近白 hex 常量，`dark:` 没兜底）。现在统一换成 alpha 配方 `bg-{color}-500/10 border-{color}-500/30–40 text-{color}-700 dark:text-{color}-300` —— alpha 叠在 `bg-card` 之上，两边模式下都柔和。顺手修掉 compare 错误格"关 copilot 更刺眼"的症状（原先 copilot 开时 GlassThin inline bg 覆盖了 className，关时 `bg-red-50` 接管）。CLAUDE.md / AGENTS.md 的 Glass UI 章节加小节「轻量 tinted 表面」明确规范，禁止后续新位置再写 `bg-{color}-50`
