@@ -1039,6 +1039,8 @@ export const zh = {
   "copilot.tool.name.read_page": "读取页面",
   "copilot.tool.summary.read_page_found": "找到 {n} 条匹配",
   "copilot.tool.summary.read_page_empty": "未在当前页面找到相关内容",
+  "copilot.tool.name.read_dataset_records": "读取数据集 records",
+  "copilot.tool.summary.read_dataset_records": "从数据集 {dataset_id} 读取 records",
   "copilot.route_change.message": "已切换页面，清空了 {n} 个圈选上下文。建议开启新对话以获得更清晰的当前页面答复。",
   "copilot.route_change.new_session": "开启新对话",
   "copilot.route_change.continue": "继续当前对话",

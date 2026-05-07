@@ -5,6 +5,7 @@ import { readPageTool } from "./read-page"
 import { readToolResultTool } from "./read-tool-result"
 import { readContextTool } from "./read-context"
 import { readResourceTool } from "./read-resource"
+import { readDatasetRecordsTool } from "./read-dataset-records"
 import { editTemplateTool } from "./edit-template"
 import type { ToolDescriptor } from "./types"
 
@@ -24,6 +25,7 @@ export const TOOLS: ReadonlyArray<AnyToolDescriptor> = [
   readToolResultTool,
   readContextTool,
   readResourceTool,
+  readDatasetRecordsTool,
   editTemplateTool,
 ] as const
 

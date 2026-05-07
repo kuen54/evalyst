@@ -1040,6 +1040,8 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.tool.name.read_page": "Read page",
   "copilot.tool.summary.read_page_found": "Found {n} matches",
   "copilot.tool.summary.read_page_empty": "No matches on current page",
+  "copilot.tool.name.read_dataset_records": "Read dataset records",
+  "copilot.tool.summary.read_dataset_records": "Reading records from dataset {dataset_id}",
   "copilot.route_change.message": "Page changed. {n} context selections cleared. Consider starting a new conversation for clearer answers.",
   "copilot.route_change.new_session": "New conversation",
   "copilot.route_change.continue": "Keep current",

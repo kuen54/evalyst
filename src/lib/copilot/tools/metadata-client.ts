@@ -21,6 +21,7 @@ export const CLIENT_TOOL_METADATA: ClientToolMetadata[] = [
   { name: "read_tool_result", isReadOnly: true, isDestructive: false },
   { name: "read_context", isReadOnly: true, isDestructive: false },
   { name: "read_resource", isReadOnly: true, isDestructive: false },
+  { name: "read_dataset_records", isReadOnly: true, isDestructive: false },
   { name: "edit_template", isReadOnly: false, isDestructive: true },
 ]
 
