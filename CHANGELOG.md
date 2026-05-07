@@ -12,12 +12,17 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### 体验
 
+- **Inspector hint banner 文案简化 + 中间内容区居中**：
+  - 文案：「点击页面任意带下划线的区块把它加入 Copilot 视野；Esc 退出」→「点击页面任意区域和 Copilot 展开聊聊」
+  - 位置：从相对 viewport 居中（`left-1/2`）→ 相对 `<main>` 居中（ResizeObserver 跟踪 main bbox 动态更新）。sidebar 折叠 / copilot panel resize / 窗口 resize 都会自动重算。不再因 copilot panel 占 420px 让 banner 往左偏
+- **Compare prompt preview popover 层级上浮到 inspector 之上**：`PreviewCard.Positioner` z-index `50 → 10000`，在 context-mask (9996) / inspector hover 框 (9997) / inspector hint (9998) 之上。原来用户截图里"Prompt 模板"弹窗被已圈选的 task_field mask 盖住，现在修复
 - **Tinted CTA 可读性修复**：`Button variant="tinted"` 在 copilot 开态下白天模式出现"白底白字"（`text-primary-foreground` 近白色 + 旧 tinted 配方 `card 30% + accent 22% gradient` 偏浅）。现在文字 fallthrough 到 `text-foreground`（自适应深/浅色），配方简化为单层 `accent 14% bg + accent 55% border + accent ambient shadow`，视觉和 `GlassSegmentedItem` active tab 完全对齐 —— 全局"主 CTA / active tab 都是同一种发光带"
 
 ### 架构
 
 - `useGlassStyle("tinted")` 配方调整：去掉 `card 30%` 双层 + `accent 22% gradient`，改成单层 `accent 14% bg`；border `50% → 55%`；boxShadow accent ambient `30% → 40%`，inset 环 `20% → 25%`。和 `GlassSegmentedItem` active 视觉一致
 - `Button` tinted class 加 `data-[copilot-tinted=on]:text-foreground` 让 copilot 开态文字自适应；`data-[copilot-tinted=on]:hover:bg-transparent` 防止 hover 时 `bg-primary/80` 破坏玻璃透明感
+- `InspectorOverlay` 加 `hintCenterPx` state + ResizeObserver 跟踪 `<main>` 位置动态更新 hint banner 水平位置
 
 ## [0.8.0] — 2026-05-07 · Copilot glass system v2 (4 档 → 9 档 + 4 个 pattern 组件 + 主 CTA 规则)
 

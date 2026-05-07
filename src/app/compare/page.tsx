@@ -267,7 +267,7 @@ function PromptInfoIcon({ prompt, t }: { prompt: string; t: (k: string, v?: Reco
         </svg>
       </PreviewCard.Trigger>
       <PreviewCard.Portal>
-        <PreviewCard.Positioner side="bottom" align="start" sideOffset={4} collisionPadding={12} className="z-50">
+        <PreviewCard.Positioner side="bottom" align="start" sideOffset={4} collisionPadding={12} className="z-[10000]">
           <PreviewCard.Popup
             className="w-[480px] max-h-[60vh] overflow-auto bg-popover border border-border rounded-lg shadow-lg p-4"
             style={copilotOpen ? { ...glassStyle } : undefined}
