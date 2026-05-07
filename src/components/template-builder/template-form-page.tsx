@@ -556,7 +556,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
         )}
 
         {readOnly && (
-          <div className="p-3 rounded bg-amber-50 border border-amber-200 text-xs">
+          <div className="p-3 rounded bg-amber-500/10 border border-amber-500/40 text-xs text-amber-700 dark:text-amber-300">
             {t("settings.templates.tform.readonly_hint")}
           </div>
         )}

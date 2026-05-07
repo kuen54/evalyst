@@ -94,15 +94,15 @@ export function JsonPastePane({ title, validate, submitEndpoint, onSuccessRedire
       />
 
       {parseError && (
-        <div className="mt-3 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
+        <div className="mt-3 p-3 rounded bg-red-500/10 border border-red-500/40 text-sm text-red-700 dark:text-red-300">
           {parseError}
         </div>
       )}
 
       {errors.length > 0 && (
-        <div className="mt-3 p-3 rounded bg-red-50 border border-red-200 text-sm">
-          <div className="font-medium text-red-700 mb-1">{t("json_paste.validation_failed")}</div>
-          <ul className="text-xs space-y-0.5 text-red-600">
+        <div className="mt-3 p-3 rounded bg-red-500/10 border border-red-500/40 text-sm">
+          <div className="font-medium text-red-700 dark:text-red-300 mb-1">{t("json_paste.validation_failed")}</div>
+          <ul className="text-xs space-y-0.5 text-red-600 dark:text-red-400">
             {errors.map((e, i) => (
               <li key={i}>
                 <span className="font-mono">{e.field}</span>: {e.message}
@@ -113,12 +113,12 @@ export function JsonPastePane({ title, validate, submitEndpoint, onSuccessRedire
       )}
 
       {parsed && errors.length === 0 && (
-        <div className="mt-3 p-3 rounded bg-emerald-50 border border-emerald-200 text-sm">
-          <div className="flex items-center gap-2 text-emerald-700 mb-2">
-            <Badge variant="outline" className="border-emerald-400 text-emerald-700">{t("json_paste.validation_ok")}</Badge>
+        <div className="mt-3 p-3 rounded bg-emerald-500/10 border border-emerald-500/40 text-sm">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 mb-2">
+            <Badge variant="outline" className="border-emerald-500/60 text-emerald-700 dark:text-emerald-300">{t("json_paste.validation_ok")}</Badge>
             <span className="text-xs">{t("json_paste.can_save")}</span>
           </div>
-          <div className="text-xs text-emerald-700 space-y-0.5">
+          <div className="text-xs text-emerald-700 dark:text-emerald-300 space-y-0.5">
             {Object.entries(parsed).slice(0, 5).map(([k, v]) => (
               <div key={k}>
                 <span className="font-mono">{k}</span>: {

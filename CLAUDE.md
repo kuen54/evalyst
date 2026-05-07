@@ -450,6 +450,28 @@ React.createElement('div', {
 - `prefers-contrast: more` → 实心 + 更强描边
 - `prefers-reduced-motion: reduce` → 关 press-squish / hover-lift / scroll-edge 动画
 
+### 轻量 tinted 表面（badge / inline 状态行 / 错误小格 / 软提示）
+
+不占据 9 档玻璃档位，但仍需要在 dark mode 表现正常。**统一走 alpha 配方**，不要写 `bg-{color}-50` / `border-{color}-200`：
+
+```
+✅ bg-{color}-500/10  border-{color}-500/30–40  text-{color}-700 dark:text-{color}-300
+❌ bg-{color}-50      border-{color}-200        text-{color}-700              # dark 模式刺眼，无 dark: 兜底
+```
+
+为什么 alpha 配方在两边都对：`/{X}` 透明度叠在 `bg-card` 之上，亮模式 card 是白 → 看到淡彩；暗模式 card 是深灰 → 看到柔和深彩。文字色 `text-X-700`/`dark:text-X-300` 一对足够保对比度。
+
+**适用范围**：
+- Schema 徽章池（`src/app/page.tsx` SCHEMA_COLOR_POOL）
+- Results 4 件套里 `r.status !== "success"` 的错误格（`dual-list-results` / `triple-grid-results` / `display-grouped-grid` / `display-table` / `display-jsx`）
+- Compare 错误格 / JSON paste 校验提示 / Template 表单粘贴预览
+- 凡是「带语义色但不需要整张 GlassDanger/GlassWarning/GlassSuccess 卡」的小区域
+
+**不适用**：
+- 状态指示点（如 dashboard `bg-green-500` / `bg-amber-500`）—— 500 tier 是中饱和，亮暗都 OK
+- 整张状态卡 / 整段 banner —— 走 `<GlassSuccess>` / `<GlassWarning>` / `<GlassDanger>`，spec 里有
+- copilot tool-call-card 的 confirm/denied 框 —— 已经走 alpha 配方
+
 ## Claude Code skill 集成
 
 产品定位：**agent 驱动是主推路径**（尤其复杂配置），UI 同时保持一流体验、手工用户不降级。两条路都是一等公民。

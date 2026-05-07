@@ -385,7 +385,7 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
             return (
               <GlassThin
                 key={expId}
-                className={`p-3 rounded-lg border ${result.status !== "success" ? "border-red-200 bg-red-50" : ""}`}
+                className={`p-3 rounded-lg border ${result.status !== "success" ? "border-red-500/40 bg-red-500/10" : ""}`}
                 data-copilot-context="task_result"
                 data-copilot-context-id={result.task_id}
                 data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id })}
