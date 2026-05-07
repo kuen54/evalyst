@@ -997,6 +997,7 @@ export const zh = {
   "copilot.edit_resend": "保存并重发",
   "copilot.inspector_start": "圈选元素",
   "copilot.inspector_exit": "退出圈选",
+  "copilot.inspector_exit_hint": "Esc退出",
   "copilot.inspector_hint": "点击页面任意区域和 Copilot 展开聊聊",
   "copilot.inspector_already": "已圈选",
   "copilot.context_tag_remove": "移除这个 context",

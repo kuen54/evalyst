@@ -229,7 +229,7 @@ export function InspectorOverlay() {
               className="ml-2 text-[11px] opacity-80 hover:opacity-100 underline-offset-2 hover:underline cursor-pointer"
               onClick={() => setInspectorActive(false)}
             >
-              {t("copilot.inspector_exit")}
+              {t("copilot.inspector_exit_hint")}
             </button>
           </div>
         </div>

@@ -999,6 +999,7 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.edit_resend": "Save & resend",
   "copilot.inspector_start": "Pick element",
   "copilot.inspector_exit": "Exit picker",
+  "copilot.inspector_exit_hint": "Esc to exit",
   "copilot.inspector_hint": "Click any region on the page to chat with Copilot",
   "copilot.inspector_already": "already picked",
   "copilot.context_tag_remove": "Remove this context",
