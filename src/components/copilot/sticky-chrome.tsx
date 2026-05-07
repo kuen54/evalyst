@@ -13,12 +13,12 @@ type StickyChromeProps = {
 /**
  * Sticky 顶部结构条：位于滚动容器的最上方。
  * copilot 开：Regular 玻璃 + rounded-xl + 向下投影。
- * copilot 关：回退 shadcn 扁平——`bg-background border-b`，无圆角、直角贴齐容器边。
+ * copilot 关：回退 shadcn 扁平——`bg-card border-b`，颜色与外层卡面齐平、只靠 border 划分。
  */
 export function GlassStickyHeader({ children, className = "", style, ...rest }: StickyChromeProps) {
   const glass = useGlassStyle("chrome-up")
   const { open } = useCopilotStore()
-  const stateClass = open ? "rounded-xl" : "bg-background border-b"
+  const stateClass = open ? "rounded-xl" : "bg-card border-b"
   return (
     <div
       data-glass-variant="chrome-up"
@@ -34,12 +34,12 @@ export function GlassStickyHeader({ children, className = "", style, ...rest }: 
 /**
  * Sticky 底部结构条：位于滚动容器的最下方。
  * copilot 开：Regular 玻璃 + rounded-xl + 向上投影。
- * copilot 关：回退 shadcn 扁平——`bg-background border-t`，无圆角、直角贴齐容器边。
+ * copilot 关：回退 shadcn 扁平——`bg-card border-t`，颜色与外层卡面齐平、只靠 border 划分。
  */
 export function GlassStickyFooter({ children, className = "", style, ...rest }: StickyChromeProps) {
   const glass = useGlassStyle("chrome-down")
   const { open } = useCopilotStore()
-  const stateClass = open ? "rounded-xl" : "bg-background border-t"
+  const stateClass = open ? "rounded-xl" : "bg-card border-t"
   return (
     <div
       data-glass-variant="chrome-down"

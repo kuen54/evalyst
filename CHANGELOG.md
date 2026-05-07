@@ -12,7 +12,7 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### 体验
 
-- **Sticky chrome 关 copilot 时回归 shadcn 扁平**：`GlassStickyHeader` / `GlassStickyFooter` 在 copilot 关闭态原本仍带 `rounded-xl`，配合 `bg-background border-t/b` 出现"半截药丸"——四角圆角但只有单边 border，既不像玻璃也不像标准 sticky bar。现在 `rounded-xl` 收敛进 copilot 开态分支；关闭态变成纯 `bg-background border-{t,b}` 的扁平条，贴齐容器边。影响：`/compare` 顶栏 + `/settings/**` 表单底部 StickySaveBar
+- **Sticky chrome 关 copilot 时回归 shadcn 扁平**：`GlassStickyHeader` / `GlassStickyFooter` 在 copilot 关闭态原本仍带 `rounded-xl`，配合 `bg-background border-t/b` 出现"半截药丸"——四角圆角但只有单边 border。现在 `rounded-xl` 收敛进 copilot 开态分支；关闭态变成 `bg-card border-{t,b}` 的直角扁平条（暗色下 `--background` 比 `--card` 深一档，与外层卡面错色，所以挑 card 与卡面齐平、只靠 border 划分）。影响：`/compare` 顶栏 + `/settings/**` 表单底部 StickySaveBar
 - **Inspector hint banner 文案简化 + 中间内容区居中**：
   - 文案：「点击页面任意带下划线的区块把它加入 Copilot 视野；Esc 退出」→「点击页面任意区域和 Copilot 展开聊聊」
   - 位置：从相对 viewport 居中（`left-1/2`）→ 相对 `<main>` 居中（ResizeObserver 跟踪 main bbox 动态更新）。sidebar 折叠 / copilot panel resize / 窗口 resize 都会自动重算。不再因 copilot panel 占 420px 让 banner 往左偏
