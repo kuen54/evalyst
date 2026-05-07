@@ -62,10 +62,13 @@ export function buildLlmMessages(
     })
   }
 
-  // v2 §5.6: 进入 transcript 迭代前先 microCompact —— 把老的可重放 tool_result
+  // v2 §5.6 + v2.5 §4.2: 进入 transcript 迭代前先 microCompact —— 把老的可重放 tool_result
   // 压成 summary，保最近 N 条原样。LLM 如需详情走 read_tool_result(ref)。
+  // maxTotalReplayableTokens 防御 3 条 read_context 各 5KB 的累加（单条不超
+  // maxResultSizeChars 也可能合计 15KB+）。
   const compacted = microCompact(branch, {
     keepRecentReadResults: MICRO_COMPACT_KEEP_RECENT_READ_RESULTS,
+    maxTotalReplayableTokens: 4000,
   })
 
   for (const m of compacted) {

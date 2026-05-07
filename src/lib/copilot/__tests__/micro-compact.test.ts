@@ -251,3 +251,47 @@ describe("microCompact", () => {
     expect(normalizeToolResult(out[3].content).kind).toBe("ref") // last read kept
   })
 })
+
+describe("microCompact maxTotalReplayableTokens (v2.5)", () => {
+  it("compacts older read results when accumulated tokens exceed cap even within keepRecentN window", () => {
+    // 3 条 read_resource tool_result，每条 ~5000 token payload；keepRecent=3, 阈值 6000
+    // 反向遍历：最近条 5000 ≤ 6000 keep；中间条 5000+5000 > 6000 → break；最老自然压
+    const big = "x".repeat(20_000) // ~5000 token
+    const messages: CopilotMessage[] = [
+      userMsg("u1", "hi"),
+      toolUseMsg("a1", "c1", "read_resource"),
+      toolResultMsg("a1r", "c1", "read_resource", { kind: "inline", value: { x: big } }),
+      toolUseMsg("a2", "c2", "read_resource"),
+      toolResultMsg("a2r", "c2", "read_resource", { kind: "inline", value: { x: big } }),
+      toolUseMsg("a3", "c3", "read_resource"),
+      toolResultMsg("a3r", "c3", "read_resource", { kind: "inline", value: { x: big } }),
+    ]
+    const out = microCompact(messages, {
+      keepRecentReadResults: 3,
+      maxTotalReplayableTokens: 6000,
+    })
+    const inlines = out.filter(
+      (m) => m.role === "tool_result" && normalizeToolResult(m.content).kind === "inline",
+    )
+    const compacted = out.filter(
+      (m) => m.role === "tool_result" && normalizeToolResult(m.content).kind === "compacted",
+    )
+    expect(inlines).toHaveLength(1) // 最近的一条保
+    expect(compacted).toHaveLength(2) // 老的两条压
+  })
+
+  it("threshold undefined falls back to count-only behavior", () => {
+    const messages: CopilotMessage[] = [
+      userMsg("u1", "hi"),
+      toolUseMsg("a1", "c1", "read_resource"),
+      toolResultMsg("a1r", "c1", "read_resource", { kind: "inline", value: { x: "a" } }),
+      toolUseMsg("a2", "c2", "read_resource"),
+      toolResultMsg("a2r", "c2", "read_resource", { kind: "inline", value: { x: "b" } }),
+    ]
+    const out = microCompact(messages, { keepRecentReadResults: 1 })
+    const inlines = out.filter(
+      (m) => m.role === "tool_result" && normalizeToolResult(m.content).kind === "inline",
+    )
+    expect(inlines).toHaveLength(1) // 向后兼容：只按数量
+  })
+})
