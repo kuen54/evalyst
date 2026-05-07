@@ -55,6 +55,7 @@ function rowLabel(refs: Record<string, string | number>, preview: Record<string,
 
 export default function ComparePage() {
   const t = useT()
+  const { open: copilotOpen } = useCopilotStore()
   const [experiments, setExperiments] = useState<ExperimentConfig[]>([])
   const [schemas, setSchemas] = useState<TaskSchema[]>([])
   const [displays, setDisplays] = useState<Display[]>([])
@@ -226,7 +227,7 @@ export default function ComparePage() {
           )}
         </div>
 
-        <div className="overflow-auto min-w-0 px-6 pb-6">
+        <div className={`overflow-auto min-w-0 px-6 pb-6 transition-[padding] duration-300 ${copilotOpen ? "pt-6" : "pt-0"}`}>
           {selectedIds.length < 2 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               {t("compare.pick_hint")}
