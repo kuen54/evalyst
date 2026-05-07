@@ -209,7 +209,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
   }
 
   return (
-    <div className="grid grid-cols-[1fr_380px] gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)_380px] gap-6">
       <div className="space-y-6 pb-12">
         {isSeeded && (
           <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">

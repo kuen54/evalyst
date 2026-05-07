@@ -29,6 +29,7 @@ import { HeaderFieldsEditor } from "@/components/template-builder/header-fields-
 import { TransformChainEditor } from "@/components/template-builder/transform-chain-editor"
 import { MetaPromptPane } from "@/components/settings/meta-prompt-pane"
 import { AgentHintBanner } from "@/components/settings/agent-hint-banner"
+import { StickySaveBar } from "@/components/ui/sticky-save-bar"
 import { TEMPLATE_META_PROMPT } from "@/lib/meta-prompts/template"
 import {
   PreviewPane,
@@ -560,15 +561,14 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
           </div>
         )}
 
-        <div className="flex items-center gap-3 pt-2 pb-8 sticky bottom-0 bg-background">
-          <Button variant="outline" onClick={() => router.push("/settings/templates")}>{t("common.cancel")}</Button>
-          <Button onClick={handleSubmit} disabled={submitting || readOnly}>
-            {submitting ? t("settings.templates.tform.saving_word") : mode === "edit" ? t("settings.templates.tform.save_edit_word") : t("settings.templates.tform.save_word")}
-          </Button>
-          {isDirty && !submitting && (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400">{t("settings.templates.tform.unsaved_marker")}</span>
-          )}
-        </div>
+        <StickySaveBar
+          onSave={handleSubmit}
+          onCancel={() => router.push("/settings/templates")}
+          submitting={submitting}
+          dirty={isDirty}
+          disabled={readOnly}
+          saveLabel={mode === "edit" ? t("settings.templates.tform.save_edit_word") : t("settings.templates.tform.save_word")}
+        />
       </div>
 
       <PreviewPane form={form} datasets={datasets} displays={displays} datasetSamples={datasetSamples} t={t} />

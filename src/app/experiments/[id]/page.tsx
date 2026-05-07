@@ -240,10 +240,10 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
           )}
           <div className="flex gap-2 ml-auto">
             {(experiment.status === "draft" || experiment.status === "failed") && (
-              <Button size="sm" onClick={() => handleRun(false)}>{t("experiment.run_btn")}</Button>
+              <Button size="sm" variant="tinted" onClick={() => handleRun(false)}>{t("experiment.run_btn")}</Button>
             )}
             {experiment.status === "paused" && (
-              <Button size="sm" onClick={() => handleRun(true)}>{t("experiment.resume_btn")}</Button>
+              <Button size="sm" variant="tinted" onClick={() => handleRun(true)}>{t("experiment.resume_btn")}</Button>
             )}
             {experiment.status === "running" && (
               <Button size="sm" variant="outline" onClick={handleStop}>{t("experiment.pause_btn")}</Button>

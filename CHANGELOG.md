@@ -12,6 +12,22 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### 体验
 
+- **评测任务表单吸底栏升玻璃**：`template-form-page.tsx` 之前是手写 `<div className="sticky bottom-0 bg-background">`，没走 `StickySaveBar` —— PR #28 迁移 StickySaveBar 时漏扫。现已迁移到 `StickySaveBar`（即 `GlassStickyFooter`），和 llm / dataset / display / rubric form 一致
+- **数据集表单内容不再溢出容器**：`grid-cols-[1fr_380px]` 的 `1fr` 隐式展开为 `minmax(auto, 1fr)`，在 copilot 开 main 变窄时 `auto` 下限 = 输入框 min-width，把整个 grid 推出容器。改成 `minmax(0, 1fr)` 允许左列收缩到 0
+- **主 CTA 视觉分配统一**：约定"**一页一个 tinted 名额**"，`GlassSegmentedItem` active 项占名额，sidebar 硬编不占，互斥显示按钮共享名额。按此规则调整：
+  - Dashboard 顶栏「新建实验」→ `tinted`；空态同文案 → `outline`（让位）
+  - Experiment detail 的 Run / Resume → `tinted`（status 互斥，共享名额）
+  - `/settings/**` 下所有按钮保持 `default`（RelationDiagram 当前 tab tinted 已吃名额）
+- 新加按钮的决策流写进 AGENTS.md
+
+### 修改
+
+- `StickySaveBar` 组件无新改，但迁移了第 5 个调用点（template-form-page）
+- Dashboard 主 CTA 的语义从"永远显眼"变成"有实验时显眼、空态让位" —— 空态的视觉主角回到"空状态的文案引导"本身
+- **AGENTS.md §主 CTA 约定**：新增章节，含规则 + 占名额 / 不占名额的元素列表 + 每个页面当前裁定表 + 新加按钮决策流
+
+### 体验
+
 - **Scoring / FailedPanel / AgentHintBanner 统一成 "玻璃 + 语义"**：原 AgentHintBanner 明确"不玻璃（semantic 色 > 装饰）"的规则废除，现在三个带语义色的卡都是玻璃档（`GlassSuccess` 绿 / `GlassDanger` 红 / `GlassWarning` 黄），配方 = Regular 材质 + 语义 border + 语义 ambient shadow。copilot 关态仍 fallback 到 shadcn 扁平（class 级 `border-amber-200 bg-amber-50/50` 等）
 - **Segmented 控件 3 处视觉统一**：RelationDiagram / display mode picker / experiments/new task picker 原本各处手写 `useGlassStyle("thin") + useGlassStyle("tinted") + segmentedItem(active, copilotOpen)` 三件套；现在都走 `<GlassSegmentedItem active render={...}>` 一行组件
 
