@@ -341,7 +341,16 @@ git tag -a v0.X.Y -m "v0.X.Y · <one-line summary>" <merge-commit-sha>
 git push origin v0.X.Y
 ```
 
-**Broken tag 怎么办**：如果 tag 指向的 state 实测不工作，删除它（`git tag -d v0.X.Y && git push origin :refs/tags/v0.X.Y`），并在 CHANGELOG 对应条目加 `> Note: git tag <...> 已删除，首个可用版本是 <...>` 标注。条目**保留**作为设计/实现的历史记录。不重写 CHANGELOG 历史。
+**Tag 完紧接着发 GitHub Release**（tag 只是 git ref，Release 是 GitHub 上层的发布对象，必须手动 `gh release create` 才会出现在 [Releases](https://github.com/kuen54/evalyst/releases) 页）。流程：从 CHANGELOG 提取对应版本的 section 作 notes：
+
+```bash
+awk -v v="0.X.Y" 'BEGIN{p=0} /^## \[/{if(p)exit; if($0 ~ "\\[" v "\\]")p=1; next} p' CHANGELOG.md > /tmp/notes.md
+HTTPS_PROXY=127.0.0.1:7890 gh release create v0.X.Y --title "v0.X.Y — <one-line summary>" --notes-file /tmp/notes.md
+```
+
+（`HTTPS_PROXY` 按项目记忆 `reference_git_proxy` 走 ClashX；gh 默认不继承 git 代理配置）
+
+**Broken tag 怎么办**：如果 tag 指向的 state 实测不工作，删除它（`git tag -d v0.X.Y && git push origin :refs/tags/v0.X.Y`），并在 CHANGELOG 对应条目加 `> Note: git tag <...> 已删除，首个可用版本是 <...>` 标注。条目**保留**作为设计/实现的历史记录。不重写 CHANGELOG 历史。对应的 GitHub Release 也删：`gh release delete v0.X.Y --yes --cleanup-tag=false`（tag 已手动删）
 
 ### CHANGELOG 规范
 
