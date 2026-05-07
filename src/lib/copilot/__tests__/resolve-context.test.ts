@@ -137,3 +137,72 @@ describe('formatContextsForLlm with pageContext', () => {
     expect(out).toContain('# 用户圈选的上下文 (context)')
   })
 })
+
+// ---------- Task 2: resolveContextSelf manifest form ----------
+import { resolveContexts } from '../resolve-context'
+import { vi } from 'vitest'
+
+vi.mock('@/lib/store', () => ({
+  getExperiment: (id: string) => id === 'exp_1' ? {
+    id, name: 'E',
+    created_at: 't', updated_at: 't',
+    status: 'completed',
+    schema_id: 'sch_1', display_id: 'disp_1', rubric_id: 'rub_1',
+    model: 'gpt-4o', temperature: 0.7, max_tokens: 2000,
+    api_config: { base_url: 'https://x', api_key: 'SECRET_KEY' },
+    prompt_template: 'SECRET_PROMPT',
+    run_stats: {
+      total_tasks: 1, completed_tasks: 1, failed_tasks: 0,
+      started_at: 't',
+    },
+    notes: 'SECRET_NOTES',
+  } : null,
+  readResults: (expId: string) => expId === 'exp_1' ? [{
+    schema_id: 'sch_1', schema_version: 1,
+    task_id: 't1', experiment_id: 'exp_1',
+    input_refs: { ds: 'r1' },
+    input_preview: { qa: 'SENSITIVE_RAW' },
+    status: 'success',
+    output: { answer: 'A' },
+    latency_ms: 120,
+    model: 'gpt-4o',
+    timestamp: 't',
+    input_tokens: 50, output_tokens: 10,
+    cost_value: 0.001, cost_currency: 'USD',
+  }] : [],
+}))
+
+describe('resolveContextSelf via resolveContexts (manifest form)', () => {
+  it('experiment data omits prompt_template / notes / temperature', () => {
+    const [r] = resolveContexts([{ tag: 1, type: 'experiment', id: 'exp_1' }])
+    expect(r.status).toBe('ok')
+    expect(JSON.stringify(r.data)).not.toContain('SECRET')
+    expect(r.data).toMatchObject({
+      id: 'exp_1', name: 'E', schema_id: 'sch_1', model: 'gpt-4o',
+    })
+    expect((r.data as Record<string, unknown>).prompt_template).toBeUndefined()
+    expect((r.data as Record<string, unknown>).notes).toBeUndefined()
+  })
+
+  it('task_result data drops input_preview and input_refs', () => {
+    const [r] = resolveContexts([{
+      tag: 2, type: 'task_result', id: 't1',
+      extra: { experiment_id: 'exp_1' },
+    }])
+    expect(r.status).toBe('ok')
+    expect(JSON.stringify(r.data)).not.toContain('SENSITIVE_RAW')
+    expect((r.data as Record<string, unknown>).input_preview).toBeUndefined()
+    expect((r.data as Record<string, unknown>).input_refs).toBeUndefined()
+    expect(r.data).toMatchObject({ task_id: 't1', status: 'success', output: { answer: 'A' } })
+  })
+
+  it('task_field data only has targeted_field + targeted_value', () => {
+    const [r] = resolveContexts([{
+      tag: 3, type: 'task_field', id: 't1#answer',
+      extra: { experiment_id: 'exp_1', task_id: 't1', field: 'answer' },
+    }])
+    expect(r.status).toBe('ok')
+    expect(r.data).toEqual({ targeted_field: 'answer', targeted_value: 'A' })
+    expect(JSON.stringify(r.data)).not.toContain('SENSITIVE_RAW')
+  })
+})

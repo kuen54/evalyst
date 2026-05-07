@@ -8,6 +8,15 @@ import { getDisplay } from '@/lib/displays'
 import { getRubric } from '@/lib/rubric-store'
 import { aggregateAnnotations } from '@/lib/annotation-store'
 import type { CopilotContextRef } from './types'
+import {
+  manifestExperiment,
+  manifestTaskResult,
+  manifestTaskField,
+  manifestDataset,
+  manifestTemplate,
+  manifestDisplay,
+  manifestRubric,
+} from './manifest'
 
 export interface ResolvedContext {
   tag: number
@@ -34,19 +43,7 @@ function resolveContextSelf(ref: CopilotContextRef): ResolvedContext {
           ...base,
           status: 'ok',
           summary: `${exp.name} · ${exp.model} · ${exp.status}`,
-          data: {
-            id: exp.id,
-            name: exp.name,
-            status: exp.status,
-            schema_id: exp.schema_id,
-            display_id: exp.display_id,
-            rubric_id: exp.rubric_id,
-            model: exp.model,
-            temperature: exp.temperature,
-            prompt_template: exp.prompt_template,
-            notes: exp.notes,
-            run_stats: exp.run_stats,
-          },
+          data: manifestExperiment(exp),
         }
       }
 
@@ -62,7 +59,7 @@ function resolveContextSelf(ref: CopilotContextRef): ResolvedContext {
           summary: found.status === 'success'
             ? summarizeOutput(found.output ?? {})
             : `[${found.status}] ${(found.error ?? '').slice(0, 60)}`,
-          data: found,
+          data: manifestTaskResult(found, 'self'),
         }
       }
 
@@ -82,15 +79,7 @@ function resolveContextSelf(ref: CopilotContextRef): ResolvedContext {
           ...base,
           status: 'ok',
           summary: `${field} = ${String(value).slice(0, 60)}`,
-          data: {
-            experiment_id: expId,
-            task_id: taskId,
-            field,
-            value,
-            task_status: found.status,
-            input_refs: found.input_refs,
-            input_preview: found.input_preview,
-          },
+          data: manifestTaskField(field, value, 'self'),
         }
       }
 
@@ -116,7 +105,7 @@ function resolveContextSelf(ref: CopilotContextRef): ResolvedContext {
           ...base,
           status: 'ok',
           summary: `${schema.label ?? schema.id}`,
-          data: schema,
+          data: manifestTemplate(schema),
         }
       }
 
@@ -127,7 +116,7 @@ function resolveContextSelf(ref: CopilotContextRef): ResolvedContext {
             ...base,
             status: 'ok',
             summary: `${def.name} · ${records.length} records`,
-            data: { def, sample: records.slice(0, 3), total: records.length },
+            data: manifestDataset(def, records.length),
           }
         } catch {
           return { ...base, status: 'missing' }
@@ -141,7 +130,7 @@ function resolveContextSelf(ref: CopilotContextRef): ResolvedContext {
           ...base,
           status: 'ok',
           summary: `${d.name}`,
-          data: d,
+          data: manifestDisplay(d),
         }
       }
 
@@ -152,7 +141,7 @@ function resolveContextSelf(ref: CopilotContextRef): ResolvedContext {
           ...base,
           status: 'ok',
           summary: `${r.name} · ${r.criteria.length} criteria`,
-          data: r,
+          data: manifestRubric(r),
         }
       }
 
