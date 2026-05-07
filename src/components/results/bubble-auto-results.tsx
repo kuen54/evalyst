@@ -113,7 +113,7 @@ function BubbleCard({ result, bubbleFieldName, coordName, textName, emojiName, i
   const bubbles = (result.output?.[bubbleFieldName] as BubbleItem[] | undefined) ?? []
 
   return (
-    <GlassCardThin className={`${result.status !== "success" ? "border-red-200" : ""}`}>
+    <GlassCardThin className={`${result.status !== "success" ? "border-red-500/40" : ""}`}>
       <CardHeader className="pb-2 px-4 pt-3">
         <div className="flex items-center gap-2 flex-wrap">
           {dims.map((dim, i) => {

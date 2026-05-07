@@ -10,7 +10,7 @@ export function JsonDefaultResults({ results }: ResultViewProps) {
   return (
     <div className="space-y-3">
       {results.map(r => (
-        <GlassCardThin key={r.task_id} className={`${r.status !== "success" ? "border-red-200" : ""}`}>
+        <GlassCardThin key={r.task_id} className={`${r.status !== "success" ? "border-red-500/40" : ""}`}>
           <CardHeader className="py-2 px-4">
             <div className="flex flex-wrap gap-1.5 text-xs">
               <Badge variant="outline" className="font-mono">{r.task_id}</Badge>

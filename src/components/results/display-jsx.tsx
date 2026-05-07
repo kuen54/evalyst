@@ -114,7 +114,7 @@ export function DisplayJsx({ results, schema, display }: JsxProps) {
           <JsxBoundary
             errorLabel={t("results.jsx_render_error")}
             fallback={
-              <GlassCardThin className="p-3 border-red-200">
+              <GlassCardThin className="p-3 border-red-500/40">
                 <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(r.output, null, 2)}</pre>
               </GlassCardThin>
             }

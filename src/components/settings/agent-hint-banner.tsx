@@ -29,7 +29,7 @@ export function AgentHintBanner({ slashCommand, title, bodyPrefix, bodySuffix }:
           <div className="font-medium">{title ?? t("new_res.agent_hint_title")}</div>
           <div className="mt-1 text-xs text-muted-foreground">
             {bodyPrefix ?? t("new_res.agent_hint_body_prefix")}
-            <code className="mx-1 rounded bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground">
+            <code className="mx-1 rounded bg-foreground/5 px-1.5 py-0.5 font-mono text-[11px] text-foreground">
               /{slashCommand}
             </code>
             {bodySuffix ?? t("new_res.agent_hint_body_suffix")}
@@ -38,7 +38,7 @@ export function AgentHintBanner({ slashCommand, title, bodyPrefix, bodySuffix }:
             <a
               href={`/api/skills/${slashCommand}`}
               download="SKILL.md"
-              className="inline-flex items-center gap-1 rounded border border-amber-300 bg-background px-2 py-1 text-foreground hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/30"
+              className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-card px-2 py-1 text-foreground hover:bg-amber-500/15 transition-colors"
             >
               <Download className="h-3 w-3" />
               {t("new_res.agent_hint_download")}
