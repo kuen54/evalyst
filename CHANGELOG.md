@@ -10,6 +10,15 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### 体验
+
+- **Tinted CTA 可读性修复**：`Button variant="tinted"` 在 copilot 开态下白天模式出现"白底白字"（`text-primary-foreground` 近白色 + 旧 tinted 配方 `card 30% + accent 22% gradient` 偏浅）。现在文字 fallthrough 到 `text-foreground`（自适应深/浅色），配方简化为单层 `accent 14% bg + accent 55% border + accent ambient shadow`，视觉和 `GlassSegmentedItem` active tab 完全对齐 —— 全局"主 CTA / active tab 都是同一种发光带"
+
+### 架构
+
+- `useGlassStyle("tinted")` 配方调整：去掉 `card 30%` 双层 + `accent 22% gradient`，改成单层 `accent 14% bg`；border `50% → 55%`；boxShadow accent ambient `30% → 40%`，inset 环 `20% → 25%`。和 `GlassSegmentedItem` active 视觉一致
+- `Button` tinted class 加 `data-[copilot-tinted=on]:text-foreground` 让 copilot 开态文字自适应；`data-[copilot-tinted=on]:hover:bg-transparent` 防止 hover 时 `bg-primary/80` 破坏玻璃透明感
+
 ## [0.8.0] — 2026-05-07 · Copilot glass system v2 (4 档 → 9 档 + 4 个 pattern 组件 + 主 CTA 规则)
 
 PR #28 / #29 / #30 三轮把 copilot 玻璃 UI 系统从"4 档 + 一堆每处手搓的 inline style 三件套"重做成"9 档 + 4 个一等 pattern 组件 + 一条页面级视觉规则"。起因是用户发现 compare 表头和 StickySaveBar 的玻璃质感差（"边缘直角 / 字贴边 / 材质浑浊 / 缺 elevation / 缺边缘高光"），定位是档位选错 + 缺方向性投影 + mask fade 语义反，进而引出"还有哪些角色应该是 variant 但没有"的系统性扫描，最终拢合三波 PR 一次定型。

@@ -68,15 +68,17 @@ export function getGlassStyleForVariant(
   }
 
   if (variant === "tinted") {
+    // 对齐 GlassSegmentedItem active 的"发光带"视觉：单层 accent 14% 透底 +
+    // accent 55% 边 + accent ambient 外光 + 顶部白切边高光。文字色由调用方
+    // 走 `text-foreground`（Button 通过 data-[copilot-tinted=on]:text-foreground
+    // 覆盖默认的 text-primary-foreground 实现自适应）。
     return {
-      backgroundColor: "color-mix(in oklab, var(--card) 30%, transparent)",
-      backgroundImage:
-        "linear-gradient(color-mix(in oklab, var(--copilot-accent) 22%, transparent), color-mix(in oklab, var(--copilot-accent) 22%, transparent))",
-      backdropFilter: "blur(28px) saturate(1.3)",
-      WebkitBackdropFilter: "blur(28px) saturate(1.3)",
-      borderColor: "color-mix(in oklab, var(--copilot-accent) 50%, transparent)",
+      backgroundColor: "color-mix(in oklab, var(--copilot-accent) 14%, transparent)",
+      backdropFilter: "blur(28px) saturate(1.25)",
+      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
+      borderColor: "color-mix(in oklab, var(--copilot-accent) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.7), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 20%, transparent), 0 3px 12px -4px color-mix(in oklab, var(--copilot-accent) 30%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
+        "inset 0 1px 0 oklch(1 0 0 / 0.7), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 25%, transparent), 0 3px 10px -2px color-mix(in oklab, var(--copilot-accent) 40%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
       transition: baseTransition,
     }
   }
