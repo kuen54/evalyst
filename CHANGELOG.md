@@ -10,56 +10,48 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-### 体验
+## [0.8.0] — 2026-05-07 · Copilot glass system v2 (4 档 → 9 档 + 4 个 pattern 组件 + 主 CTA 规则)
 
-- **评测任务表单吸底栏升玻璃**：`template-form-page.tsx` 之前是手写 `<div className="sticky bottom-0 bg-background">`，没走 `StickySaveBar` —— PR #28 迁移 StickySaveBar 时漏扫。现已迁移到 `StickySaveBar`（即 `GlassStickyFooter`），和 llm / dataset / display / rubric form 一致
-- **数据集表单内容不再溢出容器**：`grid-cols-[1fr_380px]` 的 `1fr` 隐式展开为 `minmax(auto, 1fr)`，在 copilot 开 main 变窄时 `auto` 下限 = 输入框 min-width，把整个 grid 推出容器。改成 `minmax(0, 1fr)` 允许左列收缩到 0
-- **主 CTA 视觉分配统一**：约定"**一页一个 tinted 名额**"，`GlassSegmentedItem` active 项占名额，sidebar 硬编不占，互斥显示按钮共享名额。按此规则调整：
-  - Dashboard 顶栏「新建实验」→ `tinted`；空态同文案 → `outline`（让位）
-  - Experiment detail 的 Run / Resume → `tinted`（status 互斥，共享名额）
-  - `/settings/**` 下所有按钮保持 `default`（RelationDiagram 当前 tab tinted 已吃名额）
-- 新加按钮的决策流写进 AGENTS.md
-
-### 修改
-
-- `StickySaveBar` 组件无新改，但迁移了第 5 个调用点（template-form-page）
-- Dashboard 主 CTA 的语义从"永远显眼"变成"有实验时显眼、空态让位" —— 空态的视觉主角回到"空状态的文案引导"本身
-- **AGENTS.md §主 CTA 约定**：新增章节，含规则 + 占名额 / 不占名额的元素列表 + 每个页面当前裁定表 + 新加按钮决策流
+PR #28 / #29 / #30 三轮把 copilot 玻璃 UI 系统从"4 档 + 一堆每处手搓的 inline style 三件套"重做成"9 档 + 4 个一等 pattern 组件 + 一条页面级视觉规则"。起因是用户发现 compare 表头和 StickySaveBar 的玻璃质感差（"边缘直角 / 字贴边 / 材质浑浊 / 缺 elevation / 缺边缘高光"），定位是档位选错 + 缺方向性投影 + mask fade 语义反，进而引出"还有哪些角色应该是 variant 但没有"的系统性扫描，最终拢合三波 PR 一次定型。
 
 ### 体验
 
-- **Scoring / FailedPanel / AgentHintBanner 统一成 "玻璃 + 语义"**：原 AgentHintBanner 明确"不玻璃（semantic 色 > 装饰）"的规则废除，现在三个带语义色的卡都是玻璃档（`GlassSuccess` 绿 / `GlassDanger` 红 / `GlassWarning` 黄），配方 = Regular 材质 + 语义 border + 语义 ambient shadow。copilot 关态仍 fallback 到 shadcn 扁平（class 级 `border-amber-200 bg-amber-50/50` 等）
-- **Segmented 控件 3 处视觉统一**：RelationDiagram / display mode picker / experiments/new task picker 原本各处手写 `useGlassStyle("thin") + useGlassStyle("tinted") + segmentedItem(active, copilotOpen)` 三件套；现在都走 `<GlassSegmentedItem active render={...}>` 一行组件
+- **Compare 页 prompt preview popup 修复被遮**：表头 hover info icon 的 prompt 弹窗从 `absolute z-50` 手写换成 `base-ui` 的 `PreviewCard`（portal 到 body + Floating UI flip/shift），逃出 sticky header 的 stacking context（Chromium 对 sticky + backdrop-filter 绘制顺序的 quirk）
+- **Compare 表头 + StickySaveBar 升玻璃悬浮条**：原 `GlassThin + pb-3 / -mx-6 px-6 border-t bg-background + copilot-scroll-edge-*` 拼凑档位错；改用专用 sticky chrome 档（rounded / padding / 方向性阴影 / 切边高光 / 材质厚度）
+- **Scoring / FailedPanel / AgentHintBanner 统一成"玻璃 + 语义"**：原"semantic 色 > 装饰 → 不玻璃"约定废除。三个语义卡都升玻璃档（`GlassSuccess` / `GlassDanger` / `GlassWarning`），配方 = Regular 材质 + 语义 border + 弱语义 ambient shadow。copilot 关态 fallback 到 shadcn 扁平
+- **Segmented 控件 3 处视觉统一**：RelationDiagram / display mode picker / experiments/new task picker 原本各处手写 `useGlassStyle("thin/tinted") + segmentedItem(active, copilotOpen)` 三件套；现在都走 `<GlassSegmentedItem active render={...}>` 一行组件
+- **评测任务表单吸底栏升玻璃**：`template-form-page.tsx` 原手写 `<div sticky bottom-0 bg-background>`（PR #28 漏扫），现迁移到 `StickySaveBar` 与 4 个其它表单一致
+- **数据集表单内容不再溢出容器**：`grid-cols-[1fr_380px]` 在 copilot 开 main 变窄时把内容推出容器（`1fr` = `minmax(auto, 1fr)`，auto 下限 = 输入框 min-width）。改成 `minmax(0, 1fr)` 允许左列收缩
+- **主 CTA 视觉分配规则**：约定"**一页一个 tinted 名额**"，`GlassSegmentedItem` active 项占名额，sidebar 硬编不占，互斥按钮共享名额。落地：dashboard 顶栏新建 tinted、空态 outline；experiment detail Run / Resume tinted；`/settings/**` 全部按钮保持 default（RelationDiagram tab 已吃名额）
 
 ### 架构
 
-- **Copilot 玻璃梯度系统 6 档 → 9 档（6 primitive + 3 semantic）**：新增 `success` / `warning` / `danger` 三档语义 primitive。配方 = Regular 材质 + tailwind-500 色的 oklch border（emerald/amber/red）+ 弱语义 ambient shadow
-- **新组件 `<GlassSuccess>` / `<GlassWarning>` / `<GlassDanger>`**：通过 `makeGlass(variant, SHADCN_CARD_DEFAULTS)` 工厂导出，和 `GlassCard` / `GlassCardThin` 同构。copilot 关态继续走默认 `bg-card` + className 上的语义 border
-- **新组件 `<GlassSegmentedItem active render={...}>`**（`src/components/copilot/glass-segmented.tsx`）：render prop 支持 button/Link/a 任意 element（用 React.cloneElement 注入 className + style + data-glass-variant）。内部封装 thin ↔ tinted variant 自动切换 + copilot 开/关两套 state class
-- **`src/lib/segmented.ts` 瘦身**：去掉 copilot 开态分支（搬进 `GlassSegmentedItem`），签名从 `segmentedItem(active, copilotOpen)` 简化为 `segmentedItem(active)`。保留给 sidebar / session-list 这种"永远不走玻璃"的位置用
-
-### 文档 / 记忆
-
-- CLAUDE.md §Copilot Glass UI 系统：4 档 + Tinted → 9 档（6 primitive + 3 semantic）对照表；加入"semantic 可玻璃"例外规则
-- AGENTS.md §玻璃档位选择：重写档位表 —— 覆盖 sticky chrome / segmented item / semantic 的组件化入口；明确"新调用点一律用 `<GlassSegmentedItem>` / `<GlassStickyHeader/Footer>` / `<GlassSuccess/Warning/Danger>`，不要再手写 `useGlassStyle` 三件套"
-- feedback memory `feedback_copilot_glass_scope.md`：把原"semantic 色 > 装饰 → 不玻璃"规则改成"semantic 可玻璃（Regular + 语义 border + 语义 ambient）"；补 `segmentedItem(active)` 新签名
-
-### 体验
-
-- **Compare 页 prompt preview popup 修复被遮**：表头 hover info icon 的 prompt 弹窗从 `absolute z-50` 手写，换成 `base-ui` 的 `PreviewCard` —— portal 到 body + Floating UI flip/shift 定位，逃出 sticky header 的 stacking context（Chromium 对 sticky + backdrop-filter 绘制顺序不严格按 spec，之前会被 row cells 盖住）
-- **Compare 表头 + StickySaveBar 升玻璃悬浮条**：原 `GlassThin + pb-3 / -mx-6 px-6 border-t bg-background + copilot-scroll-edge-*` 拼凑档位错；改用专用的 sticky chrome 档，有 rounded / padding / 方向性阴影 / 切边高光 / 材质厚度 —— 解决"边缘直角 / 字贴边 / 材质浑浊 / 缺 elevation / 缺边缘高光"一揽子问题
-
-### 架构
-
-- **Copilot 玻璃梯度系统 4 档 → 6 档**：新增 `chrome-up` / `chrome-down` 两档 primitive，配方基于 Regular（blur 28 / bg 35% card）+ 方向性 boxShadow（顶部条向下投影 / 底部条向上投影） + 方向切边 inset 高光。给"sticky 结构条"这类语义角色一个一等 variant，不再每处手搓 shadow
-- **新 pattern 组件 `GlassStickyHeader` / `GlassStickyFooter`**：封装 `sticky top-0 z-10` / `sticky bottom-0 z-10` + `rounded-xl` + `px-4 py-3` + copilot 关闭态 `bg-background border-{t,b}` fallback（关态回到 shadcn 扁平，开态 inline 玻璃接管）
-- **删 `copilot-scroll-edge-*` CSS 死代码**：mask 渐变让 sticky chrome 底/顶淡出融入内容，和"悬浮在内容之上"的语义方向相反，新变体用 drop shadow 正确表达 elevation，两条 CSS + `prefers-reduced-motion` 里的降级 selector 一起清
+- **Copilot 玻璃梯度系统 4 档 → 9 档（6 primitive + 3 semantic）**：
+  - 新 primitive 2 档：`chrome-up` / `chrome-down`（Regular 材质 + 方向性投影 + 方向切边高光）
+  - 新 semantic 3 档：`success` / `warning` / `danger`（Regular 材质 + tailwind-500 oklch border + 弱语义 ambient shadow）
+- **新 pattern 组件 4 个**：
+  - `GlassStickyHeader` / `GlassStickyFooter`（`src/components/copilot/sticky-chrome.tsx`）：sticky 定位 + rounded + padding + copilot 开/关 fallback
+  - `GlassSegmentedItem`（`src/components/copilot/glass-segmented.tsx`）：render prop 支持 button / Link / a，自动 thin ↔ tinted 切换
+- **新 Card-style 组件 3 个**：`GlassSuccess` / `GlassWarning` / `GlassDanger`，由 `makeGlass(variant, SHADCN_CARD_DEFAULTS)` 工厂导出，和 `GlassCard` 同构
+- **删 `copilot-scroll-edge-*` CSS 死代码**：mask 渐变方向相反于"悬浮"语义，被 sticky chrome 的 drop shadow 替代。两条 CSS + `prefers-reduced-motion` 降级 selector 一起清
+- **`src/lib/segmented.ts` 瘦身**：copilot 开态分支搬进 `GlassSegmentedItem`，签名 `segmentedItem(active, copilotOpen)` → `segmentedItem(active)`。仅给 sidebar / session-list 这种"永远不走玻璃"的位置用
 
 ### 测试
 
-- `getGlassStyleForVariant` unit test 从 5 个补到 7 个（chrome-up/down 的切边高光方向 + 投影方向 assert）
-- 4 处调用点迁移：compare 表头、`StickySaveBar`（被 llm/dataset/display/rubric form 4 页复用）
-- Playwright 两态实测：copilot 开态 chrome-up/chrome-down 正确应用玻璃配方；关态 fallback 到 `bg-background border-{t,b}` shadcn 扁平
+- `getGlassStyleForVariant` unit test 从 5 个补到 10 个（chrome-up/down 切边高光 + 投影方向 + 3 档 semantic 的 border 色和 ambient shadow assert）
+- 8 处调用点迁移：compare 表头、StickySaveBar、template-form 吸底、display-form / relation-diagram / experiments-new 三处 segmented、Scoring Collapsible / FailedPanel / AgentHintBanner 三处 semantic
+- Playwright 两态实测：copilot 开态各 variant 配方正确；关态 fallback 到 shadcn 扁平
+- vitest 376 → 381，e2e 9/10（既有 flaky `copilot-v2.spec.ts:12` 单跑通过）
+
+### 文档 / 记忆
+
+- CLAUDE.md §Copilot Glass UI 系统：4 档 → 9 档对照表 + 玻璃作用域规则更新（"semantic 可玻璃"例外）+ Segmented 选中态从 helper 描述改成 `GlassSegmentedItem` 用法
+- AGENTS.md §玻璃档位选择：重写档位表覆盖 sticky chrome / segmented / semantic 三类组件化入口；新增 §主 CTA 约定（规则 + 占名额表 + 决策流）
+- feedback memory `feedback_copilot_glass_scope.md`：原"amber banner 不玻璃"规则改成"semantic 可玻璃"；新增"sticky chrome / segmented / semantic 不手写三件套，用专用组件"规则；同步 `segmentedItem(active)` 新签名
+
+- Spec: `docs/superpowers/specs/2026-04-28-copilot-glass-system-design.md`
+- 关联 PR: #28 (sticky chrome) / #29 (semantic + segmented) / #30 (polish-1)
+
 
 ## [0.7.1] — 2026-05-04 · 实验详情页性能清扫 + Anthropic Bearer gateway
 
