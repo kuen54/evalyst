@@ -1010,6 +1010,11 @@ export const zh = {
   "copilot.chip.within": "位于",
   "copilot.chip.value_label": "内容",
   "copilot.chip.metadata_label": "元数据",
+  "copilot.chip.text_in_host": "在 {host} 中",
+  "copilot.chip.selected_text": "选中文本",
+  "copilot.chip.context_anchor": "上下文锚点",
+  "copilot.chip.anchor_taken_from": "取自 {hostType} {hostId}",
+  "copilot.chip.anchor_full_value_hint": "完整字段值走 read_context(ctx_{tag}, scope='parent')",
   "copilot.context_stale_title": "这个对象已失效（被删或刷新后找不到），发送时会被标记为 missing",
   // Copilot tool calling (PR-3)
   "copilot.tool.loading": "查询中…",

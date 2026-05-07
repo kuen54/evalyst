@@ -1012,6 +1012,11 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.chip.within": "in",
   "copilot.chip.value_label": "Value",
   "copilot.chip.metadata_label": "Metadata",
+  "copilot.chip.text_in_host": "in {host}",
+  "copilot.chip.selected_text": "Selected text",
+  "copilot.chip.context_anchor": "Context anchor",
+  "copilot.chip.anchor_taken_from": "taken from {hostType} {hostId}",
+  "copilot.chip.anchor_full_value_hint": "full field value via read_context(ctx_{tag}, scope='parent')",
   "copilot.context_stale_title": "This entity is stale (deleted or no longer resolvable). It will be marked missing when sent.",
   // Copilot tool calling (PR-3)
   "copilot.tool.loading": "Running…",
