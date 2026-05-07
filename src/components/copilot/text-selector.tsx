@@ -28,9 +28,9 @@ interface PendingSelection {
 
 export function TextSelector() {
   const t = useT()
-  const { open, addContext } = useCopilotStore()
-  // 默认共享上下文：面板打开就启用
-  const enabled = open
+  const { open, inspectorActive, addContext } = useCopilotStore()
+  // 与 Inspector 互斥：Inspector 模式开启时禁用划线浮按钮（spec §3.7.1）
+  const enabled = open && !inspectorActive
   const [selection, setSelection] = useState<PendingSelection | null>(null)
 
   useEffect(() => {
