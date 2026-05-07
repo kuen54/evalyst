@@ -55,6 +55,7 @@ function rowLabel(refs: Record<string, string | number>, preview: Record<string,
 
 export default function ComparePage() {
   const t = useT()
+  const { open: copilotOpen } = useCopilotStore()
   const [experiments, setExperiments] = useState<ExperimentConfig[]>([])
   const [schemas, setSchemas] = useState<TaskSchema[]>([])
   const [displays, setDisplays] = useState<Display[]>([])
@@ -136,14 +137,12 @@ export default function ComparePage() {
 
   return (
     <div className="px-6 py-4 h-full">
-      <GlassRegular className="p-6 h-full flex flex-col">
-        <h2 className="text-lg font-semibold tracking-tight mb-6 shrink-0">{t("compare.title")}</h2>
-
+      <GlassRegular className="h-full overflow-hidden">
         <div
-          className="grid gap-6 min-h-0 flex-1 transition-[grid-template-columns] duration-200"
+          className="grid h-full transition-[grid-template-columns] duration-200"
           style={{ gridTemplateColumns: leftCollapsed ? "28px 1fr" : "280px 1fr" }}
         >
-        <div className="overflow-hidden border-r pr-0">
+        <div className="overflow-hidden border-r min-h-0">
           {leftCollapsed ? (
             <button
               onClick={() => setLeftCollapsed(false)}
@@ -161,20 +160,21 @@ export default function ComparePage() {
               </span>
             </button>
           ) : (
-            <div className="h-full overflow-auto pr-6 space-y-5">
+            <div className="h-full overflow-auto p-6 space-y-5">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold tracking-tight">{t("compare.title")}</h2>
+                <button
+                  onClick={() => setLeftCollapsed(true)}
+                  title={t("compare.collapse_panel")}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors shrink-0"
+                >
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 3l-4 4 4 4" />
+                  </svg>
+                </button>
+              </div>
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("compare.select_prompt")}</h3>
-                  <button
-                    onClick={() => setLeftCollapsed(true)}
-                    title={t("compare.collapse_panel")}
-                    className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 3l-4 4 4 4" />
-                    </svg>
-                  </button>
-                </div>
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">{t("compare.select_prompt")}</h3>
                 <div className="space-y-3">
                   <Select value={schemaFilter} onValueChange={v => { setSchemaFilter(v ?? undefined); setSelectedIds([]) }}>
                     <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder={t("compare.all_schemas")} /></SelectTrigger>
@@ -227,9 +227,9 @@ export default function ComparePage() {
           )}
         </div>
 
-        <div className="overflow-auto min-w-0 pr-6">
+        <div className={`overflow-auto min-w-0 px-6 pb-6 transition-[padding] duration-300 ${copilotOpen ? "pt-6" : "pt-0"}`}>
           {selectedIds.length < 2 ? (
-            <div className="flex items-center justify-center h-60 text-muted-foreground">
+            <div className="flex items-center justify-center h-full text-muted-foreground">
               {t("compare.pick_hint")}
             </div>
           ) : selectedSchema ? (
