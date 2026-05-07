@@ -20,7 +20,7 @@ export function SingleListResults({ results, schema }: ResultViewProps) {
       {results.map(r => (
         <GlassCardThin
           key={r.task_id}
-          className={`${r.status !== "success" ? "border-red-200" : ""}`}
+          className={`${r.status !== "success" ? "border-red-500/40" : ""}`}
           data-copilot-context="task_result"
           data-copilot-context-id={r.task_id}
           data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id })}

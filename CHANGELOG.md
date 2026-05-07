@@ -10,6 +10,12 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### 体验
+
+- **暗色模式 polish 续集**：v0.8.1 收口的"alpha 配方"规范向其余幸存者扫尾。
+  - `AgentHintBanner` 的 `<code>/evalyst</code>` chip 原用 `bg-background`，dark mode 下黄色玻璃卡里嵌一颗黑底深米粒；改 `bg-foreground/5` 既不抢色又能看清。同 banner 的「Download SKILL.md」按钮原 `border-amber-300 bg-background hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/30` 双轨写法收成 `border-amber-500/40 bg-card hover:bg-amber-500/15` 单轨
+  - 4 处 result 组件失败格还留着裸 `border-red-200`（无 bg，不在 v0.8.1 扫描范围）：`single-list-results` / `json-default-results` / `bubble-auto-results` / `display-jsx` 的 fallback 卡。统一翻成 `border-red-500/40` 与新规范对齐 —— dark mode 下浅粉描边在暗玻璃卡上识别度低的小 bug 修了
+
 ## [0.8.1] — 2026-05-07 · v0.8.0 后五波 polish (PR #31–35)
 
 v0.8.0 把 copilot 玻璃 UI 系统从 4 档重做成 9 档之后的一轮 polish —— 都是用户实测发现的"差一口气"的 visual bug，不改任何架构。内容涵盖：tinted CTA 可读性、Inspector hint 文案/居中/层级、sticky chrome 关态 fallback 扁平化、compare 两列贯穿布局 + sticky bleed 修复、暗色模式下轻量 tinted 表面统一规范。期间也收口了 2 条设计规范（"一页一个 tinted 名额"的续写 + 轻量 tinted 表面的 alpha 配方），防止后续位置再重踩同样的坑。
