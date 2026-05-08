@@ -17,6 +17,9 @@ export interface CacheUsageStat {
   // v2.5 P1b: break reason detection
   system_prompt_digest?: string    // sha256 前 16 字符
   tool_digest?: string
+  // v2.5 P2: break diff —— 末尾 200 字符 preview，用于 break 时给用户看具体差异
+  system_prompt_preview?: string   // system prompt 末尾 200 char
+  tool_preview?: string            // sorted tool names join(',')；超长时取末尾 200 char
 }
 
 // 惰性路径，测试 chdir 有效
@@ -198,6 +201,48 @@ export function collectRecentBreakReasons(
     for (const r of info.reasons) counts[r]++
   }
   return counts
+}
+
+/**
+ * v2.5 P2 §3.1: preview 字段助手。digest 只能告诉用户"变了"，preview 让用户看到
+ * 具体哪几个字符变了。末尾 200 char 足够看到大部分增量改动（系统 prompt 通常是
+ * 在尾部追加内容，cache breakpoint 也通常打在尾部）。
+ */
+export const PREVIEW_LIMIT = 200
+
+export function computeSystemPromptPreview(systemPrompt: string): string {
+  if (systemPrompt.length <= PREVIEW_LIMIT) return systemPrompt
+  return systemPrompt.slice(-PREVIEW_LIMIT)
+}
+
+/**
+ * tool_preview: sorted tool names 用逗号 join。通常 < 200 char 全展示；
+ * 极端长名 + 多工具时也走 200 char 截断（slice 末尾），保持上限。
+ */
+export function computeToolPreview(toolNames: string[]): string {
+  const joined = [...toolNames].sort().join(',')
+  if (joined.length <= PREVIEW_LIMIT) return joined
+  return joined.slice(-PREVIEW_LIMIT)
+}
+
+/**
+ * v2.5 P2 §3.3: 找最近一次 break 对应的 (prev, curr) 对。
+ * 反向扫描，第一个命中即返。caller 拿到后 + 对应 reasons 可以做 diff 展示。
+ */
+export interface BreakPair {
+  prev: CacheUsageStat
+  curr: CacheUsageStat
+  reasons: BreakReason[]
+}
+
+export function findLatestBreakPair(stats: CacheUsageStat[]): BreakPair | null {
+  for (let i = stats.length - 1; i >= 1; i--) {
+    const info = detectCacheBreakWithReasons(stats[i - 1], stats[i])
+    if (info.broken) {
+      return { prev: stats[i - 1], curr: stats[i], reasons: info.reasons }
+    }
+  }
+  return null
 }
 
 /**

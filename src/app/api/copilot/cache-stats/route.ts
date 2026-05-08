@@ -4,6 +4,7 @@ import {
   aggregateCacheHitRate,
   countRecentBreaks,
   collectRecentBreakReasons,
+  findLatestBreakPair,
 } from '@/lib/copilot/cache-stats-store'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
   const weeklyAgg = aggregateCacheHitRate(weeklyStats)
   const weeklyBreaks = countRecentBreaks(weeklyStats)
   const weeklyReasons = collectRecentBreakReasons(weeklyStats)
+  const latestBreakPair = findLatestBreakPair(weeklyStats)
 
   return NextResponse.json({
     session: {
@@ -30,6 +32,8 @@ export async function GET(req: NextRequest) {
       ...weeklyAgg,
       ...weeklyBreaks,
       recent_break_reasons: weeklyReasons,
+      // v2.5 P2 §3.3: 最近一对 break (prev/curr) + reasons，给 tooltip 做 diff 展示
+      latest_break_pair: latestBreakPair,
     },
   })
 }
