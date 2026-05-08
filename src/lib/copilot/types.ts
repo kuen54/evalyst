@@ -3,7 +3,7 @@
 // fork 语义：消息带 parent_id；session 记 head_message_id；编辑一条 user 消息 = 新建同 parent_id
 // 的新消息，head 跟过去；旧分支保留，从 head 回溯构造当前视图。
 
-export type CopilotRole = 'user' | 'assistant' | 'tool_use' | 'tool_result'
+export type CopilotRole = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'system'
 
 /**
  * v2 tool_result 三态内容：
@@ -66,8 +66,14 @@ export interface CopilotMessage {
   thought_signature?: string
   /** tool_result：用户拒绝执行此写工具 */
   denied?: boolean
-  /** tool_result：denied 的原因（可选） */
+  /** tool_result：denied 的原因（可选）；或 compact_boundary：压缩触发原因（可选） */
   reason?: string
+
+  // ---------- v2.5 §5: compact_boundary 专用扩展（仅 role === 'system' 时填）----------
+  /** 'compact_boundary' 表示这条 system 消息是 microCompact 完成后插入的边界标记 */
+  kind?: 'compact_boundary'
+  /** boundary 生成时的 ISO 时间戳 */
+  at?: string
 }
 
 /** 圈选的 context 引用 —— 由前端 data-copilot-context 捕获，后端 resolve */
