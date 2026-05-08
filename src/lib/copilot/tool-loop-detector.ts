@@ -30,10 +30,24 @@ export type ToolLoopDecision =
   | { action: "warn"; reasonKey: LoopReasonKey; reasonVars: { tool: string; count: number } }
   | { action: "block"; reasonKey: LoopReasonKey; reasonVars: { tool: string; count: number } }
 
+/**
+ * 稳定 JSON hash（sort top-level keys）。
+ * - JSON.stringify 的 replacer array 只强制 key 次序，对 value 递归不排序
+ * - 对于嵌套 object 的 key 顺序仍不稳定，但 tool 参数多为平坦 map；
+ *   真遇到嵌套且对顺序敏感的工具，未来加递归排序
+ */
 function argsHash(input: Record<string, unknown>): string {
-  return JSON.stringify(input)
+  return JSON.stringify(input, Object.keys(input).sort())
 }
 
+/**
+ * 判定 tool_result.content 是否代表"失败"。
+ * 目前只识别两种形态：
+ *   1. { error: string } — runTool 默认 catch + payloadGuard 的失败包装
+ *   2. { denied: true }  — 用户拒绝执行写工具
+ * 其他形态（{ ok: false } / { success: false } / HTTP error shapes）均视为成功。
+ * 新增自定义失败字段时同步更新此函数。
+ */
 function isFailure(content: string): boolean {
   try {
     const parsed = JSON.parse(content) as unknown
@@ -54,6 +68,13 @@ interface PairSummary {
   outputContent: string
 }
 
+/**
+ * 反向扫 branch 尾部连续的 tool_use + tool_result 配对。
+ * **边界行为**：任何非 pair 消息（尤其 assistant text）会打断扫描 → 前面的循环检测不到。
+ * 这是 intentional — 一段 assistant text 通常意味着策略变更，不应把 text 之前的失败
+ * 串视为"连续"。当前 runToolAwareLlmStream 的流中 assistant text 总出现在 tool_use 之前
+ * 而不是之间，所以生产场景不会踩到这个边界。
+ */
 function collectTrailingPairs(branch: CopilotMessage[]): PairSummary[] {
   const pairs: PairSummary[] = []
   let i = branch.length - 1

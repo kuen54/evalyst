@@ -1027,7 +1027,7 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.tool.cancel": "Cancel",
   "copilot.tool.deny_reason_placeholder": "(Optional) Tell Copilot why not to run this",
   "copilot.tool.denied_summary": "Denied: {reason}",
-  "copilot.tool.chain_limit": "Tool chain limit reached (5). Please take over.",
+  "copilot.tool.chain_limit": "Server rate-limited (429); please retry shortly",
   "copilot.loop.warn.exact_failure": "Tool {tool} failed {count} times with the same args; next identical call may be blocked",
   "copilot.loop.warn.same_tool": "Tool {tool} failed {count} times in a row; possible loop",
   "copilot.loop.warn.no_progress": "Tool {tool} called {count} times with same args + same output; no progress",

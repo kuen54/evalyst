@@ -404,6 +404,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         } | null
         if (resp.status === 429 && obj?.loop_reason_key) {
           // v2.5 P0 §3.4: block 档命中 —— UI 插 system_notice，不再用旧链长 fallback 文案
+          console.warn('[copilot] tool-loop blocked', obj.loop_reason_key, obj.loop_reason_vars)
           setMessages(prev => [
             ...prev,
             {

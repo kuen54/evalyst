@@ -61,6 +61,17 @@ describe('analyzeToolLoop · exact-failure（同 args 失败）', () => {
     ]
     expect(analyzeToolLoop(branch, 'read_context', { id: 'ctx_2' })).toEqual({ action: 'proceed' })
   })
+  it('4 次失败下次 warn（count >= threshold 边界，不触发 block）', () => {
+    const branch = [
+      ...fail('1', 'read_context', { id: 'ctx_1' }),
+      ...fail('2', 'read_context', { id: 'ctx_1' }),
+      ...fail('3', 'read_context', { id: 'ctx_1' }),
+      ...fail('4', 'read_context', { id: 'ctx_1' }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_context', { id: 'ctx_1' })
+    expect(r.action).toBe('warn')
+    if (r.action === 'warn') expect(r.reasonVars.count).toBe(4)
+  })
 })
 
 describe('analyzeToolLoop · same-tool（同工具任意 args 失败）', () => {

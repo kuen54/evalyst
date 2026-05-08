@@ -208,10 +208,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 }
 
-/**
- * v2.5 P0 §3.4：原 countTrailingToolUsePairs 已移除。重复检测改走
- * `analyzeToolLoop`（hermes 三档阈值），见上方 §流程 step 2。
- */
 function jsonError(status: number, message: string): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,

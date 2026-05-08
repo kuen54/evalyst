@@ -1025,7 +1025,7 @@ export const zh = {
   "copilot.tool.cancel": "取消",
   "copilot.tool.deny_reason_placeholder": "（可选）告诉 Copilot 为什么不应该跑",
   "copilot.tool.denied_summary": "用户拒绝: {reason}",
-  "copilot.tool.chain_limit": "链式调用已达上限 (5)，请人工介入",
+  "copilot.tool.chain_limit": "服务端 429 限流，请稍后重试",
   "copilot.loop.warn.exact_failure": "工具 {tool} 以相同参数连续失败 {count} 次，下一次相同调用可能被中止",
   "copilot.loop.warn.same_tool": "工具 {tool} 连续失败 {count} 次，可能陷入死循环",
   "copilot.loop.warn.no_progress": "工具 {tool} 以相同参数重复 {count} 次但输出相同，可能无进展",
