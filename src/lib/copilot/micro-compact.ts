@@ -53,10 +53,48 @@ export interface MicroCompactResult {
   didCompact: boolean
 }
 
-/** 4 char ≈ 1 token 的朴素估算，与 anthropic / openai tokenizer 偏差 < 30% 但够用 */
+/** Hermes context_compressor.py:65 _IMAGE_TOKEN_ESTIMATE = 1600 */
+export const IMAGE_TOKEN_COST = 1600
+
+/**
+ * 匹配 image url（http/https + 常见图片扩展名）和 data URL。
+ * 用 \.(?:png|jpe?g|webp|gif|bmp) 兜常见扩展名；不区分大小写。
+ */
+const IMAGE_URL_PATTERN =
+  /(["'])(https?:\/\/[^"'\s]*\.(?:png|jpe?g|webp|gif|bmp)(?:\?[^"'\s]*)?)\1|data:image\/[a-z]+;base64,/gi
+
+const CJK_PATTERN = /[一-鿿]/g
+
+/**
+ * v2.5 P0 §3.1: 分三层分岔 + image 补偿。
+ *
+ * - JSON content（tool_result 都是）：~2 chars/token (CCB tokenEstimation.ts:227)
+ * - 中文 heavy（>30% CJK）：~1.5 chars/token
+ * - 其他（英文 / 代码）：~4 chars/token
+ *
+ * 每张图 url（http/data）+ 1600 tokens (hermes context_compressor.py:65).
+ */
 function approxTokens(s: string): number {
-  return Math.ceil(s.length / 4)
+  if (!s) return 0
+
+  const imageCount = (s.match(IMAGE_URL_PATTERN) ?? []).length
+  const imageTokens = imageCount * IMAGE_TOKEN_COST
+
+  const trimmed = s.trim()
+  const looksLikeJson =
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+  if (looksLikeJson) return Math.ceil(s.length / 2) + imageTokens
+
+  const cjkCount = (s.match(CJK_PATTERN) ?? []).length
+  if (cjkCount > s.length * 0.3) return Math.ceil(s.length / 1.5) + imageTokens
+
+  return Math.ceil(s.length / 4) + imageTokens
 }
+
+// 测试导出（只供单测用）
+export const __testOnlyApproxTokens = approxTokens
 
 export function microCompact(
   messages: CopilotMessage[],

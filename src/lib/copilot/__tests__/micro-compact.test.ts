@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { microCompact, parseRefId } from "../micro-compact"
+import { microCompact, parseRefId, __testOnlyApproxTokens } from "../micro-compact"
 import { normalizeToolResult } from "../session-store"
 import type { CopilotMessage, ToolResultContent } from "../types"
 
@@ -254,9 +254,9 @@ describe("microCompact", () => {
 
 describe("microCompact maxTotalReplayableTokens (v2.5)", () => {
   it("compacts older read results when accumulated tokens exceed cap even within keepRecentN window", () => {
-    // 3 条 read_resource tool_result，每条 ~5000 token payload；keepRecent=3, 阈值 6000
-    // 反向遍历：最近条 5000 ≤ 6000 keep；中间条 5000+5000 > 6000 → break；最老自然压
-    const big = "x".repeat(20_000) // ~5000 token
+    // 3 条 read_resource tool_result，每条 ~10_015 token payload (JSON 路径 ÷2)；keepRecent=3, 阈值 15_000
+    // 反向遍历：最近条 10_015 ≤ 15_000 keep；中间条 10_015+10_015 > 15_000 → break；最老自然压
+    const big = "x".repeat(20_000) // JSON.stringify → ~20_030 chars → ~10_015 tokens
     const messages: CopilotMessage[] = [
       userMsg("u1", "hi"),
       toolUseMsg("a1", "c1", "read_resource"),
@@ -268,7 +268,7 @@ describe("microCompact maxTotalReplayableTokens (v2.5)", () => {
     ]
     const { messages: out } = microCompact(messages, {
       keepRecentReadResults: 3,
-      maxTotalReplayableTokens: 6000,
+      maxTotalReplayableTokens: 15_000,
     })
     const inlines = out.filter(
       (m) => m.role === "tool_result" && normalizeToolResult(m.content).kind === "inline",
@@ -328,5 +328,64 @@ describe("microCompact didCompact flag (v2.5)", () => {
     ]
     const { didCompact } = microCompact(messages, { keepRecentReadResults: 0 })
     expect(didCompact).toBe(false)
+  })
+})
+
+describe("approxTokens content-type 分岔（v2.5 P0）", () => {
+  it("JSON 格式（{ ... }）按 length / 2 估算", () => {
+    const json = JSON.stringify({ x: "hello world", y: [1, 2, 3] })
+    expect(__testOnlyApproxTokens(json)).toBe(Math.ceil(json.length / 2))
+  })
+
+  it("JSON 格式（[ ... ]）按 length / 2 估算", () => {
+    const json = JSON.stringify([1, 2, 3, 4, 5])
+    expect(__testOnlyApproxTokens(json)).toBe(Math.ceil(json.length / 2))
+  })
+
+  it("中文 heavy（>30% CJK）按 length / 1.5 估算", () => {
+    const cn = "你好世界这是一段中文文本中文占比超过百分之三十"
+    expect(__testOnlyApproxTokens(cn)).toBe(Math.ceil(cn.length / 1.5))
+  })
+
+  it("英文为主（<30% CJK）按 length / 4 估算", () => {
+    const en = "Hello world this is mostly English with one 字 in it"
+    expect(__testOnlyApproxTokens(en)).toBe(Math.ceil(en.length / 4))
+  })
+
+  it("空字符串返回 0", () => {
+    expect(__testOnlyApproxTokens("")).toBe(0)
+  })
+
+  it("JSON 优先级高于中文判定（JSON 里含中文也走 ÷2）", () => {
+    const jsonCn = JSON.stringify({ msg: "中文内容比较多需要超过百分之三十" })
+    expect(__testOnlyApproxTokens(jsonCn)).toBe(Math.ceil(jsonCn.length / 2))
+  })
+})
+
+describe("approxTokens image 补偿（v2.5 P0）", () => {
+  it("每个 https:// 图片 url 补偿 1600 tokens", () => {
+    const s = '{"img":"https://example.com/foo.png"}'
+    expect(__testOnlyApproxTokens(s)).toBe(Math.ceil(s.length / 2) + 1600)
+  })
+
+  it("多张图叠加", () => {
+    const s = '{"a":"https://x.com/1.jpg","b":"https://x.com/2.webp"}'
+    expect(__testOnlyApproxTokens(s)).toBe(Math.ceil(s.length / 2) + 3200)
+  })
+
+  it("data:image/...;base64 也算一张", () => {
+    const s = "data:image/png;base64,iVBORw0KGgoAAAA"
+    const baseTokens = Math.ceil(s.length / 4)
+    expect(__testOnlyApproxTokens(s)).toBe(baseTokens + 1600)
+  })
+
+  it("不带扩展名的 url 不算 image", () => {
+    const s = '"https://example.com/api/foo"'
+    expect(__testOnlyApproxTokens(s)).toBe(Math.ceil(s.length / 2))
+  })
+
+  it("image url query string 不影响匹配", () => {
+    const s = '"https://example.com/foo.png?v=2"'
+    expect(__testOnlyApproxTokens(s)).toBe(Math.ceil(s.length / 2) + 1600)
   })
 })
