@@ -50,6 +50,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 - Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§8）
 - Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md（Task 18-21）
 
+## [0.8.2] — 2026-05-08 · v0.8.1 "alpha 配方"规范尾扫 (PR #36)
+
+v0.8.1 把 `bg-{color}-50` 一刀切成 alpha 配方后，尾扫剩下的幸存者。范围：两类位置——一是 AgentHintBanner 内部的 chip + download 按钮（v0.8.1 没看 banner 内部），二是 4 个 result 组件的失败格 border（v0.8.1 grep 只捞 `bg-X-50` 共现的，裸 border 漏掉）。零架构变更，纯 className 替换。
+
 ### 体验
 
 - **暗色模式 polish 续集**：v0.8.1 收口的"alpha 配方"规范向其余幸存者扫尾。
