@@ -1,6 +1,7 @@
 // src/lib/copilot/cache-stats-store.ts
 import fs from 'fs'
 import path from 'path'
+import crypto from 'node:crypto'
 import { ensureDir } from '../fs-utils'
 
 export interface CacheUsageStat {
@@ -124,4 +125,19 @@ export function countRecentBreaks(stats: CacheUsageStat[]): CacheBreaksSummary {
     if (detectCacheBreak(stats[i - 1], stats[i])) breaks++
   }
   return { recent_breaks: breaks, total_pairs_considered: Math.max(0, stats.length - 1) }
+}
+
+/**
+ * v2.5 P1b §3.1.2: sha256 前 16 字符 digest，用于 break reason detection。
+ *
+ * 16 字符碰撞概率 1/2^64 完全够判等用（不是密码学场景）；裁短主要是
+ * 节省每条 cache-stats jsonl 行的字节数（10K 条节省 ~1MB）。
+ */
+export function computeSystemPromptDigest(systemPrompt: string): string {
+  return crypto.createHash('sha256').update(systemPrompt).digest('hex').slice(0, 16)
+}
+
+export function computeToolDigest(toolNames: string[]): string {
+  const sorted = [...toolNames].sort().join(',')
+  return crypto.createHash('sha256').update(sorted).digest('hex').slice(0, 16)
 }

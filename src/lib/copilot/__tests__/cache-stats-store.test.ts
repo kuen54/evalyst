@@ -179,3 +179,54 @@ describe('countRecentBreaks (v2.5 P0 §3.2)', () => {
     expect(countRecentBreaks(stats)).toEqual({ recent_breaks: 1, total_pairs_considered: 2 })
   })
 })
+
+import { computeSystemPromptDigest, computeToolDigest } from '../cache-stats-store'
+
+describe('computeSystemPromptDigest (v2.5 P1b §3.1.2)', () => {
+  it('返回 16 字符 hex 字符串', () => {
+    const d = computeSystemPromptDigest('You are helpful')
+    expect(d).toMatch(/^[0-9a-f]{16}$/)
+  })
+
+  it('相同输入 → 相同 digest（确定性）', () => {
+    const a = computeSystemPromptDigest('hello')
+    const b = computeSystemPromptDigest('hello')
+    expect(a).toBe(b)
+  })
+
+  it('不同输入 → 不同 digest', () => {
+    const a = computeSystemPromptDigest('hello')
+    const b = computeSystemPromptDigest('world')
+    expect(a).not.toBe(b)
+  })
+
+  it('空 string 也返合法 digest（不抛错）', () => {
+    const d = computeSystemPromptDigest('')
+    expect(d).toMatch(/^[0-9a-f]{16}$/)
+  })
+})
+
+describe('computeToolDigest (v2.5 P1b §3.1.2)', () => {
+  it('返回 16 字符 hex', () => {
+    const d = computeToolDigest(['edit_template', 'read_context'])
+    expect(d).toMatch(/^[0-9a-f]{16}$/)
+  })
+
+  it('相同 names 不同顺序 → 同 digest（自动 sort）', () => {
+    const a = computeToolDigest(['edit_template', 'read_context'])
+    const b = computeToolDigest(['read_context', 'edit_template'])
+    expect(a).toBe(b)
+  })
+
+  it('新增 tool → 不同 digest', () => {
+    const a = computeToolDigest(['edit_template', 'read_context'])
+    const b = computeToolDigest(['edit_template', 'read_context', 'restart_experiment'])
+    expect(a).not.toBe(b)
+  })
+
+  it('rename tool → 不同 digest（因为 name 变）', () => {
+    const a = computeToolDigest(['edit_template'])
+    const b = computeToolDigest(['edit_schema'])
+    expect(a).not.toBe(b)
+  })
+})
