@@ -156,9 +156,11 @@ export interface BreakInfo {
  * v2.5 P1b §3.1.3: 在 detectCacheBreak (PR1) 噪声地板基础上对比 digest，
  * 给出 break 的具体原因。
  *
- * - prev 缺失 → 'unknown'（旧 jsonl 行没有 digest 字段）
  * - prev/curr digest 都齐 + 不同 → 加对应 reason
  * - 量级掉但 digest 都一样 → 'unknown'（可能是 cache TTL 过期或其他）
+ *
+ * 注：prev === undefined 已被 detectCacheBreak short-circuit 成 false，
+ * 进到 reasons 分支时 prev 必然存在。
  */
 export function detectCacheBreakWithReasons(
   prev: CacheUsageStat | undefined,
@@ -167,16 +169,15 @@ export function detectCacheBreakWithReasons(
   if (!detectCacheBreak(prev, curr)) {
     return { broken: false, reasons: [] }
   }
-  if (!prev) {
-    return { broken: true, reasons: ['unknown'] }
-  }
+  // detectCacheBreak 保证 prev 非空到这里（用 ! 让 TS 跨函数边界感知）
+  const p = prev!
   const reasons: BreakReason[] = []
-  if (prev.system_prompt_digest && curr.system_prompt_digest &&
-      prev.system_prompt_digest !== curr.system_prompt_digest) {
+  if (p.system_prompt_digest && curr.system_prompt_digest &&
+      p.system_prompt_digest !== curr.system_prompt_digest) {
     reasons.push('system_prompt')
   }
-  if (prev.tool_digest && curr.tool_digest &&
-      prev.tool_digest !== curr.tool_digest) {
+  if (p.tool_digest && curr.tool_digest &&
+      p.tool_digest !== curr.tool_digest) {
     reasons.push('tools')
   }
   if (reasons.length === 0) {

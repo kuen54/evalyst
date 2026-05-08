@@ -10,7 +10,7 @@ import type { ApiConfig } from '../types'
 import type { LlmMessage } from '../llm-client'
 import { isTextMessage, buildApiRequest } from '../llm-client'
 import type { StreamEvent } from './types'
-import { applyAnthropicCacheControl } from './anthropic-cache-control'
+import { applyAnthropicCacheControl, type AnthropicBody } from './anthropic-cache-control'
 
 export interface CallLlmStreamingParams {
   messages: LlmMessage[]
@@ -654,7 +654,8 @@ function buildStreamingRequestBody(p: CallLlmStreamingParams): Record<string, un
       base.tools = p.tools
     }
     // v2.5 P1a §3.1: 4-breakpoint cache_control（hermes system_and_3）
-    applyAnthropicCacheControl(base as { system?: string | Array<Record<string, unknown>>; messages: Array<Record<string, unknown>> })
+    // base 是 Record<string, unknown>；通过 unknown 中转兜个 AnthropicBody 形状（messages 已在上方填进 base）
+    applyAnthropicCacheControl(base as unknown as AnthropicBody)
   } else {
     base.messages = serializeMessagesForProvider(p.messages, 'openai')
     // OpenAI 兼容的很多 endpoint 支持 include_usage
