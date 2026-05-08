@@ -228,3 +228,68 @@ export function extractSystemPromptString(
   }
   return ''
 }
+
+export interface PruneConfig {
+  maxAgeDays: number
+  maxLines: number
+}
+
+export const DEFAULT_PRUNE_CONFIG: PruneConfig = {
+  maxAgeDays: 30,
+  maxLines: 10000,
+}
+
+export interface PruneResult {
+  before_lines: number
+  after_lines: number
+  pruned_by_age: number
+  pruned_by_size: number
+}
+
+/**
+ * v2.5 P1b §3.2: 双阈值 retention
+ * - 删 ts < now - maxAgeDays 的所有行（含 malformed JSON）
+ * - 若仍 > maxLines，从头删到 maxLines/2（保最后 N/2 条作业暖数据）
+ *
+ * 原子写：tmp file + rename。
+ */
+export function pruneCacheStats(config: PruneConfig = DEFAULT_PRUNE_CONFIG): PruneResult {
+  const filePath = cacheStatsPath()
+  if (!fs.existsSync(filePath)) {
+    return { before_lines: 0, after_lines: 0, pruned_by_age: 0, pruned_by_size: 0 }
+  }
+  const raw = fs.readFileSync(filePath, 'utf-8')
+  const allLines = raw.split('\n').filter((l) => l.trim())
+  const beforeLines = allLines.length
+
+  const cutoff = Date.now() - config.maxAgeDays * 24 * 60 * 60 * 1000
+  const byAge = allLines.filter((line) => {
+    try {
+      const s = JSON.parse(line) as CacheUsageStat
+      return new Date(s.ts).getTime() >= cutoff
+    } catch {
+      return false  // malformed 行同时删除
+    }
+  })
+  const prunedByAge = beforeLines - byAge.length
+
+  let final = byAge
+  let prunedBySize = 0
+  if (byAge.length > config.maxLines) {
+    const keepCount = Math.floor(config.maxLines / 2)
+    final = byAge.slice(-keepCount)
+    prunedBySize = byAge.length - keepCount
+  }
+
+  const newContent = final.join('\n') + (final.length > 0 ? '\n' : '')
+  const tmpPath = filePath + '.tmp'
+  fs.writeFileSync(tmpPath, newContent)
+  fs.renameSync(tmpPath, filePath)
+
+  return {
+    before_lines: beforeLines,
+    after_lines: final.length,
+    pruned_by_age: prunedByAge,
+    pruned_by_size: prunedBySize,
+  }
+}
