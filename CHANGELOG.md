@@ -37,6 +37,31 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 - Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p1b-cache-break-detection-retention-design.md
 - Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p1b-cache-break-detection-retention.md
 
+### Copilot (v2.5 P2 · tool error recovery)
+
+基于 v0.9.x 三 PR 后的 code review，修正"LLM 看 tool error 全靠 message 文案 prompt"的脆弱性，把 ad-hoc error 路径升级成结构化 contract：
+
+- **结构化 ToolResult contract**（新文件 `src/lib/copilot/tools/tool-result.ts`）：tool 推荐返 `{ ok: true, value } | { ok: false, error: { code, message, hint?, retry_safe? } }`。9 种 ToolErrorCode 标准化（`INVALID_INPUT / NOT_FOUND / UNAUTHORIZED / CONFLICT / RATE_LIMIT / NETWORK / USER_DENIED / AWAITING_CONFIRM / INTERNAL`）。LLM 行为按 enum 而非文案 prompt，更稳定。
+- **runTool 兼容封装**：旧 tool（直接返 raw / throw Error）继续 work；throw 兜底成 `INTERNAL` 错误。新 tool 鼓励显式 `ok()/err()` helpers。`RunToolResult` 加 `kind: 'error'`。`isToolResultShape` 收紧到 `ok===true && 'value' in obj` 或 `ok===false && error 是 object`，避免 legacy fixture `{ ok: 1 }` 误判。
+- **Anthropic `is_error: true` 协议透传**：`LlmMessage.tool_result` 加 optional `is_error?: boolean`；build-llm-messages 用 `isToolErrorShape` 在 inline kind 检测时设字段；`serializeAnthropicNonAssistant` 在 tool_result content block 透传。让 Claude/Sonnet 一眼分清 success vs failure。OpenAI 路径不动（协议无该字段）。
+- **7 个 tool 的 input validation 改 explicit err()**：`restart_experiment / read_resource / edit_template / read_dataset_records / read_tool_result / read_experiment_results / read_context` 入口 throw 改 `err('INVALID_INPUT' | 'NOT_FOUND', msg, { hint })`。成功路径 `ok()` 包装。业务 throw（fs read 失败 / loadPersistedToolResult 找不到 ref 等）保留兜底成 INTERNAL。
+- **`/tool-result` route handler 简化**：去 try/catch 和字符串拼接（`'tool denied by server hook:'`），按 `RunToolResult.kind` dispatch；error 路径统一 `{ ok: false, error: { code, message, hint?, retry_safe? } }` 形态。`USER_DENIED` / `AWAITING_CONFIRM` 用 `as const` 窄化保留 ToolErrorCode 联合类型。P0 tool-loop-detector 逻辑（warn/block + loop_warn SSE）零变动。
+- **ToolCallCard error 渲染**：red alpha tinted 表面（`bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-300`，遵循 AGENTS.md 轻量 tinted 表面约定）+ `[CODE] · 中文标签` + 可选 Hint + 可选 retry_safe 小标签（amber alpha）。`role="alert"` for screen readers。`parseToolError` helper 兼容 3 种 jsonl 形态（new ok/false / 旧 deny / 旧 ad-hoc），ErrorRender 在 5 个 variant（Default / Context / Resource / Retrieval / Write）的 toolResult 分支早返回。
+
+### 测试
+
+- 新增 ~24 测试 case：`tool-result.test.ts` 14（ok/err helpers 4 + isToolErrorShape 7 + 3 boundary edge）+ `tool-runtime.test.ts` 5 新（runTool ToolResult dispatch 全路径）+ `restart-experiment.test.ts` 6 新文件 + 7 tool tests 各迁到 ToolResult 形态断言 + `tools.test.ts` 3 registry-level 迁移 + `build-llm-messages.test.ts` 6 新（is_error 透传 5 形态）+ `llm-stream-serialize.test.ts` 4 新（Anthropic is_error true/false/undefined + OpenAI no-leak）+ `route-integration.test.ts` 3 新（NOT_FOUND / body.denied / sessionDenyList → USER_DENIED）；全套 545 → 603/603 pass
+
+### 向后兼容
+
+- ToolDescriptor.call 返回类型扩 union，旧 tool 不改也 work（runTool 检测无 `ok` field 视作 done）
+- jsonl 旧形态（`{ error: msg }` / `{ denied: true }`）由 isToolErrorShape 全 cover；UI 由 parseToolError 解析后走 INTERNAL / USER_DENIED 显示
+- LlmMessage.is_error optional；OpenAI 序列化按 falsy 不带；Anthropic 网关 `is_error: true` 是 GA 字段
+- `routes-integration.test.ts` 老 `runTool throws` 断言迁到新 `kind: 'error' code: INTERNAL`；`edit-template.test.ts` / `read-dataset-records.test.ts` Task 2 留下的 type assertion 脚手架在 Task 3 替换为 ToolResult shape narrowing
+
+- Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p2-tool-error-recovery-design.md
+- Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p2-tool-error-recovery.md
+
 
 ## [0.9.2] — 2026-05-08 · Copilot v2.5 P1a · Anthropic 4-breakpoint cache_control + head+tail preview (PR #43)
 
