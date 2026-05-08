@@ -13,7 +13,7 @@ import type {
 
 export interface FormOutputField {
   name: string
-  type: "string" | "number" | "boolean" | "array" | "object" | "string|null" | "tuple:number[]"
+  type: "string" | "number" | "boolean" | "array" | "object" | "string|null" | "tuple:number[]" | "image_url" | "image_url_list"
   required: boolean
   max_length?: number
   min_length?: number
