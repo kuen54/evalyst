@@ -105,5 +105,18 @@ function validateProp(data: unknown, prop: JsonPropDef, path: string): ValidateR
         }
       }
       return { ok: true }
+
+    case 'image_url':
+      if (typeof data !== 'string') return { ok: false, error: `${path}: expected image_url (string)` }
+      if (data.length === 0) return { ok: false, error: `${path}: image_url must be non-empty` }
+      return { ok: true }
+
+    case 'image_url_list':
+      if (!Array.isArray(data)) return { ok: false, error: `${path}: expected image_url_list (array)` }
+      for (let i = 0; i < data.length; i++) {
+        if (typeof data[i] !== 'string') return { ok: false, error: `${path}[${i}]: expected string` }
+        if ((data[i] as string).length === 0) return { ok: false, error: `${path}[${i}]: must be non-empty` }
+      }
+      return { ok: true }
   }
 }
