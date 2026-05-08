@@ -178,6 +178,9 @@ export interface AppendMessageInput {
   thought_signature?: string
   denied?: boolean
   reason?: string
+  // v2.5 §5: compact_boundary 专用扩展（仅 role === 'system' + kind === 'compact_boundary'）
+  kind?: 'compact_boundary'
+  at?: string
 }
 
 export function appendMessage(input: AppendMessageInput): CopilotMessage {
@@ -197,6 +200,8 @@ export function appendMessage(input: AppendMessageInput): CopilotMessage {
     thought_signature: input.thought_signature,
     denied: input.denied,
     reason: input.reason,
+    kind: input.kind,
+    at: input.at,
   }
   ensureDir(sessionsDir())
   const file = sessionPath(input.session_id)
@@ -208,6 +213,26 @@ export function appendMessage(input: AppendMessageInput): CopilotMessage {
   // session 元数据：head 跟过去 + updated_at
   updateSession(input.session_id, { head_message_id: msg.id })
   return msg
+}
+
+/**
+ * spec §5.3 方案 A：microCompact 完成后插 boundary。parent_id 默认取 session 当前 head，
+ * 这样 boundary 串入 active branch；之后的 append 自然以 boundary 为 parent。
+ */
+export function appendCompactBoundary(
+  sessionId: string,
+  opts?: { reason?: string },
+): CopilotMessage {
+  const session = getSession(sessionId)
+  return appendMessage({
+    session_id: sessionId,
+    role: 'system',
+    content: '',
+    parent_id: session?.head_message_id,
+    kind: 'compact_boundary',
+    at: nowIso(),
+    reason: opts?.reason,
+  })
 }
 
 /** 自动从首条 user 消息的前 30 字生成 title（若 session.title 仍是默认） */

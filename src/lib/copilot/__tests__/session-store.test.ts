@@ -9,6 +9,7 @@ import {
   deleteSession,
   updateSession,
   appendMessage,
+  appendCompactBoundary,
   readAllMessages,
   getActiveBranch,
   siblingsOf,
@@ -202,5 +203,48 @@ describe('pruneMessageAndDescendants', () => {
     pruneMessageAndDescendants(s.id, m1.id)
     expect(readAllMessages(s.id)).toEqual([])
     expect(getSession(s.id)?.head_message_id).toBeUndefined()
+  })
+})
+
+describe('appendCompactBoundary', () => {
+  it('writes a system/compact_boundary message and head follows', () => {
+    const s = createSession({})
+    const m1 = appendMessage({ session_id: s.id, role: 'user', content: 'hi' })
+    const m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'hello', parent_id: m1.id })
+    const bd = appendCompactBoundary(s.id, { reason: 'test' })
+
+    expect(bd.role).toBe('system')
+    expect(bd.kind).toBe('compact_boundary')
+    expect(bd.parent_id).toBe(m2.id)
+    expect(bd.at).toBeTruthy()
+    expect(bd.reason).toBe('test')
+
+    // head 跟到 boundary
+    expect(getSession(s.id)?.head_message_id).toBe(bd.id)
+
+    // getActiveBranch 把 boundary 串入
+    const branch = getActiveBranch(s.id)
+    expect(branch.map((m) => m.id)).toEqual([m1.id, m2.id, bd.id])
+  })
+
+  it('next append after boundary parents to boundary', () => {
+    const s = createSession({})
+    appendMessage({ session_id: s.id, role: 'user', content: 'hi' })
+    const bd = appendCompactBoundary(s.id)
+    const m2 = appendMessage({
+      session_id: s.id,
+      role: 'user',
+      content: 'next',
+      parent_id: getSession(s.id)?.head_message_id,
+    })
+    expect(m2.parent_id).toBe(bd.id)
+  })
+
+  it('works when session has no prior messages (parent_id undefined)', () => {
+    const s = createSession({})
+    const bd = appendCompactBoundary(s.id)
+    expect(bd.parent_id).toBeUndefined()
+    expect(bd.kind).toBe('compact_boundary')
+    expect(getSession(s.id)?.head_message_id).toBe(bd.id)
   })
 })

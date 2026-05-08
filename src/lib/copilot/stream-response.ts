@@ -59,7 +59,7 @@ export interface RunStreamResult {
  * user / tool_result 消息 append（这些是 caller 的职责）。
  */
 export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStreamResult> {
-  const llmMessages = buildLlmMessages(p.branch, p.pageContext)
+  const llmMessages = buildLlmMessages(p.branch, p.pageContext, { sessionId: p.sessionId })
   const toolsFormatted =
     p.model.api_format === 'openai' ? toOpenaiTools(p.tools) : toAnthropicTools(p.tools)
 
