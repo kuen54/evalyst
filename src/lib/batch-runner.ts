@@ -12,6 +12,7 @@ import { callLlm } from './llm-client'
 import { parseResponse } from './result-parser'
 import { appendResult, readResults, writeProgress, getProgress, updateExperiment } from './store'
 import { getLlmConfig, findPricing } from './llm-config'
+import { saveImagesForTask, assignImagePathsToOutput } from './image-store'
 
 // Singleton map: at most one runner per experiment.
 // 挂到 globalThis 上避免 Next.js dev 模式 HMR 重载模块时清空——否则 /run 启动的 runner
@@ -285,9 +286,36 @@ class BatchRunner {
         })
       }
 
+      // If LLM returned images (sankuai gemini-image-preview etc.), persist them
+      // to data/results/{exp_id}/images/ and inject API URLs into output fields
+      // declared as image_url / image_url_list.
+      let finalOutput = parsed.data as Record<string, unknown>
+      if (response.images && response.images.length > 0) {
+        try {
+          const savedPaths = await saveImagesForTask({
+            experimentId: this.config.id,
+            taskId: task.task_id,
+            images: response.images,
+          })
+          finalOutput = assignImagePathsToOutput(finalOutput, schema.output_schema, savedPaths)
+        } catch (imgErr) {
+          const msg = imgErr instanceof Error ? imgErr.message : String(imgErr)
+          return baseRecord({
+            status: 'error',
+            error: `image save failed: ${msg}`,
+            raw_response: response.content,
+            latency_ms: response.latency_ms,
+            input_tokens,
+            output_tokens,
+            cost_value,
+            cost_currency,
+          })
+        }
+      }
+
       return baseRecord({
         status: 'success',
-        output: parsed.data,
+        output: finalOutput,
         latency_ms: response.latency_ms,
         input_tokens,
         output_tokens,
