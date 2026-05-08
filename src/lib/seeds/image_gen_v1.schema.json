@@ -1,0 +1,56 @@
+{
+  "id": "image_gen_v1",
+  "label": "Image Generation v1",
+  "description": "Pass dataset prompts to an image generation model and persist the generated PNG to disk. Pair with image_quality_v1 rubric for HEIM-style critique.",
+  "version": 1,
+  "compare_group": "image_gen",
+  "inputs": [
+    {
+      "alias": "item",
+      "dataset_id": "image_prompts_v1",
+      "filters": [
+        {
+          "kind": "multiselect",
+          "key": "categories",
+          "field": "category",
+          "label": "Category",
+          "options": [
+            { "value": "portrait", "label": "Portrait" },
+            { "value": "landscape", "label": "Landscape" },
+            { "value": "object", "label": "Object" },
+            { "value": "abstract", "label": "Abstract" },
+            { "value": "composition", "label": "Composition" }
+          ],
+          "defaultValue": ["portrait", "landscape", "object", "abstract", "composition"]
+        },
+        { "kind": "number", "key": "limit", "role": "limit", "label": "Limit (blank = all)" }
+      ]
+    }
+  ],
+  "variables": [
+    { "name": "prompt", "source": "item.prompt" }
+  ],
+  "default_prompt": "{{prompt}}",
+  "message_builder": {
+    "user_template": "{{prompt}}"
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["image_url"],
+    "properties": {
+      "caption": { "type": "string", "max_length": 500 },
+      "image_url": { "type": "image_url" }
+    }
+  },
+  "display_dimensions": [
+    {
+      "field": "input_refs.item",
+      "label": "Prompt",
+      "header_fields": [
+        { "field": "input_preview.item.prompt", "label": "Prompt" },
+        { "field": "input_preview.item.category", "label": "Category" }
+      ]
+    }
+  ],
+  "raw_text_output": false
+}
