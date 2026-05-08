@@ -50,7 +50,7 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### 测试
 
-- 新增 ~24 测试 case：`tool-result.test.ts` 14（ok/err helpers 4 + isToolErrorShape 7 + 3 boundary edge）+ `tool-runtime.test.ts` 5 新（runTool ToolResult dispatch 全路径）+ `restart-experiment.test.ts` 6 新文件 + 7 tool tests 各迁到 ToolResult 形态断言 + `tools.test.ts` 3 registry-level 迁移 + `build-llm-messages.test.ts` 6 新（is_error 透传 5 形态）+ `llm-stream-serialize.test.ts` 4 新（Anthropic is_error true/false/undefined + OpenAI no-leak）+ `route-integration.test.ts` 3 新（NOT_FOUND / body.denied / sessionDenyList → USER_DENIED）；全套 545 → 603/603 pass
+- 新增 ~38 测试 case：`tool-result.test.ts` 14（ok/err helpers 4 + isToolErrorShape 7 + 3 boundary edge）+ `tool-runtime.test.ts` 5 新（runTool ToolResult dispatch 全路径）+ `restart-experiment.test.ts` 6 新文件 + 7 tool tests 各迁到 ToolResult 形态断言 + `tools.test.ts` 3 registry-level 迁移 + `build-llm-messages.test.ts` 6 新（is_error 透传 5 形态）+ `llm-stream-serialize.test.ts` 4 新（Anthropic is_error true/false/undefined + OpenAI no-leak）+ `route-integration.test.ts` 3 新（NOT_FOUND / body.denied / sessionDenyList → USER_DENIED）；全套 583 → 621/621 pass（rebase 后基线含 PR #47 per-route gating 测试）
 
 ### 向后兼容
 
