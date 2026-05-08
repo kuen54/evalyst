@@ -1030,6 +1030,8 @@ export const zh = {
   "copilot.tool.collapse": "收起详情",
   "copilot.tool.always_allow": "本次会话信任此工具",
   "copilot.tool.always_allow_hint": "勾选后同一工具下次调用不再弹确认（仅限本 tab / 本会话）",
+  "copilot.tool.always_deny": "本会话内永久阻止此工具",
+  "copilot.tool.always_deny_hint": "本会话期间，下次 LLM 调用此工具会被自动阻止",
   // 按 tool 类型分 variant 渲染用的标题/徽章
   "copilot.tool.read_context.title": "读取圈选",
   "copilot.tool.read_resource.title": "读取资源",

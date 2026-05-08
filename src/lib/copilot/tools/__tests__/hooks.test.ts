@@ -87,3 +87,42 @@ describe("confirmGateHook session allow list short-circuit (v2.5 M3)", () => {
     expect(r.action).toBe("proceed")
   })
 })
+
+describe("confirmGateHook deny short-circuit (v2.5 P0 §3.3)", () => {
+  const writeTool = makeTool({ isReadOnly: false, isDestructive: true, maxResultSizeChars: 1000 })
+
+  it("deny when tool in deny_list (action: 'deny')", async () => {
+    const r = await confirmGateHook({
+      tool: writeTool, input: {}, session_id: "s",
+      session_deny_list: ["t"],
+    })
+    expect(r.action).toBe("deny")
+    if (r.action === "deny") expect(r.reason.toLowerCase()).toContain("denied")
+  })
+
+  it("require_confirm when tool not in deny_list (destructive default)", async () => {
+    const r = await confirmGateHook({
+      tool: writeTool, input: {}, session_id: "s",
+      session_deny_list: ["other_tool"],
+    })
+    expect(r.action).toBe("require_confirm")
+  })
+
+  it("deny > allow priority: in both lists → deny wins", async () => {
+    const r = await confirmGateHook({
+      tool: writeTool, input: {}, session_id: "s",
+      session_allow_list: ["t"],
+      session_deny_list: ["t"],
+    })
+    expect(r.action).toBe("deny")
+  })
+
+  it("deny_list undefined: allow short-circuit still works", async () => {
+    const r = await confirmGateHook({
+      tool: writeTool, input: {}, session_id: "s",
+      session_allow_list: ["t"],
+      // no deny list
+    })
+    expect(r.action).toBe("proceed")
+  })
+})

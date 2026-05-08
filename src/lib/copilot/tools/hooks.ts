@@ -8,7 +8,7 @@
 
 import type { AnyToolDescriptor } from "./registry"
 import { maybePersistToolResult } from "../tool-result-store"
-import { isSessionAllowed } from "../session-allow"
+import { isSessionAllowed, isSessionDenied } from "../session-allow"
 
 export interface PreToolCallCtx {
   tool: AnyToolDescriptor
@@ -16,6 +16,8 @@ export interface PreToolCallCtx {
   session_id: string
   /** v2.5 §8: per-request 的会话级信任列表（客户端 sessionStorage → body → hook） */
   session_allow_list?: string[]
+  /** v2.5 P0 §3.3: per-request 的会话级拒绝列表。优先级高于 allow，先于默认 confirm 判定。 */
+  session_deny_list?: string[]
 }
 
 export type PreToolCallResult =
@@ -41,8 +43,14 @@ export type PostToolCallHook = (ctx: PostToolCallCtx) => Promise<PostToolCallRes
  * Confirm gate：读 metadata 决定是否要用户确认。
  * 规则：`requiresConfirm` 显式覆盖；否则跟 `isDestructive`。
  * v2.5 §8：若 session_allow_list 含 tool.name 则短路直接 proceed（用户已在该 session 勾选"信任此工具"）。
+ * v2.5 P0 §3.3：若 session_deny_list 含 tool.name 则直接 deny（防越权，优先级最高）。
+ *   优先级：deny > allow > 默认 confirm。
  */
-export const confirmGateHook: PreToolCallHook = async ({ tool, session_allow_list }) => {
+export const confirmGateHook: PreToolCallHook = async ({ tool, session_allow_list, session_deny_list }) => {
+  // v2.5 P0 §3.3: deny 优先级最高（防越权），先于 allow。
+  if (isSessionDenied(session_deny_list, tool.name)) {
+    return { action: "deny", reason: "user-denied for this session" }
+  }
   if (isSessionAllowed(session_allow_list, tool.name)) {
     return { action: "proceed" }
   }

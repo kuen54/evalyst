@@ -1032,6 +1032,8 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.tool.collapse": "Collapse details",
   "copilot.tool.always_allow": "Trust this tool for this session",
   "copilot.tool.always_allow_hint": "If checked, future calls of this tool skip confirm (tab / session scoped only)",
+  "copilot.tool.always_deny": "Always deny in this session",
+  "copilot.tool.always_deny_hint": "Automatically deny this tool for the rest of this session",
   // Variant-specific titles/badges for tool-call-card routing
   "copilot.tool.read_context.title": "Read circled",
   "copilot.tool.read_resource.title": "Read resource",

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { CopilotMessage, CopilotContextRef, PageContext } from "@/lib/copilot/types"
 import { needsConfirm } from "@/lib/copilot/tools/metadata-client"
-import { isSessionAllowed, getSessionAllowList, addSessionAllow } from "@/lib/copilot/session-allow"
+import { isSessionAllowed, getSessionAllowList, addSessionAllow, getSessionDenyList, addSessionDeny } from "@/lib/copilot/session-allow"
 import { collectClientSnapshot } from "@/lib/copilot/collect-snapshot"
 import { useCopilotStore } from "./store"
 import type { UiMessage } from "./chat-view-parts"
@@ -111,7 +111,7 @@ export interface UseChatStreamResult {
   pendingCallIds: Set<string>
   send: (text: string, contexts?: CopilotContextRef[]) => Promise<void>
   confirmTool: (call_id: string, tool_name: string, input: Record<string, unknown>, alwaysAllow?: boolean) => void
-  denyTool: (call_id: string, tool_name: string, input: Record<string, unknown>, reason: string) => void
+  denyTool: (call_id: string, tool_name: string, input: Record<string, unknown>, reason: string, alwaysDeny?: boolean) => void
   deleteMessage: (msg: UiMessage) => Promise<void>
   editUserMessage: (msg: UiMessage, newText: string) => Promise<void>
 }
@@ -359,6 +359,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           call_id, tool_name, input, denied, reason,
           client_snapshot: pageContext ? collectClientSnapshot(pairSessionId, pageContext) : undefined,
           session_allow_list: pairSessionId ? getSessionAllowList(pairSessionId) : [],
+          session_deny_list: pairSessionId ? getSessionDenyList(pairSessionId) : [],
         }),
         signal: ctrl.signal,
       })
@@ -402,7 +403,16 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
     }
     void postToolResult(call_id, tool_name, tool_input, false)
   }
-  const denyTool = (call_id: string, tool_name: string, tool_input: Record<string, unknown>, reason: string) => {
+  const denyTool = (
+    call_id: string,
+    tool_name: string,
+    tool_input: Record<string, unknown>,
+    reason: string,
+    alwaysDeny: boolean = false,
+  ) => {
+    if (alwaysDeny && sessionId) {
+      addSessionDeny(sessionId, tool_name)
+    }
     void postToolResult(call_id, tool_name, tool_input, true, reason)
   }
 
@@ -432,6 +442,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           contexts: sendContexts,
           client_snapshot: pageContext ? collectClientSnapshot(pairSessionId, pageContext) : undefined,
           session_allow_list: pairSessionId ? getSessionAllowList(pairSessionId) : [],
+          session_deny_list: pairSessionId ? getSessionDenyList(pairSessionId) : [],
         }),
         signal: ctrl.signal,
       })

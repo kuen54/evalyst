@@ -53,6 +53,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     client_snapshot?: ClientSnapshot
     /** v2.5 §8: 客户端 sessionStorage 读出的 allow list，未来 `/chat` 内直跑工具时由 confirmGateHook 消费 */
     session_allow_list?: string[]
+    /** v2.5 P0 §3.3: 对称的 deny list；confirmGateHook 中 deny > allow > 默认 confirm */
+    session_deny_list?: string[]
   }
   if (!body.call_id || typeof body.call_id !== 'string') return jsonError(400, 'call_id required')
   if (!body.tool_name || typeof body.tool_name !== 'string') return jsonError(400, 'tool_name required')
@@ -89,7 +91,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // 走 runTool 以穿过 postToolCallHooks（M3 payloadGuard 会在这里做落盘 +
       // ref 替换）。skipConfirm=true：用户已在 UI 点 Confirm 才会走到这个 route，
       // 绕过 preToolCall 的 confirmGateHook 避免死锁。
-      const r = await runTool(tool, body.input, { session_id: sessionId, signal: req.signal }, { skipConfirm: true, sessionAllowList: body.session_allow_list })
+      const r = await runTool(tool, body.input, { session_id: sessionId, signal: req.signal }, { skipConfirm: true, sessionAllowList: body.session_allow_list, sessionDenyList: body.session_deny_list })
       if (r.kind === 'done') {
         resultContent = r.output
       } else if (r.kind === 'denied') {

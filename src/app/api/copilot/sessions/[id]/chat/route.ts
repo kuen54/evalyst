@@ -44,6 +44,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     client_snapshot?: ClientSnapshot
     /** v2.5 §8: 与 /tool-result 对齐；当前 /chat 流不调 runTool 直接跑工具，留字段供未来扩展 */
     session_allow_list?: string[]
+    /** v2.5 P0 §3.3: 对称的 deny list，透传字段供未来扩展（当前 /chat 路径不直跑 runTool） */
+    session_deny_list?: string[]
   }
   if (!body.user_message || typeof body.user_message !== 'string') return jsonError(400, 'user_message required')
 

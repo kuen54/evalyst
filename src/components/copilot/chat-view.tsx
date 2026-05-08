@@ -267,7 +267,7 @@ function renderToolUse(
   sessionId: string,
   pendingCallIds: Set<string>,
   onConfirm: (call_id: string, tool_name: string, input: Record<string, unknown>, alwaysAllow: boolean) => void,
-  onDeny: (call_id: string, tool_name: string, input: Record<string, unknown>, reason: string) => void,
+  onDeny: (call_id: string, tool_name: string, input: Record<string, unknown>, reason: string, alwaysDeny: boolean) => void,
 ) {
   let paired: UiMessage | undefined
   for (let j = i + 1; j < allMessages.length; j++) {
@@ -294,7 +294,7 @@ function renderToolUse(
       toolUse={toolUseShim}
       toolResult={toolResultShim}
       onConfirm={(alwaysAllow) => onConfirm(m.call_id, m.tool_name, m.tool_input, alwaysAllow)}
-      onDeny={(reason) => onDeny(m.call_id, m.tool_name, m.tool_input, reason)}
+      onDeny={(reason, alwaysDeny) => onDeny(m.call_id, m.tool_name, m.tool_input, reason, alwaysDeny)}
       pending={pending || !persistedOnServer}
     />
   )
