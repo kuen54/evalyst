@@ -108,7 +108,7 @@ export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSave
         {buttonLabel}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("results.annotate.dialog_title")}</DialogTitle>
             <p className="text-xs text-muted-foreground">{rubric.name}</p>
