@@ -380,12 +380,12 @@ describe("approxTokens image 补偿（v2.5 P0）", () => {
   })
 
   it("不带扩展名的 url 不算 image", () => {
-    const s = '"https://example.com/api/foo"'
+    const s = '{"url":"https://example.com/api/foo"}'
     expect(__testOnlyApproxTokens(s)).toBe(Math.ceil(s.length / 2))
   })
 
   it("image url query string 不影响匹配", () => {
-    const s = '"https://example.com/foo.png?v=2"'
+    const s = '{"url":"https://example.com/foo.png?v=2"}'
     expect(__testOnlyApproxTokens(s)).toBe(Math.ceil(s.length / 2) + 1600)
   })
 })

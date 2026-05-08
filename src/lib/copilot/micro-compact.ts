@@ -83,8 +83,7 @@ function approxTokens(s: string): number {
   const trimmed = s.trim()
   const looksLikeJson =
     (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
-    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
   if (looksLikeJson) return Math.ceil(s.length / 2) + imageTokens
 
   const cjkCount = (s.match(CJK_PATTERN) ?? []).length
