@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-05-08 · Copilot v2.5 · context 收敛 + compact_boundary + cache 遥测 + alwaysAllow (PR #37–40)
+
+Copilot v2 合进来之后第一个大的演进：三条独立 minor 子系统（context 默认收敛 / transcript 硬边界 + cache 遥测 / 会话级 alwaysAllow）合一起打 0.9.0，加一个 soak 测试捞出来的 Sankuai/Bedrock cache 字段 fix。整体目标是把 copilot 从 v2 的"能用"推向"好用"——上下文默认不泄漏、长对话不无限增长、重复确认有跳过开关。
+
 ### 架构
 
 - **Copilot v2.5 M1：默认 context 收敛 + read_dataset_records 工具 + microCompact token 阈值**
@@ -20,9 +24,6 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
   - **`microCompact` 加 `maxTotalReplayableTokens`**（build-llm-messages 默认 4000 tokens）：双阈值——最近 N 条 + 累计 token 反向遍历 break。防御 3 条 read_resource 各 5KB inline 的累加场景。`undefined` 时回退老行为（数量阈值 only），向后兼容
   - **划线降权**：Inspector 模式下 TextSelector 关闭（`enabled = open && !inspectorActive`），删 inspector-overlay 的 drag-select 让位 4 行——互斥后无需让位。`text_selection` chip 主语换成 `text in {hostType}#{hostId}`，文本变副语；展开面板拆三段（context chain / selected text / context anchor）+ 指向 `read_context(ctx_N, scope='parent')` 拉完整字段值
 
-- Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§3 / §4）
-- Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md
-
 - **Copilot v2.5 M2：CompactBoundaryMessage + cache 遥测**
 
   v2 是"transcript 永远向前组装"——每轮 LLM 调用都把整条 active branch 喂回去，相当于线性增长。M2 加了硬边界（boundary 之前的消息默认不参与组装）+ provider 级 prompt-cache 命中率观测。
@@ -31,9 +32,6 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
   - **方案 A**（boundary 接 parent 链 + head 跟）：复用 `appendMessage` 的 `fs.appendFileSync` 原子 append + `updateSession` 原子写；多分支语义自然继承（不同分支各自的 boundary 链互不干扰）
   - **Cache 遥测**（`src/lib/copilot/cache-stats-store.ts`）：每次 LLM 调用抽 `cache_creation_input_tokens` / `cache_read_input_tokens`（Anthropic）+ `prompt_tokens_details.cached_tokens`（OpenAI / 兼容层），落 `data/copilot/cache-stats.jsonl`（append-only，独立于 `message.usage`，session jsonl 形态不变）；hit rate **按 provider 分桶**——Anthropic 分母 = `input + cache_read + cache_creation`，OpenAI 分母 = `input_tokens`（已含 cached）
   - **Chat-view 顶部新增 `CacheStatsChip`**：`本 session X% · 近 7 天 Y%`，10s 自动刷新，hover 原生 tooltip 看最近调用的 model + input + cache_read + cache_create 数字。0 calls 时不渲染。GET `/api/copilot/cache-stats?session_id=` 聚合返 `{session, weekly}`
-
-- Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§5 / §6）
-- Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md（Task 10-17）
 
 - **Copilot v2.5 M3：会话级 alwaysAllow**
 
@@ -47,8 +45,12 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
   - **隐私默认**：sessionStorage（不是 localStorage / 不写 jsonl）→ 不跨 tab、不持久化、F12 可见可清；spec §8.6 明确不做 alwaysDeny / alwaysAsk / pattern 匹配
   - **e2e 自动化**：`e2e/copilot-v25.spec.ts` 覆盖 spec §10.3 两条断言——chip 展开看到 manifest 形态（`input_preview` / `input_refs` 不出现）+ cache hit rate chip 渲染（seed `data/copilot/cache-stats.jsonl` 后 chip 文字含 `%`）。另两条（active_contexts 不含 input_preview / alwaysAllow 勾选后不弹）需 mock LLM SSE，工程量过大留作手动回归
 
-- Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§8）
-- Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md（Task 18-21）
+### Tuning / 修复
+
+- **Sankuai/Bedrock Anthropic SSE cache 字段**（PR #40，打 tag 前 soak 测试捞出来）：Sankuai 走 AWS Bedrock 代理的 Anthropic SSE 和 native Anthropic 有两处差异——`input_tokens` / `output_tokens` 集中在 `message_delta.usage`（native 在 message_start），`cache_creation` 是嵌套对象 `{ephemeral_1h_input_tokens, ephemeral_5m_input_tokens}`（native 是扁平 `cache_creation_input_tokens`）。没这个 fix 之前 `claude-opus-4.6` 用户的 cache stats 永远全 0，chip 永远显示 `本 session —`。parseAnthropicEvent 两个分支都加了 nested cache_creation 的 sum；llm-stream-cache 测 4 → 6 cases 锁定
+
+- Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§3 / §4 / §5 / §6 / §8）
+- Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md（Task 1-22）
 
 ## [0.8.2] — 2026-05-08 · v0.8.1 "alpha 配方"规范尾扫 (PR #36)
 
