@@ -55,6 +55,60 @@ describe('parseAnthropicEvent cache fields', () => {
     )
     expect(usage.cache_read_tokens).toBe(80)
   })
+
+  it('AWS Bedrock / Sankuai: nested cache_creation on message_delta + input_tokens not in message_start', () => {
+    const usage: UsageAccumulator = { input_tokens: 0, output_tokens: 0 }
+    // 空 message_start（native Anthropic 会在这里给 input_tokens；Bedrock 给 {}）
+    __testOnly.parseAnthropicEvent(
+      sseBlock('message_start', { type: 'message_start', message: { usage: {} } }),
+      (_ev: StreamEvent) => {},
+      usage,
+      (_r: string) => {},
+      new Map(),
+    )
+    expect(usage.input_tokens).toBe(0)
+
+    // message_delta 带 Bedrock nested 格式
+    __testOnly.parseAnthropicEvent(
+      sseBlock('message_delta', {
+        type: 'message_delta',
+        delta: { stop_reason: 'tool_use' },
+        usage: {
+          input_tokens: 6905,
+          output_tokens: 214,
+          cache_creation: { ephemeral_1h_input_tokens: 100, ephemeral_5m_input_tokens: 200 },
+        },
+      }),
+      (_ev: StreamEvent) => {},
+      usage,
+      (_r: string) => {},
+      new Map(),
+    )
+    expect(usage.input_tokens).toBe(6905)
+    expect(usage.output_tokens).toBe(214)
+    expect(usage.cache_creation_tokens).toBe(300)
+    expect(usage.cache_read_tokens).toBeUndefined()
+  })
+
+  it('Bedrock nested cache_creation with all-zero buckets still sets 0 (not undefined)', () => {
+    const usage: UsageAccumulator = { input_tokens: 0, output_tokens: 0 }
+    __testOnly.parseAnthropicEvent(
+      sseBlock('message_delta', {
+        type: 'message_delta',
+        delta: {},
+        usage: {
+          input_tokens: 100,
+          cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 0 },
+        },
+      }),
+      (_ev: StreamEvent) => {},
+      usage,
+      (_r: string) => {},
+      new Map(),
+    )
+    // Bedrock 汇报了 cache_creation 结构但 0 tokens → 落 0 让 aggregateCacheHitRate 知道"支持但此轮 0"
+    expect(usage.cache_creation_tokens).toBe(0)
+  })
 })
 
 describe('parseOpenaiEvent cache fields', () => {

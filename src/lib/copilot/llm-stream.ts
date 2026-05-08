@@ -344,6 +344,14 @@ function parseAnthropicEvent(
       if (u?.cache_read_input_tokens !== undefined) {
         usage.cache_read_tokens = u.cache_read_input_tokens
       }
+      // Bedrock/Sankuai nested `cache_creation` 对象：sum ephemeral buckets
+      if (u?.cache_creation) {
+        const s1h = u.cache_creation.ephemeral_1h_input_tokens ?? 0
+        const s5m = u.cache_creation.ephemeral_5m_input_tokens ?? 0
+        if (s1h + s5m > 0 || usage.cache_creation_tokens === undefined) {
+          usage.cache_creation_tokens = s1h + s5m
+        }
+      }
       return
     }
     case 'content_block_start': {
@@ -391,6 +399,8 @@ function parseAnthropicEvent(
     }
     case 'message_delta': {
       if (parsed.delta?.stop_reason) setReason(parsed.delta.stop_reason)
+      // Bedrock/Sankuai 把 input_tokens 也放在 message_delta（native Anthropic 只在 message_start）
+      if (parsed.usage?.input_tokens) usage.input_tokens = parsed.usage.input_tokens
       if (parsed.usage?.output_tokens) usage.output_tokens = parsed.usage.output_tokens
       // v2.5 §6: Anthropic 在 message_delta 中也可能更新 cache 字段（跨 stream 部分 ordering）
       if (parsed.usage?.cache_creation_input_tokens !== undefined) {
@@ -398,6 +408,14 @@ function parseAnthropicEvent(
       }
       if (parsed.usage?.cache_read_input_tokens !== undefined) {
         usage.cache_read_tokens = parsed.usage.cache_read_input_tokens
+      }
+      // Bedrock/Sankuai nested `cache_creation` 对象
+      if (parsed.usage?.cache_creation) {
+        const s1h = parsed.usage.cache_creation.ephemeral_1h_input_tokens ?? 0
+        const s5m = parsed.usage.cache_creation.ephemeral_5m_input_tokens ?? 0
+        if (s1h + s5m > 0 || usage.cache_creation_tokens === undefined) {
+          usage.cache_creation_tokens = s1h + s5m
+        }
       }
       return
     }
@@ -416,14 +434,25 @@ interface AnthropicEvent {
       output_tokens?: number
       cache_creation_input_tokens?: number
       cache_read_input_tokens?: number
+      // AWS Bedrock / Sankuai 兼容层：cache_creation 可能是嵌套对象
+      cache_creation?: {
+        ephemeral_1h_input_tokens?: number
+        ephemeral_5m_input_tokens?: number
+      }
     }
   }
   content_block?: { type?: string; id?: string; name?: string; input?: Record<string, unknown> }
   delta?: { type?: string; text?: string; stop_reason?: string; partial_json?: string }
   usage?: {
+    input_tokens?: number   // Sankuai/Bedrock 把 input_tokens 也放在 message_delta
     output_tokens?: number
     cache_creation_input_tokens?: number
     cache_read_input_tokens?: number
+    // AWS Bedrock / Sankuai 兼容层 nested 形态
+    cache_creation?: {
+      ephemeral_1h_input_tokens?: number
+      ephemeral_5m_input_tokens?: number
+    }
   }
 }
 
