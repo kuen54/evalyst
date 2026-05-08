@@ -10,12 +10,19 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-### Copilot (v2.5 P1a · cache 播放流核心)
+## [0.9.2] — 2026-05-08 · Copilot v2.5 P1a · Anthropic 4-breakpoint cache_control + head+tail preview (PR #43)
 
-基于 v0.9.0 ship 后对 hermes `prompt_caching.py` 和 `context_compressor.py` 的深入调研：
+基于 v0.9.0 ship 后对 hermes `prompt_caching.py` 和 `context_compressor.py` 的深入调研，把"cache 播放流核心"两条改动合进 v2.5。
 
-- **Anthropic 4-breakpoint cache_control**（hermes `prompt_caching.py:41-72` system_and_3 策略）：在 `buildStreamingRequestBody` 的 anthropic 分支后置 mutate 请求 body，给 `system` 尾 + 最后 3 条 `messages` 尾 content block 注入 `cache_control: { type: 'ephemeral' }` 5m TTL。多轮对话 input 成本预期降 60-80%；cache hit rate chip 应从 ~40-50% 涨到 ~70-90%。native Claude / Bedrock / Sankuai Anthropic gateway 三个 provider 共享 api_format='anthropic' 分支；permissive gateway 静默忽略字段。
-- **Tool result preview head+tail 双端夹**（hermes `context_compressor.py:692`）：`maybePersistToolResult` 的 preview 从 `slice(0,500)` 改成 head(400) + `\n...[truncated]...\n` + tail(100)，总 budget 不变。错误 stack 的 root cause（常在末尾）保留，LLM 多数场景不再需要回捞 `read_tool_result` 看 error 字段。
+### 体验
+
+- **Anthropic 4-breakpoint cache_control**（hermes `prompt_caching.py:41-72` system_and_3 策略）：在 `buildStreamingRequestBody` 的 anthropic 分支后置 mutate 请求 body，给 `system` 尾 + 最后 3 条 `messages` 尾 content block 注入 `cache_control: { type: 'ephemeral' }` 5m TTL。native Claude / Bedrock / Sankuai Anthropic gateway 三个 provider 共享 api_format='anthropic' 分支。**Sankuai/Bedrock 实测验证**（aws.claude-opus-4.6 via `/v1/anthropic/v1` Bearer）：3 轮真实对话从 0% 涨到 **本 session 25% · 近 7 天 7%**，cache_creation/cache_read 在 message_start 都按预期落非 0；网关接受字段不返 4xx。OpenAI 分支零影响（integration test + server-side probe 双重验证 body JSON 不含 `cache_control` / `ephemeral` 字符串）。
+- **Tool result preview head+tail 双端夹**（hermes `context_compressor.py:692`）：`maybePersistToolResult` 的 preview 从 `slice(0,500)` 改成 head(400) + `\n...[truncated]...\n` + tail(100)，总 budget 不变（≤519 字符）。**用户感知**：错误 stack 的 root cause（常在末尾）保留，LLM 多数场景不再需要回捞 `read_tool_result` 看 error 字段，少一轮调用。
+
+### 测试
+
+- 新增 20 测试 case：`anthropic-cache-control.test.ts` 13（system 各形态 / 最后 3 条 / 4-breakpoint 上限 / 幂等 / 各 content shape / 空 content 防御）+ `tool-result-store.test.ts` 5 新（含 error stack tail 关键 regression）+ `llm-stream-serialize.test.ts` 2 integration（Anthropic body 含 cache_control / OpenAI body 完全无）；全套从 500 涨到 520 case
+- Playwright 实机 E2E 三组：Anthropic 3 轮 cache hit rate（25%）/ OpenAI 防回归（双分支 console.log probe 计数 0 vs 2）/ head+tail preview 在 ToolCallCard pre 渲染长度 602（519 双端夹 + 83 ref footer）
 
 - Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p1a-anthropic-cache-control-design.md
 - Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p1a-anthropic-cache-control.md
