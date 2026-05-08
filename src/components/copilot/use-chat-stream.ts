@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { CopilotMessage, CopilotContextRef, PageContext } from "@/lib/copilot/types"
 import { needsConfirm } from "@/lib/copilot/tools/metadata-client"
-import { isSessionAllowed, getSessionAllowList, addSessionAllow, getSessionDenyList, addSessionDeny } from "@/lib/copilot/session-allow"
+import { isSessionAllowed, getSessionAllowList, addSessionAllow, isSessionDenied, getSessionDenyList, addSessionDeny } from "@/lib/copilot/session-allow"
 import { collectClientSnapshot } from "@/lib/copilot/collect-snapshot"
 import { useCopilotStore } from "./store"
 import type { UiMessage } from "./chat-view-parts"
@@ -131,6 +131,9 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
   // 再一次性 fire /tool-result POST。这样避免 /tool-result 在 server append 之前跑，
   // 导致 getActiveBranch 里没有 tool_use → tool_result 的 parent_id 错链到上游。
   const pendingAutoRunRef = useRef<Array<{ call_id: string; tool_name: string; input: Record<string, unknown> }>>([])
+  // v2.5 P0 §3.3 Auto-deny 队列：对称 pendingAutoRunRef。用户勾过 "Always deny in this session"
+  // 后，tool_use_end 时不再弹 Confirm card，直接入队，done 时串行 POST denied=true 的 /tool-result。
+  const pendingAutoDenyRef = useRef<Array<{ call_id: string; tool_name: string; input: Record<string, unknown>; reason: string }>>([])
   // 追踪 session 身份：sessionId 变更时停掉 inflight 的 auto-run 以避免串 session
   const currentSessionRef = useRef<string | undefined>(undefined)
 
@@ -239,7 +242,16 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         // Task 20: 同时也短路 session-allow 的写工具——用户勾过"本次会话信任此工具"，
         // 下一次命中这个 tool_name 就不再弹 Confirm card，走 auto-run 路径。
         const sessionAllowList = pairSessionId ? getSessionAllowList(pairSessionId) : []
-        if (!needsConfirm(ev.tool_name) || isSessionAllowed(sessionAllowList, ev.tool_name)) {
+        const sessionDenyList = pairSessionId ? getSessionDenyList(pairSessionId) : []
+        if (isSessionDenied(sessionDenyList, ev.tool_name)) {
+          // v2.5 P0 §3.3: 用户勾过 "Always deny in this session"，跳过 Confirm 直接入队 auto-deny
+          pendingAutoDenyRef.current.push({
+            call_id: ev.call_id,
+            tool_name: ev.tool_name,
+            input: ev.input,
+            reason: "auto-denied for this session",
+          })
+        } else if (!needsConfirm(ev.tool_name) || isSessionAllowed(sessionAllowList, ev.tool_name)) {
           pendingAutoRunRef.current.push({ call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
         }
       } else if (ev.kind === "done") {
@@ -253,6 +265,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         streamToolUseOrderRef.current = []
         const pending = pendingAutoRunRef.current
         pendingAutoRunRef.current = []
+        const pendingDeny = pendingAutoDenyRef.current
+        pendingAutoDenyRef.current = []
 
         // 关掉最后一条 streaming assistant
         setMessages(prev => {
@@ -293,6 +307,10 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           for (const tu of pending) {
             if (currentSessionRef.current !== pairSessionId) break
             await postToolResult(tu.call_id, tu.tool_name, tu.input, false)
+          }
+          for (const tu of pendingDeny) {
+            if (currentSessionRef.current !== pairSessionId) break
+            await postToolResult(tu.call_id, tu.tool_name, tu.input, true, tu.reason)
           }
         })()
       } else if (ev.kind === "error") {
@@ -375,6 +393,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
       // Reset order ref for this stream segment
       streamToolUseOrderRef.current = []
       pendingAutoRunRef.current = []
+      pendingAutoDenyRef.current = []
       await consumeSseStream(resp, makeSseHandler(pairSessionId))
       // tool_result_message 事件已经回填了 content / denied / reason，这里不再需要兜底占位。
     } catch (e) {
@@ -432,6 +451,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
     abortRef.current = ctrl
     streamToolUseOrderRef.current = []
     pendingAutoRunRef.current = []
+    pendingAutoDenyRef.current = []
     try {
       const resp = await fetch(`/api/copilot/sessions/${sessionId}/chat`, {
         method: "POST",
