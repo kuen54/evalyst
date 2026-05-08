@@ -219,9 +219,13 @@ describe("tool-result route integration", () => {
       },
     }
 
-    await expect(
-      runTool(throwingTool, {}, { session_id: sessionId, signal }),
-    ).rejects.toThrow(/boom from tool/)
+    // v2.5 P2: runTool no longer rethrows; INTERNAL ToolError instead
+    const r = await runTool(throwingTool, {}, { session_id: sessionId, signal })
+    expect(r.kind).toBe("error")
+    if (r.kind === "error") {
+      expect(r.error.code).toBe("INTERNAL")
+      expect(r.error.message).toMatch(/boom from tool/)
+    }
 
     // Route's try/catch would wrap as { error: msg }; confirm that shape normalizes fine
     const errPayload = { error: "boom from tool" }

@@ -1,6 +1,8 @@
 // Copilot v2 tool descriptor 类型。每个工具文件 export 一个 ToolDescriptor。
 // Registry 手动 array 聚合（见 registry.ts）。metadata 字段参与 Confirm gate、落盘阈值、micro-compact。
 
+import type { ToolResult } from "./tool-result"
+
 export interface ToolMetadata {
   /** 读工具为 true，参与 micro-compact（旧结果可压成 summary + ref） */
   isReadOnly: boolean
@@ -29,5 +31,9 @@ export interface ToolDescriptor<Input = unknown, Output = unknown> {
   /** 可选；未来做输出类型校验用 */
   outputSchema?: Record<string, unknown>
   metadata: ToolMetadata
-  call: (input: Input, ctx: ToolContext) => Promise<Output>
+  /**
+   * v2.5 P2: 推荐返 `ToolResult<Output>`（显式 ok/err）。
+   * **向后兼容**：直接返 `Output`（被视为 ok）；`throw Error` 被 runTool wrap 成 INTERNAL error。
+   */
+  call: (input: Input, ctx: ToolContext) => Promise<Output | ToolResult<Output>>
 }

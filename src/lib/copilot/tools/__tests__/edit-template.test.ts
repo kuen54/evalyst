@@ -53,10 +53,10 @@ describe("edit_template · behavior", () => {
       message_builder: { messages: [] },
       output_schema: {},
     })
-    const r = await editTemplateTool.call(
+    const r = (await editTemplateTool.call(
       { schema_id: "sch_X", patch: { default_prompt: "new prompt" } },
       ctx,
-    )
+    )) as { success: boolean; new_version: number; schema_id: string }
     expect(r.success).toBe(true)
     expect(r.new_version).toBe(4)
     expect(r.schema_id).toBe("sch_X")
@@ -80,10 +80,10 @@ describe("edit_template · behavior", () => {
       output_schema: {},
       // no version
     })
-    const r = await editTemplateTool.call(
+    const r = (await editTemplateTool.call(
       { schema_id: "sch_new", patch: { label: "y" } },
       ctx,
-    )
+    )) as { new_version: number }
     expect(r.new_version).toBe(1)
   })
 
