@@ -1,6 +1,7 @@
 import { resolveContextById } from "../resolve-context"
 import type { ContextScope } from "../resolve-context"
 import type { ToolDescriptor } from "./types"
+import { ok, err } from "./tool-result"
 
 interface Input {
   id: string
@@ -40,13 +41,21 @@ export const readContextTool: ToolDescriptor<Input, unknown> = {
     maxResultSizeChars: 4000,
   },
   call: async ({ id, scope }, ctx) => {
-    if (!id || typeof id !== "string") throw new Error("id is required")
+    if (!id || typeof id !== "string") {
+      return err("INVALID_INPUT", "id is required", {
+        hint: 'Pass id like "ctx_1" referring to active_contexts[]',
+      })
+    }
     const r = resolveContextById(ctx.session_id, id)
-    if (!r) throw new Error(`context ${id} not found in current session`)
+    if (!r) {
+      return err("NOT_FOUND", `context ${id} not found in current session`, {
+        hint: "Check active_contexts list in system header",
+      })
+    }
     const useScope = scope ?? defaultScope(r.type)
-    if (useScope === "self") return r.self_value
-    if (useScope === "parent") return r.parent_value ?? r.self_value
+    if (useScope === "self") return ok(r.self_value)
+    if (useScope === "parent") return ok(r.parent_value ?? r.self_value)
     // full 当前语义等价 parent
-    return r.full_value ?? r.parent_value ?? r.self_value
+    return ok(r.full_value ?? r.parent_value ?? r.self_value)
   },
 }

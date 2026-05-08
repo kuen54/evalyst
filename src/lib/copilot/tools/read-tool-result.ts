@@ -1,5 +1,6 @@
 import { loadPersistedToolResult } from "../tool-result-store"
 import type { ToolDescriptor } from "./types"
+import { ok, err } from "./tool-result"
 
 interface Input {
   ref: string
@@ -28,7 +29,11 @@ export const readToolResultTool: ToolDescriptor<Input, unknown> = {
     maxResultSizeChars: 8000,
   },
   call: async ({ ref }, ctx) => {
-    if (!ref || typeof ref !== "string") throw new Error("ref is required")
-    return loadPersistedToolResult(ctx.session_id, ref)
+    if (!ref || typeof ref !== "string") {
+      return err("INVALID_INPUT", "ref is required", {
+        hint: "Pass ref as string starting with ref://",
+      })
+    }
+    return ok(await loadPersistedToolResult(ctx.session_id, ref))
   },
 }

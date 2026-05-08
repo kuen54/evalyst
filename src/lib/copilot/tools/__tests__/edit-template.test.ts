@@ -42,7 +42,7 @@ describe("edit_template · metadata", () => {
 })
 
 describe("edit_template · behavior", () => {
-  it("applies patch via shallow merge and bumps version", async () => {
+  it("applies patch via shallow merge and bumps version (returns ok)", async () => {
     getMock.mockReturnValue({
       id: "sch_X",
       label: "original",
@@ -56,10 +56,11 @@ describe("edit_template · behavior", () => {
     const r = (await editTemplateTool.call(
       { schema_id: "sch_X", patch: { default_prompt: "new prompt" } },
       ctx,
-    )) as { success: boolean; new_version: number; schema_id: string }
-    expect(r.success).toBe(true)
-    expect(r.new_version).toBe(4)
-    expect(r.schema_id).toBe("sch_X")
+    )) as { ok: true; value: { success: boolean; new_version: number; schema_id: string } }
+    expect(r.ok).toBe(true)
+    expect(r.value.success).toBe(true)
+    expect(r.value.new_version).toBe(4)
+    expect(r.value.schema_id).toBe("sch_X")
 
     expect(createMock).toHaveBeenCalledTimes(1)
     const written = createMock.mock.calls[0][0]
@@ -83,15 +84,18 @@ describe("edit_template · behavior", () => {
     const r = (await editTemplateTool.call(
       { schema_id: "sch_new", patch: { label: "y" } },
       ctx,
-    )) as { new_version: number }
-    expect(r.new_version).toBe(1)
+    )) as { ok: true; value: { new_version: number } }
+    expect(r.ok).toBe(true)
+    expect(r.value.new_version).toBe(1)
   })
 
-  it("throws when schema is missing", async () => {
+  it("returns err(NOT_FOUND) when schema is missing", async () => {
     getMock.mockReturnValue(null)
-    await expect(
-      editTemplateTool.call({ schema_id: "nope", patch: {} }, ctx),
-    ).rejects.toThrow(/not found/)
+    const r = await editTemplateTool.call({ schema_id: "nope", patch: {} }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND", message: expect.stringContaining("not found") },
+    })
     expect(createMock).not.toHaveBeenCalled()
   })
 
@@ -115,17 +119,24 @@ describe("edit_template · behavior", () => {
     expect(written.id).toBe("sch_X")
   })
 
-  it("rejects empty schema_id", async () => {
-    await expect(
-      editTemplateTool.call({ schema_id: "", patch: {} }, ctx),
-    ).rejects.toThrow()
+  it("rejects empty schema_id with err(INVALID_INPUT)", async () => {
+    const r = await editTemplateTool.call({ schema_id: "", patch: {} }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT", message: expect.stringContaining("schema_id") },
+    })
     expect(getMock).not.toHaveBeenCalled()
   })
 
-  it("rejects non-object patch", async () => {
-    await expect(
+  it("rejects non-object patch with err(INVALID_INPUT)", async () => {
+    const r = await editTemplateTool.call(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      editTemplateTool.call({ schema_id: "sch_X", patch: null as any }, ctx),
-    ).rejects.toThrow()
+      { schema_id: "sch_X", patch: null as any },
+      ctx,
+    )
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT", message: expect.stringContaining("patch") },
+    })
   })
 })

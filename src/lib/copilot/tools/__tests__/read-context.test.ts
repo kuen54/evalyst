@@ -67,38 +67,49 @@ describe("read_context tool", () => {
     expect(readContextTool.metadata.isDestructive).toBe(false)
   })
 
-  it("throws on missing id", async () => {
-    await expect(readContextTool.call({ id: "" }, ctx)).rejects.toThrow()
+  it("returns err(INVALID_INPUT) on missing id", async () => {
+    const r = await readContextTool.call({ id: "" }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT", message: expect.stringContaining("id") },
+    })
   })
 
-  it("throws when ctx_N not in session", async () => {
+  it("returns err(NOT_FOUND) when ctx_N not in session", async () => {
     mockTag.mockReturnValue(undefined)
-    await expect(readContextTool.call({ id: "ctx_99" }, ctx)).rejects.toThrow(/not found/)
+    const r = await readContextTool.call({ id: "ctx_99" }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND", message: expect.stringContaining("not found") },
+    })
   })
 
-  it("experiment self returns experiment meta", async () => {
+  it("experiment self returns experiment meta (ok)", async () => {
     mockTag.mockReturnValue({ tag: 1, type: "experiment", id: "exp_A" })
-    const out = (await readContextTool.call({ id: "ctx_1" }, ctx)) as {
-      id: string; name: string; model: string
+    const r = (await readContextTool.call({ id: "ctx_1" }, ctx)) as {
+      ok: true
+      value: { id: string; name: string; model: string }
     }
-    expect(out.id).toBe("exp_A")
-    expect(out.name).toBe("Exp A")
+    expect(r.ok).toBe(true)
+    expect(r.value.id).toBe("exp_A")
+    expect(r.value.name).toBe("Exp A")
   })
 
-  it("task_field self returns only field value", async () => {
+  it("task_field self returns only field value (ok)", async () => {
     mockTag.mockReturnValue({
       tag: 2,
       type: "task_field",
       id: "output.answer",
       extra: { experiment_id: "exp_A", task_id: "task_A1", field: "answer" },
     })
-    const out = (await readContextTool.call({ id: "ctx_2", scope: "self" }, ctx)) as {
-      targeted_field: string; targeted_value: unknown
+    const r = (await readContextTool.call({ id: "ctx_2", scope: "self" }, ctx)) as {
+      ok: true
+      value: { targeted_field: string; targeted_value: unknown }
     }
-    expect(out.targeted_field).toBe("answer")
-    expect(out.targeted_value).toBe("crisp green notes")
+    expect(r.value.targeted_field).toBe("answer")
+    expect(r.value.targeted_value).toBe("crisp green notes")
     // parent data should NOT be in self scope
-    expect((out as { task?: unknown }).task).toBeUndefined()
+    expect((r.value as { task?: unknown }).task).toBeUndefined()
   })
 
   it("task_field parent returns task_meta (manifest, no input_preview)", async () => {
@@ -108,15 +119,20 @@ describe("read_context tool", () => {
       id: "output.answer",
       extra: { experiment_id: "exp_A", task_id: "task_A1", field: "answer" },
     })
-    const out = (await readContextTool.call({ id: "ctx_2", scope: "parent" }, ctx)) as {
-      targeted_field: string; targeted_value: unknown; task_meta: { task_id: string; status: string }
+    const r = (await readContextTool.call({ id: "ctx_2", scope: "parent" }, ctx)) as {
+      ok: true
+      value: {
+        targeted_field: string
+        targeted_value: unknown
+        task_meta: { task_id: string; status: string }
+      }
     }
-    expect(out.targeted_field).toBe("answer")
-    expect(out.targeted_value).toBe("crisp green notes")
-    expect(out.task_meta?.task_id).toBe("task_A1")
-    expect(out.task_meta?.status).toBe("success")
+    expect(r.value.targeted_field).toBe("answer")
+    expect(r.value.targeted_value).toBe("crisp green notes")
+    expect(r.value.task_meta?.task_id).toBe("task_A1")
+    expect(r.value.task_meta?.status).toBe("success")
     // Manifest drops input_preview / input_refs even in parent scope
-    expect(JSON.stringify(out)).not.toMatch(/input_preview|input_refs/)
+    expect(JSON.stringify(r.value)).not.toMatch(/input_preview|input_refs/)
   })
 
   it("task_result self drops input_preview and input_refs", async () => {
@@ -126,12 +142,15 @@ describe("read_context tool", () => {
       id: "task_A1",
       extra: { experiment_id: "exp_A" },
     })
-    const out = (await readContextTool.call({ id: "ctx_3", scope: "self" }, ctx)) as Record<string, unknown>
-    expect(out.task_id).toBe("task_A1")
-    expect(out.status).toBe("success")
-    expect(out.output).toEqual({ answer: "crisp green notes" })
-    expect(out.input_preview).toBeUndefined()
-    expect(out.input_refs).toBeUndefined()
+    const r = (await readContextTool.call({ id: "ctx_3", scope: "self" }, ctx)) as {
+      ok: true
+      value: Record<string, unknown>
+    }
+    expect(r.value.task_id).toBe("task_A1")
+    expect(r.value.status).toBe("success")
+    expect(r.value.output).toEqual({ answer: "crisp green notes" })
+    expect(r.value.input_preview).toBeUndefined()
+    expect(r.value.input_refs).toBeUndefined()
   })
 
   it("task_result parent has manifest task + 4-field experiment, drops prompt_template/notes", async () => {
@@ -141,20 +160,21 @@ describe("read_context tool", () => {
       id: "task_A1",
       extra: { experiment_id: "exp_A" },
     })
-    const out = (await readContextTool.call({ id: "ctx_3", scope: "parent" }, ctx)) as {
-      task_id: string; experiment: Record<string, unknown>
+    const r = (await readContextTool.call({ id: "ctx_3", scope: "parent" }, ctx)) as {
+      ok: true
+      value: { task_id: string; experiment: Record<string, unknown> }
     }
-    expect(out.task_id).toBe("task_A1")
-    expect(out.experiment).toEqual({
+    expect(r.value.task_id).toBe("task_A1")
+    expect(r.value.experiment).toEqual({
       id: "exp_A", name: "Exp A", schema_id: "sch_X", model: "gpt-4o",
     })
-    expect(out.experiment.prompt_template).toBeUndefined()
-    expect(out.experiment.notes).toBeUndefined()
+    expect(r.value.experiment.prompt_template).toBeUndefined()
+    expect(r.value.experiment.notes).toBeUndefined()
     // Top-level task should not leak input_preview either
-    expect(JSON.stringify(out)).not.toMatch(/SECRET|input_preview|input_refs/)
+    expect(JSON.stringify(r.value)).not.toMatch(/SECRET|input_preview|input_refs/)
   })
 
-  it("task_field parent throws when task not found (resolveContextSelf returns missing)", async () => {
+  it("task_field parent returns err(NOT_FOUND) when task not found", async () => {
     mockTag.mockReturnValue({
       tag: 4,
       type: "task_field",
@@ -162,11 +182,21 @@ describe("read_context tool", () => {
       extra: { experiment_id: "exp_A", task_id: "task_NONEXISTENT", field: "answer" },
     })
     // resolveContextSelf returns status:"missing" → resolveContextById returns null
-    // → readContextTool throws "not found"
-    await expect(readContextTool.call({ id: "ctx_4", scope: "parent" }, ctx)).rejects.toThrow(/not found/)
+    // → readContextTool returns err(NOT_FOUND)
+    const r = await readContextTool.call({ id: "ctx_4", scope: "parent" }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND", message: expect.stringContaining("not found") },
+    })
   })
 
-  it("rejects malformed ctx_id", async () => {
-    await expect(readContextTool.call({ id: "not_valid" }, ctx)).rejects.toThrow()
+  it("rejects malformed ctx_id with err(NOT_FOUND)", async () => {
+    // Non-empty but unresolvable id passes input validation, then hits resolve-context
+    // and gets err(NOT_FOUND). mockTag returns undefined by default after reset.
+    const r = await readContextTool.call({ id: "not_valid" }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND" },
+    })
   })
 })

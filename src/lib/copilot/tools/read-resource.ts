@@ -4,6 +4,7 @@ import { getDataset } from "@/lib/datasets"
 import { getDisplay } from "@/lib/displays"
 import { getRubric } from "@/lib/rubric-store"
 import type { ToolDescriptor } from "./types"
+import { ok, err } from "./tool-result"
 
 type ResourceType = "experiment" | "template" | "dataset" | "display" | "rubric"
 
@@ -70,9 +71,17 @@ export const readResourceTool: ToolDescriptor<Input, unknown> = {
     maxResultSizeChars: 4000,
   },
   call: async ({ type, id, fields }) => {
-    if (!type || !id) throw new Error("type and id are required")
+    if (!type || !id) {
+      return err("INVALID_INPUT", "type and id are required", {
+        hint: 'Pass both type (e.g. "experiment") and id',
+      })
+    }
     const res = loadResource(type, id)
-    if (!res) throw new Error(`${type}/${id} not found`)
-    return fields && fields.length > 0 ? pickFields(res, fields) : res
+    if (!res) {
+      return err("NOT_FOUND", `${type}/${id} not found`, {
+        hint: "Verify the resource exists",
+      })
+    }
+    return ok(fields && fields.length > 0 ? pickFields(res, fields) : res)
   },
 }

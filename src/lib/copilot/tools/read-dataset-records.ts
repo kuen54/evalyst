@@ -1,5 +1,6 @@
 import { getDataset } from "@/lib/datasets"
 import type { ToolDescriptor } from "./types"
+import { ok, err } from "./tool-result"
 
 interface Input {
   dataset_id: string
@@ -44,7 +45,11 @@ export const readDatasetRecordsTool: ToolDescriptor<Input, Output> = {
     maxResultSizeChars: 8000,
   },
   call: async ({ dataset_id, task_id, limit = DEFAULT_LIMIT, offset = 0 }) => {
-    if (!dataset_id) throw new Error("dataset_id is required")
+    if (!dataset_id) {
+      return err("INVALID_INPUT", "dataset_id is required", {
+        hint: "Pass dataset_id as string",
+      })
+    }
 
     let bundle: {
       def: { id_field: string; name?: string }
@@ -53,7 +58,9 @@ export const readDatasetRecordsTool: ToolDescriptor<Input, Output> = {
     try {
       bundle = getDataset(dataset_id) as typeof bundle
     } catch {
-      throw new Error(`dataset ${dataset_id} not found`)
+      return err("NOT_FOUND", `dataset ${dataset_id} not found`, {
+        hint: 'Use read_resource(type:"dataset") to verify',
+      })
     }
 
     const { def, records } = bundle
@@ -61,20 +68,20 @@ export const readDatasetRecordsTool: ToolDescriptor<Input, Output> = {
 
     if (task_id) {
       const match = records.find((r) => r[def.id_field] === task_id)
-      return {
+      return ok({
         records: match ? [match] : [],
         total,
         has_more: false,
-      }
+      })
     }
 
     const cap = Math.min(Math.max(0, limit), MAX_LIMIT)
     const start = Math.max(0, offset)
     const slice = records.slice(start, start + cap)
-    return {
+    return ok({
       records: slice,
       total,
       has_more: start + cap < total,
-    }
+    })
   },
 }

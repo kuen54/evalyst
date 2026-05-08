@@ -26,28 +26,41 @@ describe("read_tool_result tool", () => {
     expect(readToolResultTool.metadata.isDestructive).toBe(false)
   })
 
-  it("retrieves a persisted payload by full ref URL", async () => {
+  it("retrieves a persisted payload by full ref URL (returns ok)", async () => {
     const big = { body: "x".repeat(5000), marker: "A" }
     const persisted = await maybePersistToolResult(ctx.session_id, big, 1000)
     if (persisted.kind !== "ref") throw new Error("expected ref")
-    const loaded = await readToolResultTool.call({ ref: persisted.ref }, ctx)
-    expect(loaded).toEqual(big)
+    const r = (await readToolResultTool.call({ ref: persisted.ref }, ctx)) as {
+      ok: true
+      value: unknown
+    }
+    expect(r.ok).toBe(true)
+    expect(r.value).toEqual(big)
   })
 
-  it("retrieves by bare id too", async () => {
+  it("retrieves by bare id too (returns ok)", async () => {
     const big = { body: "y".repeat(5000) }
     const persisted = await maybePersistToolResult(ctx.session_id, big, 1000)
     if (persisted.kind !== "ref") throw new Error("expected ref")
     const id = persisted.ref.replace("ref://tool-result/", "")
-    const loaded = await readToolResultTool.call({ ref: id }, ctx)
-    expect(loaded).toEqual(big)
+    const r = (await readToolResultTool.call({ ref: id }, ctx)) as {
+      ok: true
+      value: unknown
+    }
+    expect(r.ok).toBe(true)
+    expect(r.value).toEqual(big)
   })
 
-  it("throws on missing ref", async () => {
+  it("throws on missing ref (loadPersistedToolResult propagates)", async () => {
+    // Tool does not try/catch the underlying loader; runTool catches in production.
     await expect(readToolResultTool.call({ ref: "tr_nope" }, ctx)).rejects.toThrow()
   })
 
-  it("rejects empty ref", async () => {
-    await expect(readToolResultTool.call({ ref: "" }, ctx)).rejects.toThrow()
+  it("rejects empty ref with err(INVALID_INPUT)", async () => {
+    const r = await readToolResultTool.call({ ref: "" }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT", message: expect.stringContaining("ref") },
+    })
   })
 })
