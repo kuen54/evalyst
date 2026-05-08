@@ -169,6 +169,28 @@ describe('serializeMessagesForProvider — OpenAI', () => {
     const composite = out[0] as { tool_calls: Array<Record<string, unknown>> }
     expect(composite.tool_calls[0]).not.toHaveProperty('extra_content')
   })
+
+  it('v2.5 P2: OpenAI ignores is_error on tool_result (protocol has no such field)', () => {
+    const msgs: LlmMessage[] = [
+      {
+        role: 'tool_result',
+        call_id: 'call_abc',
+        content: '{"ok":false,"error":{"code":"NOT_FOUND"}}',
+        is_error: true,
+      },
+    ]
+    const out = serializeMessagesForProvider(msgs, 'openai')
+    const json = JSON.stringify(out)
+    expect(json).not.toContain('is_error')
+    // 仍然走 role:'tool' + tool_call_id 形态
+    expect(out).toEqual([
+      {
+        role: 'tool',
+        tool_call_id: 'call_abc',
+        content: '{"ok":false,"error":{"code":"NOT_FOUND"}}',
+      },
+    ])
+  })
 })
 
 describe('serializeMessagesForProvider — Anthropic', () => {
@@ -319,6 +341,58 @@ describe('serializeMessagesForProvider — Anthropic', () => {
       },
       { role: 'assistant', content: 'No results found.' },
     ])
+  })
+
+  it('v2.5 P2: tool_result with is_error: true → content block carries is_error', () => {
+    const msgs: LlmMessage[] = [
+      {
+        role: 'tool_result',
+        call_id: 'toolu_01',
+        content: '{"ok":false,"error":{"code":"NOT_FOUND","message":"gone"}}',
+        is_error: true,
+      },
+    ]
+    const out = serializeMessagesForProvider(msgs, 'anthropic')
+    expect(out).toEqual([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'toolu_01',
+            content: '{"ok":false,"error":{"code":"NOT_FOUND","message":"gone"}}',
+            is_error: true,
+          },
+        ],
+      },
+    ])
+  })
+
+  it('v2.5 P2: tool_result without is_error → content block omits is_error field', () => {
+    const msgs: LlmMessage[] = [
+      {
+        role: 'tool_result',
+        call_id: 'toolu_01',
+        content: '{"ok":true,"value":{"results":[]}}',
+      },
+    ]
+    const out = serializeMessagesForProvider(msgs, 'anthropic')
+    const first = out[0] as { content: Array<Record<string, unknown>> }
+    expect(first.content[0]).not.toHaveProperty('is_error')
+  })
+
+  it('v2.5 P2: tool_result with is_error: false explicit → content block omits is_error (falsy = absent)', () => {
+    const msgs: LlmMessage[] = [
+      {
+        role: 'tool_result',
+        call_id: 'toolu_01',
+        content: '{"ok":true,"value":{"x":1}}',
+        is_error: false,
+      },
+    ]
+    const out = serializeMessagesForProvider(msgs, 'anthropic')
+    const first = out[0] as { content: Array<Record<string, unknown>> }
+    expect(first.content[0]).not.toHaveProperty('is_error')
   })
 })
 

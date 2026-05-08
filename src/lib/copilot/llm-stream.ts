@@ -618,6 +618,8 @@ function serializeAnthropicNonAssistant(m: LlmMessage): Record<string, unknown> 
           type: 'tool_result',
           tool_use_id: m.call_id,
           content: m.content,
+          // v2.5 P2: 透传 is_error（Anthropic 协议字段）让 Claude/Sonnet 一眼分清 success vs failure。
+          ...(m.is_error ? { is_error: true } : {}),
         },
       ],
     }
