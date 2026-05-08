@@ -259,6 +259,7 @@ function ErrorRender({
   const codeLabel = codeKey ? t(codeKey) : parsedError.code
   return (
     <div
+      role="alert"
       className="rounded-md px-3 py-2 text-xs bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-300 flex flex-col gap-1.5"
       data-tool-variant="error"
     >
@@ -296,6 +297,8 @@ function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
   const displayName = displayNameFor(toolName, t)
 
   if (toolResult) {
+    // Defensive fallback: top-level toolResult.denied=true with unparseable content
+    // (parseToolError above catches the standard { denied:true, reason } content payload).
     const denied = toolResult.denied === true
     const parsed = parseResultContent(toolResult)
     const unwrapped = unwrapV2Content(parsed)
@@ -542,6 +545,8 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
 
   // After execution: show result with amber accent retained.
   if (toolResult) {
+    // Defensive fallback: top-level toolResult.denied=true with unparseable content
+    // (parseToolError above catches the standard { denied:true, reason } content payload).
     const denied = toolResult.denied === true
     const parsed = parseResultContent(toolResult)
     const unwrapped = unwrapV2Content(parsed)
