@@ -58,4 +58,16 @@ describe('isToolErrorShape', () => {
     expect(isToolErrorShape('error')).toBe(false)
     expect(isToolErrorShape(42)).toBe(false)
   })
+
+  it('malformed { ok: false, error: "string" } falls through to legacy branch → true', () => {
+    expect(isToolErrorShape({ ok: false, error: 'oops' })).toBe(true)
+  })
+
+  it('{ ok: false } with no error key → false', () => {
+    expect(isToolErrorShape({ ok: false })).toBe(false)
+  })
+
+  it('{ ok: false, error: null } → true (legacy "error" key existence)', () => {
+    expect(isToolErrorShape({ ok: false, error: null })).toBe(true)
+  })
 })
