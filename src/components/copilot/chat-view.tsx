@@ -11,6 +11,7 @@ import { useCopilotStore } from "./store"
 import { MessageRow, ThinkingDots, type UiMessage } from "./chat-view-parts"
 import { ToolCallCard } from "./tool-call-card"
 import { RouteChangeBanner } from "./route-change-banner"
+import { CacheStatsChip } from "./cache-stats-chip"
 import { ContextChipRail } from "./context-chip-rail"
 import { useChatStream } from "./use-chat-stream"
 
@@ -142,6 +143,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         hasMessages={stream.messages.length > 0}
         onForkSession={handleForkSession}
       />
+      <CacheStatsChip sessionId={sessionId} />
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {stream.loadingSession && stream.messages.length === 0 && (
           <div className="text-[11px] text-muted-foreground text-center">{t("common.loading")}</div>

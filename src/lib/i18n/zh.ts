@@ -1046,6 +1046,17 @@ export const zh = {
   "copilot.tool.summary.read_page_empty": "未在当前页面找到相关内容",
   "copilot.tool.name.read_dataset_records": "读取数据集 records",
   "copilot.tool.summary.read_dataset_records": "从数据集 {dataset_id} 读取 records",
+
+  // v2.5 §6: cache hit rate chip
+  "copilot.cache.label": "Cache",
+  "copilot.cache.session": "本 session {pct}",
+  "copilot.cache.weekly": "近 7 天 {pct}",
+  "copilot.cache.no_data": "cache 数据暂无",
+  "copilot.cache.tooltip.recent_title": "最近调用",
+  "copilot.cache.tooltip.input": "输入 {n}",
+  "copilot.cache.tooltip.cache_read": "缓存读 {n}",
+  "copilot.cache.tooltip.cache_create": "缓存写 {n}",
+  "copilot.cache.tooltip.unsupported": "{provider} 不返 cache 指标",
   "copilot.route_change.message": "已切换页面，清空了 {n} 个圈选上下文。建议开启新对话以获得更清晰的当前页面答复。",
   "copilot.route_change.new_session": "开启新对话",
   "copilot.route_change.continue": "继续当前对话",

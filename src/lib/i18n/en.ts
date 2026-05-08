@@ -1047,6 +1047,17 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.tool.summary.read_page_empty": "No matches on current page",
   "copilot.tool.name.read_dataset_records": "Read dataset records",
   "copilot.tool.summary.read_dataset_records": "Reading records from dataset {dataset_id}",
+
+  // v2.5 §6: cache hit rate chip
+  "copilot.cache.label": "Cache",
+  "copilot.cache.session": "this session {pct}",
+  "copilot.cache.weekly": "last 7 days {pct}",
+  "copilot.cache.no_data": "no cache data yet",
+  "copilot.cache.tooltip.recent_title": "Recent calls",
+  "copilot.cache.tooltip.input": "input {n}",
+  "copilot.cache.tooltip.cache_read": "cache read {n}",
+  "copilot.cache.tooltip.cache_create": "cache create {n}",
+  "copilot.cache.tooltip.unsupported": "{provider} does not return cache metrics",
   "copilot.route_change.message": "Page changed. {n} context selections cleared. Consider starting a new conversation for clearer answers.",
   "copilot.route_change.new_session": "New conversation",
   "copilot.route_change.continue": "Keep current",
