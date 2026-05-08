@@ -103,27 +103,54 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // 计算 result content
   let resultContent: unknown
   if (body.denied === true) {
+    // 用户主动 deny：保留旧 jsonl 形态（{ denied:true, reason }）
+    // build-llm-messages 序列化时由 isToolErrorShape 识别为 error，
+    // Anthropic 序列化加 is_error: true
     resultContent = { denied: true, reason: body.reason ?? '' }
   } else {
     // 未知 tool 直接 400：客户端说谎，不该发生
     const tool = toolByName.get(body.tool_name)
     if (!tool) return jsonError(400, `unknown tool: ${body.tool_name}`)
-    try {
-      // 走 runTool 以穿过 postToolCallHooks（M3 payloadGuard 会在这里做落盘 +
-      // ref 替换）。skipConfirm=true：用户已在 UI 点 Confirm 才会走到这个 route，
-      // 绕过 preToolCall 的 confirmGateHook 避免死锁。
-      const r = await runTool(tool, body.input, { session_id: sessionId, signal: req.signal }, { skipConfirm: true, sessionAllowList: body.session_allow_list, sessionDenyList: body.session_deny_list })
-      if (r.kind === 'done') {
-        resultContent = r.output
-      } else if (r.kind === 'denied') {
-        resultContent = { error: `tool denied by server hook: ${r.reason}` }
-      } else {
-        // 理论上 skipConfirm=true 不该走到这；防御性兜底
-        resultContent = { error: 'unexpected: tool awaiting confirm in /tool-result route' }
+
+    // v2.5 P2: runTool 兜底 throw → kind:'error' INTERNAL，不再需要外层 try/catch。
+    // skipConfirm=true：用户已在 UI 点 Confirm 才走到这个 route，绕过 preToolCall 的
+    // confirmGateHook 避免死锁。M3 payloadGuard 仍在 postToolCallHooks 里跑（仅 'done' 路径）。
+    const r = await runTool(
+      tool,
+      body.input,
+      { session_id: sessionId, signal: req.signal },
+      {
+        skipConfirm: true,
+        sessionAllowList: body.session_allow_list,
+        sessionDenyList: body.session_deny_list,
+      },
+    )
+
+    if (r.kind === 'done') {
+      resultContent = r.output
+    } else if (r.kind === 'error') {
+      // v2.5 P2: tool throw / tool return err 统一走结构化 ToolError 形态
+      resultContent = { ok: false, error: r.error }
+    } else if (r.kind === 'denied') {
+      // server hook 拒绝（sessionDeny 命中）
+      resultContent = {
+        ok: false,
+        error: {
+          code: 'USER_DENIED' as const,
+          message: r.reason,
+          retry_safe: false,
+        },
       }
-    } catch (e) {
-      // 工具错误不 500：LLM 看到 error 字段后可以决定下一步
-      resultContent = { error: e instanceof Error ? e.message : String(e) }
+    } else {
+      // skipConfirm=true 不该走到 awaiting_confirm；防御性兜底
+      resultContent = {
+        ok: false,
+        error: {
+          code: 'AWAITING_CONFIRM' as const,
+          message: 'unexpected: tool awaiting confirm in /tool-result route',
+          retry_safe: false,
+        },
+      }
     }
   }
 
