@@ -8,6 +8,7 @@ import {
   aggregateCacheHitRate,
   detectCacheBreak,
   countRecentBreaks,
+  extractSystemPromptString,
   CACHE_BREAK_MIN_DROP_TOKENS,
   CACHE_BREAK_MAX_RATIO,
   type CacheUsageStat,
@@ -342,5 +343,51 @@ describe('appendCacheStat with digests round-trip', () => {
     expect(read).toHaveLength(1)
     expect(read[0].system_prompt_digest).toBe('abc123def4567890')
     expect(read[0].tool_digest).toBe('1234567890abcdef')
+  })
+})
+
+describe('extractSystemPromptString', () => {
+  it('首条 system content 是 string → 直接返回', () => {
+    const messages = [
+      { role: 'system', content: 'You are a helpful assistant.' },
+      { role: 'user', content: 'hi' },
+    ]
+    expect(extractSystemPromptString(messages)).toBe('You are a helpful assistant.')
+  })
+
+  it('首条 system content 是 text blocks 数组 → concat 各 text 字段', () => {
+    const messages = [
+      {
+        role: 'system',
+        content: [
+          { type: 'text', text: 'block one' },
+          { type: 'text', text: 'block two' },
+        ],
+      },
+    ]
+    expect(extractSystemPromptString(messages)).toBe('block one\nblock two')
+  })
+
+  it('mixed blocks（含 non-text）→ 只 concat 带 text 字段的 block', () => {
+    const messages = [
+      {
+        role: 'system',
+        content: [
+          { type: 'text', text: 'real text' },
+          { type: 'image', source: 'http://x' }, // 无 text 字段
+          { type: 'text', text: 'after image' },
+        ],
+      },
+    ]
+    // image block 进 map 落到 '' 分支，仍占一个换行槽
+    expect(extractSystemPromptString(messages)).toBe('real text\n\nafter image')
+  })
+
+  it('messages 无 system 消息 → 返回空 string', () => {
+    const messages = [
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'hello' },
+    ]
+    expect(extractSystemPromptString(messages)).toBe('')
   })
 })
