@@ -2,7 +2,7 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'node:crypto'
-import { ensureDir } from '../fs-utils'
+import { ensureDir, writeAtomic } from '../fs-utils'
 
 export interface CacheUsageStat {
   session_id: string
@@ -282,9 +282,7 @@ export function pruneCacheStats(config: PruneConfig = DEFAULT_PRUNE_CONFIG): Pru
   }
 
   const newContent = final.join('\n') + (final.length > 0 ? '\n' : '')
-  const tmpPath = filePath + '.tmp'
-  fs.writeFileSync(tmpPath, newContent)
-  fs.renameSync(tmpPath, filePath)
+  writeAtomic(filePath, newContent)
 
   return {
     before_lines: beforeLines,
