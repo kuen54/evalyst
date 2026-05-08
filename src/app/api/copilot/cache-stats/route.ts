@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readCacheStats, aggregateCacheHitRate, countRecentBreaks } from '@/lib/copilot/cache-stats-store'
+import {
+  readCacheStats,
+  aggregateCacheHitRate,
+  countRecentBreaks,
+  collectRecentBreakReasons,
+} from '@/lib/copilot/cache-stats-store'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 const RECENT_LIMIT = 10
@@ -13,6 +18,7 @@ export async function GET(req: NextRequest) {
   const sessionAgg = aggregateCacheHitRate(sessionStats)
   const weeklyAgg = aggregateCacheHitRate(weeklyStats)
   const weeklyBreaks = countRecentBreaks(weeklyStats)
+  const weeklyReasons = collectRecentBreakReasons(weeklyStats)
 
   return NextResponse.json({
     session: {
@@ -23,6 +29,7 @@ export async function GET(req: NextRequest) {
     weekly: {
       ...weeklyAgg,
       ...weeklyBreaks,
+      recent_break_reasons: weeklyReasons,
     },
   })
 }

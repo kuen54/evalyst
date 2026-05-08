@@ -1,7 +1,8 @@
 // src/lib/copilot/cache-stats-store.ts
 import fs from 'fs'
 import path from 'path'
-import { ensureDir } from '../fs-utils'
+import crypto from 'node:crypto'
+import { ensureDir, writeAtomic } from '../fs-utils'
 
 export interface CacheUsageStat {
   session_id: string
@@ -13,6 +14,9 @@ export interface CacheUsageStat {
   cache_read_tokens?: number       // Anthropic cache_read_input_tokens / OpenAI prompt_tokens_details.cached_tokens
   provider: 'anthropic' | 'openai'
   model: string
+  // v2.5 P1b: break reason detection
+  system_prompt_digest?: string    // sha256 前 16 字符
+  tool_digest?: string
 }
 
 // 惰性路径，测试 chdir 有效
@@ -124,4 +128,166 @@ export function countRecentBreaks(stats: CacheUsageStat[]): CacheBreaksSummary {
     if (detectCacheBreak(stats[i - 1], stats[i])) breaks++
   }
   return { recent_breaks: breaks, total_pairs_considered: Math.max(0, stats.length - 1) }
+}
+
+/**
+ * v2.5 P1b §3.1.2: sha256 前 16 字符 digest，用于 break reason detection。
+ *
+ * 16 字符碰撞概率 1/2^64 完全够判等用（不是密码学场景）；裁短主要是
+ * 节省每条 cache-stats jsonl 行的字节数（10K 条节省 ~1MB）。
+ */
+export function computeSystemPromptDigest(systemPrompt: string): string {
+  return crypto.createHash('sha256').update(systemPrompt).digest('hex').slice(0, 16)
+}
+
+export function computeToolDigest(toolNames: string[]): string {
+  const sorted = [...toolNames].sort().join(',')
+  return crypto.createHash('sha256').update(sorted).digest('hex').slice(0, 16)
+}
+
+export type BreakReason = 'system_prompt' | 'tools' | 'unknown'
+
+export interface BreakInfo {
+  broken: boolean
+  reasons: BreakReason[]
+}
+
+/**
+ * v2.5 P1b §3.1.3: 在 detectCacheBreak (PR1) 噪声地板基础上对比 digest，
+ * 给出 break 的具体原因。
+ *
+ * - prev 缺失 → 'unknown'（旧 jsonl 行没有 digest 字段）
+ * - prev/curr digest 都齐 + 不同 → 加对应 reason
+ * - 量级掉但 digest 都一样 → 'unknown'（可能是 cache TTL 过期或其他）
+ */
+export function detectCacheBreakWithReasons(
+  prev: CacheUsageStat | undefined,
+  curr: CacheUsageStat,
+): BreakInfo {
+  if (!detectCacheBreak(prev, curr)) {
+    return { broken: false, reasons: [] }
+  }
+  if (!prev) {
+    return { broken: true, reasons: ['unknown'] }
+  }
+  const reasons: BreakReason[] = []
+  if (prev.system_prompt_digest && curr.system_prompt_digest &&
+      prev.system_prompt_digest !== curr.system_prompt_digest) {
+    reasons.push('system_prompt')
+  }
+  if (prev.tool_digest && curr.tool_digest &&
+      prev.tool_digest !== curr.tool_digest) {
+    reasons.push('tools')
+  }
+  if (reasons.length === 0) {
+    reasons.push('unknown')
+  }
+  return { broken: true, reasons }
+}
+
+export function collectRecentBreakReasons(
+  stats: CacheUsageStat[],
+): Record<BreakReason, number> {
+  const counts: Record<BreakReason, number> = {
+    system_prompt: 0, tools: 0, unknown: 0,
+  }
+  for (let i = 1; i < stats.length; i++) {
+    const info = detectCacheBreakWithReasons(stats[i - 1], stats[i])
+    if (!info.broken) continue
+    for (const r of info.reasons) counts[r]++
+  }
+  return counts
+}
+
+/**
+ * v2.5 P1b §3.1.4: 从 LlmMessages 抽出系统 prompt 文本用于 digest。
+ *
+ * 第一条 system 消息 = `COPILOT_SYSTEM_PROMPT` 常量（cache 稳定前缀）。
+ * `Array.find` 返回首个匹配 → 后续 SystemHeader 每请求变动，不参与 digest。
+ *
+ * content 可能是 string（OpenAI / 我们 buildLlmMessages 输出）或 array of blocks
+ * （未来 Anthropic 4-breakpoint 改造路径），后者 concat text 字段防御性处理。
+ *
+ * 入参签名故意宽松（`role: string` + `content?: unknown`）以兼容 `LlmMessage` 这种
+ * discriminated union（其中 `tool_use` 变体没有 `content` 字段）。
+ */
+export function extractSystemPromptString(
+  messages: ReadonlyArray<{ role: string; content?: unknown }>,
+): string {
+  const sys = messages.find((m) => m.role === 'system')
+  if (!sys) return ''
+  if (typeof sys.content === 'string') return sys.content
+  if (Array.isArray(sys.content)) {
+    return sys.content
+      .map((b) =>
+        typeof b === 'object' && b !== null && 'text' in b
+          ? String((b as { text: unknown }).text)
+          : '',
+      )
+      .join('\n')
+  }
+  return ''
+}
+
+export interface PruneConfig {
+  maxAgeDays: number
+  maxLines: number
+}
+
+export const DEFAULT_PRUNE_CONFIG: PruneConfig = {
+  maxAgeDays: 30,
+  maxLines: 10000,
+}
+
+export interface PruneResult {
+  before_lines: number
+  after_lines: number
+  pruned_by_age: number
+  pruned_by_size: number
+}
+
+/**
+ * v2.5 P1b §3.2: 双阈值 retention
+ * - 删 ts < now - maxAgeDays 的所有行（含 malformed JSON）
+ * - 若仍 > maxLines，从头删到 maxLines/2（保最后 N/2 条作业暖数据）
+ *
+ * 原子写：tmp file + rename。
+ */
+export function pruneCacheStats(config: PruneConfig = DEFAULT_PRUNE_CONFIG): PruneResult {
+  const filePath = cacheStatsPath()
+  if (!fs.existsSync(filePath)) {
+    return { before_lines: 0, after_lines: 0, pruned_by_age: 0, pruned_by_size: 0 }
+  }
+  const raw = fs.readFileSync(filePath, 'utf-8')
+  const allLines = raw.split('\n').filter((l) => l.trim())
+  const beforeLines = allLines.length
+
+  const cutoff = Date.now() - config.maxAgeDays * 24 * 60 * 60 * 1000
+  const byAge = allLines.filter((line) => {
+    try {
+      const s = JSON.parse(line) as CacheUsageStat
+      return new Date(s.ts).getTime() >= cutoff
+    } catch {
+      return false  // malformed 行同时删除
+    }
+  })
+  const prunedByAge = beforeLines - byAge.length
+
+  let final = byAge
+  let prunedBySize = 0
+  if (byAge.length > config.maxLines) {
+    const keepCount = Math.floor(config.maxLines / 2)
+    final = byAge.slice(-keepCount)
+    prunedBySize = byAge.length - keepCount
+  }
+
+  const newContent = final.join('\n') + (final.length > 0 ? '\n' : '')
+  writeAtomic(filePath, newContent)
+
+  return {
+    before_lines: beforeLines,
+    after_lines: final.length,
+    pruned_by_age: prunedByAge,
+    pruned_by_size: prunedBySize,
+  }
 }

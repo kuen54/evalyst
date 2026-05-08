@@ -10,6 +10,21 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Copilot (v2.5 P1b · cache 观测层 + 存储卫生)
+
+基于 openclaw `prompt-cache-observability.ts:51` 6 break reason 设计调研，挑最实际 2 个落地：
+
+- **systemPrompt + tools digest 检测 cache break 原因**：`CacheUsageStat` 扩 `system_prompt_digest` / `tool_digest` 两个 sha256 前 16 字符 digest 字段（每条 jsonl 多 ~70 字节，10K 条 ~700KB —— 半压 jsonl 自然碰撞）。`detectCacheBreakWithReasons` 在 PR1 P0 noise floor 基础上对比 digest，给出 `['system_prompt']` / `['tools']` / `['unknown']` reason 列表；旧 jsonl 行没 digest 时走 `'unknown'` 兼容分支。`/api/copilot/cache-stats` 的 `weekly` 段新增 `recent_break_reasons`；chip tooltip 在 `recent_breaks > 0` 时按 reason 分类展示，让用户一眼看出"上次 break 是改 system 还是动了 tools"。openclaw 另外 4 个 reason（model / retention / transport / streamStrategy）对单 provider 单 session 用不上，故意不抄。
+- **`cache-stats.jsonl` startup retention**（30d + N=10000 双阈值）：`pruneCacheStats` 删 ts > 30 天的行（含 malformed JSON）+ 行数 > 10K 时额外从头 trim 到 5K（保最近暖数据）；走项目 `writeAtomic` helper 原子 tmp+rename 写。Next.js `instrumentation.ts` 启动钩子调用一次（`NEXT_RUNTIME === 'nodejs'` 守卫，try/catch warn-swallow，启动失败不挂服务）。避免评测平台跑久了 jsonl 积几十万行拖慢 chip fetch。
+
+### 测试
+
+- 新增 25 测试 case：`cache-stats-store.test.ts` 18 新（digest helpers 8 + detectCacheBreakWithReasons 6 + collectRecentBreakReasons 3 + appendCacheStat round-trip 1）+ `cache-stats-prune.test.ts` 7 新文件（文件不存在 / 全新 / 部分过期 / 全部过期 / size only / age+size 组合 / malformed JSON）；全套 545/545 pass
+
+- Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p1b-cache-break-detection-retention-design.md
+- Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p1b-cache-break-detection-retention.md
+
+
 ## [0.9.2] — 2026-05-08 · Copilot v2.5 P1a · Anthropic 4-breakpoint cache_control + head+tail preview (PR #43)
 
 基于 v0.9.0 ship 后对 hermes `prompt_caching.py` 和 `context_compressor.py` 的深入调研，把"cache 播放流核心"两条改动合进 v2.5。

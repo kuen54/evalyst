@@ -27,7 +27,12 @@ import { toOpenaiTools, toAnthropicTools } from './tool-adapters'
 import type { AnyToolDescriptor } from './tools/registry'
 import type { CopilotMessage, PageContext, StreamEvent } from './types'
 import type { ModelConfig } from '../llm-config'
-import { appendCacheStat } from './cache-stats-store'
+import {
+  appendCacheStat,
+  computeSystemPromptDigest,
+  computeToolDigest,
+  extractSystemPromptString,
+} from './cache-stats-store'
 
 export interface RunStreamParams {
   sessionId: string
@@ -163,6 +168,8 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
   // v2.5 §6: 每次 LLM 调用落一条 cache stat，独立 jsonl 文件。
   // messageId fallback 顺序：assistant 消息 > 第一条 tool_use > 空串（纯错误/空响应时）。
   const messageId = assistantMessageId ?? toolUseMessageIds[0] ?? ''
+  // v2.5 P1b §3.1.4: 写 digest，下次 break 时 detectCacheBreakWithReasons 用
+  const systemPromptString = extractSystemPromptString(llmMessages)
   appendCacheStat({
     session_id: p.sessionId,
     message_id: messageId,
@@ -173,6 +180,8 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
     cache_read_tokens: assistantUsage?.cache_read_tokens,
     provider: p.model.api_format === 'anthropic' ? 'anthropic' : 'openai',
     model: p.model.model,
+    system_prompt_digest: computeSystemPromptDigest(systemPromptString),
+    tool_digest: computeToolDigest(p.tools.map((t) => t.name)),
   })
 
   return {
