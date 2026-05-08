@@ -391,3 +391,139 @@ describe('extractSystemPromptString', () => {
     expect(extractSystemPromptString(messages)).toBe('')
   })
 })
+
+import {
+  computeSystemPromptPreview,
+  computeToolPreview,
+  findLatestBreakPair,
+  PREVIEW_LIMIT,
+} from '../cache-stats-store'
+
+describe('computeSystemPromptPreview (v2.5 P2 §3.1)', () => {
+  it('≤200 char 返原文', () => {
+    expect(computeSystemPromptPreview('short prompt')).toBe('short prompt')
+  })
+
+  it('正好 200 char 返原文', () => {
+    const s = 'a'.repeat(200)
+    expect(computeSystemPromptPreview(s)).toBe(s)
+    expect(computeSystemPromptPreview(s).length).toBe(200)
+  })
+
+  it('>200 char 返末尾 200', () => {
+    const s = 'X'.repeat(100) + 'Y'.repeat(250)
+    const p = computeSystemPromptPreview(s)
+    expect(p.length).toBe(200)
+    expect(p).toBe('Y'.repeat(200))
+  })
+
+  it('空 string 返空 string', () => {
+    expect(computeSystemPromptPreview('')).toBe('')
+  })
+
+  it('PREVIEW_LIMIT 常量为 200', () => {
+    expect(PREVIEW_LIMIT).toBe(200)
+  })
+})
+
+describe('computeToolPreview (v2.5 P2 §3.1)', () => {
+  it('sort 后用逗号 join', () => {
+    expect(computeToolPreview(['edit_template', 'read_context', 'list_experiments'])).toBe(
+      'edit_template,list_experiments,read_context',
+    )
+  })
+
+  it('空数组返空 string', () => {
+    expect(computeToolPreview([])).toBe('')
+  })
+
+  it('已 sort 的输入幂等', () => {
+    const a = computeToolPreview(['a', 'b', 'c'])
+    const b = computeToolPreview(['c', 'b', 'a'])
+    expect(a).toBe(b)
+  })
+
+  it('超长（罕见极端）→ 截尾 200', () => {
+    const long = ['x'.repeat(150), 'y'.repeat(150)]
+    const out = computeToolPreview(long)
+    expect(out.length).toBe(200)
+  })
+})
+
+describe('findLatestBreakPair (v2.5 P2 §3.3)', () => {
+  it('空数组返 null', () => {
+    expect(findLatestBreakPair([])).toBeNull()
+  })
+
+  it('单条返 null（无 prev）', () => {
+    expect(findLatestBreakPair([statWithDigest()])).toBeNull()
+  })
+
+  it('两条无 break 返 null', () => {
+    const stats = [
+      statWithDigest({ cache_read_tokens: 5000 }),
+      statWithDigest({ cache_read_tokens: 4900 }),
+    ]
+    expect(findLatestBreakPair(stats)).toBeNull()
+  })
+
+  it('多条多 break 返最近的那对', () => {
+    const stats = [
+      statWithDigest({ cache_read_tokens: 5000, system_prompt_digest: 'a' }),
+      statWithDigest({ cache_read_tokens: 0,    system_prompt_digest: 'b' }),  // break #1: system_prompt
+      statWithDigest({ cache_read_tokens: 5000, system_prompt_digest: 'b', tool_digest: 'x' }),
+      statWithDigest({ cache_read_tokens: 0,    system_prompt_digest: 'b', tool_digest: 'y' }),  // break #2: tools
+    ]
+    const r = findLatestBreakPair(stats)
+    expect(r).not.toBeNull()
+    expect(r!.prev.cache_read_tokens).toBe(5000)
+    expect(r!.curr.cache_read_tokens).toBe(0)
+    expect(r!.reasons).toEqual(['tools'])
+  })
+
+  it('返回的 prev/curr 是引用原 stats 的对象（保留所有字段）', () => {
+    const a = statWithDigest({
+      cache_read_tokens: 5000,
+      system_prompt_digest: 'old1234567890abc',
+      system_prompt_preview: 'before tail',
+    })
+    const b = statWithDigest({
+      cache_read_tokens: 0,
+      system_prompt_digest: 'new1234567890abc',
+      system_prompt_preview: 'after tail',
+    })
+    const r = findLatestBreakPair([a, b])
+    expect(r).not.toBeNull()
+    expect(r!.prev.system_prompt_preview).toBe('before tail')
+    expect(r!.curr.system_prompt_preview).toBe('after tail')
+    expect(r!.reasons).toEqual(['system_prompt'])
+  })
+})
+
+describe('appendCacheStat with previews round-trip (v2.5 P2)', () => {
+  it('readCacheStats 保留 system_prompt_preview / tool_preview 字段', () => {
+    const s = statWithDigest({
+      session_id: 'roundtrip-p2',
+      system_prompt_preview: 'abc...end of prompt',
+      tool_preview: 'edit_template,read_context',
+    })
+    appendCacheStat(s)
+    const read = readCacheStats({ session_id: 'roundtrip-p2' })
+    expect(read).toHaveLength(1)
+    expect(read[0].system_prompt_preview).toBe('abc...end of prompt')
+    expect(read[0].tool_preview).toBe('edit_template,read_context')
+  })
+
+  it('旧 jsonl（无 preview 字段）兼容：读出 undefined', () => {
+    // 模拟 P1b 时期写的行：digest 有但 preview 无
+    const old = statWithDigest({
+      session_id: 'legacy',
+      system_prompt_preview: undefined,
+      tool_preview: undefined,
+    })
+    appendCacheStat(old)
+    const read = readCacheStats({ session_id: 'legacy' })
+    expect(read[0].system_prompt_preview).toBeUndefined()
+    expect(read[0].tool_preview).toBeUndefined()
+  })
+})

@@ -1,12 +1,13 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useT } from "@/lib/i18n/provider"
-import type { CacheUsageStat, CacheHitRateResult, CacheBreaksSummary } from "@/lib/copilot/cache-stats-store"
+import type { CacheUsageStat, CacheHitRateResult, CacheBreaksSummary, BreakPair } from "@/lib/copilot/cache-stats-store"
 
 interface ApiResponse {
   session: CacheHitRateResult & { recent: CacheUsageStat[] }
   weekly: CacheHitRateResult & CacheBreaksSummary & {
     recent_break_reasons: { system_prompt: number; tools: number; unknown: number }
+    latest_break_pair: BreakPair | null
   }
 }
 
@@ -76,6 +77,33 @@ export function CacheStatsChip({ sessionId }: { sessionId?: string }) {
       tooltipLines.push(
         t("copilot.cache.tooltip.breaks_by_reason_unknown", { n: String(r.unknown) }),
       )
+    }
+    // v2.5 P2 §3.4: 给最近一次 break 展示具体 prev→curr 末尾差异，让用户能定位
+    // "system prompt 哪几个字符变了" / "工具列表加/减了什么"
+    const pair = data.weekly.latest_break_pair
+    if (pair) {
+      const { prev, curr, reasons } = pair
+      if (
+        reasons.includes("system_prompt") &&
+        prev.system_prompt_preview &&
+        curr.system_prompt_preview
+      ) {
+        tooltipLines.push("")
+        tooltipLines.push(t("copilot.cache.tooltip.system_prompt_diff_title"))
+        tooltipLines.push(`  ${t("copilot.cache.tooltip.before")}: ...${prev.system_prompt_preview}`)
+        tooltipLines.push(`  ${t("copilot.cache.tooltip.after")}: ...${curr.system_prompt_preview}`)
+      }
+      if (
+        reasons.includes("tools") &&
+        prev.tool_preview &&
+        curr.tool_preview &&
+        prev.tool_preview !== curr.tool_preview
+      ) {
+        tooltipLines.push("")
+        tooltipLines.push(t("copilot.cache.tooltip.tools_diff_title"))
+        tooltipLines.push(`  ${t("copilot.cache.tooltip.before")}: ${prev.tool_preview}`)
+        tooltipLines.push(`  ${t("copilot.cache.tooltip.after")}: ${curr.tool_preview}`)
+      }
     }
   }
   const tooltip = tooltipLines.length > 0 ? tooltipLines.join("\n") : undefined
