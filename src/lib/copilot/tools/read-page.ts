@@ -62,6 +62,9 @@ export const readPageTool: ToolDescriptor<Input, unknown> = {
       return { tag: i + 1, type, id }
     })
     try {
+      // resolveContexts(refs).data 走 manifest 形态（v2.5 Task 2 后），等同于 spec §3.6 的
+      // resolveContextsAsManifest(refs, 'self')。read_page 不再 dump 全量 TaskSchema / ExperimentConfig，
+      // 避免泄漏 input_preview / default_prompt / JSX 源码到 LLM 上下文。
       const resolved = resolveContexts(refs)
       return {
         matches: scored.map((x, i) => {

@@ -10,6 +10,19 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### 架构
+
+- **Copilot v2.5 M1：默认 context 收敛 + read_dataset_records 工具 + microCompact token 阈值**
+
+  v2 的 context 处理是"默认全 dump"——圈选 / `read_page` / `read_context` 三条路径直接把 `GenericResultRecord` / `TaskSchema` / `Display` / JSX 源码原样塞给 LLM；导致 chip preview 一展开就是 5KB JSON，激进会把上下文窗口压满。v2.5 M1 把默认形态从"全 dump"换成"≤300 chars manifest"，按需取详细数据走专用工具。
+  - **manifest 化**：抽 `src/lib/copilot/manifest.ts` 公共纯函数（7 个 shaper：experiment / task_result / task_field / dataset / template / display / rubric），`resolveContextSelf` / `resolveContextById` / `read_page` 三条路径共用调用。`input_preview` / `default_prompt` / JSX 源码 / `notes` / `prompt_template` / `api_config` 默认不再泄漏
+  - **新工具 `read_dataset_records(dataset_id, task_id?, limit≤20, offset)`**：read-only，`maxResultSizeChars=8000`。`task_id` 走 `dataset.id_field` 单条快路径；`limit/offset` 分页；`limit` 默认 5 max 20
+  - **`microCompact` 加 `maxTotalReplayableTokens`**（build-llm-messages 默认 4000 tokens）：双阈值——最近 N 条 + 累计 token 反向遍历 break。防御 3 条 read_resource 各 5KB inline 的累加场景。`undefined` 时回退老行为（数量阈值 only），向后兼容
+  - **划线降权**：Inspector 模式下 TextSelector 关闭（`enabled = open && !inspectorActive`），删 inspector-overlay 的 drag-select 让位 4 行——互斥后无需让位。`text_selection` chip 主语换成 `text in {hostType}#{hostId}`，文本变副语；展开面板拆三段（context chain / selected text / context anchor）+ 指向 `read_context(ctx_N, scope='parent')` 拉完整字段值
+
+- Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§3 / §4）
+- Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md
+
 ### 体验
 
 - **暗色模式 polish 续集**：v0.8.1 收口的"alpha 配方"规范向其余幸存者扫尾。

@@ -37,6 +37,19 @@ function isReplayableTool(name: string | undefined): boolean {
 export interface MicroCompactConfig {
   /** 保留最近 N 条可重放 tool_result 的完整形态；其余（更老的）压成 compacted。 */
   keepRecentReadResults: number
+  /**
+   * 累计 token 上限。从最近到老反向遍历可重放 tool_result，acc + tokens > 阈值
+   * 时停止保留（即使在 keepRecentReadResults 窗内）。undefined 时只按数量。
+   *
+   * spec §4.2：防御 3 条 read_context 各 5KB 的极端累加。约 4 char ≈ 1 token 的
+   * 朴素估算。
+   */
+  maxTotalReplayableTokens?: number
+}
+
+/** 4 char ≈ 1 token 的朴素估算，与 anthropic / openai tokenizer 偏差 < 30% 但够用 */
+function approxTokens(s: string): number {
+  return Math.ceil(s.length / 4)
 }
 
 export function microCompact(
@@ -52,11 +65,24 @@ export function microCompact(
     replayableIdx.push(i)
   }
 
-  // 2. 决定哪些要压缩：保留最后 N 条，前面的全压
+  // 2. 决定保留哪些（从最近到老反向扫，受双阈值约束）
   const keep = Math.max(0, config.keepRecentReadResults)
-  const toCompact = new Set(
-    replayableIdx.slice(0, Math.max(0, replayableIdx.length - keep)),
-  )
+  const tokenCap = config.maxTotalReplayableTokens
+  const keepIdxs = new Set<number>()
+  let acc = 0
+  for (let pos = replayableIdx.length - 1; pos >= 0; pos--) {
+    const reverseRank = replayableIdx.length - 1 - pos // 0 = 最近
+    if (reverseRank >= keep) break
+    const i = replayableIdx[pos]
+    if (tokenCap !== undefined) {
+      const tokens = approxTokens(messages[i].content)
+      if (acc + tokens > tokenCap) break
+      acc += tokens
+    }
+    keepIdxs.add(i)
+  }
+
+  const toCompact = new Set(replayableIdx.filter((i) => !keepIdxs.has(i)))
   if (toCompact.size === 0) return messages
 
   // 3. 替换

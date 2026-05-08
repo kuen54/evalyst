@@ -150,11 +150,6 @@ export function InspectorOverlay() {
       const target = e.target as Element | null
       if (isInCopilotUI(target)) return
 
-      // 如果这次 click 是 drag-select 结束（有文字被选中）→ 让 TextSelector 接管，不抢捕获 context
-      // 否则 inspector 会把用户原本想划线的动作抢走。
-      const sel = window.getSelection()
-      if (sel && !sel.isCollapsed && sel.toString().trim().length >= 2) return
-
       const host = pickTargetAt(e.clientX, e.clientY)
       if (!host) {
         // 点的是空处或纯 UI 控件（没包在 [data-copilot-context] 里）—— 放行，让原生 click 正常工作。

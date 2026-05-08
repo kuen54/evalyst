@@ -23,6 +23,7 @@ const VARIANT_BY_TOOL: Record<string, Variant> = {
   read_context: "context",
   read_resource: "resource",
   read_tool_result: "retrieval",
+  read_dataset_records: "retrieval",
   edit_template: "write",
   restart_experiment: "write",
 }

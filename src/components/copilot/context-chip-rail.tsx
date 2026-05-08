@@ -99,8 +99,16 @@ function ContextChip({
   const [error, setError] = useState<string | null>(null)
 
   const isText = ctx.type === "text_selection"
+  const hostType = isText ? (ctx.extra as { hostType?: string } | undefined)?.hostType : undefined
+  const hostId = isText ? (ctx.extra as { hostId?: string } | undefined)?.hostId : undefined
+  const hostHeader = isText && hostType
+    ? `${hostType}${hostId ? "#" + hostId : ""}`
+    : ""
+  const textBody = isText
+    ? ((ctx.summary ?? "").replace(/…$/, ""))
+    : ""
   const label = isText
-    ? `"${(ctx.summary ?? "").replace(/…$/, "")}"`
+    ? (hostHeader ? t("copilot.chip.text_in_host", { host: hostHeader }) : "text")
     : ctx.type
 
   const loadDetail = useCallback(async () => {
@@ -141,28 +149,35 @@ function ContextChip({
       className={`rounded border bg-card ${stale ? "opacity-60" : ""}`}
       style={{ borderColor: colorForTag(ctx.tag) + "99" }}
     >
-      <div className="flex items-center gap-1 px-1.5 py-0.5 text-[10px]">
-        <span
-          className="inline-block w-3 h-3 rounded-full text-[9px] font-bold text-white text-center leading-3 shrink-0"
-          style={{ backgroundColor: colorForTag(ctx.tag) }}
-        >{ctx.tag}</span>
-        <button
-          type="button"
-          onClick={toggleExpand}
-          title={titleText}
-          className="flex-1 min-w-0 text-left flex items-center gap-1 hover:opacity-80 transition-opacity cursor-pointer"
-          aria-expanded={expanded}
-          aria-label={t("copilot.chip.expand_detail")}
-        >
-          <span aria-hidden className="text-muted-foreground text-[9px]">{expanded ? "▾" : "▸"}</span>
-          <span className={`truncate text-muted-foreground ${isText ? "italic" : ""} ${stale ? "line-through" : ""}`}>{label}</span>
-          {stale && <span className="text-destructive" aria-hidden>!</span>}
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onRemove() }}
-          className="text-muted-foreground hover:text-destructive leading-none shrink-0"
-          title={t("copilot.context_tag_remove")}
-        >×</button>
+      <div className="flex flex-col">
+        <div className="flex items-center gap-1 px-1.5 py-0.5 text-[10px]">
+          <span
+            className="inline-block w-3 h-3 rounded-full text-[9px] font-bold text-white text-center leading-3 shrink-0"
+            style={{ backgroundColor: colorForTag(ctx.tag) }}
+          >{ctx.tag}</span>
+          <button
+            type="button"
+            onClick={toggleExpand}
+            title={titleText}
+            className="flex-1 min-w-0 text-left flex items-center gap-1 hover:opacity-80 transition-opacity cursor-pointer"
+            aria-expanded={expanded}
+            aria-label={t("copilot.chip.expand_detail")}
+          >
+            <span aria-hidden className="text-muted-foreground text-[9px]">{expanded ? "▾" : "▸"}</span>
+            <span className={`truncate text-muted-foreground ${isText ? "italic" : ""} ${stale ? "line-through" : ""}`}>{label}</span>
+            {stale && <span className="text-destructive" aria-hidden>!</span>}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onRemove() }}
+            className="text-muted-foreground hover:text-destructive leading-none shrink-0"
+            title={t("copilot.context_tag_remove")}
+          >×</button>
+        </div>
+        {isText && textBody && (
+          <div className="px-1.5 pb-0.5 pl-5 text-[10px] text-muted-foreground/80 italic truncate">
+            └ &quot;{textBody}&quot;
+          </div>
+        )}
       </div>
       {expanded && (
         <div className="border-t border-border/60 bg-muted/30 px-2 py-1.5 text-[10px] space-y-1.5">
@@ -173,38 +188,72 @@ function ContextChip({
             <div className="text-destructive">{error}</div>
           )}
           {detail && !loading && (
-            <>
-              {detail.context_chain && detail.context_chain.length > 0 && (
-                <div className="text-muted-foreground">
-                  {t("copilot.chip.within")}{" "}
-                  {detail.context_chain.map((a, i) => (
-                    <span key={`${a.type}:${a.id}:${i}`}>
-                      {i > 0 && " / "}
-                      <span className="text-foreground">{a.type}</span>
-                      <span className="opacity-70">:{a.id}</span>
+            isText ? (
+              <>
+                {detail.context_chain && detail.context_chain.length > 0 && (
+                  <div className="text-muted-foreground">
+                    {t("copilot.chip.within")}{" "}
+                    {detail.context_chain.map((a, i) => (
+                      <span key={`${a.type}:${a.id}:${i}`}>
+                        {i > 0 && " / "}
+                        <span className="text-foreground">{a.type}</span>
+                        <span className="opacity-70">:{a.id}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div>
+                  <div className="text-muted-foreground mb-0.5">{t("copilot.chip.selected_text")}</div>
+                  <blockquote className="border-l-2 border-foreground/30 pl-2 text-foreground/90 italic whitespace-pre-wrap break-words">
+                    &quot;{textBody}&quot;
+                  </blockquote>
+                </div>
+                <div>
+                  <div className="text-muted-foreground mb-0.5">{t("copilot.chip.context_anchor")}</div>
+                  <ul className="space-y-0.5">
+                    {hostType && (
+                      <li>· {t("copilot.chip.anchor_taken_from", { hostType, hostId: hostId ?? "" })}</li>
+                    )}
+                    <li className="text-muted-foreground/70">
+                      · {t("copilot.chip.anchor_full_value_hint", { tag: String(ctx.tag) })}
+                    </li>
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <>
+                {detail.context_chain && detail.context_chain.length > 0 && (
+                  <div className="text-muted-foreground">
+                    {t("copilot.chip.within")}{" "}
+                    {detail.context_chain.map((a, i) => (
+                      <span key={`${a.type}:${a.id}:${i}`}>
+                        {i > 0 && " / "}
+                        <span className="text-foreground">{a.type}</span>
+                        <span className="opacity-70">:{a.id}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div>
+                  <div className="text-muted-foreground mb-0.5">{t("copilot.chip.value_label")}</div>
+                  <pre className="bg-background/60 p-1.5 rounded text-[10px] font-mono whitespace-pre-wrap max-h-48 overflow-auto">
+                    {detail.data !== undefined ? JSON.stringify(detail.data, null, 2) : "(empty)"}
+                  </pre>
+                </div>
+                <div>
+                  <div className="text-muted-foreground mb-0.5">{t("copilot.chip.metadata_label")}</div>
+                  <div className="text-muted-foreground">
+                    <span className="text-foreground">{detail.type}</span>
+                    <span className="opacity-70">:{detail.id}</span>
+                    {" · "}
+                    <span className={detail.status === "ok" ? "text-foreground" : "text-destructive"}>
+                      {detail.status}
                     </span>
-                  ))}
+                    {detail.summary ? ` · ${detail.summary}` : null}
+                  </div>
                 </div>
-              )}
-              <div>
-                <div className="text-muted-foreground mb-0.5">{t("copilot.chip.value_label")}</div>
-                <pre className="bg-background/60 p-1.5 rounded text-[10px] font-mono whitespace-pre-wrap max-h-48 overflow-auto">
-                  {detail.data !== undefined ? JSON.stringify(detail.data, null, 2) : "(empty)"}
-                </pre>
-              </div>
-              <div>
-                <div className="text-muted-foreground mb-0.5">{t("copilot.chip.metadata_label")}</div>
-                <div className="text-muted-foreground">
-                  <span className="text-foreground">{detail.type}</span>
-                  <span className="opacity-70">:{detail.id}</span>
-                  {" · "}
-                  <span className={detail.status === "ok" ? "text-foreground" : "text-destructive"}>
-                    {detail.status}
-                  </span>
-                  {detail.summary ? ` · ${detail.summary}` : null}
-                </div>
-              </div>
-            </>
+              </>
+            )
           )}
         </div>
       )}
