@@ -70,26 +70,60 @@ interface PairSummary {
 
 /**
  * 反向扫 branch 尾部连续的 tool_use + tool_result 配对。
- * **边界行为**：任何非 pair 消息（尤其 assistant text）会打断扫描 → 前面的循环检测不到。
- * 这是 intentional — 一段 assistant text 通常意味着策略变更，不应把 text 之前的失败
- * 串视为"连续"。当前 runToolAwareLlmStream 的流中 assistant text 总出现在 tool_use 之前
- * 而不是之间，所以生产场景不会踩到这个边界。
+ *
+ * **跳过的消息**（不算"边界"）：
+ * - 末尾 hanging tool_use：/tool-result POST 时分支末端是刚 append 的 tool_use（待计算
+ *   result），先跳过它才能看到前面的 pair。
+ * - `system` 消息（含 `kind: 'compact_boundary'`）：v2.5 M2 microCompact 在每个 tool_result
+ *   后插一条 boundary，纯粹是 transcript 卫生标记，不应打断 trailing-pair 串。
+ *
+ * **打断扫描的消息**（intentional：视为策略变更）：
+ * - `assistant` 文本：LLM 通常在调用工具间不发文字；一旦出现意味着 LLM 已 end_turn 并切换思路
+ * - `user` 文本：用户重新发问 → 重置检测
+ *
+ * 修复历史（hotfix 2026-05-08）：原实现要求末端必须是 tool_result 且 pair 之间无任何消息，
+ * 与 v2.5 M2 的 compact_boundary 联动后导致检测器永远见不到任何 pair。手动回归捞出这个 bug。
  */
 function collectTrailingPairs(branch: CopilotMessage[]): PairSummary[] {
   const pairs: PairSummary[] = []
   let i = branch.length - 1
+
+  // 1. 跳过末尾的 hanging tool_use / system / compact_boundary，找到第一个 tool_result。
+  //    遇到 user/assistant text → 末端就在策略变更后，直接返空。
+  while (i >= 0) {
+    const m = branch[i]
+    if (m.role === 'tool_result') break
+    if (m.role === 'tool_use' || m.role === 'system') {
+      i--
+      continue
+    }
+    return pairs  // user / assistant 文本 → 没有 trailing pair
+  }
+  if (i < 0) return pairs
+
+  // 2. 反向扫 (tool_result, tool_use) 对，hopping over 中间的 system 消息。
   while (i >= 1) {
     const result = branch[i]
-    const use = branch[i - 1]
-    if (result.role !== "tool_result" || use.role !== "tool_use") break
+    if (result.role !== 'tool_result') break
+
+    let j = i - 1
+    while (j >= 0 && branch[j].role === 'system') j--
+    if (j < 0) break
+
+    const use = branch[j]
+    if (use.role !== 'tool_use') break
     if (!use.tool_name || !use.call_id || result.call_id !== use.call_id) break
+
     pairs.unshift({
       toolName: use.tool_name,
       argsHash: argsHash((use.tool_input ?? {}) as Record<string, unknown>),
       failed: isFailure(result.content),
       outputContent: result.content,
     })
-    i -= 2
+
+    // 跳到下一个 tool_result：跨过 system 消息。
+    i = j - 1
+    while (i >= 0 && branch[i].role === 'system') i--
   }
   return pairs
 }

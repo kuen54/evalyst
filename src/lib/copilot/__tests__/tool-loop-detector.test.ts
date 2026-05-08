@@ -129,3 +129,84 @@ describe('analyzeToolLoop · DEFAULT_LOOP_CONFIG 正确', () => {
     })
   })
 })
+
+// helpers for "real branch shape" tests below
+function compactBoundary(): CopilotMessage {
+  return {
+    id: `cb_${Math.random().toString(36).slice(2, 8)}`,
+    session_id: 's',
+    role: 'system',
+    content: '',
+    timestamp: 't',
+    kind: 'compact_boundary',
+    at: 't',
+  }
+}
+function asst(text: string): CopilotMessage {
+  return { id: `a_${Math.random().toString(36).slice(2, 8)}`, session_id: 's', role: 'assistant', content: text, timestamp: 't' }
+}
+function userMsg(text: string): CopilotMessage {
+  return { id: `u_${Math.random().toString(36).slice(2, 8)}`, session_id: 's', role: 'user', content: text, timestamp: 't' }
+}
+
+describe('analyzeToolLoop · 真实 branch 形态（v2.5 P0 hotfix）', () => {
+  it('hanging tool_use 在末端时仍能扫到前面的 pair', () => {
+    // /tool-result POST 时 branchBefore 末尾是刚 append 的 tool_use（待计算 result），
+    // collectTrailingPairs 必须先跳过这个 hanging tool_use 才能看到前面的 pair。
+    const branch: CopilotMessage[] = [
+      ...fail('1', 'read_context', { id: 'ctx_1' }),
+      ...fail('2', 'read_context', { id: 'ctx_1' }),
+      toolUse('3', 'read_context', { id: 'ctx_1' }),  // hanging — 这次 LLM 调用还没拿到 result
+    ]
+    const r = analyzeToolLoop(branch, 'read_context', { id: 'ctx_1' })
+    expect(r.action).toBe('warn')
+    if (r.action === 'warn') expect(r.reasonVars.count).toBe(2)
+  })
+
+  it('compact_boundary 在每对 pair 之间不打断扫描', () => {
+    // v2.5 M2 microCompact 会在每个 tool_result 后 append 一条 system_compact_boundary。
+    // 检测器必须 hop over system messages 才能识别真实的 trailing pair 串。
+    const branch: CopilotMessage[] = [
+      ...fail('1', 'read_context', { id: 'ctx_1' }),
+      compactBoundary(),
+      ...fail('2', 'read_context', { id: 'ctx_1' }),
+      compactBoundary(),
+      ...fail('3', 'read_context', { id: 'ctx_1' }),
+      compactBoundary(),
+      ...fail('4', 'read_context', { id: 'ctx_1' }),
+      compactBoundary(),
+      ...fail('5', 'read_context', { id: 'ctx_1' }),
+      compactBoundary(),
+      toolUse('6', 'read_context', { id: 'ctx_1' }),  // hanging
+    ]
+    const r = analyzeToolLoop(branch, 'read_context', { id: 'ctx_1' })
+    expect(r.action).toBe('block')
+    if (r.action === 'block') expect(r.reasonVars.count).toBe(5)
+  })
+
+  it('assistant text 在 pair 之间打断扫描（intentional：策略变更）', () => {
+    const branch: CopilotMessage[] = [
+      ...fail('1', 'read_context', { id: 'ctx_1' }),
+      ...fail('2', 'read_context', { id: 'ctx_1' }),
+      asst('let me think differently'),
+      ...fail('3', 'read_context', { id: 'ctx_1' }),
+      toolUse('4', 'read_context', { id: 'ctx_1' }),  // hanging
+    ]
+    // 只有 fail('3') 那对在 trailing 段；exactFailCount=1 → proceed
+    const r = analyzeToolLoop(branch, 'read_context', { id: 'ctx_1' })
+    expect(r.action).toBe('proceed')
+  })
+
+  it('user text 在 pair 之间打断扫描（重新发问 = 重置）', () => {
+    const branch: CopilotMessage[] = [
+      ...fail('1', 'read_context', { id: 'ctx_1' }),
+      ...fail('2', 'read_context', { id: 'ctx_1' }),
+      asst('done'),
+      userMsg('再来一次'),
+      compactBoundary(),
+      toolUse('3', 'read_context', { id: 'ctx_1' }),  // hanging
+    ]
+    const r = analyzeToolLoop(branch, 'read_context', { id: 'ctx_1' })
+    expect(r.action).toBe('proceed')
+  })
+})
