@@ -27,6 +27,7 @@ import { toOpenaiTools, toAnthropicTools } from './tool-adapters'
 import type { AnyToolDescriptor } from './tools/registry'
 import type { CopilotMessage, PageContext, StreamEvent } from './types'
 import type { ModelConfig } from '../llm-config'
+import { appendCacheStat } from './cache-stats-store'
 
 export interface RunStreamParams {
   sessionId: string
@@ -46,7 +47,12 @@ export interface RunStreamParams {
 export interface RunStreamResult {
   assistantMessageId?: string
   toolUseMessageIds: string[]
-  usage?: { input_tokens: number; output_tokens: number }
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+    cache_creation_tokens?: number
+    cache_read_tokens?: number
+  }
   stopReason?: string
 }
 
@@ -59,12 +65,17 @@ export interface RunStreamResult {
  * user / tool_result 消息 append（这些是 caller 的职责）。
  */
 export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStreamResult> {
-  const llmMessages = buildLlmMessages(p.branch, p.pageContext)
+  const llmMessages = buildLlmMessages(p.branch, p.pageContext, { sessionId: p.sessionId })
   const toolsFormatted =
     p.model.api_format === 'openai' ? toOpenaiTools(p.tools) : toAnthropicTools(p.tools)
 
   let assistantText = ''
-  let assistantUsage: { input_tokens: number; output_tokens: number } | undefined
+  let assistantUsage: {
+    input_tokens: number
+    output_tokens: number
+    cache_creation_tokens?: number
+    cache_read_tokens?: number
+  } | undefined
   let stopReason: string | undefined
   const pendingToolUses: Array<{
     call_id: string
@@ -148,6 +159,21 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
     toolUseMessageIds.push(msg.id)
     parentId = msg.id
   }
+
+  // v2.5 §6: 每次 LLM 调用落一条 cache stat，独立 jsonl 文件。
+  // messageId fallback 顺序：assistant 消息 > 第一条 tool_use > 空串（纯错误/空响应时）。
+  const messageId = assistantMessageId ?? toolUseMessageIds[0] ?? ''
+  appendCacheStat({
+    session_id: p.sessionId,
+    message_id: messageId,
+    ts: new Date().toISOString(),
+    input_tokens: assistantUsage?.input_tokens ?? 0,
+    output_tokens: assistantUsage?.output_tokens ?? 0,
+    cache_creation_tokens: assistantUsage?.cache_creation_tokens,
+    cache_read_tokens: assistantUsage?.cache_read_tokens,
+    provider: p.model.api_format === 'anthropic' ? 'anthropic' : 'openai',
+    model: p.model.model,
+  })
 
   return {
     assistantMessageId,

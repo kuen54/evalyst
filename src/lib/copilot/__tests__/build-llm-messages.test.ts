@@ -179,3 +179,72 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
   })
 })
 
+function userMsg(id: string, text: string): CopilotMessage {
+  return { id, session_id: "s", role: "user", content: text, timestamp: "t" }
+}
+
+function asstMsg(id: string, parent_id: string, text: string): CopilotMessage {
+  return { id, session_id: "s", parent_id, role: "assistant", content: text, timestamp: "t" }
+}
+
+describe("buildLlmMessages with compact_boundary (v2.5)", () => {
+  it("skips messages before boundary in output", () => {
+    const branch: CopilotMessage[] = [
+      userMsg("u1", "old"),
+      asstMsg("a1", "u1", "old reply"),
+      {
+        id: "bd1",
+        session_id: "s",
+        role: "system",
+        content: "",
+        timestamp: "t",
+        kind: "compact_boundary",
+        at: "t",
+      } as CopilotMessage,
+      userMsg("u2", "new question"),
+    ]
+    const out = buildLlmMessages(branch)
+    const userContent = out
+      .filter((m): m is { role: "user"; content: string } => m.role === "user")
+      .map((m) => m.content)
+    expect(userContent).toEqual(["new question"])
+    const asstContent = out
+      .filter((m): m is { role: "assistant"; content: string } => m.role === "assistant")
+      .map((m) => m.content)
+    expect(asstContent).toEqual([])
+  })
+
+  it("old session without boundary: no behavior change", () => {
+    const branch: CopilotMessage[] = [
+      userMsg("u1", "q1"),
+      asstMsg("a1", "u1", "a1"),
+      userMsg("u2", "q2"),
+    ]
+    const out = buildLlmMessages(branch)
+    const userContent = out
+      .filter((m): m is { role: "user"; content: string } => m.role === "user")
+      .map((m) => m.content)
+    expect(userContent).toEqual(["q1", "q2"])
+  })
+
+  it("system role (non-boundary) silently skipped in LlmMessages loop", () => {
+    const branch: CopilotMessage[] = [
+      userMsg("u1", "hi"),
+      {
+        id: "sys",
+        session_id: "s",
+        role: "system",
+        content: "ignored",
+        timestamp: "t",
+      } as CopilotMessage,
+      userMsg("u2", "ho"),
+    ]
+    const out = buildLlmMessages(branch)
+    const textRoles = out.filter(
+      (m): m is { role: "user" | "assistant" | "system"; content: string } =>
+        m.role === "user" || m.role === "assistant" || m.role === "system",
+    )
+    expect(textRoles.filter((m) => m.content === "ignored")).toEqual([])
+  })
+})
+

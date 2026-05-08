@@ -75,7 +75,13 @@ export async function callLlmStreaming(
   const decoder = new TextDecoder()
   let buffer = ''
   // 共享的 usage 累加器（Anthropic 分两次给：message_start 有 input_tokens；message_delta 有 output_tokens）
-  const usage = { input_tokens: 0, output_tokens: 0 }
+  // v2.5 §6: 保留 cache 字段 undefined 语义——区分 "provider 不返" 和 "返 0"
+  const usage: {
+    input_tokens: number
+    output_tokens: number
+    cache_creation_tokens?: number
+    cache_read_tokens?: number
+  } = { input_tokens: 0, output_tokens: 0 }
   let stopReason: string | undefined
   let doneEmitted = false
   // 跨 SSE 帧的 tool_use 状态（按 index 归并）
@@ -152,7 +158,12 @@ export function parseSseBlock(block: string): { event?: string; data: string } {
 function parseOpenaiEvent(
   block: string,
   onEvent: (ev: StreamEvent) => void,
-  usage: { input_tokens: number; output_tokens: number },
+  usage: {
+    input_tokens: number
+    output_tokens: number
+    cache_creation_tokens?: number
+    cache_read_tokens?: number
+  },
   setReason: (r: string) => void,
   emitDoneOnce: () => void,
   toolState: Map<number, ToolUseState>,
@@ -226,6 +237,14 @@ function parseOpenaiEvent(
   if (parsed.usage) {
     usage.input_tokens = parsed.usage.prompt_tokens ?? usage.input_tokens
     usage.output_tokens = parsed.usage.completion_tokens ?? usage.output_tokens
+    // v2.5 §6: 标准路径 (OpenAI + Sankuai 兼容) 把 cached prompt tokens 放在 prompt_tokens_details.cached_tokens
+    const cached = parsed.usage.prompt_tokens_details?.cached_tokens
+    if (cached !== undefined) usage.cache_read_tokens = cached
+    // v2.5 §6: 非标准 compat 层 fallback —— usage 顶层的 cache_read_tokens
+    const topLevelCacheRead = (parsed.usage as { cache_read_tokens?: number }).cache_read_tokens
+    if (topLevelCacheRead !== undefined && usage.cache_read_tokens === undefined) {
+      usage.cache_read_tokens = topLevelCacheRead
+    }
   }
 }
 
@@ -279,7 +298,15 @@ interface OpenaiChunk {
     }
     finish_reason?: string | null
   }>
-  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+    /** 标准 OpenAI / Sankuai 兼容：cached prompt tokens 在 prompt_tokens_details.cached_tokens */
+    prompt_tokens_details?: { cached_tokens?: number }
+    /** 非标准 compat 层：把 cache_read_tokens 直接放在 usage 顶层 */
+    cache_read_tokens?: number
+  }
 }
 
 // ---------- Anthropic 格式 ----------
@@ -287,7 +314,12 @@ interface OpenaiChunk {
 function parseAnthropicEvent(
   block: string,
   onEvent: (ev: StreamEvent) => void,
-  usage: { input_tokens: number; output_tokens: number },
+  usage: {
+    input_tokens: number
+    output_tokens: number
+    cache_creation_tokens?: number
+    cache_read_tokens?: number
+  },
   setReason: (r: string) => void,
   toolState: Map<number, ToolUseState>,
 ) {
@@ -305,6 +337,13 @@ function parseAnthropicEvent(
       const u = parsed.message?.usage
       if (u?.input_tokens) usage.input_tokens = u.input_tokens
       if (u?.output_tokens) usage.output_tokens = u.output_tokens
+      // v2.5 §6: Anthropic 在 message_start 的 message.usage 里已给出 cache_creation_input_tokens / cache_read_input_tokens
+      if (u?.cache_creation_input_tokens !== undefined) {
+        usage.cache_creation_tokens = u.cache_creation_input_tokens
+      }
+      if (u?.cache_read_input_tokens !== undefined) {
+        usage.cache_read_tokens = u.cache_read_input_tokens
+      }
       return
     }
     case 'content_block_start': {
@@ -353,6 +392,13 @@ function parseAnthropicEvent(
     case 'message_delta': {
       if (parsed.delta?.stop_reason) setReason(parsed.delta.stop_reason)
       if (parsed.usage?.output_tokens) usage.output_tokens = parsed.usage.output_tokens
+      // v2.5 §6: Anthropic 在 message_delta 中也可能更新 cache 字段（跨 stream 部分 ordering）
+      if (parsed.usage?.cache_creation_input_tokens !== undefined) {
+        usage.cache_creation_tokens = parsed.usage.cache_creation_input_tokens
+      }
+      if (parsed.usage?.cache_read_input_tokens !== undefined) {
+        usage.cache_read_tokens = parsed.usage.cache_read_input_tokens
+      }
       return
     }
     // message_stop / ping 等：忽略
@@ -364,10 +410,21 @@ function parseAnthropicEvent(
 interface AnthropicEvent {
   type?: string
   index?: number
-  message?: { usage?: { input_tokens?: number; output_tokens?: number } }
+  message?: {
+    usage?: {
+      input_tokens?: number
+      output_tokens?: number
+      cache_creation_input_tokens?: number
+      cache_read_input_tokens?: number
+    }
+  }
   content_block?: { type?: string; id?: string; name?: string; input?: Record<string, unknown> }
   delta?: { type?: string; text?: string; stop_reason?: string; partial_json?: string }
-  usage?: { output_tokens?: number }
+  usage?: {
+    output_tokens?: number
+    cache_creation_input_tokens?: number
+    cache_read_input_tokens?: number
+  }
 }
 
 // ---------- Request body 构造 ----------
@@ -578,3 +635,8 @@ function buildStreamingRequestBody(p: CallLlmStreamingParams): Record<string, un
   if (p.config.extra_body) Object.assign(base, p.config.extra_body)
   return base
 }
+
+// --- test-only exports ---
+// v2.5 §6 Task 13: 测试 cache token 提取需要直接 feed raw SSE block 给 parser；
+// callLlmStreaming 整体走 fetch 路径不便单测，暴露两个 parser 给 __tests__ 使用
+export const __testOnly = { parseAnthropicEvent, parseOpenaiEvent }

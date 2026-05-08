@@ -76,7 +76,7 @@ describe("microCompact", () => {
         preview: "p4",
       }),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 2 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 2 })
     expect(normalizeToolResult(out[0].content).kind).toBe("compacted")
     expect(normalizeToolResult(out[1].content).kind).toBe("compacted")
     expect(normalizeToolResult(out[2].content).kind).toBe("ref")
@@ -94,7 +94,7 @@ describe("microCompact", () => {
       }),
       asstMsg("a1", "hello"),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 0 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 0 })
     expect(out[0]).toBe(messages[0]) // exact same object (user untouched)
     expect(out[1]).toBe(messages[1]) // tool_use untouched
     expect(out[3]).toBe(messages[3]) // assistant untouched
@@ -120,7 +120,7 @@ describe("microCompact", () => {
         preview: "p",
       }),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 1 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 1 })
     for (const m of out) {
       expect(normalizeToolResult(m.content).kind).toBe("ref")
     }
@@ -139,7 +139,7 @@ describe("microCompact", () => {
         preview: "p",
       }),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 0 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 0 })
     // Both untouched — unknown tool name treated as not replayable
     for (const m of out) {
       expect(normalizeToolResult(m.content).kind).toBe("ref")
@@ -157,7 +157,7 @@ describe("microCompact", () => {
         value: { experiments: [{ id: "b" }] },
       }),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 1 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 1 })
     const first = normalizeToolResult(out[0].content)
     expect(first.kind).toBe("compacted")
     if (first.kind === "compacted") {
@@ -180,7 +180,7 @@ describe("microCompact", () => {
         preview: "p",
       }),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 1 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 1 })
     const first = normalizeToolResult(out[0].content)
     expect(first.kind).toBe("compacted")
     if (first.kind === "compacted") {
@@ -198,7 +198,7 @@ describe("microCompact", () => {
         preview: "p",
       }),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 3 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 3 })
     expect(out[0]).toBe(messages[0])
   })
 
@@ -215,7 +215,7 @@ describe("microCompact", () => {
         preview: "p",
       }),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 0 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 0 })
     for (const m of out) {
       expect(normalizeToolResult(m.content).kind).toBe("compacted")
     }
@@ -244,7 +244,7 @@ describe("microCompact", () => {
       }),
     ]
     // keep 1 read → older reads compact, write untouched
-    const out = microCompact(messages, { keepRecentReadResults: 1 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 1 })
     expect(normalizeToolResult(out[0].content).kind).toBe("compacted") // read #1 compacted
     expect(normalizeToolResult(out[1].content).kind).toBe("inline") // write untouched
     expect(normalizeToolResult(out[2].content).kind).toBe("compacted") // read #2 compacted
@@ -266,7 +266,7 @@ describe("microCompact maxTotalReplayableTokens (v2.5)", () => {
       toolUseMsg("a3", "c3", "read_resource"),
       toolResultMsg("a3r", "c3", "read_resource", { kind: "inline", value: { x: big } }),
     ]
-    const out = microCompact(messages, {
+    const { messages: out } = microCompact(messages, {
       keepRecentReadResults: 3,
       maxTotalReplayableTokens: 6000,
     })
@@ -288,10 +288,45 @@ describe("microCompact maxTotalReplayableTokens (v2.5)", () => {
       toolUseMsg("a2", "c2", "read_resource"),
       toolResultMsg("a2r", "c2", "read_resource", { kind: "inline", value: { x: "b" } }),
     ]
-    const out = microCompact(messages, { keepRecentReadResults: 1 })
+    const { messages: out } = microCompact(messages, { keepRecentReadResults: 1 })
     const inlines = out.filter(
       (m) => m.role === "tool_result" && normalizeToolResult(m.content).kind === "inline",
     )
     expect(inlines).toHaveLength(1) // 向后兼容：只按数量
+  })
+})
+
+describe("microCompact didCompact flag (v2.5)", () => {
+  it("didCompact=true when at least one read tool_result is compacted", () => {
+    const messages: CopilotMessage[] = [
+      toolResultMsg("m1", "c1", "list_experiments", {
+        kind: "ref", ref: "ref://tool-result/tr_1", preview: "p",
+      }),
+      toolResultMsg("m2", "c2", "list_experiments", {
+        kind: "ref", ref: "ref://tool-result/tr_2", preview: "p",
+      }),
+    ]
+    const { didCompact } = microCompact(messages, { keepRecentReadResults: 1 })
+    expect(didCompact).toBe(true)
+  })
+
+  it("didCompact=false when all reads fit within keep window", () => {
+    const messages: CopilotMessage[] = [
+      toolResultMsg("m1", "c1", "list_experiments", {
+        kind: "ref", ref: "ref://tool-result/tr_1", preview: "p",
+      }),
+    ]
+    const { messages: out, didCompact } = microCompact(messages, { keepRecentReadResults: 3 })
+    expect(didCompact).toBe(false)
+    expect(out).toBe(messages) // same reference, no rebuild
+  })
+
+  it("didCompact=false when there are no replayable tool_results at all", () => {
+    const messages: CopilotMessage[] = [
+      userMsg("u1", "hi"),
+      asstMsg("a1", "hello"),
+    ]
+    const { didCompact } = microCompact(messages, { keepRecentReadResults: 0 })
+    expect(didCompact).toBe(false)
   })
 })

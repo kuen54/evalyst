@@ -14,9 +14,10 @@
 
 import type { CopilotMessage, CopilotContextRef } from './types'
 import type { LlmMessage } from '../llm-client'
-import { normalizeToolResult } from './session-store'
+import { normalizeToolResult, appendCompactBoundary } from './session-store'
 import { buildSystemHeader } from './system-header'
 import { microCompact } from './micro-compact'
+import { sliceAfterBoundary } from './boundary'
 
 /** v2 §5.6: 保留最近 N 条可重放（read-only）tool_result 的完整形态，老的压成 summary。 */
 const MICRO_COMPACT_KEEP_RECENT_READ_RESULTS = 3
@@ -39,12 +40,16 @@ When the user circles context, refer to it by its chip tag ("根据你圈的 #1 
 export function buildLlmMessages(
   branch: CopilotMessage[],
   pageContext?: import('./types').PageContext | null,
+  opts?: { sessionId?: string },
 ): LlmMessage[] {
   const out: LlmMessage[] = [{ role: 'system', content: COPILOT_SYSTEM_PROMPT }]
 
+  // v2.5 §5.4: 找最近 boundary，之前的消息不参与本轮组装
+  const usable = sliceAfterBoundary(branch)
+
   // 当前分支最后一条 user 消息挂的 contexts 渲染成 SystemHeader 并塞第二条 system message。
   // 历史 user 消息可能有 contexts，但那是旧状态，不再重放。
-  const lastUser = [...branch].reverse().find((m) => m.role === 'user')
+  const lastUser = [...usable].reverse().find((m) => m.role === 'user')
   const refs = (lastUser?.contexts ?? []) as CopilotContextRef[]
   const header = buildSystemHeader({
     route_type: pageContext?.route_type,
@@ -66,12 +71,20 @@ export function buildLlmMessages(
   // 压成 summary，保最近 N 条原样。LLM 如需详情走 read_tool_result(ref)。
   // maxTotalReplayableTokens 防御 3 条 read_context 各 5KB 的累加（单条不超
   // maxResultSizeChars 也可能合计 15KB+）。
-  const compacted = microCompact(branch, {
+  const { messages: compacted, didCompact } = microCompact(usable, {
     keepRecentReadResults: MICRO_COMPACT_KEEP_RECENT_READ_RESULTS,
     maxTotalReplayableTokens: 4000,
   })
 
+  // v2.5 §5.3: 只在生产（有 sessionId）且实际压缩时落 boundary。
+  // 测试调 buildLlmMessages 不传 opts → 保持纯函数语义，无副作用。
+  if (didCompact && opts?.sessionId) {
+    appendCompactBoundary(opts.sessionId, { reason: 'micro-compact' })
+  }
+
   for (const m of compacted) {
+    // v2.5 §5: system 消息（含 boundary）不进 LlmMessages
+    if (m.role === 'system') continue
     if (m.role === 'user') {
       out.push({ role: 'user', content: m.content })
     } else if (m.role === 'assistant') {

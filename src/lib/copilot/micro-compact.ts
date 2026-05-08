@@ -47,6 +47,12 @@ export interface MicroCompactConfig {
   maxTotalReplayableTokens?: number
 }
 
+export interface MicroCompactResult {
+  messages: CopilotMessage[]
+  /** true 表示至少一条 replayable tool_result 被压成 compacted；spec §5.3 用于决定是否落 boundary */
+  didCompact: boolean
+}
+
 /** 4 char ≈ 1 token 的朴素估算，与 anthropic / openai tokenizer 偏差 < 30% 但够用 */
 function approxTokens(s: string): number {
   return Math.ceil(s.length / 4)
@@ -55,7 +61,7 @@ function approxTokens(s: string): number {
 export function microCompact(
   messages: CopilotMessage[],
   config: MicroCompactConfig,
-): CopilotMessage[] {
+): MicroCompactResult {
   // 1. 找所有 replayable tool_result 的索引
   const replayableIdx: number[] = []
   for (let i = 0; i < messages.length; i++) {
@@ -83,10 +89,10 @@ export function microCompact(
   }
 
   const toCompact = new Set(replayableIdx.filter((i) => !keepIdxs.has(i)))
-  if (toCompact.size === 0) return messages
+  if (toCompact.size === 0) return { messages, didCompact: false }
 
   // 3. 替换
-  return messages.map((m, i) => {
+  const newMessages = messages.map((m, i) => {
     if (!toCompact.has(i)) return m
 
     const parsed = normalizeToolResult(m.content)
@@ -111,4 +117,6 @@ export function microCompact(
       content: JSON.stringify(newContent),
     }
   })
+
+  return { messages: newMessages, didCompact: true }
 }
