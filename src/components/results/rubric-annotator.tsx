@@ -108,7 +108,7 @@ export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSave
         {buttonLabel}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>{t("results.annotate.dialog_title")}</DialogTitle>
             <p className="text-xs text-muted-foreground">{rubric.name}</p>
@@ -116,7 +116,7 @@ export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSave
           {result && schema && hasImageOutput(schema) && (
             <ResultPreview result={result} schema={schema} t={t} />
           )}
-          <div className="space-y-4 py-2 max-h-[55vh] overflow-auto pr-2">
+          <div className="space-y-4 py-2 flex-1 min-h-0 overflow-auto pr-2">
             {rubric.criteria.map(c => (
               <CriterionRow
                 key={c.key}
