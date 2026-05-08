@@ -6,6 +6,10 @@ import {
   appendCacheStat,
   readCacheStats,
   aggregateCacheHitRate,
+  detectCacheBreak,
+  countRecentBreaks,
+  CACHE_BREAK_MIN_DROP_TOKENS,
+  CACHE_BREAK_MAX_RATIO,
   type CacheUsageStat,
 } from '../cache-stats-store'
 
@@ -103,5 +107,75 @@ describe('aggregateCacheHitRate by provider', () => {
     // Anthropic denom: 100 + 0 + 500 = 600 ; OpenAI denom: 600; total denom = 1200
     // cache_read: 0 + 400 = 400
     expect(r.hit_rate).toBeCloseTo(400 / 1200, 3)
+  })
+})
+
+describe('detectCacheBreak (v2.5 P0 §3.2)', () => {
+  it('prev undefined 永不算 break', () => {
+    expect(detectCacheBreak(undefined, stat({ cache_read_tokens: 100 }))).toBe(false)
+  })
+
+  it('drop < 1000 tokens 不算 break', () => {
+    const a = stat({ cache_read_tokens: 5000 })
+    const b = stat({ cache_read_tokens: 4500 })
+    expect(detectCacheBreak(a, b)).toBe(false)
+  })
+
+  it('drop >= 1000 但 ratio >= 0.95 不算 break', () => {
+    const a = stat({ cache_read_tokens: 100_000 })
+    const b = stat({ cache_read_tokens: 96_000 })
+    expect(detectCacheBreak(a, b)).toBe(false)
+  })
+
+  it('drop >= 1000 且 ratio < 0.95 算 break', () => {
+    const a = stat({ cache_read_tokens: 5000 })
+    const b = stat({ cache_read_tokens: 3000 })
+    expect(detectCacheBreak(a, b)).toBe(true)
+  })
+
+  it('prev.cache_read_tokens = 0 时不算 break（无可掉的基线）', () => {
+    const a = stat({ cache_read_tokens: 0 })
+    const b = stat({ cache_read_tokens: 0 })
+    expect(detectCacheBreak(a, b)).toBe(false)
+  })
+
+  it('curr.cache_read_tokens undefined 视作 0', () => {
+    const a = stat({ cache_read_tokens: 5000 })
+    const b = stat({ cache_read_tokens: undefined })
+    expect(detectCacheBreak(a, b)).toBe(true)  // drop=5000, ratio=0
+  })
+
+  it('阈值常量值正确', () => {
+    expect(CACHE_BREAK_MIN_DROP_TOKENS).toBe(1000)
+    expect(CACHE_BREAK_MAX_RATIO).toBe(0.95)
+  })
+})
+
+describe('countRecentBreaks (v2.5 P0 §3.2)', () => {
+  it('空数组返 0/0', () => {
+    expect(countRecentBreaks([])).toEqual({ recent_breaks: 0, total_pairs_considered: 0 })
+  })
+
+  it('单条返 0/0（没有前一条对比）', () => {
+    expect(countRecentBreaks([stat({ cache_read_tokens: 100 })])).toEqual({
+      recent_breaks: 0, total_pairs_considered: 0,
+    })
+  })
+
+  it('两条全稳：0 breaks / 1 pair', () => {
+    const stats = [
+      stat({ cache_read_tokens: 5000 }),
+      stat({ cache_read_tokens: 4900 }),
+    ]
+    expect(countRecentBreaks(stats)).toEqual({ recent_breaks: 0, total_pairs_considered: 1 })
+  })
+
+  it('三条 ABA 模式：第一对 break，第二对回升不 break', () => {
+    const stats = [
+      stat({ cache_read_tokens: 5000 }),
+      stat({ cache_read_tokens: 1000 }),  // drop=4000, ratio=0.2 → break
+      stat({ cache_read_tokens: 5000 }),  // 回升不算 break
+    ]
+    expect(countRecentBreaks(stats)).toEqual({ recent_breaks: 1, total_pairs_considered: 2 })
   })
 })

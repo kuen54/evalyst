@@ -10,6 +10,7 @@ import { getLlmConfig } from '@/lib/llm-config'
 import type { ClientSnapshot } from '@/lib/copilot/types'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
 import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
+import { analyzeToolLoop, type ToolLoopDecision } from '@/lib/copilot/tool-loop-detector'
 
 /**
  * POST body：
@@ -24,7 +25,9 @@ import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
  *
  * 流程：
  *   1. 校验 session / body
- *   2. 链长上限 5（trailing tool_use+tool_result 对计数）→ 超过返 429
+ *   2. Tool-loop 检测（exact-failure / same-tool / no-progress，hermes 三档阈值）
+ *      → block：返 429 附 loop_reason_key/vars
+ *      → warn：继续执行 + 流中 emit loop_warn 事件
  *   3. 校验 model（race fix：必须在 append 之前，避免孤儿 tool_result）
  *   4. 执行工具（或记录 denied）→ 写 tool_result 消息（parent_id = tail）
  *   5. 重新拉 branch（含本次 tool_result）→ 调 `runToolAwareLlmStream`
@@ -34,6 +37,8 @@ import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
  * SSE 事件（与 /chat route 对齐）：
  *   { kind: 'tool_result_message', id, content, denied?, reason? }
  *       — 服务端为 tool_result 分配的消息 id + 结果 JSON（供前端 summary 渲染）
+ *   { kind: 'loop_warn', call_id, reason_key, reason_vars }
+ *       — v2.5 P0 §3.4：warn 档重复检测命中（execution 继续，提醒用户可能在打转）
  *   { kind: 'text', delta }
  *   { kind: 'tool_use_start' | 'tool_use_delta' | 'tool_use_end', ... } — 转发 LLM 事件
  *   { kind: 'done', assistant_message_id?, tool_use_message_ids?, usage?, stop_reason? }
@@ -53,6 +58,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     client_snapshot?: ClientSnapshot
     /** v2.5 §8: 客户端 sessionStorage 读出的 allow list，未来 `/chat` 内直跑工具时由 confirmGateHook 消费 */
     session_allow_list?: string[]
+    /** v2.5 P0 §3.3: 对称的 deny list；confirmGateHook 中 deny > allow > 默认 confirm */
+    session_deny_list?: string[]
   }
   if (!body.call_id || typeof body.call_id !== 'string') return jsonError(400, 'call_id required')
   if (!body.tool_name || typeof body.tool_name !== 'string') return jsonError(400, 'tool_name required')
@@ -61,10 +68,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // 缓存 client_snapshot（用于 read_page 工具 + page_context 注入）
   if (body.client_snapshot) setSnapshot(sessionId, body.client_snapshot)
 
-  // 链长上限 5（trailing tool_use + tool_result 对）
+  // v2.5 P0 §3.4: 从硬数步 cap 5 换成 hermes 三档重复检测（exact-failure / same-tool / no-progress）
   const branchBefore = getActiveBranch(sessionId)
-  const completedPairs = countTrailingToolUsePairs(branchBefore)
-  if (completedPairs >= 5) return jsonError(429, 'chain call limit reached')
+  let loopWarnDecision: Extract<ToolLoopDecision, { action: "warn" }> | null = null
+  if (body.denied !== true) {
+    const decision = analyzeToolLoop(branchBefore, body.tool_name, body.input)
+    if (decision.action === "block") {
+      return new Response(
+        JSON.stringify({
+          error: "tool-loop blocked",
+          loop_reason_key: decision.reasonKey,
+          loop_reason_vars: decision.reasonVars,
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      )
+    }
+    if (decision.action === "warn") {
+      loopWarnDecision = decision  // stream start 里 emit
+    }
+  }
 
   // race fix：model 校验必须放在 appendMessage 之前，避免 model 未配置时
   // 留下孤儿 tool_result 消息在 jsonl 里。
@@ -89,7 +111,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // 走 runTool 以穿过 postToolCallHooks（M3 payloadGuard 会在这里做落盘 +
       // ref 替换）。skipConfirm=true：用户已在 UI 点 Confirm 才会走到这个 route，
       // 绕过 preToolCall 的 confirmGateHook 避免死锁。
-      const r = await runTool(tool, body.input, { session_id: sessionId, signal: req.signal }, { skipConfirm: true, sessionAllowList: body.session_allow_list })
+      const r = await runTool(tool, body.input, { session_id: sessionId, signal: req.signal }, { skipConfirm: true, sessionAllowList: body.session_allow_list, sessionDenyList: body.session_deny_list })
       if (r.kind === 'done') {
         resultContent = r.output
       } else if (r.kind === 'denied') {
@@ -139,6 +161,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         reason: body.reason,
       })
 
+      // v2.5 P0 §3.4: warn 档命中时通知前端，但仍继续执行
+      if (loopWarnDecision) {
+        write({
+          kind: 'loop_warn',
+          call_id: body.call_id,
+          reason_key: loopWarnDecision.reasonKey,
+          reason_vars: loopWarnDecision.reasonVars,
+        })
+      }
+
       try {
         const result = await runToolAwareLlmStream({
           sessionId,
@@ -174,21 +206,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       'X-Accel-Buffering': 'no',
     },
   })
-}
-
-/**
- * 统计 branch 末端连续 tool_use / tool_result 的"已完成对"数。
- * 调用 /tool-result 时，末端通常是 hanging tool_use（没有配对 result），所以
- * trailing 计数含奇数项；Math.floor(count/2) 得到完成对的数量。cap=5。
- */
-function countTrailingToolUsePairs(messages: { role: string }[]): number {
-  let count = 0
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const role = messages[i].role
-    if (role === 'tool_use' || role === 'tool_result') count++
-    else break
-  }
-  return Math.floor(count / 2)
 }
 
 function jsonError(status: number, message: string): Response {

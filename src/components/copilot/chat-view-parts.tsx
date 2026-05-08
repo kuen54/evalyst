@@ -22,6 +22,13 @@ export type UiMessage =
   | { role: "assistant"; id?: string; content: string; streaming?: boolean }
   | { role: "tool_use"; id?: string; call_id: string; tool_name: string; tool_input: Record<string, unknown>; streaming?: boolean }
   | { role: "tool_result"; id?: string; call_id: string; tool_name: string; content: string; denied?: boolean; reason?: string }
+  | {
+      role: "system_notice"
+      kind: "loop_warn" | "loop_block"
+      reasonKey: string
+      reasonVars: Record<string, string | number>
+      id?: string
+    }
 
 interface MessageRowProps {
   msg: UiMessage
@@ -180,3 +187,34 @@ export const MarkdownBody = memo(function MarkdownBody({ text }: { text: string 
     </div>
   )
 })
+
+/**
+ * v2.5 P0 §3.4: tool-loop 三档检测提示。
+ * - `kind: "loop_warn"` → amber 提示，server 仍继续执行
+ * - `kind: "loop_block"` → red 提示，server 已返 429 拒绝该次工具调用
+ *
+ * 视觉遵循 copilot panel 约定：panel 内部不走玻璃 9 档，用轻量 alpha tinted 表面
+ * （spec §"轻量 tinted 表面"）。
+ */
+export function SystemNoticeBubble({
+  kind,
+  reasonKey,
+  reasonVars,
+}: {
+  kind: "loop_warn" | "loop_block"
+  reasonKey: string
+  reasonVars: Record<string, string | number>
+}) {
+  const t = useT()
+  const i18nKey = `copilot.loop.${kind === "loop_warn" ? "warn" : "block"}.${reasonKey}`
+  const className =
+    kind === "loop_block"
+      ? "rounded-md px-3 py-2 text-xs bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-300 flex items-start gap-2"
+      : "rounded-md px-3 py-2 text-xs bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-start gap-2"
+  return (
+    <div className={className}>
+      <span aria-hidden>{kind === "loop_block" ? "⛔" : "⚠️"}</span>
+      <span>{t(i18nKey, reasonVars)}</span>
+    </div>
+  )
+}

@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n/provider"
 import type { CopilotMessage, CopilotContextRef } from "@/lib/copilot/types"
 import { ModelPicker } from "./model-picker"
 import { useCopilotStore } from "./store"
-import { MessageRow, ThinkingDots, type UiMessage } from "./chat-view-parts"
+import { MessageRow, ThinkingDots, SystemNoticeBubble, type UiMessage } from "./chat-view-parts"
 import { ToolCallCard } from "./tool-call-card"
 import { RouteChangeBanner } from "./route-change-banner"
 import { CacheStatsChip } from "./cache-stats-chip"
@@ -156,6 +156,16 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         {stream.messages.map((m, i) => {
           if (m.role === "tool_use") return renderToolUse(m, i, stream.messages, sessionId, stream.pendingCallIds, stream.confirmTool, stream.denyTool)
           if (m.role === "tool_result") return null
+          if (m.role === "system_notice") {
+            return (
+              <SystemNoticeBubble
+                key={m.id ?? `notice-${i}`}
+                kind={m.kind}
+                reasonKey={m.reasonKey}
+                reasonVars={m.reasonVars}
+              />
+            )
+          }
           return (
             <MessageRow
               key={m.id ?? `p-${i}`}
@@ -267,7 +277,7 @@ function renderToolUse(
   sessionId: string,
   pendingCallIds: Set<string>,
   onConfirm: (call_id: string, tool_name: string, input: Record<string, unknown>, alwaysAllow: boolean) => void,
-  onDeny: (call_id: string, tool_name: string, input: Record<string, unknown>, reason: string) => void,
+  onDeny: (call_id: string, tool_name: string, input: Record<string, unknown>, reason: string, alwaysDeny: boolean) => void,
 ) {
   let paired: UiMessage | undefined
   for (let j = i + 1; j < allMessages.length; j++) {
@@ -294,7 +304,7 @@ function renderToolUse(
       toolUse={toolUseShim}
       toolResult={toolResultShim}
       onConfirm={(alwaysAllow) => onConfirm(m.call_id, m.tool_name, m.tool_input, alwaysAllow)}
-      onDeny={(reason) => onDeny(m.call_id, m.tool_name, m.tool_input, reason)}
+      onDeny={(reason, alwaysDeny) => onDeny(m.call_id, m.tool_name, m.tool_input, reason, alwaysDeny)}
       pending={pending || !persistedOnServer}
     />
   )

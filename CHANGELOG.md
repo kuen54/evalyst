@@ -10,6 +10,18 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Copilot (v2.5 P0 二轮采纳)
+
+基于 v0.9.0 ship 后对 CCB / hermes / openclaw 三 repo 原代码的深入调研，对 v2.5 参数和机制做 4 处修正：
+
+- **approxTokens 分三层分岔 + image 补偿**（CCB `tokenEstimation.ts:227` + hermes `context_compressor.py:65`）：JSON content `÷2`、中文 heavy(>30% CJK) `÷1.5`、其他 `÷4`；每张图片 url 补偿 1600 tokens。修复 `microCompact maxTotalReplayableTokens=4000` 在 JSON tool_result 上被低估 2 倍的漏洞。
+- **aggregateCacheHitRate noise floor**（openclaw `prompt-cache-observability.ts:51`）：drop ≥ 1000 tokens 且 ratio < 0.95 才算 break。chip 新增 `· N breaks` 段（仅 >0 时显示），hover tooltip 解释 noise floor。
+- **session_deny_list 对称到 alwaysAllow**（CCB `alwaysDenyRules` + openclaw allow-once/always/deny UI）：Deny 卡新增 "Always deny in this session" checkbox。confirmGate 优先级 deny > allow > 默认 confirm；客户端 use-chat-stream 镜像 alwaysAllow 的 line 242 auto-run，加 `pendingAutoDenyRef` 自动 deny 队列，让 UI label 真正生效。
+- **chain cap 机制从硬数步 5 换成 hermes 三档重复检测**（`tool_guardrails.py:71`）：原硬 cap 移除，替换为 exact-failure 2/5、same-tool 3/8、no-progress 2/5 的 `analyzeToolLoop`。新增 `SystemNoticeBubble` UI（panel 扁平 + 轻量 alpha tinted amber/red）渲染 warn / block 提示。**用户感知**：以前 4 次 read_context + 1 次 edit 撞 429 的情况现在 proceed；新增"重复失败 / 无进展" block 场景。
+
+- Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p0-ccb-hermes-openclaw-adoption-design.md
+- Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p0-ccb-hermes-openclaw-adoption.md
+
 ## [0.9.0] — 2026-05-08 · Copilot v2.5 · context 收敛 + compact_boundary + cache 遥测 + alwaysAllow (PR #37–40)
 
 Copilot v2 合进来之后第一个大的演进：三条独立 minor 子系统（context 默认收敛 / transcript 硬边界 + cache 遥测 / 会话级 alwaysAllow）合一起打 0.9.0，加一个 soak 测试捞出来的 Sankuai/Bedrock cache 字段 fix。整体目标是把 copilot 从 v2 的"能用"推向"好用"——上下文默认不泄漏、长对话不无限增长、重复确认有跳过开关。

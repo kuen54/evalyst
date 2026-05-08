@@ -14,7 +14,7 @@ interface Props {
   toolUse: CopilotMessage
   toolResult?: CopilotMessage
   onConfirm: (alwaysAllow: boolean) => void
-  onDeny: (reason: string) => void
+  onDeny: (reason: string, alwaysDeny: boolean) => void
   pending: boolean
 }
 
@@ -405,6 +405,7 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
   const [denyOpen, setDenyOpen] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [alwaysAllow, setAlwaysAllow] = useState(false)
+  const [alwaysDeny, setAlwaysDeny] = useState(false)
 
   const toolName = toolUse.tool_name ?? ""
   const toolInput = (toolUse.tool_input ?? {}) as Record<string, unknown>
@@ -476,8 +477,23 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
             className="h-7 text-xs"
             disabled={pending}
           />
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id={`always-deny-${toolUse.call_id ?? toolUse.id}`}
+              checked={alwaysDeny}
+              onCheckedChange={(v) => setAlwaysDeny(v === true)}
+              disabled={pending}
+            />
+            <label
+              htmlFor={`always-deny-${toolUse.call_id ?? toolUse.id}`}
+              className="text-xs text-muted-foreground leading-relaxed cursor-pointer select-none"
+              title={t("copilot.tool.always_deny_hint")}
+            >
+              {t("copilot.tool.always_deny")}
+            </label>
+          </div>
           <div className="flex gap-1.5">
-            <Button size="sm" onClick={() => onDeny(denyReason)} disabled={pending}>
+            <Button size="sm" onClick={() => onDeny(denyReason, alwaysDeny)} disabled={pending}>
               {t("copilot.tool.deny_confirm")}
             </Button>
             <Button
@@ -486,6 +502,7 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
               onClick={() => {
                 setDenyOpen(false)
                 setDenyReason("")
+                setAlwaysDeny(false)
               }}
               disabled={pending}
             >

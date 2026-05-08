@@ -40,7 +40,7 @@ export async function runTool(
   tool: AnyToolDescriptor,
   input: unknown,
   ctx: ToolContext,
-  opts: { skipConfirm?: boolean; sessionAllowList?: string[] } = {},
+  opts: { skipConfirm?: boolean; sessionAllowList?: string[]; sessionDenyList?: string[] } = {},
 ): Promise<RunToolResult> {
   if (!opts.skipConfirm) {
     for (const hook of preToolCallHooks) {
@@ -49,6 +49,7 @@ export async function runTool(
         input,
         session_id: ctx.session_id,
         session_allow_list: opts.sessionAllowList,
+        session_deny_list: opts.sessionDenyList,
       })
       if (r.action === "deny") return { kind: "denied", reason: r.reason }
       if (r.action === "require_confirm") return { kind: "awaiting_confirm" }
