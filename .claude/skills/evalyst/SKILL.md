@@ -237,6 +237,26 @@ Annotation 是 **append-only**（同 `(task_id, rubric_id, evaluator)` 可多条
 2. 列表页：`http://localhost:3000/` 或 `/settings/templates/{schema_id}`（反查哪些实验用了这个评测任务）
 3. 跨实验对比：`/compare`（需要多个实验同 `compare_group`）
 
+## 生图评测 (Image Generation)
+
+evalyst v1 支持 text-in / image-out 的生图模型评测。最短路径：
+
+1. **配模型**：`/settings/llm` 加生图模型，`api_format=openai`（OpenAI-兼容生图 gateway 都行）
+   - 例：sankuai `https://aigc.sankuai.com/v1/openai/native` + 模型 `gemini-3.1-flash-image-preview`
+   - api_key 填 `Bearer <token>`（gateway 通常要 Bearer）
+2. **建实验**：Dashboard → New experiment → 选这个模型 + 选内置 `image_gen_v1` schema
+   - 可选：绑定 `image_quality_v1` rubric 走 HEIM 5 题打分
+3. **Run**：图自动落盘到 `data/results/{exp_id}/images/`，JSONL 里 `output.image_url` 是绝对 API URL
+4. **看图 / 打分**：详情页一行一条 prompt，图可点击放大（Lightbox）；rubric 打分弹窗里同时显示 prompt 和图
+5. **跨模型对比**：跑第二个实验换模型 → /compare 自动按 `compare_group="image_gen"` 把两实验的同 prompt 图并排
+
+定制：复制 `image_gen_v1.schema.json` 改 prompt template / 加变量；output 声明 `type: "image_url"` 的字段就会被当做生成的图（批 runner 自动落盘）。
+
+**已知限制（v1）**：
+- VLM-as-judge 自动评分还没做（v2）
+- compare cell 宽度仍是 220-400px，看大图走 Lightbox
+- LLM 自带 thinking_config 等 extra_body 现在不暴露给 ModelConfig；如果你要传，编辑 `data/experiments/{id}.json` 直接改 `api_config.extra_body`
+
 ## 自我校验
 
 完整跑一轮后检查：
