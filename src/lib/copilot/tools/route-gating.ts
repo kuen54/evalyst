@@ -71,10 +71,7 @@ export function visibleToolsForRoute(
   allTools: ReadonlyArray<AnyToolDescriptor>,
   route_type: RouteType | undefined | null,
 ): ReadonlyArray<AnyToolDescriptor> {
-  const extras: ReadonlySet<string> =
-    route_type && (route_type as string) in ROUTE_EXTRA
-      ? ROUTE_EXTRA[route_type as RouteType]
-      : new Set<string>()
+  const extras = route_type && route_type in ROUTE_EXTRA ? ROUTE_EXTRA[route_type] : new Set<string>()
   const visible = new Set<string>([...ALWAYS_AVAILABLE, ...extras])
   return allTools.filter((t) => visible.has(t.name))
 }
@@ -85,6 +82,6 @@ export function isToolVisibleAtRoute(
   route_type: RouteType | undefined | null,
 ): boolean {
   if (ALWAYS_AVAILABLE.has(toolName)) return true
-  if (!route_type || !((route_type as string) in ROUTE_EXTRA)) return false
-  return ROUTE_EXTRA[route_type as RouteType].has(toolName)
+  if (!route_type || !(route_type in ROUTE_EXTRA)) return false
+  return ROUTE_EXTRA[route_type].has(toolName)
 }
