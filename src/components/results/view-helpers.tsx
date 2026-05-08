@@ -2,6 +2,7 @@
 
 import React, { type CSSProperties } from "react"
 import { Badge } from "@/components/ui/badge"
+import { useImageLightbox } from "@/components/ui/image-lightbox"
 import type { GenericResultRecord } from "@/lib/schema/types"
 
 type GlassVariant = "thin" | "regular" | "thick" | "tinted"
@@ -55,10 +56,21 @@ export function renderField(value: unknown, type: string | undefined, maxLength?
   if (value == null || value === "") return <span className="text-muted-foreground">-</span>
   switch (type) {
     case "image":
-      if (typeof value === "string" && /^https?:\/\//.test(value)) {
-        // eslint-disable-next-line @next/next/no-img-element
-        return <img src={value} alt="" className="w-full h-full object-contain" />
+      // image_url_list → array of strings
+      if (Array.isArray(value)) {
+        const urls = value.filter((v): v is string => typeof v === "string" && v.length > 0)
+        if (urls.length === 0) return <span className="text-muted-foreground">-</span>
+        return (
+          <div className="flex flex-wrap gap-1.5">
+            {urls.map((u, i) => <ClickableImage key={i} src={u} />)}
+          </div>
+        )
       }
+      // image_url → single string (URL, data URL, or relative)
+      if (typeof value === "string" && (value.startsWith("http") || value.startsWith("data:") || value.startsWith("/api/"))) {
+        return <ClickableImage src={value} />
+      }
+      // legacy: any other string falls through to muted text
       return <span className="text-muted-foreground">{formatValue(value, maxLength)}</span>
     case "badge":
       return <Badge variant="secondary" className="text-xs">{formatValue(value, maxLength)}</Badge>
@@ -68,6 +80,19 @@ export function renderField(value: unknown, type: string | undefined, maxLength?
     default:
       return <span className="text-sm">{formatValue(value, maxLength)}</span>
   }
+}
+
+function ClickableImage({ src, alt = "" }: { src: string; alt?: string }) {
+  const { openLightbox } = useImageLightbox()
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      onClick={(e) => { e.stopPropagation(); openLightbox(src, alt) }}
+      className="w-full h-full object-contain cursor-zoom-in rounded"
+    />
+  )
 }
 
 /** 暴露给用户 JSX display 的 helpers 对象。
