@@ -7,6 +7,7 @@ import {
   updateSession,
 } from '@/lib/copilot/session-store'
 import { TOOLS } from '@/lib/copilot/tools/registry'
+import { visibleToolsForRoute } from '@/lib/copilot/tools/route-gating'
 import type { CopilotContextRef, ClientSnapshot } from '@/lib/copilot/types'
 import { getLlmConfig } from '@/lib/llm-config'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
@@ -91,12 +92,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       write({ kind: 'user_message', id: userMsg.id })
 
       try {
+        const pageContext = body.client_snapshot?.page_context ?? null
         const result = await runToolAwareLlmStream({
           sessionId,
           branch,
           model,
-          tools: TOOLS,
-          pageContext: body.client_snapshot?.page_context ?? null,
+          tools: visibleToolsForRoute(TOOLS, pageContext?.route_type ?? null),
+          pageContext,
           startParentId: userMsg.id,
           signal: req.signal,
           write,
