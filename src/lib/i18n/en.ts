@@ -1061,7 +1061,7 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.cache.tooltip.cache_read": "cache read {n}",
   "copilot.cache.tooltip.cache_create": "cache create {n}",
   "copilot.cache.tooltip.unsupported": "{provider} does not return cache metrics",
-  "copilot.cache.tooltip.breaks_explain": "Cache hit drop events (>1000 tokens and >5% drop)",
+  "copilot.cache.tooltip.breaks_explain": "Cache hit drop events (≥1000 tokens and >5% drop)",
   "copilot.route_change.message": "Page changed. {n} context selections cleared. Consider starting a new conversation for clearer answers.",
   "copilot.route_change.new_session": "New conversation",
   "copilot.route_change.continue": "Keep current",

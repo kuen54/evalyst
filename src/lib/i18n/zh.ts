@@ -1060,7 +1060,7 @@ export const zh = {
   "copilot.cache.tooltip.cache_read": "缓存读 {n}",
   "copilot.cache.tooltip.cache_create": "缓存写 {n}",
   "copilot.cache.tooltip.unsupported": "{provider} 不返 cache 指标",
-  "copilot.cache.tooltip.breaks_explain": "缓存命中骤降事件（>1000 tokens 且降幅 >5%）",
+  "copilot.cache.tooltip.breaks_explain": "缓存命中骤降事件（≥1000 tokens 且降幅 >5%）",
   "copilot.route_change.message": "已切换页面，清空了 {n} 个圈选上下文。建议开启新对话以获得更清晰的当前页面答复。",
   "copilot.route_change.new_session": "开启新对话",
   "copilot.route_change.continue": "继续当前对话",
