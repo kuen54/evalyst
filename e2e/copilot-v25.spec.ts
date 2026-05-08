@@ -102,7 +102,7 @@ test.describe('Copilot v2.5 e2e', () => {
   })
 
   test('cache stats chip renders with seeded weekly data', async ({ page }) => {
-    // 前置：在 data/copilot/cache-stats.jsonl 写一条最近的 stat
+    // 前置 1：在 data/copilot/cache-stats.jsonl 写一条最近的 stat（让 weekly.calls > 0）
     fs.mkdirSync(COPILOT_DIR, { recursive: true })
     const stat = {
       session_id: E2E_SEED_SESSION,
@@ -117,15 +117,25 @@ test.describe('Copilot v2.5 e2e', () => {
     }
     fs.appendFileSync(CACHE_STATS_PATH, JSON.stringify(stat) + '\n')
 
+    // 前置 2：在 CI 的干净 data/ 下没有 copilot session，panel 开了只看到空 session-list，
+    // chat-view 不 mount → CacheStatsChip 不渲染。先 POST 创建一个空 session。
+    const sessResp = await page.request.post('/api/copilot/sessions', { data: {} })
+    const { id: newSid } = (await sessResp.json()) as { id: string }
+
     try {
       await page.goto('/')
+      // 把 active_session 设到刚才创建的 session，chat-view 才会 mount
+      await page.evaluate((sid) => {
+        localStorage.setItem('copilot.active_session', JSON.stringify(sid))
+      }, newSid)
+      await page.reload()
 
       // 开 copilot
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+K' : 'Control+K')
       const panel = page.locator('[data-copilot-panel]')
       await expect(panel).toBeVisible({ timeout: 5000 })
 
-      // CacheStatsChip 渲染条件：weekly.calls > 0 → 文字含 "Cache:"。chip 在 panel 内
+      // CacheStatsChip 渲染条件：weekly.calls > 0 → chip mount。
       const chip = panel.getByTestId('cache-stats-chip')
       await expect(chip).toBeVisible({ timeout: 15000 })
 
@@ -142,6 +152,12 @@ test.describe('Copilot v2.5 e2e', () => {
         fs.writeFileSync(CACHE_STATS_PATH, filtered.join('\n') + (filtered.length ? '\n' : ''))
       } catch {
         // 文件可能不存在或读失败，忽略
+      }
+      // 清理 session
+      try {
+        await page.request.delete(`/api/copilot/sessions/${newSid}`)
+      } catch {
+        // ignore
       }
     }
   })
