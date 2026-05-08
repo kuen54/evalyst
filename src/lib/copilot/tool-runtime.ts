@@ -40,11 +40,16 @@ export async function runTool(
   tool: AnyToolDescriptor,
   input: unknown,
   ctx: ToolContext,
-  opts: { skipConfirm?: boolean } = {},
+  opts: { skipConfirm?: boolean; sessionAllowList?: string[] } = {},
 ): Promise<RunToolResult> {
   if (!opts.skipConfirm) {
     for (const hook of preToolCallHooks) {
-      const r = await hook({ tool, input, session_id: ctx.session_id })
+      const r = await hook({
+        tool,
+        input,
+        session_id: ctx.session_id,
+        session_allow_list: opts.sessionAllowList,
+      })
       if (r.action === "deny") return { kind: "denied", reason: r.reason }
       if (r.action === "require_confirm") return { kind: "awaiting_confirm" }
     }
