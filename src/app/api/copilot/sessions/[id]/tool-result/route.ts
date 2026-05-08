@@ -5,6 +5,7 @@ import {
   getActiveBranch,
 } from '@/lib/copilot/session-store'
 import { TOOLS, toolByName } from '@/lib/copilot/tools/registry'
+import { visibleToolsForRoute } from '@/lib/copilot/tools/route-gating'
 import { runTool } from '@/lib/copilot/tool-runtime'
 import { getLlmConfig } from '@/lib/llm-config'
 import type { ClientSnapshot } from '@/lib/copilot/types'
@@ -172,12 +173,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
 
       try {
+        const pageContext = body.client_snapshot?.page_context ?? null
         const result = await runToolAwareLlmStream({
           sessionId,
           branch,
           model,
-          tools: TOOLS,
-          pageContext: body.client_snapshot?.page_context ?? null,
+          tools: visibleToolsForRoute(TOOLS, pageContext?.route_type ?? null),
+          pageContext,
           startParentId: toolResultMsg.id,
           signal: req.signal,
           write,
