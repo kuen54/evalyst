@@ -14,6 +14,9 @@ export interface CacheUsageStat {
   cache_read_tokens?: number       // Anthropic cache_read_input_tokens / OpenAI prompt_tokens_details.cached_tokens
   provider: 'anthropic' | 'openai'
   model: string
+  // v2.5 P1b: break reason detection
+  system_prompt_digest?: string    // sha256 前 16 字符
+  tool_digest?: string
 }
 
 // 惰性路径，测试 chdir 有效
@@ -140,4 +143,58 @@ export function computeSystemPromptDigest(systemPrompt: string): string {
 export function computeToolDigest(toolNames: string[]): string {
   const sorted = [...toolNames].sort().join(',')
   return crypto.createHash('sha256').update(sorted).digest('hex').slice(0, 16)
+}
+
+export type BreakReason = 'system_prompt' | 'tools' | 'unknown'
+
+export interface BreakInfo {
+  broken: boolean
+  reasons: BreakReason[]
+}
+
+/**
+ * v2.5 P1b §3.1.3: 在 detectCacheBreak (PR1) 噪声地板基础上对比 digest，
+ * 给出 break 的具体原因。
+ *
+ * - prev 缺失 → 'unknown'（旧 jsonl 行没有 digest 字段）
+ * - prev/curr digest 都齐 + 不同 → 加对应 reason
+ * - 量级掉但 digest 都一样 → 'unknown'（可能是 cache TTL 过期或其他）
+ */
+export function detectCacheBreakWithReasons(
+  prev: CacheUsageStat | undefined,
+  curr: CacheUsageStat,
+): BreakInfo {
+  if (!detectCacheBreak(prev, curr)) {
+    return { broken: false, reasons: [] }
+  }
+  if (!prev) {
+    return { broken: true, reasons: ['unknown'] }
+  }
+  const reasons: BreakReason[] = []
+  if (prev.system_prompt_digest && curr.system_prompt_digest &&
+      prev.system_prompt_digest !== curr.system_prompt_digest) {
+    reasons.push('system_prompt')
+  }
+  if (prev.tool_digest && curr.tool_digest &&
+      prev.tool_digest !== curr.tool_digest) {
+    reasons.push('tools')
+  }
+  if (reasons.length === 0) {
+    reasons.push('unknown')
+  }
+  return { broken: true, reasons }
+}
+
+export function collectRecentBreakReasons(
+  stats: CacheUsageStat[],
+): Record<BreakReason, number> {
+  const counts: Record<BreakReason, number> = {
+    system_prompt: 0, tools: 0, unknown: 0,
+  }
+  for (let i = 1; i < stats.length; i++) {
+    const info = detectCacheBreakWithReasons(stats[i - 1], stats[i])
+    if (!info.broken) continue
+    for (const r of info.reasons) counts[r]++
+  }
+  return counts
 }

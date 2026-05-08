@@ -230,3 +230,117 @@ describe('computeToolDigest (v2.5 P1b §3.1.2)', () => {
     expect(a).not.toBe(b)
   })
 })
+
+import {
+  detectCacheBreakWithReasons,
+  collectRecentBreakReasons,
+  type BreakInfo,
+} from '../cache-stats-store'
+
+function statWithDigest(overrides: Partial<CacheUsageStat> = {}): CacheUsageStat {
+  return {
+    session_id: 's', message_id: 'm', ts: new Date().toISOString(),
+    input_tokens: 100, output_tokens: 20,
+    provider: 'anthropic', model: 'claude-sonnet-4-6',
+    system_prompt_digest: 'sysdigest1234567',
+    tool_digest: 'tooldigest123456',
+    ...overrides,
+  }
+}
+
+describe('detectCacheBreakWithReasons (v2.5 P1b §3.1.3)', () => {
+  it('未达 break 阈值 → broken=false reasons=[]', () => {
+    const a = statWithDigest({ cache_read_tokens: 5000 })
+    const b = statWithDigest({ cache_read_tokens: 4900 })
+    expect(detectCacheBreakWithReasons(a, b)).toEqual({ broken: false, reasons: [] })
+  })
+
+  it('break + system_prompt 变 → reasons=["system_prompt"]', () => {
+    const a = statWithDigest({ cache_read_tokens: 5000, system_prompt_digest: 'old1234567890abc' })
+    const b = statWithDigest({ cache_read_tokens: 0,    system_prompt_digest: 'new1234567890abc' })
+    const r = detectCacheBreakWithReasons(a, b)
+    expect(r.broken).toBe(true)
+    expect(r.reasons).toEqual(['system_prompt'])
+  })
+
+  it('break + tool_digest 变 → reasons=["tools"]', () => {
+    const a = statWithDigest({ cache_read_tokens: 5000, tool_digest: 'oldtools12345678' })
+    const b = statWithDigest({ cache_read_tokens: 0,    tool_digest: 'newtools12345678' })
+    const r = detectCacheBreakWithReasons(a, b)
+    expect(r.broken).toBe(true)
+    expect(r.reasons).toEqual(['tools'])
+  })
+
+  it('break + 两个都变 → reasons=["system_prompt", "tools"]', () => {
+    const a = statWithDigest({
+      cache_read_tokens: 5000,
+      system_prompt_digest: 'oldsys1234567890',
+      tool_digest: 'oldtools12345678',
+    })
+    const b = statWithDigest({
+      cache_read_tokens: 0,
+      system_prompt_digest: 'newsys1234567890',
+      tool_digest: 'newtools12345678',
+    })
+    const r = detectCacheBreakWithReasons(a, b)
+    expect(r.broken).toBe(true)
+    expect(r.reasons.sort()).toEqual(['system_prompt', 'tools'])
+  })
+
+  it('break + 都没变 → reasons=["unknown"]（cache TTL / 其他）', () => {
+    const a = statWithDigest({ cache_read_tokens: 5000 })
+    const b = statWithDigest({ cache_read_tokens: 0 })
+    const r = detectCacheBreakWithReasons(a, b)
+    expect(r.broken).toBe(true)
+    expect(r.reasons).toEqual(['unknown'])
+  })
+
+  it('prev 缺失 digest（旧 jsonl）→ reasons=["unknown"]', () => {
+    const a = statWithDigest({ cache_read_tokens: 5000, system_prompt_digest: undefined, tool_digest: undefined })
+    const b = statWithDigest({ cache_read_tokens: 0 })
+    const r = detectCacheBreakWithReasons(a, b)
+    expect(r.broken).toBe(true)
+    expect(r.reasons).toEqual(['unknown'])
+  })
+})
+
+describe('collectRecentBreakReasons (v2.5 P1b §3.1.5)', () => {
+  it('空数组 → 全 0', () => {
+    expect(collectRecentBreakReasons([])).toEqual({
+      system_prompt: 0, tools: 0, unknown: 0,
+    })
+  })
+
+  it('单条 → 全 0（无 prev 对比）', () => {
+    expect(collectRecentBreakReasons([statWithDigest()])).toEqual({
+      system_prompt: 0, tools: 0, unknown: 0,
+    })
+  })
+
+  it('多条混合 break reason → 分类计数', () => {
+    const stats: CacheUsageStat[] = [
+      statWithDigest({ cache_read_tokens: 5000, system_prompt_digest: 'a' }),
+      statWithDigest({ cache_read_tokens: 0,    system_prompt_digest: 'b' }),  // system_prompt break
+      statWithDigest({ cache_read_tokens: 5000, system_prompt_digest: 'b', tool_digest: 'x' }),
+      statWithDigest({ cache_read_tokens: 0,    system_prompt_digest: 'b', tool_digest: 'y' }),  // tools break
+    ]
+    expect(collectRecentBreakReasons(stats)).toEqual({
+      system_prompt: 1, tools: 1, unknown: 0,
+    })
+  })
+})
+
+describe('appendCacheStat with digests round-trip', () => {
+  it('readCacheStats 保留 digest 字段', () => {
+    const s = statWithDigest({
+      session_id: 'roundtrip',
+      system_prompt_digest: 'abc123def4567890',
+      tool_digest: '1234567890abcdef',
+    })
+    appendCacheStat(s)
+    const read = readCacheStats({ session_id: 'roundtrip' })
+    expect(read).toHaveLength(1)
+    expect(read[0].system_prompt_digest).toBe('abc123def4567890')
+    expect(read[0].tool_digest).toBe('1234567890abcdef')
+  })
+})
