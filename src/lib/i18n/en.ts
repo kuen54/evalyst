@@ -896,6 +896,9 @@ export const en: Record<keyof typeof zh, string> = {
   "results.annotate.save_fail": "Save failed",
   "results.annotate.required_missing": "Required criterion not filled: {key}",
 
+  "results.image_lightbox.title": "Image preview",
+  "results.image_lightbox.close": "Close",
+
   "common.pass": "Pass",
   "common.fail": "Fail",
 

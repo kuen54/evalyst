@@ -14,6 +14,7 @@ import { GlowOverlay } from "@/components/copilot/glow-overlay"
 import { MaterialRevealOverlay } from "@/components/copilot/material-reveal-overlay"
 import { TextSelector } from "@/components/copilot/text-selector"
 import { TextSelectionMask } from "@/components/copilot/text-selection-mask"
+import { ImageLightboxProvider } from "@/components/ui/image-lightbox"
 
 // Theme switch cascade rules. Injected as inline <style> instead of via globals.css
 // because Turbopack/LightningCSS silently drops these rules from the compiled CSS bundle
@@ -78,18 +79,20 @@ export default function RootLayout({
           <LocaleProvider>
             <ConfirmProvider>
               <CopilotStoreProvider>
-                <Sidebar />
-                <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
-                  <GlowOverlay />
-                  <MaterialRevealOverlay />
-                  <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
-                </main>
-                <CopilotPanel />
-                <InspectorOverlay />
-                <ContextMask />
-                <TextSelector />
-                <TextSelectionMask />
-                <Toaster />
+                <ImageLightboxProvider>
+                  <Sidebar />
+                  <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
+                    <GlowOverlay />
+                    <MaterialRevealOverlay />
+                    <div className="flex-1 overflow-auto relative z-[1]">{children}</div>
+                  </main>
+                  <CopilotPanel />
+                  <InspectorOverlay />
+                  <ContextMask />
+                  <TextSelector />
+                  <TextSelectionMask />
+                  <Toaster />
+                </ImageLightboxProvider>
               </CopilotStoreProvider>
             </ConfirmProvider>
           </LocaleProvider>

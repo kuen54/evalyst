@@ -894,6 +894,9 @@ export const zh = {
   "results.annotate.save_fail": "保存失败",
   "results.annotate.required_missing": "必填项未填：{key}",
 
+  "results.image_lightbox.title": "图像预览",
+  "results.image_lightbox.close": "关闭",
+
   "common.pass": "Pass",
   "common.fail": "Fail",
 
