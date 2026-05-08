@@ -10,14 +10,25 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-### Copilot (v2.5 P0 二轮采纳)
+## [0.9.1] — 2026-05-08 · Copilot v2.5 P0 二轮采纳（CCB / hermes / openclaw）+ loop detector hotfix (PR #41–42)
 
-基于 v0.9.0 ship 后对 CCB / hermes / openclaw 三 repo 原代码的深入调研，对 v2.5 参数和机制做 4 处修正：
+基于 v0.9.0 ship 后对 CCB / hermes / openclaw 三 repo 原代码的深入调研，对 v2.5 参数和机制做 4 处修正；外加 manual regression 时捞出的 loop detector 与 v2.5 M2 compact_boundary 联动 bug。
+
+### 修正
 
 - **approxTokens 分三层分岔 + image 补偿**（CCB `tokenEstimation.ts:227` + hermes `context_compressor.py:65`）：JSON content `÷2`、中文 heavy(>30% CJK) `÷1.5`、其他 `÷4`；每张图片 url 补偿 1600 tokens。修复 `microCompact maxTotalReplayableTokens=4000` 在 JSON tool_result 上被低估 2 倍的漏洞。
 - **aggregateCacheHitRate noise floor**（openclaw `prompt-cache-observability.ts:51`）：drop ≥ 1000 tokens 且 ratio < 0.95 才算 break。chip 新增 `· N breaks` 段（仅 >0 时显示），hover tooltip 解释 noise floor。
-- **session_deny_list 对称到 alwaysAllow**（CCB `alwaysDenyRules` + openclaw allow-once/always/deny UI）：Deny 卡新增 "Always deny in this session" checkbox。confirmGate 优先级 deny > allow > 默认 confirm；客户端 use-chat-stream 镜像 alwaysAllow 的 line 242 auto-run，加 `pendingAutoDenyRef` 自动 deny 队列，让 UI label 真正生效。
+- **session_deny_list 对称到 alwaysAllow**（CCB `alwaysDenyRules` + openclaw allow-once/always/deny UI）：Deny 卡新增 "Always deny in this session" checkbox。confirmGate 优先级 deny > allow > 默认 confirm；客户端 `use-chat-stream` 镜像 alwaysAllow 的 line 242 auto-run，加 `pendingAutoDenyRef` 自动 deny 队列，让 UI label 真正生效。
 - **chain cap 机制从硬数步 5 换成 hermes 三档重复检测**（`tool_guardrails.py:71`）：原硬 cap 移除，替换为 exact-failure 2/5、same-tool 3/8、no-progress 2/5 的 `analyzeToolLoop`。新增 `SystemNoticeBubble` UI（panel 扁平 + 轻量 alpha tinted amber/red）渲染 warn / block 提示。**用户感知**：以前 4 次 read_context + 1 次 edit 撞 429 的情况现在 proceed；新增"重复失败 / 无进展" block 场景。
+
+### Hotfix
+
+- **loop detector 跨 v2.5 M2 compact_boundary**（PR #42）：上面的 `analyzeToolLoop` 在产线上实际**不会触发**——`/tool-result` POST 时 `branchBefore` 末端是 hanging tool_use（result 还在算），且 v2.5 M2 microCompact 在每个 tool_result 后插一条 `system_compact_boundary`，原 `collectTrailingPairs` 见到这两种结构都会 break。修：先跳过末尾 hanging tool_use / system，找到第一个 tool_result 再扫；扫描中间 hop over system 消息。assistant / user text 仍然打断扫描（intentional：策略变更）。手动 Playwright 回归（同参数 read_resource 连失 5 次 → 3 条 amber SystemNoticeBubble 顺序渲染）证明 hotfix 后端到端 ok。
+
+### 测试
+
+- 新增 30+ 单测 case + 1 integration test + 4 真实 branch 形态 case；全套从 462 涨到 500 case，1.5s 跑完
+- Manual regression 6 项全过：deny UI / allow UI / loop warn / loop block 结构 / cache chip / approxTokens 间接
 
 - Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p0-ccb-hermes-openclaw-adoption-design.md
 - Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p0-ccb-hermes-openclaw-adoption.md
