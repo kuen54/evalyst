@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { CopilotMessage, CopilotContextRef, PageContext } from "@/lib/copilot/types"
 import { needsConfirm } from "@/lib/copilot/tools/metadata-client"
+import { isSessionAllowed, getSessionAllowList, addSessionAllow } from "@/lib/copilot/session-allow"
 import { collectClientSnapshot } from "@/lib/copilot/collect-snapshot"
 import { useCopilotStore } from "./store"
 import type { UiMessage } from "./chat-view-parts"
@@ -109,7 +110,7 @@ export interface UseChatStreamResult {
   loadingSession: boolean
   pendingCallIds: Set<string>
   send: (text: string, contexts?: CopilotContextRef[]) => Promise<void>
-  confirmTool: (call_id: string, tool_name: string, input: Record<string, unknown>) => void
+  confirmTool: (call_id: string, tool_name: string, input: Record<string, unknown>, alwaysAllow?: boolean) => void
   denyTool: (call_id: string, tool_name: string, input: Record<string, unknown>, reason: string) => void
   deleteMessage: (msg: UiMessage) => Promise<void>
   editUserMessage: (msg: UiMessage, newText: string) => Promise<void>
@@ -235,7 +236,10 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         streamToolUseOrderRef.current.push(ev.call_id)
         // Auto-run read 工具：先入队，等 `done` 事件到（此时 server 已 append tool_use）再真正 POST。
         // 立即 POST 会和 /chat 的 post-stream append 竞争，产生 parent_id 错链（tool_result 挂到 user 而不是 tool_use）。
-        if (!needsConfirm(ev.tool_name)) {
+        // Task 20: 同时也短路 session-allow 的写工具——用户勾过"本次会话信任此工具"，
+        // 下一次命中这个 tool_name 就不再弹 Confirm card，走 auto-run 路径。
+        const sessionAllowList = pairSessionId ? getSessionAllowList(pairSessionId) : []
+        if (!needsConfirm(ev.tool_name) || isSessionAllowed(sessionAllowList, ev.tool_name)) {
           pendingAutoRunRef.current.push({ call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
         }
       } else if (ev.kind === "done") {
@@ -354,6 +358,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         body: JSON.stringify({
           call_id, tool_name, input, denied, reason,
           client_snapshot: pageContext ? collectClientSnapshot(pairSessionId, pageContext) : undefined,
+          session_allow_list: pairSessionId ? getSessionAllowList(pairSessionId) : [],
         }),
         signal: ctrl.signal,
       })
@@ -386,7 +391,15 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
     }
   }
 
-  const confirmTool = (call_id: string, tool_name: string, tool_input: Record<string, unknown>) => {
+  const confirmTool = (
+    call_id: string,
+    tool_name: string,
+    tool_input: Record<string, unknown>,
+    alwaysAllow: boolean = false,
+  ) => {
+    if (alwaysAllow && sessionId) {
+      addSessionAllow(sessionId, tool_name)
+    }
     void postToolResult(call_id, tool_name, tool_input, false)
   }
   const denyTool = (call_id: string, tool_name: string, tool_input: Record<string, unknown>, reason: string) => {
@@ -418,6 +431,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           model_id: modelId,
           contexts: sendContexts,
           client_snapshot: pageContext ? collectClientSnapshot(pairSessionId, pageContext) : undefined,
+          session_allow_list: pairSessionId ? getSessionAllowList(pairSessionId) : [],
         }),
         signal: ctrl.signal,
       })

@@ -1028,6 +1028,8 @@ export const zh = {
   "copilot.tool.chain_limit": "链式调用已达上限 (5)，请人工介入",
   "copilot.tool.expand": "展开详情",
   "copilot.tool.collapse": "收起详情",
+  "copilot.tool.always_allow": "本次会话信任此工具",
+  "copilot.tool.always_allow_hint": "勾选后同一工具下次调用不再弹确认（仅限本 tab / 本会话）",
   // 按 tool 类型分 variant 渲染用的标题/徽章
   "copilot.tool.read_context.title": "读取圈选",
   "copilot.tool.read_resource.title": "读取资源",

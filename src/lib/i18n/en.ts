@@ -1030,6 +1030,8 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.tool.chain_limit": "Tool chain limit reached (5). Please take over.",
   "copilot.tool.expand": "Expand details",
   "copilot.tool.collapse": "Collapse details",
+  "copilot.tool.always_allow": "Trust this tool for this session",
+  "copilot.tool.always_allow_hint": "If checked, future calls of this tool skip confirm (tab / session scoped only)",
   // Variant-specific titles/badges for tool-call-card routing
   "copilot.tool.read_context.title": "Read circled",
   "copilot.tool.read_resource.title": "Read resource",
