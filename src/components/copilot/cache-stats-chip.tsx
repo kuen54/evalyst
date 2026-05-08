@@ -5,7 +5,9 @@ import type { CacheUsageStat, CacheHitRateResult, CacheBreaksSummary } from "@/l
 
 interface ApiResponse {
   session: CacheHitRateResult & { recent: CacheUsageStat[] }
-  weekly: CacheHitRateResult & CacheBreaksSummary
+  weekly: CacheHitRateResult & CacheBreaksSummary & {
+    recent_break_reasons: { system_prompt: number; tools: number; unknown: number }
+  }
 }
 
 function formatPct(r: number | null): string {
@@ -39,20 +41,44 @@ export function CacheStatsChip({ sessionId }: { sessionId?: string }) {
   if (!data) return null
   if (data.session.calls === 0 && data.weekly.calls === 0) return null
 
-  const tooltip = data.session.recent.length > 0
-    ? [
-        t("copilot.cache.tooltip.recent_title"),
-        ...data.session.recent.map((s) =>
-          `${s.model}: ${t("copilot.cache.tooltip.input", { n: String(s.input_tokens) })}` +
+  const tooltipLines: string[] = []
+  if (data.session.recent.length > 0) {
+    tooltipLines.push(t("copilot.cache.tooltip.recent_title"))
+    for (const s of data.session.recent) {
+      tooltipLines.push(
+        `${s.model}: ${t("copilot.cache.tooltip.input", { n: String(s.input_tokens) })}` +
           (s.cache_read_tokens !== undefined
             ? ` · ${t("copilot.cache.tooltip.cache_read", { n: String(s.cache_read_tokens) })}`
             : "") +
           (s.cache_creation_tokens !== undefined
             ? ` · ${t("copilot.cache.tooltip.cache_create", { n: String(s.cache_creation_tokens) })}`
             : ""),
-        ),
-      ].join("\n")
-    : undefined
+      )
+    }
+  }
+  if (data.weekly.recent_breaks > 0) {
+    if (tooltipLines.length > 0) tooltipLines.push("")  // 空行分段
+    tooltipLines.push(
+      t("copilot.cache.tooltip.breaks_summary", { n: String(data.weekly.recent_breaks) }),
+    )
+    const r = data.weekly.recent_break_reasons
+    if (r.system_prompt > 0) {
+      tooltipLines.push(
+        t("copilot.cache.tooltip.breaks_by_reason_system_prompt", { n: String(r.system_prompt) }),
+      )
+    }
+    if (r.tools > 0) {
+      tooltipLines.push(
+        t("copilot.cache.tooltip.breaks_by_reason_tools", { n: String(r.tools) }),
+      )
+    }
+    if (r.unknown > 0) {
+      tooltipLines.push(
+        t("copilot.cache.tooltip.breaks_by_reason_unknown", { n: String(r.unknown) }),
+      )
+    }
+  }
+  const tooltip = tooltipLines.length > 0 ? tooltipLines.join("\n") : undefined
 
   return (
     <div
