@@ -1,6 +1,7 @@
 // ---------- Mini JSON Schema 校验 ----------
 // 只覆盖本项目用到的形态：object + nested properties、string/number/boolean/array、
-// tuple:number[]（用于 element_position [x,y]）、string|null（optional string）。
+// tuple:number[]（用于 element_position [x,y]）、string|null（optional string）、
+// image_url / image_url_list（生图评测用）。
 // 不装 ajv/zod；复杂度失控时再换。
 
 import type { JsonSchemaDef, JsonPropDef } from './types'
