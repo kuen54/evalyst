@@ -23,6 +23,18 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 - Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§3 / §4）
 - Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md
 
+- **Copilot v2.5 M2：CompactBoundaryMessage + cache 遥测**
+
+  v2 是"transcript 永远向前组装"——每轮 LLM 调用都把整条 active branch 喂回去，相当于线性增长。M2 加了硬边界（boundary 之前的消息默认不参与组装）+ provider 级 prompt-cache 命中率观测。
+  - **Transcript 加 `role: 'system', kind: 'compact_boundary'` 消息**（`src/lib/copilot/boundary.ts`）：`microCompact` 完成且真有消息被压时，在当前 head 之后追加一条 boundary；`buildLlmMessages` 组装前先 `sliceAfterBoundary`，只看 boundary 之后的历史。老 session 无 boundary 时行为等价 v2 现状（`sliceAfterBoundary` 无匹配返原 branch 引用）
+  - **`microCompact` 返 `{messages, didCompact}`**：仅 1 个生产 caller（`build-llm-messages.ts`），breaking 但测试调整成本可控；`didCompact` 是判定是否落 boundary 的唯一信号
+  - **方案 A**（boundary 接 parent 链 + head 跟）：复用 `appendMessage` 的 `fs.appendFileSync` 原子 append + `updateSession` 原子写；多分支语义自然继承（不同分支各自的 boundary 链互不干扰）
+  - **Cache 遥测**（`src/lib/copilot/cache-stats-store.ts`）：每次 LLM 调用抽 `cache_creation_input_tokens` / `cache_read_input_tokens`（Anthropic）+ `prompt_tokens_details.cached_tokens`（OpenAI / 兼容层），落 `data/copilot/cache-stats.jsonl`（append-only，独立于 `message.usage`，session jsonl 形态不变）；hit rate **按 provider 分桶**——Anthropic 分母 = `input + cache_read + cache_creation`，OpenAI 分母 = `input_tokens`（已含 cached）
+  - **Chat-view 顶部新增 `CacheStatsChip`**：`本 session X% · 近 7 天 Y%`，10s 自动刷新，hover 原生 tooltip 看最近调用的 model + input + cache_read + cache_create 数字。0 calls 时不渲染。GET `/api/copilot/cache-stats?session_id=` 聚合返 `{session, weekly}`
+
+- Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§5 / §6）
+- Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md（Task 10-17）
+
 ### 体验
 
 - **暗色模式 polish 续集**：v0.8.1 收口的"alpha 配方"规范向其余幸存者扫尾。
