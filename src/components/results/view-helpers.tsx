@@ -62,12 +62,16 @@ export function renderField(value: unknown, type: string | undefined, maxLength?
         if (urls.length === 0) return <span className="text-muted-foreground">-</span>
         return (
           <div className="flex flex-wrap gap-1.5">
-            {urls.map((u, i) => <ClickableImage key={i} src={u} />)}
+            {urls.map((u, i) => (
+              <div key={i} className="w-24 h-24 shrink-0 overflow-hidden rounded border">
+                <ClickableImage src={u} />
+              </div>
+            ))}
           </div>
         )
       }
-      // image_url → single string (URL, data URL, or relative)
-      if (typeof value === "string" && (value.startsWith("http") || value.startsWith("data:") || value.startsWith("/api/"))) {
+      // image_url → single string (http(s) URL, data URL, or absolute /api/... URL)
+      if (typeof value === "string" && (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("data:") || value.startsWith("/api/"))) {
         return <ClickableImage src={value} />
       }
       // legacy: any other string falls through to muted text
