@@ -109,7 +109,16 @@ export type StreamEvent =
   | { type: 'tool_use_start'; call_id: string; tool_name: string }
   | { type: 'tool_use_delta'; call_id: string; input_json_delta: string }
   | { type: 'tool_use_end'; call_id: string; tool_name: string; input: Record<string, unknown>; thought_signature?: string }
-  | { type: 'done'; usage?: { input_tokens: number; output_tokens: number }; stop_reason?: string }
+  | {
+      type: 'done'
+      usage?: {
+        input_tokens: number
+        output_tokens: number
+        cache_creation_tokens?: number
+        cache_read_tokens?: number
+      }
+      stop_reason?: string
+    }
   | { type: 'error'; message: string }
 
 // ---------- PR-4: Page Context + Viewport Index ----------

@@ -46,7 +46,12 @@ export interface RunStreamParams {
 export interface RunStreamResult {
   assistantMessageId?: string
   toolUseMessageIds: string[]
-  usage?: { input_tokens: number; output_tokens: number }
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+    cache_creation_tokens?: number
+    cache_read_tokens?: number
+  }
   stopReason?: string
 }
 
@@ -64,7 +69,12 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
     p.model.api_format === 'openai' ? toOpenaiTools(p.tools) : toAnthropicTools(p.tools)
 
   let assistantText = ''
-  let assistantUsage: { input_tokens: number; output_tokens: number } | undefined
+  let assistantUsage: {
+    input_tokens: number
+    output_tokens: number
+    cache_creation_tokens?: number
+    cache_read_tokens?: number
+  } | undefined
   let stopReason: string | undefined
   const pendingToolUses: Array<{
     call_id: string
