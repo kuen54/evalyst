@@ -91,3 +91,37 @@ export function aggregateCacheHitRate(stats: CacheUsageStat[]): CacheHitRateResu
     total_cache_creation: totalCacheCreate,
   }
 }
+
+/**
+ * v2.5 P0 §3.2: 与 openclaw `prompt-cache-observability.ts:51` 对齐的 noise floor。
+ * 小波动不视为 break；避免"重启一次实验就让 chip 抖一下"。
+ */
+export const CACHE_BREAK_MIN_DROP_TOKENS = 1000
+export const CACHE_BREAK_MAX_RATIO = 0.95
+
+export function detectCacheBreak(
+  prev: CacheUsageStat | undefined,
+  curr: CacheUsageStat,
+): boolean {
+  if (!prev) return false
+  const prevRead = prev.cache_read_tokens ?? 0
+  if (prevRead === 0) return false
+  const currRead = curr.cache_read_tokens ?? 0
+  const drop = prevRead - currRead
+  if (drop < CACHE_BREAK_MIN_DROP_TOKENS) return false
+  const ratio = currRead / prevRead
+  return ratio < CACHE_BREAK_MAX_RATIO
+}
+
+export interface CacheBreaksSummary {
+  recent_breaks: number
+  total_pairs_considered: number
+}
+
+export function countRecentBreaks(stats: CacheUsageStat[]): CacheBreaksSummary {
+  let breaks = 0
+  for (let i = 1; i < stats.length; i++) {
+    if (detectCacheBreak(stats[i - 1], stats[i])) breaks++
+  }
+  return { recent_breaks: breaks, total_pairs_considered: Math.max(0, stats.length - 1) }
+}

@@ -1,11 +1,11 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useT } from "@/lib/i18n/provider"
-import type { CacheUsageStat, CacheHitRateResult } from "@/lib/copilot/cache-stats-store"
+import type { CacheUsageStat, CacheHitRateResult, CacheBreaksSummary } from "@/lib/copilot/cache-stats-store"
 
 interface ApiResponse {
   session: CacheHitRateResult & { recent: CacheUsageStat[] }
-  weekly: CacheHitRateResult
+  weekly: CacheHitRateResult & CacheBreaksSummary
 }
 
 function formatPct(r: number | null): string {
@@ -64,6 +64,14 @@ export function CacheStatsChip({ sessionId }: { sessionId?: string }) {
       <span>{t("copilot.cache.session", { pct: formatPct(data.session.hit_rate) })}</span>
       <span className="opacity-60">·</span>
       <span>{t("copilot.cache.weekly", { pct: formatPct(data.weekly.hit_rate) })}</span>
+      {data.weekly.recent_breaks > 0 && (
+        <>
+          <span className="opacity-60">·</span>
+          <span title={t("copilot.cache.tooltip.breaks_explain")}>
+            {t("copilot.cache.weekly_breaks", { n: String(data.weekly.recent_breaks) })}
+          </span>
+        </>
+      )}
     </div>
   )
 }
