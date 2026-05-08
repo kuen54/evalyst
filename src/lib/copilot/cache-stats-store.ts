@@ -198,3 +198,33 @@ export function collectRecentBreakReasons(
   }
   return counts
 }
+
+/**
+ * v2.5 P1b §3.1.4: 从 LlmMessages 抽出系统 prompt 文本用于 digest。
+ *
+ * 第一条 system 消息 = `COPILOT_SYSTEM_PROMPT` 常量（cache 稳定前缀）。
+ * `Array.find` 返回首个匹配 → 后续 SystemHeader 每请求变动，不参与 digest。
+ *
+ * content 可能是 string（OpenAI / 我们 buildLlmMessages 输出）或 array of blocks
+ * （未来 Anthropic 4-breakpoint 改造路径），后者 concat text 字段防御性处理。
+ *
+ * 入参签名故意宽松（`role: string` + `content?: unknown`）以兼容 `LlmMessage` 这种
+ * discriminated union（其中 `tool_use` 变体没有 `content` 字段）。
+ */
+export function extractSystemPromptString(
+  messages: ReadonlyArray<{ role: string; content?: unknown }>,
+): string {
+  const sys = messages.find((m) => m.role === 'system')
+  if (!sys) return ''
+  if (typeof sys.content === 'string') return sys.content
+  if (Array.isArray(sys.content)) {
+    return sys.content
+      .map((b) =>
+        typeof b === 'object' && b !== null && 'text' in b
+          ? String((b as { text: unknown }).text)
+          : '',
+      )
+      .join('\n')
+  }
+  return ''
+}
