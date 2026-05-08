@@ -10,6 +10,19 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Copilot (v2.5 P2 · per-route tool gating)
+
+- **按 route_type 暴露工具子集**（新文件 `src/lib/copilot/tools/route-gating.ts`）：5 个 always 工具（`read_context` / `read_resource` / `read_page` / `read_tool_result` / `list_experiments`）+ 按 route 增量。`experiment_detail` / `compare` 加实验工具；`settings/templates` 加 `edit_template`；`settings/datasets` 加 `read_dataset_records`；其余 route 仅 always 集。pageContext 缺失或未识别 route_type 时 fallback always 集，不破。
+- **stream-response.ts 调用点 wire**：chat + tool-result 两处 `runToolAwareLlmStream` 传 `visibleToolsForRoute(TOOLS, route_type)` 替代全量 TOOLS；`pageContext` 参数本身不变（gating 只过滤 advertise 的工具数组，不影响 SystemHeader 渲染）。
+- **预期行为变化**：（1）LLM 在 dashboard 看不到 `edit_template`，避免误调；（2）跨 route 切换会自然破 cache（tool_digest 变 → P1b chip tooltip 显示 reason='tools'）—— 这是预期，spec §6 说明；同 route 内多轮对话 cache 持续 hit（P1a 4-breakpoint cache 主要受益场景）。
+
+### 测试
+
+- 新增 18 测试 case：`route-gating.test.ts` 14 unit（覆盖 5 种 mapped route + 3 fallback 路径 + order preservation + per-tool 可见性查询）+ `route-gating.integration.test.ts` 4 integration（dashboard / experiment_detail / template_detail / unknown route 在 Anthropic + OpenAI 两 provider 下 outgoing body.tools shape）；全套 583/583 pass
+
+- Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p2-per-route-tool-gating-design.md
+- Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p2-per-route-tool-gating.md
+
 ### Copilot (v2.5 P1b · cache 观测层 + 存储卫生)
 
 基于 openclaw `prompt-cache-observability.ts:51` 6 break reason 设计调研，挑最实际 2 个落地：
