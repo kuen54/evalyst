@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { serializeMessagesForProvider } from '../llm-stream'
+import { serializeMessagesForProvider, __testOnly } from '../llm-stream'
 import type { LlmMessage } from '../../llm-client'
 
 describe('serializeMessagesForProvider — OpenAI', () => {
@@ -319,5 +319,49 @@ describe('serializeMessagesForProvider — Anthropic', () => {
       },
       { role: 'assistant', content: 'No results found.' },
     ])
+  })
+})
+
+describe('buildStreamingRequestBody · 4-breakpoint cache_control (v2.5 P1a)', () => {
+  it('Anthropic format: system + 最后 3 条 messages 都被加 cache_control', () => {
+    const body = __testOnly.buildStreamingRequestBody({
+      config: { api_format: 'anthropic', base_url: 'https://x', api_key: 'k' },
+      model: 'claude-sonnet-4-6',
+      temperature: 0.7,
+      max_tokens: 1000,
+      messages: [
+        { role: 'system', content: 'you are helpful' },
+        { role: 'user', content: 'q1' },
+        { role: 'assistant', content: 'a1' },
+        { role: 'user', content: 'q2' },
+      ],
+    })
+    // system 被转成 array + cache_control
+    expect(Array.isArray(body.system)).toBe(true)
+    const sys = body.system as Array<Record<string, unknown>>
+    expect(sys[sys.length - 1].cache_control).toEqual({ type: 'ephemeral' })
+    // 最后 3 条 messages 各带 cache_control
+    const messages = body.messages as Array<Record<string, unknown>>
+    expect(messages).toHaveLength(3)
+    for (const m of messages) {
+      const content = m.content as Array<Record<string, unknown>>
+      expect(content[content.length - 1].cache_control).toEqual({ type: 'ephemeral' })
+    }
+  })
+
+  it('OpenAI format: body 里完全无 cache_control（防误注入）', () => {
+    const body = __testOnly.buildStreamingRequestBody({
+      config: { api_format: 'openai', base_url: 'https://x', api_key: 'k' },
+      model: 'gpt-4o',
+      temperature: 0.7,
+      max_tokens: 1000,
+      messages: [
+        { role: 'system', content: 'you are helpful' },
+        { role: 'user', content: 'q' },
+      ],
+    })
+    const json = JSON.stringify(body)
+    expect(json).not.toContain('cache_control')
+    expect(json).not.toContain('ephemeral')
   })
 })

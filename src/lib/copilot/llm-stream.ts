@@ -10,6 +10,7 @@ import type { ApiConfig } from '../types'
 import type { LlmMessage } from '../llm-client'
 import { isTextMessage, buildApiRequest } from '../llm-client'
 import type { StreamEvent } from './types'
+import { applyAnthropicCacheControl } from './anthropic-cache-control'
 
 export interface CallLlmStreamingParams {
   messages: LlmMessage[]
@@ -652,6 +653,8 @@ function buildStreamingRequestBody(p: CallLlmStreamingParams): Record<string, un
     if (p.tools && p.tools.length > 0) {
       base.tools = p.tools
     }
+    // v2.5 P1a §3.1: 4-breakpoint cache_control（hermes system_and_3）
+    applyAnthropicCacheControl(base as { system?: string | Array<Record<string, unknown>>; messages: Array<Record<string, unknown>> })
   } else {
     base.messages = serializeMessagesForProvider(p.messages, 'openai')
     // OpenAI 兼容的很多 endpoint 支持 include_usage
@@ -668,4 +671,4 @@ function buildStreamingRequestBody(p: CallLlmStreamingParams): Record<string, un
 // --- test-only exports ---
 // v2.5 §6 Task 13: 测试 cache token 提取需要直接 feed raw SSE block 给 parser；
 // callLlmStreaming 整体走 fetch 路径不便单测，暴露两个 parser 给 __tests__ 使用
-export const __testOnly = { parseAnthropicEvent, parseOpenaiEvent }
+export const __testOnly = { parseAnthropicEvent, parseOpenaiEvent, buildStreamingRequestBody }
