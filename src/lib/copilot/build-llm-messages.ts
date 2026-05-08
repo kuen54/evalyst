@@ -66,7 +66,9 @@ export function buildLlmMessages(
   // 压成 summary，保最近 N 条原样。LLM 如需详情走 read_tool_result(ref)。
   // maxTotalReplayableTokens 防御 3 条 read_context 各 5KB 的累加（单条不超
   // maxResultSizeChars 也可能合计 15KB+）。
-  const compacted = microCompact(branch, {
+  // 注：Task 12 会扩成 `const { messages: compacted, didCompact } = ...` 并按
+  //     didCompact 落 boundary；本 Task 11 只解构 messages 字段保持行为不变。
+  const { messages: compacted } = microCompact(branch, {
     keepRecentReadResults: MICRO_COMPACT_KEEP_RECENT_READ_RESULTS,
     maxTotalReplayableTokens: 4000,
   })
