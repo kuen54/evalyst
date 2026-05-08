@@ -32,6 +32,8 @@ export type LlmMessage =
       role: 'tool_result'
       call_id: string
       content: string
+      /** v2.5 P2: tool_result 是 error 时设为 true，仅 Anthropic 序列化生效（is_error 协议字段透传）。 */
+      is_error?: boolean
     }
 
 /** Narrow guard: 只保留普通 text-style 消息（batch-runner 走此路径）。 */

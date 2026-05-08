@@ -18,6 +18,7 @@ import { normalizeToolResult, appendCompactBoundary } from './session-store'
 import { buildSystemHeader } from './system-header'
 import { microCompact } from './micro-compact'
 import { sliceAfterBoundary } from './boundary'
+import { isToolErrorShape } from './tools/tool-result'
 
 /** v2 §5.6: 保留最近 N 条可重放（read-only）tool_result 的完整形态，老的压成 summary。 */
 const MICRO_COMPACT_KEEP_RECENT_READ_RESULTS = 3
@@ -108,10 +109,14 @@ export function buildLlmMessages(
       //   ref       → preview + 提示用 read_tool_result(ref) 回捞
       //   compacted → summary 占位（原 payload 已释放）
       // normalizeToolResult 处理了裸字符串 / 裸对象的向后兼容。
+      // v2.5 P2: inline kind 检测 isToolErrorShape → 标记 is_error 让 Anthropic 序列化透传协议字段。
+      // ref / compacted 形态没法判 error（只有 preview / summary 字符串），保守 false。
       const parsed = normalizeToolResult(m.content)
       let visible: string
+      let isError = false
       if (parsed.kind === 'inline') {
         visible = JSON.stringify(parsed.value ?? null)
+        if (isToolErrorShape(parsed.value)) isError = true
       } else if (parsed.kind === 'ref') {
         visible = `${parsed.preview}\n\n[Full result available via read_tool_result(ref="${parsed.ref}")]`
       } else {
@@ -121,6 +126,7 @@ export function buildLlmMessages(
         role: 'tool_result',
         call_id: m.call_id,
         content: visible,
+        ...(isError ? { is_error: true } : {}),
       })
     }
   }
