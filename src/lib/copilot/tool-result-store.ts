@@ -14,7 +14,7 @@ import type { ToolResultContent } from './types'
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 12)
 
 // v2.5 P1a §3.2: head + tail 双端夹截断常量
-// 总 budget 520 字符（head 400 + sep 20 + tail 100），与 v0.9.0 的 slice(0, 500)
+// 总 budget ~519 字符（head 400 + tail 100 + sep 19），与 v0.9.0 的 slice(0, 500)
 // 同量级。来源 hermes context_compressor.py:692（hermes 用 4000+1500，但 evalyst
 // transcript context budget 紧；500 字够 LLM 决定要不要 read_tool_result 回捞）。
 const PREVIEW_HEAD = 400

@@ -10,6 +10,16 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Copilot (v2.5 P1a · cache 播放流核心)
+
+基于 v0.9.0 ship 后对 hermes `prompt_caching.py` 和 `context_compressor.py` 的深入调研：
+
+- **Anthropic 4-breakpoint cache_control**（hermes `prompt_caching.py:41-72` system_and_3 策略）：在 `buildStreamingRequestBody` 的 anthropic 分支后置 mutate 请求 body，给 `system` 尾 + 最后 3 条 `messages` 尾 content block 注入 `cache_control: { type: 'ephemeral' }` 5m TTL。多轮对话 input 成本预期降 60-80%；cache hit rate chip 应从 ~40-50% 涨到 ~70-90%。native Claude / Bedrock / Sankuai Anthropic gateway 三个 provider 共享 api_format='anthropic' 分支；permissive gateway 静默忽略字段。
+- **Tool result preview head+tail 双端夹**（hermes `context_compressor.py:692`）：`maybePersistToolResult` 的 preview 从 `slice(0,500)` 改成 head(400) + `\n...[truncated]...\n` + tail(100)，总 budget 不变。错误 stack 的 root cause（常在末尾）保留，LLM 多数场景不再需要回捞 `read_tool_result` 看 error 字段。
+
+- Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p1a-anthropic-cache-control-design.md
+- Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p1a-anthropic-cache-control.md
+
 ## [0.9.1] — 2026-05-08 · Copilot v2.5 P0 二轮采纳（CCB / hermes / openclaw）+ loop detector hotfix (PR #41–42)
 
 基于 v0.9.0 ship 后对 CCB / hermes / openclaw 三 repo 原代码的深入调研，对 v2.5 参数和机制做 4 处修正；外加 manual regression 时捞出的 loop detector 与 v2.5 M2 compact_boundary 联动 bug。
