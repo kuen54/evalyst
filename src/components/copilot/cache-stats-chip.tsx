@@ -56,6 +56,7 @@ export function CacheStatsChip({ sessionId }: { sessionId?: string }) {
 
   return (
     <div
+      data-testid="cache-stats-chip"
       className="px-3 py-1 text-xs text-muted-foreground flex items-center gap-2 border-b border-border/40"
       title={tooltip}
     >

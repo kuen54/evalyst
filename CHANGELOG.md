@@ -35,6 +35,21 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 - Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§5 / §6）
 - Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md（Task 10-17）
 
+- **Copilot v2.5 M3：会话级 alwaysAllow**
+
+  v2 的写工具（`edit_template` / `restart_experiment`）每次调用都弹 Confirm 卡，节奏被打断。M3 给 Confirm 卡加一个"本次会话信任此工具"的 checkbox，勾选后该工具下次自动跑——只针对当前 tab + 当前会话，关闭 tab 即清，零持久化。
+  - **新 `session-allow.ts`**：sessionStorage helper（client）+ 纯函数 `isSessionAllowed(allowList, toolName)`（client + server 共用）。key `evalyst-copilot-allow-${sid}` 存 `string[]` 工具名数组，per-tab + per-session
+  - **Confirm 卡加 Checkbox**（`tool-call-card.tsx` WriteVariant）：`Props.onConfirm` 签名改 `(alwaysAllow: boolean) => void`；勾选 + 点确认 → `useChatStream.confirmTool` 先 `addSessionAllow(sid, tool_name)` 再发 `/tool-result`
+  - **双层短路**：
+    - **客户端（实际生效层）**：`use-chat-stream.ts` 的 SSE `tool_use_end` handler 在 `needsConfirm()` 处加 `|| isSessionAllowed(getSessionAllowList(sid), tool_name)`，命中直接 push 到 auto-run 队列，跳过 ToolCallCard 渲染
+    - **服务端（防御层）**：`PreToolCallCtx` 扩 `session_allow_list?: string[]`；`confirmGateHook` 命中 allow list 直接 proceed；`/chat` 和 `/tool-result` body 都加字段透传
+  - **spec §8.5 澄清**：spec 原文写"短路位置在 confirmGateHook"是理论描述；evalyst 当前架构 `/tool-result` `skipConfirm: true` 下 hook 是死代码，实际生效层在客户端。服务端层留好钩子给未来 `/chat` 内执行工具的架构升级（plan 偏差 #10）
+  - **隐私默认**：sessionStorage（不是 localStorage / 不写 jsonl）→ 不跨 tab、不持久化、F12 可见可清；spec §8.6 明确不做 alwaysDeny / alwaysAsk / pattern 匹配
+  - **e2e 自动化**：`e2e/copilot-v25.spec.ts` 覆盖 spec §10.3 两条断言——chip 展开看到 manifest 形态（`input_preview` / `input_refs` 不出现）+ cache hit rate chip 渲染（seed `data/copilot/cache-stats.jsonl` 后 chip 文字含 `%`）。另两条（active_contexts 不含 input_preview / alwaysAllow 勾选后不弹）需 mock LLM SSE，工程量过大留作手动回归
+
+- Spec: docs/superpowers/specs/2026-05-07-copilot-v25-context-followups-design.md（§8）
+- Plan: docs/superpowers/plans/2026-05-07-copilot-v25-m1-context-collapse.md（Task 18-21）
+
 ### 体验
 
 - **暗色模式 polish 续集**：v0.8.1 收口的"alpha 配方"规范向其余幸存者扫尾。

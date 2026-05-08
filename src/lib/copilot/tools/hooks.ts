@@ -8,11 +8,14 @@
 
 import type { AnyToolDescriptor } from "./registry"
 import { maybePersistToolResult } from "../tool-result-store"
+import { isSessionAllowed } from "../session-allow"
 
 export interface PreToolCallCtx {
   tool: AnyToolDescriptor
   input: unknown
   session_id: string
+  /** v2.5 §8: per-request 的会话级信任列表（客户端 sessionStorage → body → hook） */
+  session_allow_list?: string[]
 }
 
 export type PreToolCallResult =
@@ -37,8 +40,12 @@ export type PostToolCallHook = (ctx: PostToolCallCtx) => Promise<PostToolCallRes
 /**
  * Confirm gate：读 metadata 决定是否要用户确认。
  * 规则：`requiresConfirm` 显式覆盖；否则跟 `isDestructive`。
+ * v2.5 §8：若 session_allow_list 含 tool.name 则短路直接 proceed（用户已在该 session 勾选"信任此工具"）。
  */
-export const confirmGateHook: PreToolCallHook = async ({ tool }) => {
+export const confirmGateHook: PreToolCallHook = async ({ tool, session_allow_list }) => {
+  if (isSessionAllowed(session_allow_list, tool.name)) {
+    return { action: "proceed" }
+  }
   const needsConfirm = tool.metadata.requiresConfirm ?? tool.metadata.isDestructive
   return needsConfirm ? { action: "require_confirm" } : { action: "proceed" }
 }

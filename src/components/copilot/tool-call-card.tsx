@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useT } from "@/lib/i18n/provider"
 import type { CopilotMessage } from "@/lib/copilot/types"
 import { findClientToolMetadata, needsConfirm } from "@/lib/copilot/tools/metadata-client"
@@ -12,7 +13,7 @@ import { colorForTag } from "./context-mask"
 interface Props {
   toolUse: CopilotMessage
   toolResult?: CopilotMessage
-  onConfirm: () => void
+  onConfirm: (alwaysAllow: boolean) => void
   onDeny: (reason: string) => void
   pending: boolean
 }
@@ -403,6 +404,7 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
   const [denyReason, setDenyReason] = useState("")
   const [denyOpen, setDenyOpen] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [alwaysAllow, setAlwaysAllow] = useState(false)
 
   const toolName = toolUse.tool_name ?? ""
   const toolInput = (toolUse.tool_input ?? {}) as Record<string, unknown>
@@ -492,14 +494,30 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
           </div>
         </div>
       ) : (
-        <div className="flex gap-1.5">
-          <Button size="sm" onClick={onConfirm} disabled={pending}>
-            {t("copilot.tool.confirm")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setDenyOpen(true)} disabled={pending}>
-            {t("copilot.tool.deny")}
-          </Button>
-        </div>
+        <>
+          <div className="flex items-start gap-2 mt-3 mb-2">
+            <Checkbox
+              id={`always-allow-${toolUse.call_id ?? toolUse.id}`}
+              checked={alwaysAllow}
+              onCheckedChange={(v) => setAlwaysAllow(v === true)}
+            />
+            <label
+              htmlFor={`always-allow-${toolUse.call_id ?? toolUse.id}`}
+              className="text-xs text-muted-foreground leading-relaxed cursor-pointer select-none"
+              title={t("copilot.tool.always_allow_hint")}
+            >
+              {t("copilot.tool.always_allow")}
+            </label>
+          </div>
+          <div className="flex gap-1.5">
+            <Button size="sm" onClick={() => onConfirm(alwaysAllow)} disabled={pending}>
+              {t("copilot.tool.confirm")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setDenyOpen(true)} disabled={pending}>
+              {t("copilot.tool.deny")}
+            </Button>
+          </div>
+        </>
       )}
     </div>
   )
