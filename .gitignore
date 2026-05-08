@@ -49,6 +49,9 @@ yarn-error.log*
 # local agent / subagent scratch
 /.agents/
 
+# manual API harness scripts (sankuai gateway etc.)
+scripts/test-*.sh
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
