@@ -23,6 +23,7 @@ type ChatSseEvent =
   | { kind: "tool_use_start"; call_id: string; tool_name: string }
   | { kind: "tool_use_delta"; call_id: string; input_json_delta: string }
   | { kind: "tool_use_end"; call_id: string; tool_name: string; input: Record<string, unknown> }
+  | { kind: "loop_warn"; call_id: string; reason_key: string; reason_vars: { tool: string; count: number } }
   | { kind: "done"; assistant_message_id?: string; tool_use_message_ids?: string[]; usage?: { input_tokens: number; output_tokens: number }; stop_reason?: string }
   | { kind: "error"; message: string }
 
@@ -254,6 +255,17 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         } else if (!needsConfirm(ev.tool_name) || isSessionAllowed(sessionAllowList, ev.tool_name)) {
           pendingAutoRunRef.current.push({ call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
         }
+      } else if (ev.kind === "loop_warn") {
+        // v2.5 P0 §3.4: warn 档命中 —— server 仍继续执行，UI 插一条 system_notice 提醒用户
+        setMessages(prev => [
+          ...prev,
+          {
+            role: "system_notice",
+            kind: "loop_warn",
+            reasonKey: ev.reason_key,
+            reasonVars: ev.reason_vars,
+          },
+        ])
       } else if (ev.kind === "done") {
         // Race fix: React 19 concurrent 下，setMessages 的 functional updater 可能在
         // commit 阶段异步运行 —— 若此时 streamToolUseOrderRef.current 已被下面清空（= []），
@@ -382,11 +394,30 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         signal: ctrl.signal,
       })
       if (!resp.ok) {
-        if (resp.status === 429) {
+        const text = await resp.text().catch(() => "")
+        let parsed: unknown = null
+        try { parsed = JSON.parse(text) } catch { /* not JSON */ }
+        const obj = parsed as {
+          loop_reason_key?: string
+          loop_reason_vars?: { tool: string; count: number }
+          error?: string
+        } | null
+        if (resp.status === 429 && obj?.loop_reason_key) {
+          // v2.5 P0 §3.4: block 档命中 —— UI 插 system_notice，不再用旧链长 fallback 文案
+          setMessages(prev => [
+            ...prev,
+            {
+              role: "system_notice",
+              kind: "loop_block",
+              reasonKey: obj.loop_reason_key!,
+              reasonVars: obj.loop_reason_vars ?? { tool: tool_name, count: 0 },
+            },
+          ])
+        } else if (resp.status === 429) {
+          // 兼容老 server / 其他 429（比如限流）：fallback 到旧链长文案
           onError(p.tI18nChainLimit)
         } else {
-          const errBody = await resp.text().catch(() => "")
-          onError(`HTTP ${resp.status}: ${errBody.slice(0, 200)}`)
+          onError(`HTTP ${resp.status}: ${text.slice(0, 200)}`)
         }
         return
       }
