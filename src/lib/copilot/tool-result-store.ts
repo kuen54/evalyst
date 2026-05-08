@@ -13,6 +13,21 @@ import type { ToolResultContent } from './types'
 // 10 位小写字母 + 数字；session_store 里也是这套 alphabet，尺寸更大是因为 tool-result 数量会多
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 12)
 
+// v2.5 P1a §3.2: head + tail 双端夹截断常量
+// 总 budget 520 字符（head 400 + sep 20 + tail 100），与 v0.9.0 的 slice(0, 500)
+// 同量级。来源 hermes context_compressor.py:692（hermes 用 4000+1500，但 evalyst
+// transcript context budget 紧；500 字够 LLM 决定要不要 read_tool_result 回捞）。
+const PREVIEW_HEAD = 400
+const PREVIEW_TAIL = 100
+const PREVIEW_SEP = '\n...[truncated]...\n'
+
+function buildPreview(serialized: string): string {
+  if (serialized.length <= PREVIEW_HEAD + PREVIEW_TAIL + PREVIEW_SEP.length) {
+    return serialized
+  }
+  return serialized.slice(0, PREVIEW_HEAD) + PREVIEW_SEP + serialized.slice(-PREVIEW_TAIL)
+}
+
 function storeDir(session_id: string): string {
   return path.join(process.cwd(), 'data', 'copilot', 'tool-results', session_id)
 }
@@ -20,10 +35,11 @@ function storeDir(session_id: string): string {
 /**
  * 若 output 序列化后 <= maxSize，返 `{kind:'inline', value: output}`；
  * 否则落盘到 data/copilot/tool-results/{sid}/{tr_xxx}.json，返
- * `{kind:'ref', ref:'ref://tool-result/tr_xxx', preview: 前500字}`。
+ * `{kind:'ref', ref:'ref://tool-result/tr_xxx', preview: head+tail 双端夹}`。
  *
- * preview 带 "...(truncated)" 标记，LLM 看到就知道这是截断文本；想拿完整
- * payload 时调 read_tool_result(ref) 工具回捞。
+ * preview 用 `\n...[truncated]...\n` 分隔头尾，head 400 + tail 100 字符（来源
+ * hermes context_compressor.py:692），保留 error stack 尾部 root cause。LLM 想拿
+ * 完整 payload 时调 read_tool_result(ref) 工具回捞。
  */
 export async function maybePersistToolResult(
   session_id: string,
@@ -43,7 +59,7 @@ export async function maybePersistToolResult(
   const dir = storeDir(session_id)
   await fs.mkdir(dir, { recursive: true })
   await fs.writeFile(path.join(dir, `${id}.json`), serialized)
-  const preview = serialized.slice(0, 500) + '...(truncated)'
+  const preview = buildPreview(serialized)
   return { kind: 'ref', ref: `ref://tool-result/${id}`, preview }
 }
 

@@ -26,7 +26,8 @@ const bigReadTool: AnyToolDescriptor = {
   description: "",
   inputSchema: {},
   metadata: { isReadOnly: true, isDestructive: false, maxResultSizeChars: 100 },
-  call: async () => ({ body: "x".repeat(500) }),
+  // 600 字符 > head 400 + tail 100 + sep 20 = 520 阈值，确保 buildPreview 触发截断
+  call: async () => ({ body: "x".repeat(600) }),
 }
 
 const signal = new AbortController().signal

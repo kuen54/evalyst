@@ -92,3 +92,48 @@ describe("maybePersistToolResult", () => {
     await expect(loadPersistedToolResult("sess_1", "tr_notfound")).rejects.toThrow()
   })
 })
+
+describe("maybePersistToolResult preview head+tail (v2.5 P1a §3.2)", () => {
+  it("短 output 返 inline，无 preview 概念", async () => {
+    const result = await maybePersistToolResult("s", { x: "hi" }, 1000)
+    expect(result.kind).toBe("inline")
+  })
+
+  it("长 output 落盘后 preview 有 head + 分隔 + tail", async () => {
+    const long = "A".repeat(200) + "MIDDLE_FILLER".repeat(100) + "Z".repeat(200)
+    const result = await maybePersistToolResult("s", { data: long }, 500)
+    expect(result.kind).toBe("ref")
+    if (result.kind === "ref") {
+      expect(result.preview).toContain("[truncated]")
+      expect(result.preview.startsWith('{"data":"AAAA')).toBe(true)
+      expect(result.preview).toMatch(/ZZZ+"\}$/)
+    }
+  })
+
+  it("error stack tail 被保留（head-only 模式的关键 regression test）", async () => {
+    const frames = Array.from({ length: 300 }, (_, i) => `at frame_${i} (/a.ts:${i})`).join("\n")
+    const output = { stack: frames, error: "ROOT_CAUSE_AT_TAIL" }
+    const result = await maybePersistToolResult("s", output, 500)
+    expect(result.kind).toBe("ref")
+    if (result.kind === "ref") {
+      expect(result.preview).toContain("ROOT_CAUSE_AT_TAIL")
+    }
+  })
+
+  it("边界：长度刚超过 head + tail + sep → 触发截断", async () => {
+    const input = "a".repeat(530)
+    const result = await maybePersistToolResult("s", input, 500)
+    expect(result.kind).toBe("ref")
+    if (result.kind === "ref") {
+      expect(result.preview).toContain("[truncated]")
+    }
+  })
+
+  it("preview 总长度 ≤ 520（head + sep + tail budget）", async () => {
+    const long = "X".repeat(2000)
+    const result = await maybePersistToolResult("s", long, 500)
+    if (result.kind === "ref") {
+      expect(result.preview.length).toBeLessThanOrEqual(520)
+    }
+  })
+})
