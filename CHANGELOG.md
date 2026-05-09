@@ -10,6 +10,13 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+
+## [0.10.0] — 2026-05-09 · 生图（Image Generation）评测 v1 完备支持 (PR #52)
+
+evalyst 原本只是 text-in / text-out 的 LLM 评测平台。v0.10.0 把生图模型纳入一等公民：把 sankuai `aigc.sankuai.com/v1/openai/native` + `gemini-3.1-flash-image-preview` 作为参考 gateway，端到端打通"prompt → 调 LLM → 图像落盘 → 详情页可看 → 可点放大 → rubric 评分"。
+
+设计目标是 manual 评测全链路（auto-eval VLM-as-judge / pairwise ranking / 专用 reward model 留 v2）。OSS 调研借鉴 Stanford HEIM `ImageCritiqueMetric` 的 5 题（alignment / subject_clarity / aesthetic / originality / safety）做内置 seed rubric；图像存盘约定参考 HEIM / T2I-CompBench 的 filesystem-path 风格，JSONL 永远只存 `/api/results/.../images/...` 绝对 URL，避免 base64 inline 把 jsonl 撑炸。
+
 ### 体验
 
 - **生图（Image Generation）评测 v1 完备支持** — text-in / image-out 评测端到端。
