@@ -11,6 +11,44 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 ## [Unreleased]
 
 
+## [0.9.4] — 2026-05-09 · Copilot 架构 polish + loop detector 回归防御 (PR #50–51)
+
+v0.9.3 ship 后做了一轮**子系统级 code audit**（架构 / 模块边界 / 循环依赖 / 大文件拆分 / 重复代码 / 死代码 / 注释 drift / 类型一致性 8 维度并行 review），发现 1 个 audit 误报 + 7 条结构性 polish 候选。本版没有功能变更，只是把 v0.9.3 ship 后捞到的"架构小债"清掉，让 v0.9.x 后续如果再加 feature（parallel tool dispatch / streaming partial recovery / token cap 遥测）时基础更稳。
+
+### 回归防御 (PR #50)
+
+- **`tool-loop-detector.isFailure()` 对 v2.5 P2 ToolError shape 加 2 条回归测**：audit 报告该函数不识别 `{ ok: false, error: { code, message } }` 形态。实测发现因为 `"error" in obj` 仍命中（key 名相同），audit 是 false alarm —— **生产代码无需改**。但加 2 条测当未来防御：万一某轮重构收紧了 `isFailure` 的 shape 检测，连续 5 次 INVALID_INPUT/NOT_FOUND 不被识别为失败这条 regression 会立刻被捞到。`tool-loop-detector.test.ts` 17 → 19 cases。
+
+### 架构 polish (PR #51)
+
+7 个独立 commit，每个 1 task：
+
+- **B1 切循环依赖** `material-reveal-overlay ↔ store`：抽 `applyRevealCascade` / `clearRevealCascade` 到 `material-reveal-cascade.ts`（无 React 依赖纯 DOM 模块），overlay 文件只 import store 读 `lastOpenedAt`，store 只 import cascade 函数。`madge --circular src/components/copilot/` 从 1 cycle → 0 cycle。
+- **B2 修层级违规**：`src/lib/copilot/use-page-context.ts` 是 lib/ 唯一 `"use client"` + import `@/components/copilot/store` —— 违反"lib 不应反向依赖 components"约定。`git mv` 到 `src/components/copilot/use-page-context.ts`，16 处 caller import path 同步更新。零行为变化。
+- **B3 拆 cache-stats-store.ts 三件套**（348 行 → 3 个文件，单向依赖链）：
+  - `cache-stats-store.ts` 留 jsonl io + appendCacheStat / readCacheStats / pruneCacheStats + `CacheUsageStat` type
+  - 新建 `cache-aggregate.ts`：aggregateCacheHitRate / countRecentBreaks
+  - 新建 `cache-break-detect.ts`：detectCacheBreak / detectCacheBreakWithReasons / collectRecentBreakReasons / findLatestBreakPair / 6 个 digest+preview helpers + extractSystemPromptString + 全部 BreakReason / BreakInfo / BreakPair types
+  - 收益：未来加 per-session token cap 遥测时新 reducer 进 `cache-aggregate.ts` 不再撑大 store；break detection 模块独立后扩 reason 维度（如未来加 model digest）也不影响 io 层
+- **B4 修 stale tools 测试断言**：`tools.test.ts:67` 和 `registry.test.ts:30` 都断言 "the 4 migrated tools" 但实际 9 个工具。合并到 `registry.test.ts` 一处 `expect(names.sort()).toEqual([...9 tool names].sort())`，删 `tools.test.ts` 冗余 4-tool 段。
+- **B5 收敛 RunToolResult 'denied' kind 进 'error'**：4 kind union 实际是 3 kind 语义（`'denied'` 仅来自 `confirmGateHook` deny，唯一 caller 立即包成 `USER_DENIED` ToolError）。`confirmGateHook` 改成直接返 `{ kind: "error", error: { code: "USER_DENIED", retry_safe: false, ... } }`，删除 `RunToolResult.kind = 'denied'`。3 kind 收尾更干净，新 caller 写 dispatch 不容易漏分支。
+- **B6 抽 streamSseResponse helper**：`/chat` 和 `/tool-result` route 各 ~50 行 SSE 脚手架（`ReadableStream` + `write` 吞 controller-closed + done emit + error catch + headers）完全重复。新建 `src/lib/copilot/sse-response.ts` 统一封装，两 route 只写各自的"前置校验 + initialEvents + startParentId 选择"。race-fix 注释（"客户端已 abort / 流已关时 controller.enqueue 会抛 ... 吞掉"）挪到 helper 内同一处。
+- **B7 删 `truncateJsonSemantic` 死代码**：17 行函数 + 6 个测试 case，源注释承诺"防止 LLM 产出过长参数把 provider 拒掉"但 `runTool` 全链路无 caller。git 历史保留可恢复，未来若要接入 pre-hook（按 `truncateInputFieldChars` metadata 配额）可从 commit 5d4b3cd 反向 cherry-pick。
+
+### 测试 / 验证
+
+- 全套 614/614 pass（基线 621 − 6 [B7 删 truncate 测] − 1 [B4 合并 stale 断言] + 0 [PR #50 也是 +2 但同一基线] = 614）
+- `npx tsc --noEmit` 0 error / `npm run lint` 0 新 warning / `npm run build` success
+- `madge --circular --extensions ts,tsx src/components/copilot/` reports **0 cycles**
+
+### 不动（充分理由）
+
+audit 还点了 4 处大文件 / 5 处对称重复 / 3 处独立 path.join 但都判定**不动**：`llm-stream.ts` (671 行) 两 provider parser 共享 `ToolUseState.index` 状态机拆开反增 import 边界；`use-chat-stream.ts` (573 行) 5 个 ref 都是 race-fix 关键路径（PR-3 调试轮次专门修过）；`resolve-context.ts` (467 行) per-type case 已委托 manifest shaper 复杂度被 cap；`store.tsx` (344 行) 多 context 引入 N×N 订阅协调反不如单 context + memo。
+
+### 关于 v0.9.4 这个版本号
+
+v0.9.4 是顺序递增的版本号，不代表"v0.9.4 feature work"已经做。gap 分析推荐的三件 P1 feature（parallel tool dispatch / streaming partial recovery / per-session token cap 遥测）**当前判定不必做**——v0.9.3 已把"看得见的体验缺陷"清干净，三条 P1 没有"现在卡住用户"的痛点。等真撞到痛点再回来开 v0.9.5 / v0.10.0。
+
 ## [0.9.3] — 2026-05-09 · Copilot v2.5 P1b/P2 · cache 观测进阶 + tool error recovery + per-route gating (PR #44–48)
 
 v0.9.2 (P1a) 之后两批改动合一起打 0.9.3：前一批 P1b 完成 cache 观测层 + 存储卫生收尾；后一批 P2 三件事基于 v0.9.x 三 PR 后的 code review，把"二轮采纳"系列里漏掉的几条体验 gap 补齐 —— 用户看 cache break 不止知道哪类变了还能看到末尾 diff、LLM 看 tool error 按 enum 而非文案做决策、不同 route 暴露不同工具集减少 LLM 误调。
