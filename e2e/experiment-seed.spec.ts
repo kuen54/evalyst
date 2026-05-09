@@ -147,25 +147,61 @@ test.describe("experiment seed UI gate (#8)", () => {
   })
 
   test("POST /api/experiments stores seed on the created config (server-side end-to-end)", async ({ request }) => {
-    // Direct API hit: real createExperiment + writeAtomic path. Uses the qa_answer_v1
-    // seed schema. Asserts the returned config includes seed: 7. Cleanup follows.
-    const create = await request.post("/api/experiments", {
+    // Self-provision an LLM fixture model so this test runs on a clean CI
+    // environment (no user-configured models on disk). Pattern lifted from
+    // e2e/vision-gate.spec.ts. Restores original config in finally.
+    const FIXTURE_MODEL_ID = "seed-roundtrip-test-model"
+    const cfgBefore = await (await request.get("/api/llm-config")).json() as {
+      models?: Array<{ id: string }>
+      active_model_id?: string
+    }
+    const filtered = (cfgBefore.models ?? []).filter(m => m.id !== FIXTURE_MODEL_ID)
+    const fixtureModel = {
+      id: FIXTURE_MODEL_ID,
+      name: "Seed Roundtrip Fixture",
+      model: "gpt-4o-mini",
+      api_format: "openai" as const,
+      base_url: "http://example.invalid",
+      api_key: "sk-fixture-not-real",
+    }
+    const putResp = await request.put("/api/llm-config", {
       data: {
-        name: "_seed-e2e-roundtrip",
-        schema_id: "qa_answer_v1",
-        prompt_template: "answer the question",
-        model: "gpt-4o-mini",
-        temperature: 1,
-        max_tokens: 100,
-        seed: 7,
+        models: [...filtered, fixtureModel],
+        active_model_id: cfgBefore.active_model_id,
       },
     })
-    expect(create.status()).toBe(201)
-    const body = await create.json()
-    expect(body.seed).toBe(7)
-    expect(typeof body.id).toBe("string")
+    expect(putResp.status(), "PUT /api/llm-config must succeed").toBe(200)
 
-    // Cleanup so this test is idempotent
-    await request.delete(`/api/experiments/${body.id}`).catch(() => {})
+    let createdId: string | null = null
+    try {
+      const create = await request.post("/api/experiments", {
+        data: {
+          name: "_seed-e2e-roundtrip",
+          schema_id: "qa_answer_v1",
+          prompt_template: "answer the question",
+          model_id: FIXTURE_MODEL_ID,
+          model: "gpt-4o-mini",
+          temperature: 1,
+          max_tokens: 100,
+          seed: 7,
+        },
+      })
+      expect(create.status()).toBe(201)
+      const body = await create.json()
+      expect(body.seed).toBe(7)
+      expect(typeof body.id).toBe("string")
+      createdId = body.id as string
+    } finally {
+      if (createdId) {
+        await request.delete(`/api/experiments/${createdId}`).catch(() => {})
+      }
+      // Restore original config (drop the fixture model)
+      await request.put("/api/llm-config", {
+        data: {
+          models: filtered,
+          active_model_id: cfgBefore.active_model_id,
+        },
+      }).catch(() => {})
+    }
   })
 })
