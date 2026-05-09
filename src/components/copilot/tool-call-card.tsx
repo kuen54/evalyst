@@ -182,6 +182,111 @@ function linkForResource(type: string, id: string): string | null {
   }
 }
 
+// ---------- Error rendering (v2.5 P2) ----------
+
+/**
+ * v2.5 P2 — Extract structured error info from a parsed tool_result inline value.
+ * Returns null if the value is NOT an error shape; the caller's normal success rendering
+ * path runs in that case.
+ *
+ * Covers 3 jsonl shapes:
+ *   - new ToolResult err: { ok: false, error: { code, message, hint?, retry_safe? } }
+ *   - legacy deny:        { denied: true, reason }
+ *   - legacy ad-hoc:      { error: <string|object> }
+ */
+interface ParsedToolError {
+  code: string
+  message: string
+  hint?: string
+  retry_safe?: boolean
+}
+
+function parseToolError(value: unknown): ParsedToolError | null {
+  if (typeof value !== "object" || value === null) return null
+  const obj = value as Record<string, unknown>
+  // 新 ToolResult err shape
+  if (obj.ok === false && typeof obj.error === "object" && obj.error !== null) {
+    const e = obj.error as Record<string, unknown>
+    return {
+      code: typeof e.code === "string" ? e.code : "INTERNAL",
+      message: typeof e.message === "string" ? e.message : "",
+      hint: typeof e.hint === "string" ? e.hint : undefined,
+      retry_safe: typeof e.retry_safe === "boolean" ? e.retry_safe : undefined,
+    }
+  }
+  // 旧 deny shape
+  if (obj.denied === true) {
+    return {
+      code: "USER_DENIED",
+      message: typeof obj.reason === "string" ? obj.reason : "denied",
+    }
+  }
+  // 旧 ad-hoc shape
+  if ("error" in obj) {
+    const e = obj.error
+    return {
+      code: "INTERNAL",
+      message: typeof e === "string" ? e : JSON.stringify(e),
+    }
+  }
+  return null
+}
+
+// 9 codes static map → keys defined in i18n; static lookup avoids dynamic-key issues
+const ERROR_CODE_I18N_KEY: Record<string, string> = {
+  INVALID_INPUT: "copilot.tool.error.code.INVALID_INPUT",
+  NOT_FOUND: "copilot.tool.error.code.NOT_FOUND",
+  UNAUTHORIZED: "copilot.tool.error.code.UNAUTHORIZED",
+  CONFLICT: "copilot.tool.error.code.CONFLICT",
+  RATE_LIMIT: "copilot.tool.error.code.RATE_LIMIT",
+  NETWORK: "copilot.tool.error.code.NETWORK",
+  USER_DENIED: "copilot.tool.error.code.USER_DENIED",
+  AWAITING_CONFIRM: "copilot.tool.error.code.AWAITING_CONFIRM",
+  INTERNAL: "copilot.tool.error.code.INTERNAL",
+}
+
+function ErrorRender({
+  parsedError,
+  toolName,
+  t,
+}: {
+  parsedError: ParsedToolError
+  toolName: string
+  t: (key: string, vars?: Record<string, string | number>) => string
+}) {
+  const displayName = displayNameFor(toolName, t)
+  const codeKey = ERROR_CODE_I18N_KEY[parsedError.code]
+  const codeLabel = codeKey ? t(codeKey) : parsedError.code
+  return (
+    <div
+      role="alert"
+      className="rounded-md px-3 py-2 text-xs bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-300 flex flex-col gap-1.5"
+      data-tool-variant="error"
+    >
+      <div className="flex items-center gap-2 font-medium">
+        <span aria-hidden>⛔</span>
+        <span className="text-foreground">{displayName}</span>
+        <span className="font-mono text-[10px]">[{parsedError.code}]</span>
+        <span>· {codeLabel}</span>
+        {parsedError.retry_safe ? (
+          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+            {t("copilot.tool.error.retry_safe_badge")}
+          </span>
+        ) : null}
+      </div>
+      {parsedError.message ? (
+        <div className="font-normal pl-6 break-words">{parsedError.message}</div>
+      ) : null}
+      {parsedError.hint ? (
+        <div className="text-xs opacity-80 pl-6 break-words">
+          <span className="font-medium">{t("copilot.tool.error.hint_prefix")}: </span>
+          {parsedError.hint}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 // ---------- Default (existing pattern) ----------
 
 function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage }) {
@@ -192,9 +297,15 @@ function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
   const displayName = displayNameFor(toolName, t)
 
   if (toolResult) {
+    // Defensive fallback: top-level toolResult.denied=true with unparseable content
+    // (parseToolError above catches the standard { denied:true, reason } content payload).
     const denied = toolResult.denied === true
     const parsed = parseResultContent(toolResult)
     const unwrapped = unwrapV2Content(parsed)
+    const parsedError = parseToolError(unwrapped.displayValue)
+    if (parsedError) {
+      return <ErrorRender parsedError={parsedError} toolName={toolName} t={t} />
+    }
     const summary = denied
       ? t("copilot.tool.denied_summary", { reason: toolResult.reason ?? "" })
       : summarizeResult(toolName, unwrapped.displayValue, t)
@@ -269,6 +380,13 @@ function ContextVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
   const parsed = parseResultContent(toolResult)
   const unwrapped = unwrapV2Content(parsed)
 
+  if (toolResult) {
+    const parsedError = parseToolError(unwrapped.displayValue)
+    if (parsedError) {
+      return <ErrorRender parsedError={parsedError} toolName={toolUse.tool_name ?? ""} t={t} />
+    }
+  }
+
   return (
     <div className="rounded-md border bg-muted/10 px-3 py-2 text-xs" data-tool-variant="context">
       <div className="flex items-center gap-2">
@@ -315,6 +433,13 @@ function ResourceVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; too
   const href = linkForResource(type, id)
   const parsed = parseResultContent(toolResult)
   const unwrapped = unwrapV2Content(parsed)
+
+  if (toolResult) {
+    const parsedError = parseToolError(unwrapped.displayValue)
+    if (parsedError) {
+      return <ErrorRender parsedError={parsedError} toolName={toolUse.tool_name ?? ""} t={t} />
+    }
+  }
 
   return (
     <div className="rounded-md border bg-muted/10 px-3 py-2 text-xs" data-tool-variant="resource">
@@ -369,6 +494,13 @@ function RetrievalVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; to
   const parsed = parseResultContent(toolResult)
   const unwrapped = unwrapV2Content(parsed)
 
+  if (toolResult) {
+    const parsedError = parseToolError(unwrapped.displayValue)
+    if (parsedError) {
+      return <ErrorRender parsedError={parsedError} toolName={toolUse.tool_name ?? ""} t={t} />
+    }
+  }
+
   return (
     <div className="rounded-md border bg-muted/10 px-3 py-2 text-xs" data-tool-variant="retrieval">
       <div className="flex items-center gap-2">
@@ -413,9 +545,15 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
 
   // After execution: show result with amber accent retained.
   if (toolResult) {
+    // Defensive fallback: top-level toolResult.denied=true with unparseable content
+    // (parseToolError above catches the standard { denied:true, reason } content payload).
     const denied = toolResult.denied === true
     const parsed = parseResultContent(toolResult)
     const unwrapped = unwrapV2Content(parsed)
+    const parsedError = parseToolError(unwrapped.displayValue)
+    if (parsedError) {
+      return <ErrorRender parsedError={parsedError} toolName={toolName} t={t} />
+    }
     const summary = denied
       ? t("copilot.tool.denied_summary", { reason: toolResult.reason ?? "" })
       : summarizeResult(toolName, unwrapped.displayValue, t)

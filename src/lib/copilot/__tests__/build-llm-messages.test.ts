@@ -248,3 +248,91 @@ describe("buildLlmMessages with compact_boundary (v2.5)", () => {
   })
 })
 
+describe("buildLlmMessages tool_result is_error (v2.5 P2)", () => {
+  it("tool_result with new err shape → is_error: true", () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
+      toolUseMsg("c1", "read_resource"),
+      toolResultMsg("c1", {
+        kind: "inline",
+        value: { ok: false, error: { code: "NOT_FOUND", message: "gone" } },
+      }),
+    ]
+    const msgs = buildLlmMessages(branch)
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect(tr).toBeDefined()
+    expect((tr as { is_error?: boolean }).is_error).toBe(true)
+  })
+
+  it("tool_result with new ok shape → is_error falsy", () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
+      toolUseMsg("c1", "read_resource"),
+      toolResultMsg("c1", {
+        kind: "inline",
+        value: { ok: true, value: { results: [1, 2, 3] } },
+      }),
+    ]
+    const msgs = buildLlmMessages(branch)
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect((tr as { is_error?: boolean }).is_error).toBeFalsy()
+  })
+
+  it("tool_result with legacy { error: msg } → is_error: true (backward compat)", () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
+      toolUseMsg("c1", "restart_experiment"),
+      toolResultMsg("c1", {
+        kind: "inline",
+        value: { error: "experiment_id is required" },
+      }),
+    ]
+    const msgs = buildLlmMessages(branch)
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect((tr as { is_error?: boolean }).is_error).toBe(true)
+  })
+
+  it("tool_result with legacy { denied: true } → is_error: true", () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
+      toolUseMsg("c1", "restart_experiment"),
+      toolResultMsg("c1", {
+        kind: "inline",
+        value: { denied: true, reason: "user said no" },
+      }),
+    ]
+    const msgs = buildLlmMessages(branch)
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect((tr as { is_error?: boolean }).is_error).toBe(true)
+  })
+
+  it("tool_result with ref kind → is_error falsy (preview-only, can't classify)", () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
+      toolUseMsg("c1", "read_experiment_results"),
+      toolResultMsg("c1", {
+        kind: "ref",
+        ref: "ref://tool-result/tr_abc",
+        preview: "{\"results\":[...truncated",
+      }),
+    ]
+    const msgs = buildLlmMessages(branch)
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect((tr as { is_error?: boolean }).is_error).toBeFalsy()
+  })
+
+  it("tool_result with plain success object → is_error falsy", () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
+      toolUseMsg("c1", "list_experiments"),
+      toolResultMsg("c1", {
+        kind: "inline",
+        value: { experiments: [{ id: "a" }] },
+      }),
+    ]
+    const msgs = buildLlmMessages(branch)
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect((tr as { is_error?: boolean }).is_error).toBeFalsy()
+  })
+})
+

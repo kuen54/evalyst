@@ -35,69 +35,81 @@ describe("readResourceTool", () => {
     const r = (await readResourceTool.call(
       { type: "experiment", id: "exp_A" },
       ctx,
-    )) as Record<string, unknown>
-    expect(r.id).toBe("exp_A")
-    expect(r.extra).toBe("ignored")
+    )) as { ok: true; value: Record<string, unknown> }
+    expect(r.ok).toBe(true)
+    expect(r.value.id).toBe("exp_A")
+    expect(r.value.extra).toBe("ignored")
   })
 
   it("fields filter picks subset only", async () => {
     const r = (await readResourceTool.call(
       { type: "experiment", id: "exp_A", fields: ["schema_id", "model_name"] },
       ctx,
-    )) as Record<string, unknown>
-    expect(r).toEqual({ schema_id: "sch", model_name: "gpt-4o" })
-    expect(r.extra).toBeUndefined()
+    )) as { ok: true; value: Record<string, unknown> }
+    expect(r.ok).toBe(true)
+    expect(r.value).toEqual({ schema_id: "sch", model_name: "gpt-4o" })
+    expect(r.value.extra).toBeUndefined()
   })
 
   it("loads template via getSchema", async () => {
     const r = (await readResourceTool.call(
       { type: "template", id: "sch_X", fields: ["prompt_template"] },
       ctx,
-    )) as Record<string, unknown>
-    expect(r.prompt_template).toBe("hi {{x}}")
+    )) as { ok: true; value: Record<string, unknown> }
+    expect(r.value.prompt_template).toBe("hi {{x}}")
   })
 
   it("loads dataset (structure includes records+def)", async () => {
     const r = (await readResourceTool.call({ type: "dataset", id: "ds_1" }, ctx)) as {
-      records: unknown[]; def: { id: string }
+      ok: true
+      value: { records: unknown[]; def: { id: string } }
     }
-    expect(Array.isArray(r.records)).toBe(true)
-    expect(r.def.id).toBe("ds_1")
+    expect(Array.isArray(r.value.records)).toBe(true)
+    expect(r.value.def.id).toBe("ds_1")
   })
 
   it("loads display", async () => {
     const r = (await readResourceTool.call(
       { type: "display", id: "disp_1" },
       ctx,
-    )) as Record<string, unknown>
-    expect(r.mode).toBe("table")
+    )) as { ok: true; value: Record<string, unknown> }
+    expect(r.value.mode).toBe("table")
   })
 
   it("loads rubric", async () => {
     const r = (await readResourceTool.call({ type: "rubric", id: "rub_1" }, ctx)) as {
-      criteria: unknown[]
+      ok: true
+      value: { criteria: unknown[] }
     }
-    expect(r.criteria).toEqual([])
+    expect(r.value.criteria).toEqual([])
   })
 
-  it("throws on missing resource", async () => {
-    await expect(
-      readResourceTool.call({ type: "experiment", id: "nope" }, ctx),
-    ).rejects.toThrow(/not found/)
+  it("returns err(NOT_FOUND) on missing resource", async () => {
+    const r = await readResourceTool.call({ type: "experiment", id: "nope" }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND", message: expect.stringContaining("not found") },
+    })
   })
 
-  it("throws on missing dataset (wrapped null)", async () => {
-    await expect(
-      readResourceTool.call({ type: "dataset", id: "nope" }, ctx),
-    ).rejects.toThrow(/not found/)
+  it("returns err(NOT_FOUND) on missing dataset (wrapped null)", async () => {
+    const r = await readResourceTool.call({ type: "dataset", id: "nope" }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "NOT_FOUND", message: expect.stringContaining("not found") },
+    })
   })
 
-  it("requires type + id", async () => {
-    await expect(
-      readResourceTool.call({ type: "" as never, id: "x" }, ctx),
-    ).rejects.toThrow()
-    await expect(
-      readResourceTool.call({ type: "experiment", id: "" }, ctx),
-    ).rejects.toThrow()
+  it("returns err(INVALID_INPUT) when type or id missing", async () => {
+    const rNoType = await readResourceTool.call({ type: "" as never, id: "x" }, ctx)
+    expect(rNoType).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT" },
+    })
+    const rNoId = await readResourceTool.call({ type: "experiment", id: "" }, ctx)
+    expect(rNoId).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT" },
+    })
   })
 })

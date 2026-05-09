@@ -25,13 +25,21 @@ describe("tool: list_experiments", () => {
 })
 
 describe("tool: read_experiment_results", () => {
-  it("requires experiment_id", async () => {
-    await expect(readTool.call({}, ctx)).rejects.toThrow()
+  it("requires experiment_id (returns err(INVALID_INPUT))", async () => {
+    const r = await readTool.call({}, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT" },
+    })
   })
 
-  it("returns empty for unknown experiment", async () => {
-    const result = (await readTool.call({ experiment_id: "nonexistent" }, ctx)) as { results: unknown[] }
-    expect(result.results).toEqual([])
+  it("returns empty for unknown experiment (wrapped in ok)", async () => {
+    const r = (await readTool.call({ experiment_id: "nonexistent" }, ctx)) as {
+      ok: true
+      value: { results: unknown[] }
+    }
+    expect(r.ok).toBe(true)
+    expect(r.value.results).toEqual([])
   })
 
   it("is read-only, not destructive", () => {
@@ -46,8 +54,12 @@ describe("tool: restart_experiment", () => {
     expect(restartTool.metadata.isReadOnly).toBe(false)
   })
 
-  it("requires experiment_id", async () => {
-    await expect(restartTool.call({}, ctx)).rejects.toThrow()
+  it("requires experiment_id (returns err(INVALID_INPUT))", async () => {
+    const r = await restartTool.call({}, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT" },
+    })
   })
 })
 

@@ -1,6 +1,7 @@
 import { readResults } from "@/lib/store"
 import type { GenericResultRecord } from "@/lib/schema/types"
 import type { ToolDescriptor } from "./types"
+import { ok, err } from "./tool-result"
 
 type GroupBy = "error_type" | "score_bucket" | "task_id"
 type Aggregate = "count" | "pass_rate" | "avg_score" | "sample_ids"
@@ -96,7 +97,11 @@ export const readExperimentResultsTool: ToolDescriptor<Input, unknown> = {
     maxResultSizeChars: 4000,
   },
   call: async (input) => {
-    if (!input.experiment_id) throw new Error("experiment_id is required")
+    if (!input.experiment_id) {
+      return err("INVALID_INPUT", "experiment_id is required", {
+        hint: "Pass experiment_id as string",
+      })
+    }
     const all = readResults(String(input.experiment_id)) as Row[]
     let filtered: Row[] = all
     if (Array.isArray(input.task_ids) && input.task_ids.length) {
@@ -120,12 +125,12 @@ export const readExperimentResultsTool: ToolDescriptor<Input, unknown> = {
     // Legacy mode: no group_by → original shape
     if (!input.group_by) {
       const limit = Math.min(Number(input.limit ?? 20), 50)
-      return {
+      return ok({
         results: filtered.slice(0, limit),
         total_matching: filtered.length,
         returned: Math.min(filtered.length, limit),
         truncated: filtered.length > limit,
-      }
+      })
     }
 
     // Aggregated mode
@@ -142,7 +147,7 @@ export const readExperimentResultsTool: ToolDescriptor<Input, unknown> = {
       arr.push(r)
     }
 
-    return {
+    return ok({
       groups: Array.from(groups.entries()).map(([key, members]) => ({
         group_key: key,
         metrics: computeMetrics(members, aggs),
@@ -151,6 +156,6 @@ export const readExperimentResultsTool: ToolDescriptor<Input, unknown> = {
           : {}),
       })),
       total: filtered.length,
-    }
+    })
   },
 }

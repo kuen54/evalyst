@@ -205,7 +205,7 @@ describe("tool-result route integration", () => {
     }
   })
 
-  it("tool throwing doesn't crash pipeline; caller wraps as error content", async () => {
+  it("tool throwing → route writes structured ToolError (INTERNAL) into tool_result content", async () => {
     const session = createSession({ title: "err" })
     const sessionId = session.id
 
@@ -219,17 +219,121 @@ describe("tool-result route integration", () => {
       },
     }
 
-    await expect(
-      runTool(throwingTool, {}, { session_id: sessionId, signal }),
-    ).rejects.toThrow(/boom from tool/)
+    // v2.5 P2: runTool no longer rethrows; INTERNAL ToolError instead
+    const r = await runTool(throwingTool, {}, { session_id: sessionId, signal }, { skipConfirm: true })
+    expect(r.kind).toBe("error")
+    if (r.kind !== "error") throw new Error("expected error")
+    expect(r.error.code).toBe("INTERNAL")
+    expect(r.error.message).toMatch(/boom from tool/)
+    expect(r.error.retry_safe).toBe(false)
 
-    // Route's try/catch would wrap as { error: msg }; confirm that shape normalizes fine
-    const errPayload = { error: "boom from tool" }
-    const toolResultContent = JSON.stringify(errPayload) // Route writes raw object, not ToolResultContent
+    // Simulate the route handler's new dispatch: kind:'error' → { ok:false, error }
+    const resultContent: unknown = { ok: false, error: r.error }
+    const toolResultContent = JSON.stringify(resultContent)
+
     const normalized = normalizeToolResult(toolResultContent)
     expect(normalized.kind).toBe("inline")
     if (normalized.kind === "inline") {
-      expect((normalized.value as { error: string }).error).toBe("boom from tool")
+      const v = normalized.value as { ok: false; error: { code: string; message: string } }
+      expect(v.ok).toBe(false)
+      expect(v.error.code).toBe("INTERNAL")
+      expect(v.error.message).toMatch(/boom from tool/)
+    }
+  })
+
+  it("tool returns err('NOT_FOUND', ..., {hint}) → route writes ToolError shape with hint", async () => {
+    const session = createSession({ title: "errcode" })
+    const sessionId = session.id
+
+    const { err } = await import("../tools/tool-result")
+    const erringTool: AnyToolDescriptor = {
+      name: "mock_err_typed",
+      description: "",
+      inputSchema: {},
+      metadata: { isReadOnly: true, isDestructive: false, maxResultSizeChars: 500 },
+      call: async () => err("NOT_FOUND", "gone", { hint: "try other id" }),
+    }
+
+    const r = await runTool(erringTool, {}, { session_id: sessionId, signal }, { skipConfirm: true })
+    expect(r.kind).toBe("error")
+    if (r.kind !== "error") throw new Error("expected error")
+    expect(r.error.code).toBe("NOT_FOUND")
+    expect(r.error.message).toBe("gone")
+    expect(r.error.hint).toBe("try other id")
+
+    // Simulate route dispatch
+    const resultContent = { ok: false, error: r.error }
+    const toolResultContent = JSON.stringify(resultContent)
+    const normalized = normalizeToolResult(toolResultContent)
+    expect(normalized.kind).toBe("inline")
+    if (normalized.kind === "inline") {
+      const v = normalized.value as { ok: false; error: { code: string; message: string; hint?: string } }
+      expect(v.error.code).toBe("NOT_FOUND")
+      expect(v.error.message).toBe("gone")
+      expect(v.error.hint).toBe("try other id")
+    }
+  })
+
+  it("body.denied=true → route writes legacy { denied:true, reason } shape (unchanged)", () => {
+    // Route logic when body.denied === true
+    const denyReason = "user said no"
+    const resultContent: unknown = { denied: true, reason: denyReason }
+    const toolResultContent = JSON.stringify(resultContent)
+
+    // Should still normalize as inline (legacy shape preserved for backward compat)
+    const normalized = normalizeToolResult(toolResultContent)
+    expect(normalized.kind).toBe("inline")
+    if (normalized.kind === "inline") {
+      const v = normalized.value as { denied: boolean; reason: string }
+      expect(v.denied).toBe(true)
+      expect(v.reason).toBe(denyReason)
+    }
+
+    // isToolErrorShape recognizes both legacy denied and new ToolError
+    // (verified separately in tool-result.test.ts; here we just confirm shape is preserved)
+  })
+
+  it("server hook deny (sessionDenyList match) → route writes USER_DENIED ToolError", async () => {
+    const session = createSession({ title: "deny" })
+    const sessionId = session.id
+
+    const okTool: AnyToolDescriptor = {
+      name: "mock_to_be_denied",
+      description: "",
+      inputSchema: {},
+      metadata: { isReadOnly: true, isDestructive: false, maxResultSizeChars: 500 },
+      call: async () => ({ should: "not run" }),
+    }
+
+    // Don't skipConfirm: let confirmGateHook see deny list. (route uses skipConfirm=true,
+    // but spec asks USER_DENIED dispatch to handle ANY 'denied' kind — exercise the
+    // confirmGateHook path directly to produce a kind:'denied' result.)
+    const r = await runTool(
+      okTool,
+      {},
+      { session_id: sessionId, signal },
+      { sessionDenyList: [okTool.name] },
+    )
+    expect(r.kind).toBe("denied")
+    if (r.kind !== "denied") throw new Error("expected denied")
+    expect(r.reason).toMatch(/user-denied/)
+
+    // Simulate route dispatch for kind:'denied'
+    const resultContent: unknown = {
+      ok: false,
+      error: {
+        code: "USER_DENIED" as const,
+        message: r.reason,
+        retry_safe: false,
+      },
+    }
+    const toolResultContent = JSON.stringify(resultContent)
+    const normalized = normalizeToolResult(toolResultContent)
+    expect(normalized.kind).toBe("inline")
+    if (normalized.kind === "inline") {
+      const v = normalized.value as { ok: false; error: { code: string; message: string } }
+      expect(v.error.code).toBe("USER_DENIED")
+      expect(v.error.message).toMatch(/user-denied/)
     }
   })
 

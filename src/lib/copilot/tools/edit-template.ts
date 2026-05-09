@@ -15,6 +15,7 @@
 import type { ToolDescriptor } from "./types"
 import type { TaskSchema } from "@/lib/schema/types"
 import { getUserSchema, createUserSchema } from "@/lib/schema/user-schema-store"
+import { ok, err } from "./tool-result"
 
 interface Input {
   schema_id: string
@@ -51,13 +52,21 @@ export const editTemplateTool: ToolDescriptor<Input, Output> = {
   },
   call: async ({ schema_id, patch }) => {
     if (!schema_id || typeof schema_id !== "string") {
-      throw new Error("schema_id is required")
+      return err("INVALID_INPUT", "schema_id is required", {
+        hint: "Pass schema_id as string",
+      })
     }
     if (!patch || typeof patch !== "object") {
-      throw new Error("patch is required")
+      return err("INVALID_INPUT", "patch is required", {
+        hint: "Pass patch object with fields to update",
+      })
     }
     const schema = getUserSchema(schema_id)
-    if (!schema) throw new Error(`template ${schema_id} not found`)
+    if (!schema) {
+      return err("NOT_FOUND", `template ${schema_id} not found`, {
+        hint: "Use list_experiments / read_resource to find templates",
+      })
+    }
 
     const newVersion = (schema.version ?? 0) + 1
     // Shallow merge; id cannot be changed (patch.id is ignored to keep file path stable).
@@ -68,6 +77,6 @@ export const editTemplateTool: ToolDescriptor<Input, Output> = {
       version: newVersion,
     }
     createUserSchema(updated)
-    return { success: true, new_version: newVersion, schema_id }
+    return ok({ success: true, new_version: newVersion, schema_id })
   },
 }
