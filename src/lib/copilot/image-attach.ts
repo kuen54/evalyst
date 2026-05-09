@@ -8,6 +8,8 @@
 // Schema walk uses output_schema.properties (Record<fieldName, JsonPropDef>),
 // NOT a .fields[] array — that property does not exist on JsonSchemaDef.
 
+import * as fs from 'fs/promises'
+import * as path from 'path'
 import type { CopilotMessage, CopilotContextRef, ImageRef, ToolResultContent } from './types'
 import type { TaskSchema, JsonPropDef } from '@/lib/schema/types'
 import { getExperiment, readResults } from '@/lib/store'
@@ -193,4 +195,49 @@ export function collectImageRefs(input: CollectInput): CollectOutput {
     arr.push(ref); toolOut.set(call_id, arr); total++
   }
   return { user_image_refs: userOut, tool_image_refs: toolOut, dropped_count: dropped }
+}
+
+const MIME_BY_EXT: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+}
+
+const URL_RE = /^\/api\/results\/([a-zA-Z0-9_-]+)\/images\/([a-zA-Z0-9_.-]+\.(png|jpg|jpeg|webp))$/
+
+/**
+ * Resolve a public-facing /api/results/{expId}/images/{f}.{ext} URL to a disk
+ * path under process.cwd()/data/results/. Returns null for any URL that
+ * doesn't match the strict regex (data:, http(s):, traversal attempts, wrong
+ * extension, etc.) — caller decides the fallback.
+ */
+export function resolveImageDiskPath(url: string): string | null {
+  const m = URL_RE.exec(url)
+  if (!m) return null
+  const [, expId, filename] = m
+  return path.join(process.cwd(), 'data', 'results', expId, 'images', filename)
+}
+
+/**
+ * Read the bytes for an ImageRef:
+ * - data: URL → return as-is (no fs read)
+ * - /api/results/.../images/x.png → resolve to disk + base64-encode
+ * - anything else (http, malformed, traversal) → {error}
+ * Caller (build-llm-messages) decides whether to show text fallback or skip.
+ */
+export async function readImageBytes(
+  ref: ImageRef,
+): Promise<{ data_url: string } | { error: string }> {
+  if (ref.url.startsWith('data:')) return { data_url: ref.url }
+  const diskPath = resolveImageDiskPath(ref.url)
+  if (!diskPath) return { error: `unsupported url: ${ref.url}` }
+  try {
+    const buf = await fs.readFile(diskPath)
+    const ext = path.extname(diskPath).slice(1).toLowerCase()
+    const mime = MIME_BY_EXT[ext] ?? 'image/png'
+    return { data_url: `data:${mime};base64,${buf.toString('base64')}` }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) }
+  }
 }
