@@ -1,29 +1,11 @@
-// Copilot v2 tool runtime：主入口 runTool + JSON 语义截断 util。
-// truncateJsonSemantic 来自 hermes-agent `_truncate_tool_call_args_json`：
-// 递归把字符串字段裁到上限，防止 LLM 产出过长参数把 provider 拒掉。
+// Copilot v2 tool runtime：主入口 runTool。
+// 串 pre 链 → tool.call → post 链。caller（/chat / /tool-result route）
+// 按返回 kind dispatch。
 
 import type { ToolContext } from "./tools/types"
 import type { AnyToolDescriptor } from "./tools/registry"
 import type { ToolError, ToolResult } from "./tools/tool-result"
 import { preToolCallHooks, postToolCallHooks } from "./tools/hooks"
-
-export function truncateJsonSemantic(obj: unknown, maxFieldChars: number): unknown {
-  if (typeof obj === "string") {
-    return obj.length > maxFieldChars
-      ? obj.slice(0, maxFieldChars) + "...(truncated)"
-      : obj
-  }
-  if (Array.isArray(obj)) return obj.map((x) => truncateJsonSemantic(x, maxFieldChars))
-  if (obj && typeof obj === "object") {
-    return Object.fromEntries(
-      Object.entries(obj as Record<string, unknown>).map(([k, v]) => [
-        k,
-        truncateJsonSemantic(v, maxFieldChars),
-      ]),
-    )
-  }
-  return obj
-}
 
 // ---- 主入口 runTool ----
 //
