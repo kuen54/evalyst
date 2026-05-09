@@ -28,20 +28,20 @@ function toolResultMsg(call_id: string, content: unknown): CopilotMessage {
 }
 
 describe("buildLlmMessages · ToolResultContent rendering", () => {
-  it("inline kind is flattened to JSON string", () => {
+  it("inline kind is flattened to JSON string", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
       toolUseMsg("c1", "list_experiments"),
       toolResultMsg("c1", { kind: "inline", value: { experiments: [{ id: "a" }] } }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect(tr).toBeTruthy()
     expect(tr?.content).toContain("experiments")
     expect(tr?.content).not.toContain("ref://")
   })
 
-  it("ref kind exposes preview + read_tool_result hint", () => {
+  it("ref kind exposes preview + read_tool_result hint", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
       toolUseMsg("c1", "read_experiment_results"),
@@ -51,14 +51,14 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
         preview: "{\"results\":[...(truncated)",
       }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect(tr?.content).toContain("truncated")
     expect(tr?.content).toContain("read_tool_result")
     expect(tr?.content).toContain("ref://tool-result/tr_abc")
   })
 
-  it("compacted kind exposes summary", () => {
+  it("compacted kind exposes summary", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
       toolUseMsg("c1", "list_experiments"),
@@ -68,38 +68,38 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
         ref: "ref://tool-result/tr_old",
       }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect(tr?.content).toContain("archived tool result")
   })
 
-  it("v1 backward compat: bare output wraps as inline", () => {
+  it("v1 backward compat: bare output wraps as inline", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
       toolUseMsg("c1", "list_experiments"),
       // Old jsonl format: content is plain JSON string of raw output
       toolResultMsg("c1", { experiments: [], total: 0 }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     // normalizeToolResult wraps {experiments:[]} as inline — content should still include it
     expect(tr?.content).toContain("experiments")
   })
 
-  it("system prompt is always first", () => {
+  it("system prompt is always first", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     expect(msgs[0].role).toBe("system")
     if (msgs[0].role === "system") expect(msgs[0].content).toBe(COPILOT_SYSTEM_PROMPT)
   })
 
-  it("SystemHeader system message is added when page context is present", () => {
+  it("SystemHeader system message is added when page context is present", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
     ]
-    const msgs = buildLlmMessages(branch, {
+    const msgs = await buildLlmMessages(branch, {
       route_type: "compare",
       path: "/compare",
       summary: {},
@@ -113,7 +113,7 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     expect(systemMsgs[1].content).toContain("compare")
   })
 
-  it("SystemHeader includes ctx_N for each user-circled context", () => {
+  it("SystemHeader includes ctx_N for each user-circled context", async () => {
     const branch: CopilotMessage[] = [
       {
         id: "m_u1",
@@ -127,7 +127,7 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
         ],
       },
     ]
-    const msgs = buildLlmMessages(branch, null)
+    const msgs = await buildLlmMessages(branch, null)
     const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
     const header = systemMsgs.find((s) => s.content.startsWith("Session context"))
     expect(header).toBeTruthy()
@@ -137,17 +137,17 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     expect(header!.content).not.toContain("\"name\":")
   })
 
-  it("SystemHeader is not added when there are neither contexts nor page_context", () => {
+  it("SystemHeader is not added when there are neither contexts nor page_context", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
     ]
-    const msgs = buildLlmMessages(branch, null)
+    const msgs = await buildLlmMessages(branch, null)
     const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
     // Only COPILOT_SYSTEM_PROMPT, no header
     expect(systemMsgs.length).toBe(1)
   })
 
-  it("microCompact: 5 read tool_results → older 2 become summary, newest 3 stay as ref/inline", () => {
+  it("microCompact: 5 read tool_results → older 2 become summary, newest 3 stay as ref/inline", async () => {
     // 5 consecutive read-only tool_results using list_experiments (read-only in registry).
     // Config in build-llm-messages keeps recent 3 → first 2 should be compacted.
     const branch: CopilotMessage[] = [
@@ -163,7 +163,7 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
         }),
       )
     }
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const toolResults = msgs.filter((m) => m.role === "tool_result")
     expect(toolResults).toHaveLength(5)
 
@@ -188,7 +188,7 @@ function asstMsg(id: string, parent_id: string, text: string): CopilotMessage {
 }
 
 describe("buildLlmMessages with compact_boundary (v2.5)", () => {
-  it("skips messages before boundary in output", () => {
+  it("skips messages before boundary in output", async () => {
     const branch: CopilotMessage[] = [
       userMsg("u1", "old"),
       asstMsg("a1", "u1", "old reply"),
@@ -203,7 +203,7 @@ describe("buildLlmMessages with compact_boundary (v2.5)", () => {
       } as CopilotMessage,
       userMsg("u2", "new question"),
     ]
-    const out = buildLlmMessages(branch)
+    const out = await buildLlmMessages(branch)
     const userContent = out
       .filter((m): m is { role: "user"; content: string } => m.role === "user")
       .map((m) => m.content)
@@ -214,20 +214,20 @@ describe("buildLlmMessages with compact_boundary (v2.5)", () => {
     expect(asstContent).toEqual([])
   })
 
-  it("old session without boundary: no behavior change", () => {
+  it("old session without boundary: no behavior change", async () => {
     const branch: CopilotMessage[] = [
       userMsg("u1", "q1"),
       asstMsg("a1", "u1", "a1"),
       userMsg("u2", "q2"),
     ]
-    const out = buildLlmMessages(branch)
+    const out = await buildLlmMessages(branch)
     const userContent = out
       .filter((m): m is { role: "user"; content: string } => m.role === "user")
       .map((m) => m.content)
     expect(userContent).toEqual(["q1", "q2"])
   })
 
-  it("system role (non-boundary) silently skipped in LlmMessages loop", () => {
+  it("system role (non-boundary) silently skipped in LlmMessages loop", async () => {
     const branch: CopilotMessage[] = [
       userMsg("u1", "hi"),
       {
@@ -239,7 +239,7 @@ describe("buildLlmMessages with compact_boundary (v2.5)", () => {
       } as CopilotMessage,
       userMsg("u2", "ho"),
     ]
-    const out = buildLlmMessages(branch)
+    const out = await buildLlmMessages(branch)
     const textRoles = out.filter(
       (m): m is { role: "user" | "assistant" | "system"; content: string } =>
         m.role === "user" || m.role === "assistant" || m.role === "system",
@@ -249,7 +249,7 @@ describe("buildLlmMessages with compact_boundary (v2.5)", () => {
 })
 
 describe("buildLlmMessages tool_result is_error (v2.5 P2)", () => {
-  it("tool_result with new err shape → is_error: true", () => {
+  it("tool_result with new err shape → is_error: true", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
       toolUseMsg("c1", "read_resource"),
@@ -258,13 +258,13 @@ describe("buildLlmMessages tool_result is_error (v2.5 P2)", () => {
         value: { ok: false, error: { code: "NOT_FOUND", message: "gone" } },
       }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect(tr).toBeDefined()
     expect((tr as { is_error?: boolean }).is_error).toBe(true)
   })
 
-  it("tool_result with new ok shape → is_error falsy", () => {
+  it("tool_result with new ok shape → is_error falsy", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
       toolUseMsg("c1", "read_resource"),
@@ -273,12 +273,12 @@ describe("buildLlmMessages tool_result is_error (v2.5 P2)", () => {
         value: { ok: true, value: { results: [1, 2, 3] } },
       }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect((tr as { is_error?: boolean }).is_error).toBeFalsy()
   })
 
-  it("tool_result with legacy { error: msg } → is_error: true (backward compat)", () => {
+  it("tool_result with legacy { error: msg } → is_error: true (backward compat)", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
       toolUseMsg("c1", "restart_experiment"),
@@ -287,12 +287,12 @@ describe("buildLlmMessages tool_result is_error (v2.5 P2)", () => {
         value: { error: "experiment_id is required" },
       }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect((tr as { is_error?: boolean }).is_error).toBe(true)
   })
 
-  it("tool_result with legacy { denied: true } → is_error: true", () => {
+  it("tool_result with legacy { denied: true } → is_error: true", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
       toolUseMsg("c1", "restart_experiment"),
@@ -301,12 +301,12 @@ describe("buildLlmMessages tool_result is_error (v2.5 P2)", () => {
         value: { denied: true, reason: "user said no" },
       }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect((tr as { is_error?: boolean }).is_error).toBe(true)
   })
 
-  it("tool_result with ref kind → is_error falsy (preview-only, can't classify)", () => {
+  it("tool_result with ref kind → is_error falsy (preview-only, can't classify)", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
       toolUseMsg("c1", "read_experiment_results"),
@@ -316,12 +316,12 @@ describe("buildLlmMessages tool_result is_error (v2.5 P2)", () => {
         preview: "{\"results\":[...truncated",
       }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect((tr as { is_error?: boolean }).is_error).toBeFalsy()
   })
 
-  it("tool_result with plain success object → is_error falsy", () => {
+  it("tool_result with plain success object → is_error falsy", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "q", timestamp: "t" },
       toolUseMsg("c1", "list_experiments"),
@@ -330,7 +330,7 @@ describe("buildLlmMessages tool_result is_error (v2.5 P2)", () => {
         value: { experiments: [{ id: "a" }] },
       }),
     ]
-    const msgs = buildLlmMessages(branch)
+    const msgs = await buildLlmMessages(branch)
     const tr = msgs.find((m) => m.role === "tool_result")
     expect((tr as { is_error?: boolean }).is_error).toBeFalsy()
   })
