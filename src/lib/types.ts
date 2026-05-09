@@ -35,6 +35,12 @@ export interface ExperimentConfig {
   model: string
   temperature: number
   max_tokens: number
+  /**
+   * Optional reproducibility seed forwarded to the LLM.
+   * OpenAI-format providers honor it; Anthropic drops it with a warn at
+   * call time (Messages API does not expose sampling determinism).
+   */
+  seed?: number
   api_config: ApiConfig
   prompt_template: string
   status: ExperimentStatus
@@ -73,6 +79,7 @@ export interface CreateExperimentRequest {
   model: string
   temperature: number
   max_tokens: number
+  seed?: number
   prompt_template: string
   notes?: string
 }
