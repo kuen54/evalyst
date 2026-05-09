@@ -120,7 +120,7 @@ test.describe("experiment seed UI gate (#8)", () => {
     await page.waitForURL(/\/experiments\/exp_seed_test/, { timeout: 5_000 })
 
     expect(captured).not.toBeNull()
-    expect((captured as { seed?: number }).seed).toBe(42)
+    expect((captured as unknown as { seed?: number }).seed).toBe(42)
   })
 
   test("empty seed input → 'seed' key OMITTED from POST body (not null/undefined)", async ({ page }) => {
@@ -143,7 +143,7 @@ test.describe("experiment seed UI gate (#8)", () => {
     // on null/undefined seed. The OpenAI buildRequestBody unit test enforces
     // the same on the lower layer; this test enforces the UI contributes
     // nothing on empty input.
-    expect("seed" in (captured as object)).toBe(false)
+    expect("seed" in (captured as unknown as object)).toBe(false)
   })
 
   test("POST /api/experiments stores seed on the created config (server-side end-to-end)", async ({ request }) => {
