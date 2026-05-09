@@ -297,26 +297,22 @@ function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
   const displayName = displayNameFor(toolName, t)
 
   if (toolResult) {
-    // Defensive fallback: top-level toolResult.denied=true with unparseable content
-    // (parseToolError above catches the standard { denied:true, reason } content payload).
-    const denied = toolResult.denied === true
+    // parseToolError catches all 3 standard error shapes (new ToolResult err / legacy
+    // { denied:true, reason } / legacy { error }), so the success branch below only runs
+    // for genuinely successful results. v0.9.3 cleanup: the prior `denied ? ... : ...`
+    // ternary on top-level toolResult.denied was unreachable since use-chat-stream always
+    // pairs `denied:true` with a `{denied:true,reason}` content payload.
     const parsed = parseResultContent(toolResult)
     const unwrapped = unwrapV2Content(parsed)
     const parsedError = parseToolError(unwrapped.displayValue)
     if (parsedError) {
       return <ErrorRender parsedError={parsedError} toolName={toolName} t={t} />
     }
-    const summary = denied
-      ? t("copilot.tool.denied_summary", { reason: toolResult.reason ?? "" })
-      : summarizeResult(toolName, unwrapped.displayValue, t)
+    const summary = summarizeResult(toolName, unwrapped.displayValue, t)
     return (
-      <div
-        className={`rounded-md border px-3 py-2 text-xs ${
-          denied ? "bg-muted/40 text-muted-foreground" : "bg-muted/20"
-        }`}
-      >
+      <div className="rounded-md border px-3 py-2 text-xs bg-muted/20">
         <div className="flex items-center gap-2">
-          <span aria-hidden>{denied ? "🚫" : "✅"}</span>
+          <span aria-hidden>✅</span>
           <span className="font-medium">{displayName}</span>
           {summary ? <span className="text-muted-foreground">{summary}</span> : null}
           <button
@@ -545,27 +541,24 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
 
   // After execution: show result with amber accent retained.
   if (toolResult) {
-    // Defensive fallback: top-level toolResult.denied=true with unparseable content
-    // (parseToolError above catches the standard { denied:true, reason } content payload).
-    const denied = toolResult.denied === true
+    // parseToolError catches all 3 standard error shapes, including the legacy
+    // { denied:true, reason } content payload that use-chat-stream writes alongside
+    // toolResult.denied=true. v0.9.3 cleanup: removed unreachable top-level
+    // `denied ? ... : ...` ternary — the success branch only runs for real successes.
     const parsed = parseResultContent(toolResult)
     const unwrapped = unwrapV2Content(parsed)
     const parsedError = parseToolError(unwrapped.displayValue)
     if (parsedError) {
       return <ErrorRender parsedError={parsedError} toolName={toolName} t={t} />
     }
-    const summary = denied
-      ? t("copilot.tool.denied_summary", { reason: toolResult.reason ?? "" })
-      : summarizeResult(toolName, unwrapped.displayValue, t)
+    const summary = summarizeResult(toolName, unwrapped.displayValue, t)
     return (
       <div
-        className={`rounded-md border-2 px-3 py-2 text-xs ${
-          denied ? "border-border bg-muted/40 text-muted-foreground" : "border-amber-500/60 bg-amber-50/40 dark:bg-amber-950/20"
-        }`}
+        className="rounded-md border-2 px-3 py-2 text-xs border-amber-500/60 bg-amber-50/40 dark:bg-amber-950/20"
         data-tool-variant="write"
       >
         <div className="flex items-center gap-2">
-          <span aria-hidden>{denied ? "🚫" : "✅"}</span>
+          <span aria-hidden>✅</span>
           <span className="font-medium">{displayName}</span>
           <Badge variant="outline" className="text-[10px] border-amber-500/60">
             {t("copilot.tool.write.badge")}
