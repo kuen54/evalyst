@@ -11,7 +11,7 @@ import { GlassRegular } from "@/components/copilot/shell"
 import { ArrowUpIcon, ArrowDownIcon, XIcon } from "lucide-react"
 import type { TFn } from "@/lib/i18n/provider"
 import type { DisplayColumn, DisplayFieldType } from "@/lib/schema/types"
-import type { FormState } from "./display-form-page"
+import type { FormState } from "./display-form-types"
 
 const FIELD_TYPES: DisplayFieldType[] = ["text", "image", "badge", "json"]
 

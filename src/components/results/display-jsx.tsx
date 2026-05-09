@@ -52,7 +52,6 @@ function compileUserJsx(source: string, compilerLoadingText: string, compileErro
     })
     const code = result.code
     if (!code) throw new Error("Babel returned empty code")
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
     const factory = new Function("React", `return ${code}`) as (R: typeof React) => (props: Record<string, unknown>) => React.ReactNode
     const fn = factory(React)
     return { fn }

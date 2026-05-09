@@ -9,18 +9,15 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { RequiredMark } from "@/components/ui/field-label"
-import { GlassRegular, GlassCard } from "@/components/copilot/shell"
+import { GlassRegular } from "@/components/copilot/shell"
 import { useT } from "@/lib/i18n/provider"
 import type { TFn } from "@/lib/i18n/provider"
 import type { DatasetDef, Display, TaskSchema } from "@/lib/schema/types"
 import { inferDisplayBuiltinId } from "@/lib/display-inference"
-import { generateMockResults } from "@/lib/mock-data"
-import { pickView } from "@/components/results/registry"
 import { FieldPicker } from "@/components/template-builder/field-picker"
 import { FiltersEditor } from "@/components/template-builder/filters-editor"
 import { KeyValueEditor } from "@/components/template-builder/key-value-editor"
@@ -46,20 +43,7 @@ import {
   buildSchemaFromForm,
   formFromSchema,
   type TemplateFormState,
-  type FormOutputField,
 } from "@/components/template-builder/form-state"
-
-const OUTPUT_TYPE_OPTIONS: FormOutputField["type"][] = [
-  "string",
-  "number",
-  "boolean",
-  "array",
-  "object",
-  "string|null",
-  "tuple:number[]",
-  "image_url",
-  "image_url_list",
-]
 
 export type TemplateFormMode = "create" | "edit"
 

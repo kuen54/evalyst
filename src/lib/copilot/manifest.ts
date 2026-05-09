@@ -26,11 +26,11 @@ import type {
   Rubric,
 } from '@/lib/schema/types'
 
-export type ManifestScope = 'self' | 'parent'
+type ManifestScope = 'self' | 'parent'
 
 // ---------- experiment ----------
 
-export interface ExperimentManifest {
+interface ExperimentManifest {
   id: string
   name: string
   status: ExperimentStatus
@@ -56,7 +56,7 @@ export function manifestExperiment(exp: ExperimentConfig): ExperimentManifest {
 
 // ---------- task_result ----------
 
-export interface TaskResultManifest {
+interface TaskResultManifest {
   task_id: string
   status: ResultStatus
   output?: Record<string, unknown>
@@ -68,7 +68,7 @@ export interface TaskResultManifest {
   cost_currency?: string
 }
 
-export interface TaskResultManifestParent extends TaskResultManifest {
+interface TaskResultManifestParent extends TaskResultManifest {
   experiment: {
     id: string
     name: string
@@ -109,7 +109,7 @@ export function manifestTaskResult(
 
 // ---------- task_field ----------
 
-export interface TaskFieldTaskMeta {
+interface TaskFieldTaskMeta {
   task_id: string
   status: ResultStatus
   latency_ms?: number
@@ -119,12 +119,12 @@ export interface TaskFieldTaskMeta {
   cost_currency?: string
 }
 
-export interface TaskFieldManifest {
+interface TaskFieldManifest {
   targeted_field: string
   targeted_value: unknown
 }
 
-export interface TaskFieldManifestParent extends TaskFieldManifest {
+interface TaskFieldManifestParent extends TaskFieldManifest {
   task_meta: TaskFieldTaskMeta
 }
 
@@ -143,7 +143,7 @@ export function manifestTaskField(
 
 // ---------- dataset ----------
 
-export interface DatasetManifest {
+interface DatasetManifest {
   id: string
   name: string
   fields: FieldDef[]
@@ -163,7 +163,7 @@ export function manifestDataset(def: DatasetDef, total_records: number): Dataset
 
 const PROMPT_EXCERPT_LIMIT = 300
 
-export interface TemplateManifest {
+interface TemplateManifest {
   id: string
   label: string
   description?: string
@@ -188,7 +188,7 @@ export function manifestTemplate(schema: TaskSchema): TemplateManifest {
 
 // ---------- display ----------
 
-export interface DisplayManifest {
+interface DisplayManifest {
   id: string
   name: string
   mode: Display['mode']
@@ -213,7 +213,7 @@ export function manifestDisplay(d: Display): DisplayManifest {
 
 // ---------- rubric ----------
 
-export interface RubricManifest {
+interface RubricManifest {
   id: string
   name: string
   criteria_summary: Array<{

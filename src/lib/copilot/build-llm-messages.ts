@@ -12,7 +12,7 @@
 // Anthropic user/assistant 严格交替约束由 serializeMessagesForProvider 在
 // provider 序列化阶段统一处理，此处不交织。
 
-import type { CopilotMessage, CopilotContextRef, ImageRef, ToolResultContent } from './types'
+import type { CopilotMessage, CopilotContextRef, ImageRef } from './types'
 import type { LlmMessage } from '../llm-client'
 import { normalizeToolResult, appendCompactBoundary } from './session-store'
 import { buildSystemHeader } from './system-header'
@@ -77,12 +77,6 @@ async function materializeImagePlan(
   branch: CopilotMessage[],
   modelVisionCapable: boolean,
 ): Promise<ImagePlan> {
-  const empty: ImagePlan = {
-    user_blocks: [],
-    tool_blocks_by_call_id: new Map(),
-    system_notes: [],
-    hadImageRefs: false,
-  }
   // 即使 model 不支持 vision 也要 collectImageRefs 一次（强行收集）来知道 hadImageRefs
   // —— 这是 Task 11 strip-note 提示语依据。
   const probed = collectImageRefs({

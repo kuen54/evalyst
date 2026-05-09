@@ -79,7 +79,7 @@ describe('messages append + read', () => {
   it('append writes jsonl and reads back', () => {
     const s = createSession({})
     const m1 = appendMessage({ session_id: s.id, role: 'user', content: 'q1' })
-    const m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'a1', parent_id: m1.id })
+    const _m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'a1', parent_id: m1.id })
     const all = readAllMessages(s.id)
     expect(all).toHaveLength(2)
     expect(all[0].id).toBe(m1.id)
@@ -119,7 +119,7 @@ describe('getActiveBranch (fork semantics)', () => {
     const m2a = appendMessage({ session_id: s.id, role: 'assistant', content: 'old answer', parent_id: m1.id })
     // 用户编辑 m1 → 新 user 消息 m1b（同 parent_id）→ 再回复 m2b
     const m1b = appendMessage({ session_id: s.id, role: 'user', content: 'q1 edited', parent_id: undefined })
-    const m2b = appendMessage({ session_id: s.id, role: 'assistant', content: 'new answer', parent_id: m1b.id })
+    const _m2b = appendMessage({ session_id: s.id, role: 'assistant', content: 'new answer', parent_id: m1b.id })
     // head 此时指向 m2b
     const chain = getActiveBranch(s.id)
     expect(chain.map(m => m.content)).toEqual(['q1 edited', 'new answer'])
@@ -151,10 +151,10 @@ describe('siblingsOf', () => {
     // user 的兄弟只计 user；assistant 不算入
     const s = createSession({})
     const m1 = appendMessage({ session_id: s.id, role: 'user', content: 'q1' })
-    const m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'a1', parent_id: m1.id })
+    const _m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'a1', parent_id: m1.id })
     // 两个 user 编辑分支
-    const m1b = appendMessage({ session_id: s.id, role: 'user', content: 'q1 v2', parent_id: undefined })
-    const m1c = appendMessage({ session_id: s.id, role: 'user', content: 'q1 v3', parent_id: undefined })
+    const _m1b = appendMessage({ session_id: s.id, role: 'user', content: 'q1 v2', parent_id: undefined })
+    const _m1c = appendMessage({ session_id: s.id, role: 'user', content: 'q1 v3', parent_id: undefined })
     const r = siblingsOf(s.id, m1.id)
     expect(r.total).toBe(3)
   })
@@ -199,7 +199,7 @@ describe('pruneMessageAndDescendants', () => {
   it('pruning root user message leaves empty session', () => {
     const s = createSession({})
     const m1 = appendMessage({ session_id: s.id, role: 'user', content: 'q1' })
-    const m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'a1', parent_id: m1.id })
+    const _m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'a1', parent_id: m1.id })
     pruneMessageAndDescendants(s.id, m1.id)
     expect(readAllMessages(s.id)).toEqual([])
     expect(getSession(s.id)?.head_message_id).toBeUndefined()

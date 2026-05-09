@@ -1,6 +1,5 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
-import { CSSProperties } from "react"
 
 import { cn } from "@/lib/utils"
 import { useGlassStyle } from "@/components/copilot/shell"
