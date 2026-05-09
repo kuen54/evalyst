@@ -38,7 +38,7 @@ v0.10.0 ship 后实测发现的核心 gap：圈选含图 result 跟 Copilot 对�
 |---|---|---|
 | 1 | **Vision 模型识别走手动 `vision_capable?: boolean` 标记**，默认 `false` | 匹配现有 `copilot_enabled` 模式；显式 > 启发式；网关前缀模型名（`sankuai/gemini-3.1-flash-image-preview`）regex 易漏 |
 | 2 | **图像永远走 base64 内联**（`fs.readFile` → `data:image/png;base64,...`） | 唯一同时在 dev 和 prod 都能 work 的方式；vision LLM 拉不到 localhost；零网络往返；payload 增 ~33% 是可接受成本 |
-| 3 | **每轮 LLM 消息附图上限 N=5**（圈选 + 工具返回合计） | 包住典型 compare 用例（≤5 张图）；不会撑爆 context window 或撞 10MB 请求上限；超出走 LLM 多轮交互或后续 user 提交 |
+| 3 | **每轮 LLM 消息附图上限 N=5**（圈选 + 工具返回合计） | 包住 compare 用例（≤5 张图）；保守 bound 防止链式调用 × 高分辨率 PNG 撞 ~10MB request body 上限；超出走 LLM 多轮交互或后续 user 提交 |
 | 4 | **Vision 门控走硬筛 model picker**（image contexts 存在 → 非 vision 模型不可选） | 防静默失败；用户显式认知"这是个 vision 任务"；和 `copilot_enabled` 筛逻辑同形 |
 
 副推论（base64 → 必须修 Anthropic 序列化器）：
@@ -589,7 +589,7 @@ const imageContextCount = useMemo(
 | `src/lib/copilot/__tests__/image-attach.read-bytes.test.ts` | `readImageBytes` data URL 直通；磁盘文件成功；缺失文件返 error；非法路径阻断 |
 | `src/lib/copilot/__tests__/build-llm-messages.image.test.ts` | user msg multimodal 重写（含图 / 不含图）；tool_result inline kind 加 attachments；tool_result ref kind 不加；vision 兜底 strip + system note；dropped_count system note |
 | `src/lib/copilot/__tests__/llm-stream.anthropic-data-url.test.ts` | data: URL → source.type=base64 + media_type 解析；http URL 保持 source.type=url；混合 content array 正确遍历 |
-| `src/lib/copilot/tools/__tests__/read-experiment-results.image.test.ts` | output 含 image_url 字段时 _attachments 填充；超 8 张截断；非生图实验不挂 _attachments |
+| `src/lib/copilot/tools/__tests__/read-experiment-results.image.test.ts` | output 含 image_url 字段时 _attachments 填充；超 5 张截断；非生图实验不挂 _attachments |
 | `src/lib/copilot/tools/__tests__/read-context.image.test.ts` | task_result + task_field 类型 ctx 都能挂 _attachments；非含图 result 不挂 |
 
 预估 ~150 LOC 新测试，跑时间 <300ms。**不测 UI**（ChatView / ModelPicker / ChipRail），照"只测纯函数" 约定。
@@ -604,7 +604,7 @@ const imageContextCount = useMemo(
 - [ ] 跑一发 `image_gen_v1` 实验，确认 v0.10.0 链路仍 ok
 - [ ] 实验详情页：圈选 1 张图 result → 打开 Copilot → 模型选择器只显示 vision_capable 模型 → 提问"为什么这张图主体偏左？" → LLM 回答应基于图像内容（非"我看不到图"套话）
 - [ ] 圈 2 张图 → "对比 #1 和 #2 哪张更清晰" → LLM 应对应 ctx_1/ctx_2 给出图像级别评论
-- [ ] 圈实验整体 → "这一批图整体偏暗吗？" → LLM 调 `read_experiment_results` → 应收到 _attachments 含 8 张图（cap）→ 给出整体评估
+- [ ] 圈实验整体 → "这一批图整体偏暗吗？" → LLM 调 `read_experiment_results` → 应收到 _attachments 含 5 张图（cap）→ 给出整体评估
 - [ ] 圈 6 张图 result → 应见 chip 警告"1 image not attached (cap 5)"
 - [ ] 选非 vision 模型 + 试圈图 → 模型选择器应剔除该模型；强行 contexts 注入（dev tools 模拟）→ build-llm-messages 兜底 strip + system note
 - [ ] 删图后再问 → "Image unavailable: ... — ENOENT" 占位文本可见
