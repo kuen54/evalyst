@@ -31,6 +31,18 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 - **`saveImagesForTask` 在每次 URL 进 fetch 前调用守门**——`UnsafeImageUrlError` 通过 `batch-runner.ts:301` 既有 try/catch 自然落到 `task.error`，UI 看到可读错误而不是默默写入或挂死。data: URLs 走 base64 解码路径不变
 - 测试：`image-store-ssrf.test.ts` 32 case（19 pure helper + 2 集成）。集成测验证拒绝时盘上没残留文件（短路在 fetch 之前）。这是 spec §"#6 验收标准"承诺的"8 边界单测"的超集
 
+### Tests (PR test/batch-runner-unit — Phase B of audit-cleanup-2026-05-09)
+
+审视报告 §"#7 batch-runner.run 单测"：`BatchRunner.run` 是 evalyst 的核心状态机（resume / taskIds 子集 / stop / cost / concurrency），CCN 21、行 200+，此前完全没有覆盖。Phase E 的 `#9` 文件锁重构会动 `globalThis.__activeRunners` + 启动路径，必须先有兜底网。
+
+- 新增 `src/lib/__tests__/batch-runner.test.ts`（6 case，~280 行）：resume + 部分 failed / taskIds 子集 / 中途 stop / progress 三路径累加（input_tokens · output_tokens · total_cost_by_currency.USD）/ concurrency 上限（peak == 2 over 6 tasks）/ cost per-currency（USD + CNY 分桶）。全 mock，跑 ~8ms
+- **Approved source exception**：`src/lib/batch-runner.ts:44` `class BatchRunner` → `export class BatchRunner`（type-only 可见性变更，无运行时影响）。绕开 `startBatch` 单例直接 `new BatchRunner(...).run(...)` 测状态机，避免与 `globalThis.__activeRunners` race；plan 已批
+- Mock 策略：`callLlm` 接口形态保真返完整 `LlmResponse`；`@/lib/store` 用内存 Map last-wins dedupe，对齐 `store.ts:140-142` 真实 `readResults` 语义（否则 case 1 resume 会双拿 t9 fail+success）；`generateTasks` / `buildMessages` 实调；`@vitest/coverage-v8` 加进 devDeps
+- 覆盖率：`batch-runner.ts` 81.1% lines / 56.57% branches / 79.28% statements（target ≥70% line，达标）。未覆盖 294-303 image-save catch + 326-327 outer error catch（image 路径已被 `image-store-ssrf.test.ts` 覆盖；outer catch 留 #9 文件锁 PR 一并补）
+
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase B · #7
+- Plan: docs/superpowers/plans/2026-05-09-audit-batch-runner-unit-tests.md
+
 - Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase A · #6
 - 不写独立 plan（< 1d 项，spec 直接 scope）
 

@@ -76,6 +76,7 @@ Phase F — 文档收尾                  2d     #5
 
 - mock `callLlm` + `appendResult` + 文件 IO，覆盖 6 case：resume + 部分 failed / taskIds 子集 / 中途 stop / progress 三路径累加 / concurrency 上限 / cost per-currency 累加
 - 新增 `src/lib/__tests__/batch-runner.test.ts` ~250 行
+- **Approved source exception**：`class BatchRunner` → `export class BatchRunner`（`src/lib/batch-runner.ts:44`）。type-only 可见性变更，无运行时影响；用于绕开 `startBatch` 单例直接 `new BatchRunner(...).run(...)` 测状态机。PR description 单独标注
 - 验收：CCN 21 函数覆盖率 ≥ 70% / 测跑 < 1s（全 mock）
 
 ---
