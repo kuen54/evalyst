@@ -10,6 +10,15 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-05-09 · 评测平台进入多模态：生图评测 v1 + Copilot × Image Vision (PR #52–54)
+
+evalyst 此前是 text-in / text-out 的 LLM 评测平台。v0.10.0 把多模态纳入一等公民，分两个互补子系统打通端到端：
+
+- **生图评测 v1（PR #52）** — 让平台能跑 text-in / image-out 模型。LLM client 提取 `message.images[]`，batch-runner 落盘到 `data/results/{exp}/images/`，`image_url` schema 类型 + `<ImageLightbox>` UI + HEIM 5 题 seed rubric + 三件套 seed（数据集 / schema / rubric）。参考 gateway：sankuai `aigc.sankuai.com/v1/openai/native` + `gemini-3.1-flash-image-preview`。
+- **Copilot × Image Vision（PR #53 + 修复 PR #54）** — 让 Copilot 能"看见"那批生成的图。圈选含图 task_result / task_field → 至多 5 张图（按 URL dedupe）以 base64 内联进 user message multimodal content；3 层 vision 防御（model picker + chat route 入口校验 + build-llm-messages 兜底 strip）；Anthropic 序列化器修复 data URL → `source.type='base64'`。
+
+设计目标：manual 评测全链路（auto-eval VLM-as-judge / pairwise ranking / 专用 reward model 留 v2）。OSS 调研借鉴 Stanford HEIM `ImageCritiqueMetric` 5 题（alignment / subject_clarity / aesthetic / originality / safety）。图像存盘走 HEIM / T2I-CompBench filesystem-path 风格，JSONL 永远只存 `/api/results/.../images/...` 绝对 URL。
+
 ### 体验
 
 - **生图（Image Generation）评测 v1 完备支持** — text-in / image-out 评测端到端。
