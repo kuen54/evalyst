@@ -27,11 +27,20 @@ describe("tool registry", () => {
     }
   })
 
-  it("contains the 4 migrated tools", () => {
-    const names = TOOLS.map((t) => t.name)
-    expect(names).toContain("list_experiments")
-    expect(names).toContain("read_experiment_results")
-    expect(names).toContain("restart_experiment")
-    expect(names).toContain("read_page")
+  it("registers exactly the 9 expected tools", () => {
+    const names = TOOLS.map((t) => t.name).sort()
+    expect(names).toEqual(
+      [
+        "list_experiments",
+        "read_experiment_results",
+        "restart_experiment",
+        "read_page",
+        "read_tool_result",
+        "read_context",
+        "read_resource",
+        "read_dataset_records",
+        "edit_template",
+      ].sort(),
+    )
   })
 })

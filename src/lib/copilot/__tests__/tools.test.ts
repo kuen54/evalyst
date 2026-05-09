@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { TOOLS, toolByName } from "../tools/registry"
+import { toolByName } from "../tools/registry"
 
 const listTool = toolByName.get("list_experiments")!
 const readTool = toolByName.get("read_experiment_results")!
@@ -63,11 +63,4 @@ describe("tool: restart_experiment", () => {
   })
 })
 
-describe("TOOLS registry", () => {
-  it("includes the 4 migrated tools", () => {
-    const names = TOOLS.map((t) => t.name)
-    expect(names).toEqual(
-      expect.arrayContaining(["list_experiments", "read_experiment_results", "restart_experiment", "read_page"]),
-    )
-  })
-})
+// Registry-level shape assertions live in tools/__tests__/registry.test.ts.
