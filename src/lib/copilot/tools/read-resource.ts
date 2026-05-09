@@ -1,10 +1,12 @@
-import { getExperiment } from "@/lib/store"
+import { getExperiment, readResults } from "@/lib/store"
 import { getSchema } from "@/lib/schema"
 import { getDataset } from "@/lib/datasets"
 import { getDisplay } from "@/lib/displays"
 import { getRubric } from "@/lib/rubric-store"
+import type { ImageRef } from "../types"
 import type { ToolDescriptor } from "./types"
 import { ok, err } from "./tool-result"
+import { extractImageRefsFromOutput, MAX_IMAGES_PER_TURN } from "../image-attach"
 
 type ResourceType = "experiment" | "template" | "dataset" | "display" | "rubric"
 
@@ -82,6 +84,48 @@ export const readResourceTool: ToolDescriptor<Input, unknown> = {
         hint: "Verify the resource exists",
       })
     }
-    return ok(fields && fields.length > 0 ? pickFields(res, fields) : res)
+    const value = fields && fields.length > 0 ? pickFields(res, fields) : res
+
+    // Image vision §4.5: only experiment type may attach images (sample task_result
+    // outputs). Other types (template / dataset / display / rubric) are metadata,
+    // never images. Resist over-engineering — simple branch by type.
+    if (type === "experiment") {
+      const attachments = collectExperimentAttachments(id)
+      if (attachments && attachments.length > 0 && value && typeof value === "object") {
+        return ok({ ...(value as Record<string, unknown>), _attachments: attachments })
+      }
+    }
+    return ok(value)
   },
+}
+
+/**
+ * Walk the experiment's results.jsonl, attach images from successful rows up to
+ * MAX_IMAGES_PER_TURN. Mirrors read_experiment_results' helper but called from
+ * read_resource when type='experiment'.
+ */
+function collectExperimentAttachments(expId: string): ImageRef[] | undefined {
+  const exp = getExperiment(expId)
+  if (!exp) return undefined
+  if (!exp.schema_id) return undefined
+  const schema = getSchema(exp.schema_id)
+  if (!schema) return undefined
+  const all = readResults(expId)
+  const refs: ImageRef[] = []
+  for (const r of all) {
+    if (r.status !== "success") continue
+    if (refs.length >= MAX_IMAGES_PER_TURN) break
+    const outRefs = extractImageRefsFromOutput(
+      (r.output ?? {}) as Record<string, unknown>,
+      schema,
+      expId,
+      undefined,
+      r.task_id,
+    )
+    for (const ref of outRefs) {
+      if (refs.length >= MAX_IMAGES_PER_TURN) break
+      refs.push(ref)
+    }
+  }
+  return refs.length > 0 ? refs : undefined
 }
