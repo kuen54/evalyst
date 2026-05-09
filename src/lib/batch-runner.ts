@@ -41,7 +41,7 @@ export function stopBatch(experimentId: string): boolean {
   return true
 }
 
-class BatchRunner {
+export class BatchRunner {
   private config: ExperimentConfig
   private schema: ReturnType<typeof getSchema>
   private tasks: Task[] = []
