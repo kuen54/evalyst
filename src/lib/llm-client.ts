@@ -50,6 +50,31 @@ export interface LlmResponse {
   latency_ms: number
 }
 
+/**
+ * 把 image_url 的 url 字符串转成 Anthropic content block：
+ * - data:image/{png|jpeg|webp};base64,... → { type:'image', source:{ type:'base64', media_type, data } }
+ * - HTTP(S) URL（或任何不匹配 data:...;base64,... 的字符串）→ { type:'image', source:{ type:'url', url } }
+ * 不识别的 media_type（如 image/gif）按 image/png 兜底（Anthropic 当前接受 png/jpeg/webp/gif）；
+ * 真正不支持时由 provider 返回 400，本函数不做白名单。
+ */
+export function imageBlockForAnthropic(url: string): Record<string, unknown> {
+  const m = /^data:([^;]+);base64,(.+)$/.exec(url)
+  if (m) {
+    return {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: m[1],
+        data: m[2],
+      },
+    }
+  }
+  return {
+    type: 'image',
+    source: { type: 'url', url },
+  }
+}
+
 /** 已构造好的 HTTP 请求（URL / headers / body 对 OpenAI / Anthropic 已就地适配） */
 export interface ApiRequestSpec {
   url: string
@@ -142,7 +167,9 @@ function buildRequestBody(p: CallLlmParams): Record<string, unknown> {
   // 非流式 callLlm 只处理 text-style 消息；tool_use/tool_result 走流式路径（Copilot）
   const textMessages = p.messages.filter(isTextMessage)
   if (p.config.api_format === 'anthropic') {
-    // Anthropic: system 单独字段；messages 只能 user/assistant；image 用 source.url 格式
+    // Anthropic: system 单独字段；messages 只能 user/assistant；image block 通过
+    // imageBlockForAnthropic 把 data:URL → source.type='base64'，HTTP(S) → source.type='url'
+    // （Anthropic source.type='url' 不接受 data: URL，必须落到 base64 分支）
     const systemMsg = textMessages.find(m => m.role === 'system')
     if (systemMsg) {
       base.system = typeof systemMsg.content === 'string'
@@ -155,7 +182,7 @@ function buildRequestBody(p: CallLlmParams): Record<string, unknown> {
         ? m.content
         : m.content.map(b => {
             if (b.type === 'text') return { type: 'text', text: b.text }
-            return { type: 'image', source: { type: 'url', url: b.image_url.url } }
+            return imageBlockForAnthropic(b.image_url.url)
           }),
     }))
   } else {
