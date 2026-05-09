@@ -215,3 +215,78 @@ describe("buildLlmMessages · tool_result regression (Option A: tool images defe
     expect(vi.mocked(readImageBytes)).not.toHaveBeenCalled()
   })
 })
+
+describe("buildLlmMessages · vision strip + dropped_count notes", () => {
+  it("vision-capable=true + 0 image refs → no extra system notes (clean baseline)", async () => {
+    vi.mocked(collectImageRefs).mockReturnValue({
+      user_image_refs: [],
+      tool_image_refs: new Map(),
+      dropped_count: 0,
+    })
+    const branch = [userMsg("just a question")]
+    const msgs = await buildLlmMessages(branch, null, { modelVisionCapable: true })
+    const sysMsgs = msgs.filter((m) => m.role === "system") as Array<TextStyleMessage>
+    // Only COPILOT_SYSTEM_PROMPT (no SystemHeader because no contexts/pageContext, no image notes)
+    expect(sysMsgs).toHaveLength(1)
+  })
+
+  it("vision-capable=true + cap exceeded (dropped_count=2) → 1 dropped_count note system message", async () => {
+    vi.mocked(collectImageRefs).mockReturnValue({
+      user_image_refs: [
+        refOf("/api/results/exp_1/images/a.png", 1, "task_result#t1 · field=image_url"),
+        refOf("/api/results/exp_1/images/b.png", 2, "task_result#t2 · field=image_url"),
+        refOf("/api/results/exp_1/images/c.png", 3, "task_result#t3 · field=image_url"),
+        refOf("/api/results/exp_1/images/d.png", 4, "task_result#t4 · field=image_url"),
+        refOf("/api/results/exp_1/images/e.png", 5, "task_result#t5 · field=image_url"),
+      ],
+      tool_image_refs: new Map(),
+      dropped_count: 2,
+    })
+    const branch = [userMsg("compare these")]
+    const msgs = await buildLlmMessages(branch, null, { modelVisionCapable: true })
+    const sysMsgs = msgs.filter((m) => m.role === "system") as Array<TextStyleMessage>
+    const noteMsg = sysMsgs.find((s) => typeof s.content === "string" && s.content.includes("not attached"))
+    expect(noteMsg).toBeTruthy()
+    expect(noteMsg!.content as string).toContain("2 image(s) not attached")
+    expect(noteMsg!.content as string).toContain("per-turn cap is 5")
+    // User content should still be multimodal with 5 attached image_url blocks
+    const u = msgs.find((m) => m.role === "user") as TextStyleMessage
+    const arr = u.content as Array<Record<string, unknown>>
+    expect(arr.filter((b) => b.type === "image_url")).toHaveLength(5)
+  })
+
+  it("vision-capable=false + 3 refs → 1 strip note + content stays plain string", async () => {
+    vi.mocked(collectImageRefs).mockReturnValue({
+      user_image_refs: [
+        refOf("/api/results/exp_1/images/a.png", 1, "task_result#t1 · field=image_url"),
+        refOf("/api/results/exp_1/images/b.png", 2, "task_result#t2 · field=image_url"),
+        refOf("/api/results/exp_1/images/c.png", 3, "task_result#t3 · field=image_url"),
+      ],
+      tool_image_refs: new Map(),
+      dropped_count: 0,
+    })
+    const branch = [userMsg("compare these")]
+    const msgs = await buildLlmMessages(branch, null, { modelVisionCapable: false })
+    const sysMsgs = msgs.filter((m) => m.role === "system") as Array<TextStyleMessage>
+    const noteMsg = sysMsgs.find((s) => typeof s.content === "string" && s.content.includes("Image attachments dropped"))
+    expect(noteMsg).toBeTruthy()
+    expect(noteMsg!.content as string).toContain("model not vision_capable")
+    // User content stays plain string
+    const u = msgs.find((m) => m.role === "user") as TextStyleMessage
+    expect(typeof u.content).toBe("string")
+    expect(u.content).toBe("compare these")
+  })
+
+  it("vision-capable=false + 0 refs → no extra system notes (clean path for non-image use)", async () => {
+    vi.mocked(collectImageRefs).mockReturnValue({
+      user_image_refs: [],
+      tool_image_refs: new Map(),
+      dropped_count: 0,
+    })
+    const branch = [userMsg("a non-image question")]
+    const msgs = await buildLlmMessages(branch, null, { modelVisionCapable: false })
+    const sysMsgs = msgs.filter((m) => m.role === "system") as Array<TextStyleMessage>
+    // Only COPILOT_SYSTEM_PROMPT
+    expect(sysMsgs).toHaveLength(1)
+  })
+})

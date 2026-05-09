@@ -95,7 +95,16 @@ async function materializeImagePlan(
     Array.from(probed.tool_image_refs.values()).some((arr) => arr.length > 0)
 
   if (!modelVisionCapable) {
-    return { ...empty, hadImageRefs }
+    const system_notes: string[] = []
+    if (hadImageRefs) {
+      system_notes.push('[Image attachments dropped: model not vision_capable]')
+    }
+    return {
+      user_blocks: [],
+      tool_blocks_by_call_id: new Map(),
+      system_notes,
+      hadImageRefs,
+    }
   }
 
   const user_blocks = await refsToBlocks(probed.user_image_refs)
@@ -150,6 +159,16 @@ export async function buildLlmMessages(
     out.push({
       role: 'system',
       content: 'Session context (JSON):\n' + JSON.stringify(header, null, 2),
+    })
+  }
+
+  // image-vision §4.4: 把 imageMap.system_notes（dropped_count 提示 / vision-strip 提示）
+  // 合并成一条 system 消息塞在 SystemHeader 之后。两类提示理论上互斥（strip 路径短路了 dropped_count
+  // 计算），但 join('\n') 形态对 future-proofing 友好。
+  if (imageMap.system_notes.length > 0) {
+    out.push({
+      role: 'system',
+      content: imageMap.system_notes.join('\n'),
     })
   }
 
