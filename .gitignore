@@ -49,6 +49,11 @@ yarn-error.log*
 # local agent / subagent scratch
 /.agents/
 
+# agent worktrees created by EnterWorktree tool — they hold full
+# checkouts of the repo plus their own .next/ build artifacts;
+# never commit any of it.
+/.claude/worktrees/
+
 # manual API harness scripts (sankuai gateway etc.)
 scripts/test-*.sh
 

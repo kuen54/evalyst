@@ -11,7 +11,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# Build, then strip dev deps so the runner stage carries only what
+# `next start` actually needs at runtime — smaller image surface.
+RUN npm run build && npm prune --omit=dev
 
 # ---- runner ----
 FROM node:20-alpine AS runner
@@ -30,8 +32,12 @@ COPY --from=builder /app/src/lib/seeds ./src/lib/seeds
 COPY --from=builder /app/.claude/skills ./.claude/skills
 
 # 运行时数据目录（实验 / 结果 / 数据集 / llm-config），通过 volume 挂载持久化
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown -R node:node /app
 VOLUME /app/data
+
+# Drop privileges — node:20-alpine ships with a built-in `node` user (uid 1000).
+# Avoids running the long-lived next start process as root.
+USER node
 
 EXPOSE 3000
 CMD ["npx", "next", "start"]

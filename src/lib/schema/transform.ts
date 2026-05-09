@@ -13,7 +13,7 @@ export function applyTransforms(value: unknown, steps: TransformStep[] | undefin
   return toStr(v)
 }
 
-function applyOne(v: unknown, step: TransformStep, ctx: Ctx): unknown {
+function applyOne(v: unknown, step: TransformStep, _ctx: Ctx): unknown {
   // Runtime guard for the removed `js` op (PR fix/auth-gate-rce, v0.11):
   // type union no longer includes it, but data/schemas/*.json may still
   // carry it from older configs. Refuse with a friendly error rather than

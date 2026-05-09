@@ -1,8 +1,4 @@
 export type ExperimentStatus = 'draft' | 'running' | 'paused' | 'completed' | 'failed'
-export type ResultStatus = 'success' | 'error' | 'parse_error'
-
-// Re-export schema types for convenience
-export type { TaskSchema, FilterValues, GenericResultRecord, DatasetDef, FieldDef, Rubric, Criterion, CriterionType, Annotation } from './schema/types'
 
 export interface ApiConfig {
   api_format?: 'openai' | 'anthropic'
@@ -81,7 +77,3 @@ export interface CreateExperimentRequest {
   notes?: string
 }
 
-export interface RunRequest {
-  resume?: boolean
-  concurrency?: number
-}

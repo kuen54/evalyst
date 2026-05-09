@@ -12,29 +12,14 @@ import { GlassRegular } from "@/components/copilot/shell"
 import { GlassSegmentedItem } from "@/components/copilot/glass-segmented"
 import { useT } from "@/lib/i18n/provider"
 import type { TFn } from "@/lib/i18n/provider"
-import type { DisplayColumn, DisplayMode, Display, TaskSchema, GenericResultRecord } from "@/lib/schema/types"
+import type { Display, TaskSchema, GenericResultRecord } from "@/lib/schema/types"
 import { pickView } from "@/components/results/registry"
 import { TableModeForm, GroupedGridModeForm, JsxModeForm } from "./display-form-modes"
+import type { FormState } from "./display-form-types"
 
-interface GroupConfig {
-  field: string
-  label: string
-}
-
-export interface FormState {
-  id: string
-  name: string
-  description: string
-  mode: Exclude<DisplayMode, "builtin">
-  // table
-  table_columns: DisplayColumn[]
-  // grouped_grid
-  primary_group: GroupConfig
-  secondary_group: GroupConfig
-  cell_columns: DisplayColumn[]
-  // jsx
-  jsx_source: string
-}
+// Re-export so existing consumers (and `display-form-modes.tsx` via its own
+// dedicated import from `display-form-types`) keep working without churn.
+export type { FormState } from "./display-form-types"
 
 function emptyState(): FormState {
   return {

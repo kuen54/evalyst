@@ -12,7 +12,7 @@ import type { GenericResultRecord } from "@/lib/schema/types"
 import type { ResultViewProps, CellViewProps } from "./types"
 import { dimensionsOf, readDimensionValue, labelFor } from "./dimension-helpers"
 import { readField } from "./view-helpers"
-import { findBubbleArrayField, findCoordinateFieldName, findBubbleTextField, getOutputFields } from "./output-structure"
+import { findBubbleArrayField, findCoordinateFieldName, findBubbleTextField } from "./output-structure"
 
 interface BubbleItem {
   [key: string]: unknown

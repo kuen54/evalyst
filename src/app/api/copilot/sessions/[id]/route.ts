@@ -4,7 +4,6 @@ import {
   updateSession,
   deleteSession,
   getActiveBranch,
-  readAllMessages,
 } from '@/lib/copilot/session-store'
 import { deleteSnapshot } from '@/lib/copilot/snapshot-cache'
 

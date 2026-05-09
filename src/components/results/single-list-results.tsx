@@ -3,7 +3,6 @@
 import { useMemo } from "react"
 import { GlassCardThin } from "@/components/copilot/shell"
 import { Badge } from "@/components/ui/badge"
-import type { GenericResultRecord } from "@/lib/schema/types"
 import type { ResultViewProps, CellViewProps } from "./types"
 import { dimensionsOf, readDimensionValue, labelFor } from "./dimension-helpers"
 import { readField, renderField } from "./view-helpers"

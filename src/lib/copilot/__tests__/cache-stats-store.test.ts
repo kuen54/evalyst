@@ -239,7 +239,6 @@ describe('computeToolDigest (v2.5 P1b §3.1.2)', () => {
 import {
   detectCacheBreakWithReasons,
   collectRecentBreakReasons,
-  type BreakInfo,
 } from '../cache-break-detect'
 
 function statWithDigest(overrides: Partial<CacheUsageStat> = {}): CacheUsageStat {
