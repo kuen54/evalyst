@@ -143,9 +143,18 @@ export function computeSystemPromptDigest(systemPrompt: string): string {
   return crypto.createHash('sha256').update(systemPrompt).digest('hex').slice(0, 16)
 }
 
+/**
+ * Canonicalize a tool name list to a stable comma-joined string.
+ * Both digest + preview use the same lexicographic sort to keep them aligned.
+ * Internal helper — not exported (callers should go through computeToolDigest /
+ * computeToolPreview).
+ */
+function sortedToolList(toolNames: string[]): string {
+  return [...toolNames].sort().join(',')
+}
+
 export function computeToolDigest(toolNames: string[]): string {
-  const sorted = [...toolNames].sort().join(',')
-  return crypto.createHash('sha256').update(sorted).digest('hex').slice(0, 16)
+  return crypto.createHash('sha256').update(sortedToolList(toolNames)).digest('hex').slice(0, 16)
 }
 
 export type BreakReason = 'system_prompt' | 'tools' | 'unknown'
@@ -220,7 +229,7 @@ export function computeSystemPromptPreview(systemPrompt: string): string {
  * 极端长名 + 多工具时也走 200 char 截断（slice 末尾），保持上限。
  */
 export function computeToolPreview(toolNames: string[]): string {
-  const joined = [...toolNames].sort().join(',')
+  const joined = sortedToolList(toolNames)
   if (joined.length <= PREVIEW_LIMIT) return joined
   return joined.slice(-PREVIEW_LIMIT)
 }
