@@ -30,7 +30,10 @@ export function TripleGridResults({ results, schema }: ResultViewProps) {
     return <div className="text-xs text-muted-foreground py-4">{t("results.need_3_dims")}</div>
   }
 
-  const [primaryDim, rowDim, colDim] = dims
+  // dims.length >= 3 by guard above; positional access is safe.
+  const primaryDim = dims[0]!
+  const rowDim = dims[1]!
+  const colDim = dims[2]!
   const groups = useMemo(() => groupByDimension(results, primaryDim), [results, primaryDim])
   const rowValues = useMemo(() => collectDimensionValues(results, rowDim), [results, rowDim])
   const colValues = useMemo(() => collectDimensionValues(results, colDim), [results, colDim])
