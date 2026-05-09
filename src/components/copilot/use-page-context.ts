@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useCopilotStore } from "@/components/copilot/store"
-import type { PageContext } from "./types"
+import type { PageContext } from "@/lib/copilot/types"
 
 /**
  * 每个页面在顶部调用，把当前页面摘要注册到 copilot store。

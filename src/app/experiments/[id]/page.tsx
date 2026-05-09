@@ -17,7 +17,7 @@ import { useT } from "@/lib/i18n/provider"
 import { formatCostMap, formatTokens } from "@/lib/format"
 import { aggregateResults } from "@/lib/results-aggregate"
 import { GlassRegular, GlassCard, GlassSuccess, GlassDanger } from "@/components/copilot/shell"
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/components/copilot/use-page-context"
 
 export default function ExperimentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
