@@ -89,7 +89,7 @@ describe('pruneCacheStats (v2.5 P1b §3.2)', () => {
 
   it('malformed JSON 行 → 一并删除', () => {
     appendCacheStat(stat({ session_id: 'good' }))
-    fs.appendFileSync(path.join(tmp, 'data/copilot/cache-stats.jsonl'), '{not valid}\n')
+    fs.appendFileSync(path.join(tmp, 'data', 'copilot', 'cache-stats.jsonl'), '{not valid}\n')
     appendCacheStat(stat({ session_id: 'good2' }))
     const r = pruneCacheStats()
     expect(r.before_lines).toBe(3)

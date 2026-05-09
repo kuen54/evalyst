@@ -1,14 +1,24 @@
-import { describe, it, expect, afterAll } from "vitest"
+import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { latestAnnotations, aggregateAnnotations } from "@/lib/annotation-store"
 import type { Annotation, Rubric } from "@/lib/schema/types"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
 
-// annotation-store 读写 data/results/{id}/annotations.jsonl；用临时目录替换 cwd
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "evalyst-test-"))
-const origCwd = process.cwd()
-process.chdir(tmp)
+// annotation-store 读写 data/results/{id}/annotations.jsonl；每个 case chdir 到新临时目录
+let tmp = ""
+let origCwd = ""
+
+beforeEach(() => {
+  origCwd = process.cwd()
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), "evalyst-test-"))
+  process.chdir(tmp)
+})
+
+afterEach(() => {
+  process.chdir(origCwd)
+  fs.rmSync(tmp, { recursive: true, force: true })
+})
 
 function write(expId: string, annotations: Annotation[]) {
   const dir = path.join(tmp, "data", "results", expId)
@@ -135,10 +145,4 @@ describe("aggregateAnnotations", () => {
     }
     expect(agg.annotated_tasks).toBe(0)
   })
-})
-
-// 清理
-afterAll(() => {
-  process.chdir(origCwd)
-  fs.rmSync(tmp, { recursive: true, force: true })
 })
