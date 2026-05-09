@@ -51,9 +51,17 @@ describe("read_tool_result tool", () => {
     expect(r.value).toEqual(big)
   })
 
-  it("throws on missing ref (loadPersistedToolResult propagates)", async () => {
-    // Tool does not try/catch the underlying loader; runTool catches in production.
-    await expect(readToolResultTool.call({ ref: "tr_nope" }, ctx)).rejects.toThrow()
+  it("returns err(NOT_FOUND) on missing ref (ENOENT mapped to NOT_FOUND)", async () => {
+    // v0.9.3 review cleanup: 之前 ENOENT 被 runTool 兜底成 INTERNAL；现在 tool 层显式
+    // map 成 NOT_FOUND，与 read_resource / edit_template / restart_experiment 等一致。
+    const r = await readToolResultTool.call({ ref: "tr_nope" }, ctx)
+    expect(r).toMatchObject({
+      ok: false,
+      error: {
+        code: "NOT_FOUND",
+        message: expect.stringContaining("not found"),
+      },
+    })
   })
 
   it("rejects empty ref with err(INVALID_INPUT)", async () => {
