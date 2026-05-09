@@ -149,6 +149,45 @@ function userMsg(text: string): CopilotMessage {
   return { id: `u_${Math.random().toString(36).slice(2, 8)}`, session_id: 's', role: 'user', content: text, timestamp: 't' }
 }
 
+describe('analyzeToolLoop · isFailure 识别 v2.5 P2 ToolError shape (regression)', () => {
+  // v2.5 P2 后 /tool-result route 把 runTool error 落盘成 { ok: false, error: { code, message } }
+  // （runTool 不再 catch 后包装成 { error: msg }，而是 ToolError shape）。
+  // isFailure() 必须能识别这种新 shape，否则 exact-failure / same-tool 两档对 ToolError
+  // 静默失效 —— LLM 反复调失败工具不再被 block。
+  function failNew(callId: string, name: string, input: Record<string, unknown>): CopilotMessage[] {
+    return [
+      toolUse(callId, name, input),
+      {
+        id: `tr_${callId}`, session_id: 's', role: 'tool_result',
+        content: JSON.stringify({ ok: false, error: { code: 'INVALID_INPUT', message: 'x' } }),
+        timestamp: 't',
+        call_id: callId, tool_name: name,
+      },
+    ]
+  }
+
+  it('5 次新 ToolError shape 失败 → block (exact-failure)', () => {
+    const branch: CopilotMessage[] = [
+      ...failNew('1', 'read_context', { id: 'ctx_1' }),
+      ...failNew('2', 'read_context', { id: 'ctx_1' }),
+      ...failNew('3', 'read_context', { id: 'ctx_1' }),
+      ...failNew('4', 'read_context', { id: 'ctx_1' }),
+      ...failNew('5', 'read_context', { id: 'ctx_1' }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_context', { id: 'ctx_1' })
+    expect(r.action).toBe('block')
+  })
+
+  it('2 次新 ToolError shape 失败 → warn (exact-failure)', () => {
+    const branch = [
+      ...failNew('1', 'read_context', { id: 'ctx_1' }),
+      ...failNew('2', 'read_context', { id: 'ctx_1' }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_context', { id: 'ctx_1' })
+    expect(r.action).toBe('warn')
+  })
+})
+
 describe('analyzeToolLoop · 真实 branch 形态（v2.5 P0 hotfix）', () => {
   it('hanging tool_use 在末端时仍能扫到前面的 pair', () => {
     // /tool-result POST 时 branchBefore 末尾是刚 append 的 tool_use（待计算 result），
