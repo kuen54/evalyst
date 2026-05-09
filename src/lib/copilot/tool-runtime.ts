@@ -34,11 +34,13 @@ export function truncateJsonSemantic(obj: unknown, maxFieldChars: number): unkno
 //
 // v2.5 P2: 加 'error' kind。tool throw 兜底成 INTERNAL error；tool 显式 return
 // { ok: false, error } 透传 ToolError；ok shape unwrap value 后走 done。
+//
+// v2.5 P3: 'denied' kind 收敛进 'error'（USER_DENIED ToolError）。caller 不再
+// 区分 deny 与 error 两条 dispatch 分支，统一走 ToolError shape。
 
 export type RunToolResult =
   | { kind: "done"; output: unknown }
   | { kind: "awaiting_confirm" }
-  | { kind: "denied"; reason: string }
   | { kind: "error"; error: ToolError }
 
 function isToolResultShape(value: unknown): value is ToolResult<unknown> {
@@ -65,7 +67,16 @@ export async function runTool(
         session_allow_list: opts.sessionAllowList,
         session_deny_list: opts.sessionDenyList,
       })
-      if (r.action === "deny") return { kind: "denied", reason: r.reason }
+      if (r.action === "deny") {
+        return {
+          kind: "error",
+          error: {
+            code: "USER_DENIED",
+            message: r.reason,
+            retry_safe: false,
+          },
+        }
+      }
       if (r.action === "require_confirm") return { kind: "awaiting_confirm" }
     }
   }

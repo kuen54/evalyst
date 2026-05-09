@@ -305,28 +305,21 @@ describe("tool-result route integration", () => {
       call: async () => ({ should: "not run" }),
     }
 
-    // Don't skipConfirm: let confirmGateHook see deny list. (route uses skipConfirm=true,
-    // but spec asks USER_DENIED dispatch to handle ANY 'denied' kind — exercise the
-    // confirmGateHook path directly to produce a kind:'denied' result.)
+    // Don't skipConfirm: let confirmGateHook see deny list. v2.5 P3 后 deny 直接
+    // 落到 kind:'error' (USER_DENIED ToolError)，不再有独立 'denied' kind。
     const r = await runTool(
       okTool,
       {},
       { session_id: sessionId, signal },
       { sessionDenyList: [okTool.name] },
     )
-    expect(r.kind).toBe("denied")
-    if (r.kind !== "denied") throw new Error("expected denied")
-    expect(r.reason).toMatch(/user-denied/)
+    expect(r.kind).toBe("error")
+    if (r.kind !== "error") throw new Error("expected error")
+    expect(r.error.code).toBe("USER_DENIED")
+    expect(r.error.message).toMatch(/user-denied/)
 
-    // Simulate route dispatch for kind:'denied'
-    const resultContent: unknown = {
-      ok: false,
-      error: {
-        code: "USER_DENIED" as const,
-        message: r.reason,
-        retry_safe: false,
-      },
-    }
+    // Simulate route dispatch for kind:'error' with USER_DENIED code
+    const resultContent: unknown = { ok: false, error: r.error }
     const toolResultContent = JSON.stringify(resultContent)
     const normalized = normalizeToolResult(toolResultContent)
     expect(normalized.kind).toBe("inline")

@@ -129,18 +129,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (r.kind === 'done') {
       resultContent = r.output
     } else if (r.kind === 'error') {
-      // v2.5 P2: tool throw / tool return err 统一走结构化 ToolError 形态
+      // v2.5 P2/P3: tool throw / tool return err / server hook deny 统一走
+      // 结构化 ToolError 形态。USER_DENIED code 由 confirmGateHook 写入。
       resultContent = { ok: false, error: r.error }
-    } else if (r.kind === 'denied') {
-      // server hook 拒绝（sessionDeny 命中）
-      resultContent = {
-        ok: false,
-        error: {
-          code: 'USER_DENIED' as const,
-          message: r.reason,
-          retry_safe: false,
-        },
-      }
     } else {
       // skipConfirm=true 不该走到 awaiting_confirm；防御性兜底
       resultContent = {
