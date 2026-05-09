@@ -10,6 +10,27 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-05-09 · 测试硬编码审计 + P0/P1 hygiene fix (PR #55)
+
+PR #54 在 CI 上挂了 e2e —— 根因是测试 hardcode 了开发机本地才有的 model id (`gemini-31-pro` / `opus-46-anthropic`)。fix-forward 走 self-provision fixture pattern 修了，但担心同类 hardcode 散落在别的 spec 里等着撞。这个版本扫了一遍全仓库的测试套，把"真撞过 / 真会撞 CI"的两条修了，剩下的 P2 留作 design smell 记录。
+
+### 体验
+
+零。运行时代码未触碰，仅测试文件 + 一篇 audit doc。
+
+### 测试
+
+- **审计**：扫了 `e2e/*.spec.ts` (5 文件) + `src/**/__tests__/*.test.ts` (~68 文件) + `playwright.config.ts`，分类 P0/P1/P2 + 标注 9 处 intentional / out-of-scope。结论：除下面两条外，e2e + vitest 套都已经按 PR #54 的 vision-gate 模式走 self-provision fixture / `path.join(process.cwd(), …)` / 相对路径靠 `playwright.config.ts` `baseURL`。没有第二个"在本地配置才能跑"的 spec 等着撞 CI。
+  - `docs/superpowers/findings/2026-05-09-hardcode-audit.md`
+- **P0-1**：`src/lib/__tests__/annotation-aggregate.test.ts` 从模块级 `process.chdir` + `afterAll` 改成 `beforeEach`/`afterEach` 配对，对齐 `llm-config.migrate.test.ts` 等 12+ 文件的标准模式。今天默认 vitest forks pool 一文件一 worker 不外泄，但只要别人手痒翻成 `pool: 'threads'` 或 `fileParallelism: false` 就会污染 sibling test (`real-session-smoke.test.ts:18` 直接读 `process.cwd()`)。改完之后这个 coiled spring 拆了。
+- **P1-1**：`cache-stats-store.test.ts` + `cache-stats-prune.test.ts` 把 `path.join(tmp, 'data/copilot/cache-stats.jsonl')` 拆成分段。纯一致性，darwin-only 项目本来 windows 兼容不是动机，但项目其它地方都用分段，这俩文件之前是异类。
+
+### 显式跳过的 finding（rationale）
+
+- **P1-2** (`e2e/copilot-v25.spec.ts` 写 live `data/copilot/cache-stats.jsonl`)：cleanup 走 filter-based 已正确，`describe.configure({ mode: 'serial' })` 已就位；audit 的 UUID-suffix 替代方案有 tradeoff（crash 后 stranded line 更难诊断）。"P0/P1 真撞过 / 真会撞 CI 才修" 原则下不动。
+- **P2-1** (`real-session-smoke.test.ts` 依赖 cwd)：作者已在代码注释 acknowledge；`if (!fs.existsSync(...)) return` 兜底使其在 CI 干净环境下 no-op。修了 P0-1 之后这个 test 的传递性风险也自然降低。
+- **P2-2** (`experiments/[id]/page.tsx` 的 3000ms busy timeout)：UI 体感 tweak，不是 CI/正确性问题。
+
 ## [0.10.0] — 2026-05-09 · 评测平台进入多模态：生图评测 v1 + Copilot × Image Vision (PR #52–54)
 
 evalyst 此前是 text-in / text-out 的 LLM 评测平台。v0.10.0 把多模态纳入一等公民，分两个互补子系统打通端到端：
