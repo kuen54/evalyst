@@ -29,12 +29,14 @@ import type { CopilotMessage, PageContext, StreamEvent } from './types'
 import type { ModelConfig } from '../llm-config'
 import {
   appendCacheStat,
+} from './cache-stats-store'
+import {
   computeSystemPromptDigest,
   computeToolDigest,
   computeSystemPromptPreview,
   computeToolPreview,
   extractSystemPromptString,
-} from './cache-stats-store'
+} from './cache-break-detect'
 
 export interface RunStreamParams {
   sessionId: string

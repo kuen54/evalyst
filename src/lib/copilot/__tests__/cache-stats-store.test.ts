@@ -5,14 +5,18 @@ import path from 'path'
 import {
   appendCacheStat,
   readCacheStats,
+  type CacheUsageStat,
+} from '../cache-stats-store'
+import {
   aggregateCacheHitRate,
-  detectCacheBreak,
   countRecentBreaks,
+} from '../cache-aggregate'
+import {
+  detectCacheBreak,
   extractSystemPromptString,
   CACHE_BREAK_MIN_DROP_TOKENS,
   CACHE_BREAK_MAX_RATIO,
-  type CacheUsageStat,
-} from '../cache-stats-store'
+} from '../cache-break-detect'
 
 let tmp: string
 let origCwd: string
@@ -181,7 +185,7 @@ describe('countRecentBreaks (v2.5 P0 §3.2)', () => {
   })
 })
 
-import { computeSystemPromptDigest, computeToolDigest } from '../cache-stats-store'
+import { computeSystemPromptDigest, computeToolDigest } from '../cache-break-detect'
 
 describe('computeSystemPromptDigest (v2.5 P1b §3.1.2)', () => {
   it('返回 16 字符 hex 字符串', () => {
@@ -236,7 +240,7 @@ import {
   detectCacheBreakWithReasons,
   collectRecentBreakReasons,
   type BreakInfo,
-} from '../cache-stats-store'
+} from '../cache-break-detect'
 
 function statWithDigest(overrides: Partial<CacheUsageStat> = {}): CacheUsageStat {
   return {
@@ -397,7 +401,7 @@ import {
   computeToolPreview,
   findLatestBreakPair,
   PREVIEW_LIMIT,
-} from '../cache-stats-store'
+} from '../cache-break-detect'
 
 describe('computeSystemPromptPreview (v2.5 P2 §3.1)', () => {
   it('≤200 char 返原文', () => {
