@@ -130,7 +130,6 @@ export async function buildLlmMessages(
   // image-vision §3.1: 预先 materializeImagePlan —— Task 9/10 复用 imageMap 决定 user / tool_result
   // 是否走多模态 content array；Task 11 用 imageMap.hadImageRefs + modelVisionCapable 决定加 strip note。
   const imageMap = await materializeImagePlan(usable, opts?.modelVisionCapable === true)
-  void imageMap  // Task 9/10/11 will splice; Task 8 just plumbs
 
   const refs = (lastUser?.contexts ?? []) as CopilotContextRef[]
   const header = buildSystemHeader({
@@ -168,7 +167,20 @@ export async function buildLlmMessages(
     // v2.5 §5: system 消息（含 boundary）不进 LlmMessages
     if (m.role === 'system') continue
     if (m.role === 'user') {
-      out.push({ role: 'user', content: m.content })
+      // image-vision §4.4: 仅当当前 m 是最后一条 user 且 imageMap 有 user_blocks 时,
+      // 把 user 内容升级为多模态 content array。块顺序：[(text+image_url) × N, text(原 user content)]。
+      // m.content 为空字符串时仍 push 一条空 text 块，避免 Anthropic 拒绝 image-only content array。
+      if (m === lastUser && imageMap.user_blocks.length > 0) {
+        out.push({
+          role: 'user',
+          content: [
+            ...imageMap.user_blocks,
+            { type: 'text', text: m.content },
+          ],
+        })
+      } else {
+        out.push({ role: 'user', content: m.content })
+      }
     } else if (m.role === 'assistant') {
       out.push({ role: 'assistant', content: m.content })
     } else if (m.role === 'tool_use') {
