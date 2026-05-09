@@ -426,6 +426,8 @@ export const en: Record<keyof typeof zh, string> = {
   "experiment.new.hard_filter": "· required {field}={value}",
   "experiment.new.calculating": "Calculating...",
   "experiment.new.estimated": "Estimated {n} tasks",
+  "experiment.new.task_count_large_confirm": "This will run {n} tasks (large batch, may take a while / cost more API calls). Continue?",
+  "experiment.new.task_count_over_cap": "This would run {n} tasks, exceeding the per-experiment cap of {cap}. Add a filter to narrow the scope and try again.",
   "experiment.new.name_required": "Experiment name is required",
   "experiment.new.save_draft": "Save draft",
   "experiment.new.save_run": "Save and run",

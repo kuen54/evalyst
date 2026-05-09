@@ -424,6 +424,8 @@ export const zh = {
   "experiment.new.hard_filter": "· 必须 {field}={value}",
   "experiment.new.calculating": "计算中...",
   "experiment.new.estimated": "预计生成 {n} 个任务",
+  "experiment.new.task_count_large_confirm": "本次将生成 {n} 个任务（数量较大，可能耗时较长 / 调用量较多）。继续？",
+  "experiment.new.task_count_over_cap": "本次将生成 {n} 个任务，超过单次实验上限 {cap}。请添加 filter 缩小范围后再试。",
   "experiment.new.name_required": "请输入实验名称",
   "experiment.new.save_draft": "保存草稿",
   "experiment.new.save_run": "保存并运行",

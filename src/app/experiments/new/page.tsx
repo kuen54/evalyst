@@ -18,6 +18,9 @@ import { GlassRegular } from "@/components/copilot/shell"
 import { GlassSegmentedItem } from "@/components/copilot/glass-segmented"
 import { useRegisterPageContext } from "@/components/copilot/use-page-context"
 
+const TASK_COUNT_CONFIRM_THRESHOLD = 5_000
+const TASK_COUNT_HARD_CAP = 100_000
+
 export default function NewExperiment() {
   const router = useRouter()
   const t = useT()
@@ -118,6 +121,21 @@ export default function NewExperiment() {
     if (!name.trim()) { alert(t("experiment.new.name_required")); return }
     if (!schema) return
     if (!selectedModel) { alert(t("experiment.new.model_none")); return }
+    if (estimatedTasks !== null) {
+      if (estimatedTasks > TASK_COUNT_HARD_CAP) {
+        alert(t("experiment.new.task_count_over_cap", {
+          n: estimatedTasks.toLocaleString(),
+          cap: TASK_COUNT_HARD_CAP.toLocaleString(),
+        }))
+        return
+      }
+      if (estimatedTasks > TASK_COUNT_CONFIRM_THRESHOLD) {
+        const ok = confirm(t("experiment.new.task_count_large_confirm", {
+          n: estimatedTasks.toLocaleString(),
+        }))
+        if (!ok) return
+      }
+    }
     setSubmitting(true)
 
     const res = await fetch("/api/experiments", {
