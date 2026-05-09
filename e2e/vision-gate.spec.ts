@@ -20,17 +20,36 @@ import * as path from "path"
  *   - reuses seeded `image_gen_v1` schema (output has image_url field)
  *   - writes a fixture experiment `image_gen_v1_smoke` + a single-row
  *     results.jsonl so collectImageRefs has real data to walk
- *   - cleans up in afterAll
+ *   - self-provisions two test fixture LLM models via PUT /api/llm-config
+ *     (one non-vision, one vision_capable=true) so the test runs on a clean
+ *     CI environment without depending on user-configured models
+ *   - cleans up fixtures + restores original llm-config in afterAll
  *
- * Reuses existing models from data/llm-config.json (no PATCH needed):
- *   - gemini-31-pro (no vision_capable flag → falsy)
- *   - opus-46-anthropic (vision_capable: true)
- * If your local config differs the test auto-skips Case C with a clear
- * message rather than mutating shared state.
+ * Fixture model IDs:
+ *   - vision-gate-test-no-vision (no vision_capable flag → falsy)
+ *   - vision-gate-test-vision-capable (vision_capable: true)
  */
 
 const FIXTURE_EXP_ID = "image_gen_v1_smoke"
 const FIXTURE_TASK_ID = "smoke-task-1"
+const FIXTURE_NO_VISION_MODEL_ID = "vision-gate-test-no-vision"
+const FIXTURE_VISION_MODEL_ID = "vision-gate-test-vision-capable"
+
+interface ModelConfigShape {
+  id: string
+  name: string
+  model: string
+  api_format: "openai" | "anthropic"
+  base_url: string
+  api_key: string
+  copilot_enabled?: boolean
+  vision_capable?: boolean
+}
+
+interface LlmConfigShape {
+  models: ModelConfigShape[]
+  active_model_id?: string
+}
 
 function dataDir() {
   return path.join(process.cwd(), "data")
@@ -110,30 +129,66 @@ function clearFixtures() {
 }
 
 test.describe("vision gate", () => {
-  let nonVisionModelId: string | null = null
-  let visionModelId: string | null = null
+  // Cases share the fixture llm-config + session created in beforeAll. With
+  // playwright.config.ts having `fullyParallel: true`, default behavior would
+  // run the 4 cases concurrently, racing on the global /api/llm-config state.
+  // Force serial within this describe so beforeAll → A → B → C → D → afterAll
+  // is a single linear chain.
+  test.describe.configure({ mode: "serial" })
+
+  const nonVisionModelId: string = FIXTURE_NO_VISION_MODEL_ID
+  const visionModelId: string = FIXTURE_VISION_MODEL_ID
   let sessionId: string | null = null
+  let originalConfig: LlmConfigShape | null = null
 
   test.beforeAll(async ({ request }) => {
     writeFixtures()
 
-    // Discover available models from the live config (don't mutate it)
+    // Snapshot live llm-config so we can restore it in afterAll. Then PUT a
+    // config that PRESERVES existing models + APPENDS our two test fixture
+    // models. This makes the test self-sufficient on a clean CI environment
+    // (no models seeded) while not stomping on a developer's local config.
     const cfgResp = await request.get("/api/llm-config")
     expect(cfgResp.status(), "GET /api/llm-config must succeed").toBe(200)
-    const cfg = (await cfgResp.json()) as {
-      models: Array<{ id: string; copilot_enabled?: boolean; vision_capable?: boolean }>
-    }
-    for (const m of cfg.models) {
-      if (!m.copilot_enabled) continue
-      if (m.vision_capable === true && !visionModelId) visionModelId = m.id
-      if (m.vision_capable !== true && !nonVisionModelId) nonVisionModelId = m.id
-    }
+    originalConfig = (await cfgResp.json()) as LlmConfigShape
 
-    // We need at least a non-vision copilot-enabled model for cases A/B/D.
-    expect(
-      nonVisionModelId,
-      "test fixture requires at least one non-vision copilot-enabled model in data/llm-config.json",
-    ).not.toBeNull()
+    const fixtureModels: ModelConfigShape[] = [
+      {
+        id: FIXTURE_NO_VISION_MODEL_ID,
+        name: "Vision Gate Test (no vision)",
+        model: "fixture-test-model",
+        api_format: "openai",
+        base_url: "http://localhost:1",
+        api_key: "test-fixture-key",
+        copilot_enabled: true,
+        // vision_capable intentionally omitted (falsy)
+      },
+      {
+        id: FIXTURE_VISION_MODEL_ID,
+        name: "Vision Gate Test (vision capable)",
+        model: "fixture-test-model",
+        api_format: "openai",
+        base_url: "http://localhost:1",
+        api_key: "test-fixture-key",
+        copilot_enabled: true,
+        vision_capable: true,
+      },
+    ]
+
+    // Defensive: if a previous run crashed and left fixture models behind,
+    // strip them out of the existing list before appending fresh ones.
+    const existingFiltered = (originalConfig.models ?? []).filter(
+      (m) => m.id !== FIXTURE_NO_VISION_MODEL_ID && m.id !== FIXTURE_VISION_MODEL_ID,
+    )
+
+    const putResp = await request.put("/api/llm-config", {
+      data: {
+        models: [...existingFiltered, ...fixtureModels],
+        // Preserve user's active selection if any; don't promote a fixture model
+        active_model_id: originalConfig.active_model_id,
+      },
+    })
+    expect(putResp.status(), "PUT /api/llm-config must succeed").toBe(200)
 
     // Create one session shared by all 4 cases
     const sessResp = await request.post("/api/copilot/sessions", {
@@ -146,9 +201,11 @@ test.describe("vision gate", () => {
 
   test.afterAll(async ({ request }) => {
     clearFixtures()
-    // Best-effort: delete the session we created. If the API doesn't expose
-    // delete, leave it — sessions are namespaced under data/copilot/sessions/
-    // and don't pollute prod data.
+    // Restore original llm-config (drops our two fixture models)
+    if (originalConfig) {
+      await request.put("/api/llm-config", { data: originalConfig }).catch(() => {})
+    }
+    // Best-effort: delete the session we created.
     if (sessionId) {
       await request
         .delete(`/api/copilot/sessions/${sessionId}`)
@@ -158,7 +215,6 @@ test.describe("vision gate", () => {
 
   test("Case A — non-vision model + image task_result context → 400", async ({ request }) => {
     expect(sessionId).not.toBeNull()
-    expect(nonVisionModelId).not.toBeNull()
 
     const resp = await request.post(`/api/copilot/sessions/${sessionId}/chat`, {
       data: {
@@ -188,7 +244,6 @@ test.describe("vision gate", () => {
     request,
   }) => {
     expect(sessionId).not.toBeNull()
-    expect(nonVisionModelId).not.toBeNull()
 
     const resp = await request.post(`/api/copilot/sessions/${sessionId}/chat`, {
       data: {
@@ -221,15 +276,11 @@ test.describe("vision gate", () => {
 
   test("Case C — vision_capable model + image context → not 400", async ({ request }) => {
     expect(sessionId).not.toBeNull()
-    test.skip(
-      visionModelId === null,
-      "no vision_capable copilot model configured in data/llm-config.json — skip rather than mutate shared state",
-    )
 
     const resp = await request.post(`/api/copilot/sessions/${sessionId}/chat`, {
       data: {
         user_message: "describe this image please",
-        model_id: visionModelId!,
+        model_id: visionModelId,
         contexts: [
           {
             tag: 1,
@@ -249,7 +300,6 @@ test.describe("vision gate", () => {
 
   test("Case D — empty contexts + non-vision model → not 400", async ({ request }) => {
     expect(sessionId).not.toBeNull()
-    expect(nonVisionModelId).not.toBeNull()
 
     const resp = await request.post(`/api/copilot/sessions/${sessionId}/chat`, {
       data: {
