@@ -108,3 +108,110 @@ describe("buildLlmMessages · last user message multimodal rewrite", () => {
     expect(Array.isArray(userMsgs[1].content)).toBe(true)
   })
 })
+
+describe("buildLlmMessages · tool_result regression (Option A: tool images deferred)", () => {
+  function toolResultMsg(call_id: string, content: unknown): CopilotMessage {
+    return {
+      id: `m_${call_id}r`,
+      session_id: "s",
+      role: "tool_result",
+      content: typeof content === "string" ? content : JSON.stringify(content),
+      timestamp: "t",
+      call_id,
+      tool_name: "read_experiment_results",
+    }
+  }
+
+  function toolUseMsg(call_id: string): CopilotMessage {
+    return {
+      id: `m_${call_id}u`,
+      session_id: "s",
+      role: "tool_use",
+      content: "{}",
+      timestamp: "t",
+      call_id,
+      tool_name: "read_experiment_results",
+      tool_input: {},
+    }
+  }
+
+  it("inline kind + tool images present → tool_result.content stays plain string", async () => {
+    // collectImageRefs 返回工具图，但选项 A 下 tool_blocks_by_call_id 应该被忽略
+    vi.mocked(collectImageRefs).mockReturnValue({
+      user_image_refs: [],
+      tool_image_refs: new Map([
+        ["c1", [refOf("/api/results/exp_1/images/a.png", undefined as unknown as number, "task_result#t1 · field=image_url")]],
+      ]),
+      dropped_count: 0,
+    })
+    const branch: CopilotMessage[] = [
+      userMsg("look at the result"),
+      toolUseMsg("c1"),
+      toolResultMsg("c1", { kind: "inline", value: { results: [{ id: "t1" }] } }),
+    ]
+    const msgs = await buildLlmMessages(branch, null, { modelVisionCapable: true })
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect(tr).toBeTruthy()
+    expect(typeof tr!.content).toBe("string")
+    expect(tr!.content).toContain("results")
+  })
+
+  it("ref kind + tool images present → tool_result.content stays plain string with read_tool_result hint", async () => {
+    vi.mocked(collectImageRefs).mockReturnValue({
+      user_image_refs: [],
+      tool_image_refs: new Map([
+        ["c1", [refOf("/api/results/exp_1/images/r.png", undefined as unknown as number, "task_result#tr · field=image_url")]],
+      ]),
+      dropped_count: 0,
+    })
+    const branch: CopilotMessage[] = [
+      userMsg("look"),
+      toolUseMsg("c1"),
+      toolResultMsg("c1", { kind: "ref", ref: "ref://tool-result/tr_abc", preview: '{"results":[...(truncated)' }),
+    ]
+    const msgs = await buildLlmMessages(branch, null, { modelVisionCapable: true })
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect(typeof tr!.content).toBe("string")
+    expect(tr!.content as string).toContain("truncated")
+    expect(tr!.content as string).toContain("read_tool_result")
+  })
+
+  it("compacted kind → summary string", async () => {
+    vi.mocked(collectImageRefs).mockReturnValue({
+      user_image_refs: [],
+      tool_image_refs: new Map(),
+      dropped_count: 0,
+    })
+    const branch: CopilotMessage[] = [
+      userMsg("hi"),
+      toolUseMsg("c1"),
+      toolResultMsg("c1", { kind: "compacted", summary: "(archived tool result; retrieve via read_tool_result if needed)", ref: "ref://tool-result/tr_old" }),
+    ]
+    const msgs = await buildLlmMessages(branch, null, { modelVisionCapable: true })
+    const tr = msgs.find((m) => m.role === "tool_result")
+    expect(typeof tr!.content).toBe("string")
+    expect(tr!.content as string).toContain("archived tool result")
+  })
+
+  it("Option A perf: readImageBytes is NOT called for tool refs", async () => {
+    // collectImageRefs 上报有工具图，但 materializeImagePlan 不应该读它们的 bytes
+    vi.mocked(collectImageRefs).mockReturnValue({
+      user_image_refs: [],
+      tool_image_refs: new Map([
+        ["c1", [
+          refOf("/api/results/exp_1/images/a.png", undefined as unknown as number, "task_result#t1 · field=image_url"),
+          refOf("/api/results/exp_1/images/b.png", undefined as unknown as number, "task_result#t2 · field=image_url"),
+        ]],
+      ]),
+      dropped_count: 0,
+    })
+    const branch: CopilotMessage[] = [
+      userMsg("hi"),
+      toolUseMsg("c1"),
+      toolResultMsg("c1", { kind: "inline", value: { results: [] } }),
+    ]
+    await buildLlmMessages(branch, null, { modelVisionCapable: true })
+    // 选项 A：工具图全部丢弃，readImageBytes 不应该为这两张图调用
+    expect(vi.mocked(readImageBytes)).not.toHaveBeenCalled()
+  })
+})

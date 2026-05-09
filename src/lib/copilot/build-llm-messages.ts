@@ -99,11 +99,16 @@ async function materializeImagePlan(
   }
 
   const user_blocks = await refsToBlocks(probed.user_image_refs)
+  // v1 选项 A（2026-05-09 brainstorm 决策）：工具返回的图暂不进 LLM。
+  // 原因：sankuai OpenAI-compat 拒绝 image_url in tool role（Task 0 finding），
+  // 而 Anthropic 的 user/assistant alternation 又不允许在 tool_result 后追加
+  // user 消息。第一版只支持用户主动圈选这条路；用户圈选触达 user_image_refs 路径。
+  // 等 sankuai 解禁或我们做 provider-specific 分支时，把这个循环加回来即可：
+  //   for (const [callId, refs] of probed.tool_image_refs.entries()) {
+  //     const blocks = await refsToBlocks(refs)
+  //     if (blocks.length > 0) tool_blocks_by_call_id.set(callId, blocks)
+  //   }
   const tool_blocks_by_call_id = new Map<string, ImagePlan['user_blocks']>()
-  for (const [callId, refs] of probed.tool_image_refs.entries()) {
-    const blocks = await refsToBlocks(refs)
-    if (blocks.length > 0) tool_blocks_by_call_id.set(callId, blocks)
-  }
   const system_notes: string[] = []
   if (probed.dropped_count > 0) {
     system_notes.push(
