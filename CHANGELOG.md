@@ -10,57 +10,67 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-### Copilot (v2.5 P2 · per-route tool gating)
 
-- **按 route_type 暴露工具子集**（新文件 `src/lib/copilot/tools/route-gating.ts`）：5 个 always 工具（`read_context` / `read_resource` / `read_page` / `read_tool_result` / `list_experiments`）+ 按 route 增量。`experiment_detail` / `compare` 加实验工具；`settings/templates` 加 `edit_template`；`settings/datasets` 加 `read_dataset_records`；其余 route 仅 always 集。pageContext 缺失或未识别 route_type 时 fallback always 集，不破。
-- **stream-response.ts 调用点 wire**：chat + tool-result 两处 `runToolAwareLlmStream` 传 `visibleToolsForRoute(TOOLS, route_type)` 替代全量 TOOLS；`pageContext` 参数本身不变（gating 只过滤 advertise 的工具数组，不影响 SystemHeader 渲染）。
-- **预期行为变化**：（1）LLM 在 dashboard 看不到 `edit_template`，避免误调；（2）跨 route 切换会自然破 cache（tool_digest 变 → P1b chip tooltip 显示 reason='tools'）—— 这是预期，spec §6 说明；同 route 内多轮对话 cache 持续 hit（P1a 4-breakpoint cache 主要受益场景）。
+## [0.9.3] — 2026-05-09 · Copilot v2.5 P1b/P2 · cache 观测进阶 + tool error recovery + per-route gating (PR #44–48)
 
-### 测试
+v0.9.2 (P1a) 之后两批改动合一起打 0.9.3：前一批 P1b 完成 cache 观测层 + 存储卫生收尾；后一批 P2 三件事基于 v0.9.x 三 PR 后的 code review，把"二轮采纳"系列里漏掉的几条体验 gap 补齐 —— 用户看 cache break 不止知道哪类变了还能看到末尾 diff、LLM 看 tool error 按 enum 而非文案做决策、不同 route 暴露不同工具集减少 LLM 误调。
 
-- 新增 18 测试 case：`route-gating.test.ts` 14 unit（覆盖 5 种 mapped route + 3 fallback 路径 + order preservation + per-tool 可见性查询）+ `route-gating.integration.test.ts` 4 integration（dashboard / experiment_detail / template_detail / unknown route 在 Anthropic + OpenAI 两 provider 下 outgoing body.tools shape）；全套 583/583 pass
-
-- Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p2-per-route-tool-gating-design.md
-- Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p2-per-route-tool-gating.md
-
-### Copilot (v2.5 P1b · cache 观测层 + 存储卫生)
+### Copilot (v2.5 P1b · cache 观测层 + 存储卫生 — PR #44)
 
 基于 openclaw `prompt-cache-observability.ts:51` 6 break reason 设计调研，挑最实际 2 个落地：
 
 - **systemPrompt + tools digest 检测 cache break 原因**：`CacheUsageStat` 扩 `system_prompt_digest` / `tool_digest` 两个 sha256 前 16 字符 digest 字段（每条 jsonl 多 ~70 字节，10K 条 ~700KB —— 半压 jsonl 自然碰撞）。`detectCacheBreakWithReasons` 在 PR1 P0 noise floor 基础上对比 digest，给出 `['system_prompt']` / `['tools']` / `['unknown']` reason 列表；旧 jsonl 行没 digest 时走 `'unknown'` 兼容分支。`/api/copilot/cache-stats` 的 `weekly` 段新增 `recent_break_reasons`；chip tooltip 在 `recent_breaks > 0` 时按 reason 分类展示，让用户一眼看出"上次 break 是改 system 还是动了 tools"。openclaw 另外 4 个 reason（model / retention / transport / streamStrategy）对单 provider 单 session 用不上，故意不抄。
 - **`cache-stats.jsonl` startup retention**（30d + N=10000 双阈值）：`pruneCacheStats` 删 ts > 30 天的行（含 malformed JSON）+ 行数 > 10K 时额外从头 trim 到 5K（保最近暖数据）；走项目 `writeAtomic` helper 原子 tmp+rename 写。Next.js `instrumentation.ts` 启动钩子调用一次（`NEXT_RUNTIME === 'nodejs'` 守卫，try/catch warn-swallow，启动失败不挂服务）。避免评测平台跑久了 jsonl 积几十万行拖慢 chip fetch。
 
-### 测试
-
-- 新增 25 测试 case：`cache-stats-store.test.ts` 18 新（digest helpers 8 + detectCacheBreakWithReasons 6 + collectRecentBreakReasons 3 + appendCacheStat round-trip 1）+ `cache-stats-prune.test.ts` 7 新文件（文件不存在 / 全新 / 部分过期 / 全部过期 / size only / age+size 组合 / malformed JSON）；全套 545/545 pass
+新增 25 测试 case：`cache-stats-store.test.ts` 18（digest helpers 8 + detectCacheBreakWithReasons 6 + collectRecentBreakReasons 3 + appendCacheStat round-trip 1）+ `cache-stats-prune.test.ts` 7 新文件。
 
 - Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p1b-cache-break-detection-retention-design.md
 - Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p1b-cache-break-detection-retention.md
 
-### Copilot (v2.5 P2 · tool error recovery)
+### Copilot (v2.5 P2 · cache break diff 工具 — PR #46)
+
+P1b 已经能识别"system_prompt 变了"或"tools 变了"，但 tooltip 只能告诉用户"哪一类变了"，定位不到"具体哪几个字符"。本 PR 在 `CacheUsageStat` 加 200 char preview 字段，break 时 tooltip 直接展示 prev/curr 末尾片段对比。
+
+- **`CacheUsageStat` 扩 preview 字段**（`system_prompt_preview` / `tool_preview`，optional，旧 jsonl 行 graceful undefined）+ `computeSystemPromptPreview` / `computeToolPreview` helper（末尾 200 char）+ `findLatestBreakPair` 反向扫最近一对 break。
+- **`appendCacheStat` 调用点同步写 preview**（`stream-response.ts` 与 digest 一对落盘）+ `/api/copilot/cache-stats` 的 weekly 段加 `latest_break_pair` 字段。
+- **chip tooltip diff 展示**：命中 `system_prompt` / `tools` reason 时追加 before/after 两行（前缀 `...` 标记是末尾片段），4 个新 i18n key（zh + en 成对）。
+
+新增 16 测试 case；`tool_preview` 极端长（>200 char）也走 200 char 截尾保上限，避免某 tool 名特别长 + 工具数多时 tooltip 行炸。
+
+### Copilot (v2.5 P2 · per-route tool gating — PR #47)
+
+把"每次请求塞全部 9 个 tool schema"改成按 `route_type` 动态 gating：
+
+- **按 route_type 暴露工具子集**（新文件 `src/lib/copilot/tools/route-gating.ts`）：5 个 always 工具（`read_context` / `read_resource` / `read_page` / `read_tool_result` / `list_experiments`）+ 按 route 增量。`experiment_detail` / `compare` 加实验工具；`settings/templates` 加 `edit_template`；`settings/datasets` 加 `read_dataset_records`；其余 route 仅 always 集。pageContext 缺失或未识别 route_type 时 fallback always 集，不破。
+- **stream-response.ts 调用点 wire**：chat + tool-result 两处 `runToolAwareLlmStream` 传 `visibleToolsForRoute(TOOLS, route_type)` 替代全量 TOOLS；`pageContext` 参数本身不变（gating 只过滤 advertise 的工具数组，不影响 SystemHeader 渲染）。
+- **预期行为变化**：（1）LLM 在 dashboard 看不到 `edit_template`，避免误调；（2）跨 route 切换会自然破 cache（tool_digest 变 → P1b chip tooltip 显示 reason='tools'）—— 这是预期，spec §6 说明；同 route 内多轮对话 cache 持续 hit（P1a 4-breakpoint cache 主要受益场景）。
+
+新增 18 测试 case：`route-gating.test.ts` 14 unit + `route-gating.integration.test.ts` 4 integration（dashboard / experiment_detail / template_detail / unknown route 在 Anthropic + OpenAI 两 provider 下 outgoing body.tools shape）。
+
+- Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p2-per-route-tool-gating-design.md
+- Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p2-per-route-tool-gating.md
+
+### Copilot (v2.5 P2 · tool error recovery — PR #48)
 
 基于 v0.9.x 三 PR 后的 code review，修正"LLM 看 tool error 全靠 message 文案 prompt"的脆弱性，把 ad-hoc error 路径升级成结构化 contract：
 
 - **结构化 ToolResult contract**（新文件 `src/lib/copilot/tools/tool-result.ts`）：tool 推荐返 `{ ok: true, value } | { ok: false, error: { code, message, hint?, retry_safe? } }`。9 种 ToolErrorCode 标准化（`INVALID_INPUT / NOT_FOUND / UNAUTHORIZED / CONFLICT / RATE_LIMIT / NETWORK / USER_DENIED / AWAITING_CONFIRM / INTERNAL`）。LLM 行为按 enum 而非文案 prompt，更稳定。
 - **runTool 兼容封装**：旧 tool（直接返 raw / throw Error）继续 work；throw 兜底成 `INTERNAL` 错误。新 tool 鼓励显式 `ok()/err()` helpers。`RunToolResult` 加 `kind: 'error'`。`isToolResultShape` 收紧到 `ok===true && 'value' in obj` 或 `ok===false && error 是 object`，避免 legacy fixture `{ ok: 1 }` 误判。
-- **Anthropic `is_error: true` 协议透传**：`LlmMessage.tool_result` 加 optional `is_error?: boolean`；build-llm-messages 用 `isToolErrorShape` 在 inline kind 检测时设字段；`serializeAnthropicNonAssistant` 在 tool_result content block 透传。让 Claude/Sonnet 一眼分清 success vs failure。OpenAI 路径不动（协议无该字段）。
+- **Anthropic `is_error: true` 协议透传**：`LlmMessage.tool_result` 加 optional `is_error?: boolean`；`build-llm-messages` 用 `isToolErrorShape` 在 inline kind 检测时设字段；`serializeAnthropicNonAssistant` 在 tool_result content block 透传。让 Claude/Sonnet 一眼分清 success vs failure。OpenAI 路径不动（协议无该字段）。
 - **7 个 tool 的 input validation 改 explicit err()**：`restart_experiment / read_resource / edit_template / read_dataset_records / read_tool_result / read_experiment_results / read_context` 入口 throw 改 `err('INVALID_INPUT' | 'NOT_FOUND', msg, { hint })`。成功路径 `ok()` 包装。业务 throw（fs read 失败 / loadPersistedToolResult 找不到 ref 等）保留兜底成 INTERNAL。
 - **`/tool-result` route handler 简化**：去 try/catch 和字符串拼接（`'tool denied by server hook:'`），按 `RunToolResult.kind` dispatch；error 路径统一 `{ ok: false, error: { code, message, hint?, retry_safe? } }` 形态。`USER_DENIED` / `AWAITING_CONFIRM` 用 `as const` 窄化保留 ToolErrorCode 联合类型。P0 tool-loop-detector 逻辑（warn/block + loop_warn SSE）零变动。
-- **ToolCallCard error 渲染**：red alpha tinted 表面（`bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-300`，遵循 AGENTS.md 轻量 tinted 表面约定）+ `[CODE] · 中文标签` + 可选 Hint + 可选 retry_safe 小标签（amber alpha）。`role="alert"` for screen readers。`parseToolError` helper 兼容 3 种 jsonl 形态（new ok/false / 旧 deny / 旧 ad-hoc），ErrorRender 在 5 个 variant（Default / Context / Resource / Retrieval / Write）的 toolResult 分支早返回。
+- **ToolCallCard error 渲染**：red alpha tinted 表面（`bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-300`，遵循 AGENTS.md 轻量 tinted 表面约定）+ `[CODE] · 中文标签` + 可选 Hint + 可选 retry_safe 小标签（amber alpha）+ `role="alert"` for screen readers。`parseToolError` helper 兼容 3 种 jsonl 形态（new ok/false / 旧 deny / 旧 ad-hoc），ErrorRender 在 5 个 variant（Default / Context / Resource / Retrieval / Write）的 toolResult 分支早返回。
 
-### 测试
+新增 ~38 测试 case；全套 583 → 621/621 pass（rebase 后基线含 PR #47 per-route gating 测试）。
 
-- 新增 ~38 测试 case：`tool-result.test.ts` 14（ok/err helpers 4 + isToolErrorShape 7 + 3 boundary edge）+ `tool-runtime.test.ts` 5 新（runTool ToolResult dispatch 全路径）+ `restart-experiment.test.ts` 6 新文件 + 7 tool tests 各迁到 ToolResult 形态断言 + `tools.test.ts` 3 registry-level 迁移 + `build-llm-messages.test.ts` 6 新（is_error 透传 5 形态）+ `llm-stream-serialize.test.ts` 4 新（Anthropic is_error true/false/undefined + OpenAI no-leak）+ `route-integration.test.ts` 3 新（NOT_FOUND / body.denied / sessionDenyList → USER_DENIED）；全套 583 → 621/621 pass（rebase 后基线含 PR #47 per-route gating 测试）
-
-### 向后兼容
-
-- ToolDescriptor.call 返回类型扩 union，旧 tool 不改也 work（runTool 检测无 `ok` field 视作 done）
-- jsonl 旧形态（`{ error: msg }` / `{ denied: true }`）由 isToolErrorShape 全 cover；UI 由 parseToolError 解析后走 INTERNAL / USER_DENIED 显示
-- LlmMessage.is_error optional；OpenAI 序列化按 falsy 不带；Anthropic 网关 `is_error: true` 是 GA 字段
-- `routes-integration.test.ts` 老 `runTool throws` 断言迁到新 `kind: 'error' code: INTERNAL`；`edit-template.test.ts` / `read-dataset-records.test.ts` Task 2 留下的 type assertion 脚手架在 Task 3 替换为 ToolResult shape narrowing
+向后兼容：ToolDescriptor.call 返回类型扩 union，旧 tool 不改也 work；jsonl 旧形态（`{ error: msg }` / `{ denied: true }`）由 `isToolErrorShape` 全 cover，UI 由 `parseToolError` 解析后走 INTERNAL / USER_DENIED 显示；`LlmMessage.is_error` optional，OpenAI 序列化按 falsy 不带，Anthropic 网关 `is_error: true` 是 GA 字段。
 
 - Spec: docs/superpowers/specs/2026-05-08-copilot-v25-p2-tool-error-recovery-design.md
 - Plan: docs/superpowers/plans/2026-05-08-copilot-v25-p2-tool-error-recovery.md
+
+### Cleanup (PR #45)
+
+v0.9.2 ship 后 code review 捞到的 4 条小瑕疵：删 `detectCacheBreakWithReasons` 内 `if (!prev)` 死代码、`extractSystemPromptString` 加 4 个 edge case 单测、`llm-stream.ts` 内联 `AnthropicBody` cast 换成 import type、`tool-result-store.ts` preview budget 注释统一标注（19 sep + 100 tail = 519 worst-case）。无功能变更。
 
 
 ## [0.9.2] — 2026-05-08 · Copilot v2.5 P1a · Anthropic 4-breakpoint cache_control + head+tail preview (PR #43)
