@@ -33,6 +33,28 @@ description: "为 evalyst 评测平台创建新「评测任务」（代码里叫
    - 走 builtin：`display_id: "builtin_json_default"` 保底
    - 自建 JSX display：当 output 结构特殊（如单 result 里藏多条对象），需要**额外**写一个 `data/displays/{id}.json`
 
+### Image Output Types
+
+- `image_url` — single image URL (string). Use when the model returns one image.
+- `image_url_list` — array of image URLs (string[]). Use when the model returns multiple images per call.
+
+evalyst's batch-runner detects `data:image/...;base64,...` payloads in OpenAI-compatible `choices[0].message.images[]` responses, decodes them, and persists each as PNG/JPG to `data/results/{exp_id}/images/{task_id}_{idx}.{ext}`. The `output.image_url` field in JSONL stores the absolute API URL (e.g. `/api/results/abc/images/xyz_0.png`), which the UI uses directly as `<img src>`.
+
+Example schema:
+
+```json
+{
+  "output_schema": {
+    "type": "object",
+    "required": ["image_url"],
+    "properties": {
+      "caption": { "type": "string" },
+      "image_url": { "type": "image_url" }
+    }
+  }
+}
+```
+
 ## Step 3 · 产出 schema 文件
 
 `data/schemas/{id}.json` 的顶层结构见 `meta-prompts/template.ts`。写的时候注意几个容易翻车的点：

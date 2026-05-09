@@ -93,6 +93,21 @@ transform ops：
 }
 \`\`\`
 
+支持的 type: \`string\` / \`number\` / \`boolean\` / \`array\` / \`object\` / \`string|null\` / \`tuple:number[]\` / \`image_url\` / \`image_url_list\`
+
+**\`image_url\` / \`image_url_list\`**：用于生图评测。模型返回的 base64 data URL 会被 batch-runner 自动落盘到 \`data/results/{exp_id}/images/\`，JSONL 里只存绝对 API URL（\`/api/results/{exp_id}/images/...\`）。
+
+\`\`\`json
+{
+  "type": "object",
+  "required": ["image_url"],
+  "properties": {
+    "caption": { "type": "string" },
+    "image_url": { "type": "image_url" }
+  }
+}
+\`\`\`
+
 # 完整示例 —— QA answer
 
 让 LLM 回答一个问题并给 1-5 的置信度。单个 input（qa_pairs），按 qa 分组展示。

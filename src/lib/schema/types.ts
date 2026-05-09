@@ -130,6 +130,8 @@ export type JsonFieldType =
   | 'object'
   | 'string|null'
   | 'tuple:number[]'
+  | 'image_url'
+  | 'image_url_list'
 
 export interface JsonSchemaDef {
   type?: 'object'

@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { useT } from "@/lib/i18n/provider"
-import type { Annotation, Criterion, Rubric } from "@/lib/schema/types"
+import type { Annotation, Criterion, Rubric, GenericResultRecord, TaskSchema } from "@/lib/schema/types"
 import { toast } from "sonner"
 import { CheckIcon, XIcon } from "lucide-react"
+import { renderField, readField } from "./view-helpers"
+import { getOutputFields } from "./output-structure"
 
 interface Props {
   experimentId: string
@@ -19,6 +21,9 @@ interface Props {
   existing?: Annotation | null
   onSaved?: (a: Annotation) => void
   triggerClassName?: string
+  /** Optional result + schema for inline preview (esp. image generation rubrics) */
+  result?: GenericResultRecord
+  schema?: TaskSchema
 }
 
 function emptyScores(rubric: Rubric): Record<string, number | boolean | null> {
@@ -27,7 +32,7 @@ function emptyScores(rubric: Rubric): Record<string, number | boolean | null> {
   return r
 }
 
-export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSaved, triggerClassName }: Props) {
+export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSaved, triggerClassName, result, schema }: Props) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const [scores, setScores] = useState<Record<string, number | boolean | null>>(() =>
@@ -103,12 +108,15 @@ export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSave
         {buttonLabel}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>{t("results.annotate.dialog_title")}</DialogTitle>
             <p className="text-xs text-muted-foreground">{rubric.name}</p>
           </DialogHeader>
-          <div className="space-y-4 py-2 max-h-[60vh] overflow-auto pr-2">
+          {result && schema && hasImageOutput(schema) && (
+            <ResultPreview result={result} schema={schema} t={t} />
+          )}
+          <div className="space-y-4 py-2 flex-1 min-h-0 overflow-auto pr-2">
             {rubric.criteria.map(c => (
               <CriterionRow
                 key={c.key}
@@ -223,4 +231,57 @@ function summarizeScores(scores: Record<string, number | boolean>, criteria: Cri
     else if (c.type === "score_0_100") parts.push(String(v))
   }
   return parts.length > 0 ? parts.join(" · ") : "?"
+}
+
+function hasImageOutput(schema: TaskSchema): boolean {
+  const fields = getOutputFields(schema.output_schema)
+  return fields.some(f => f.type === "image_url" || f.type === "image_url_list")
+}
+
+function ResultPreview({
+  result,
+  schema,
+  t,
+}: {
+  result: GenericResultRecord
+  schema: TaskSchema
+  t: (k: string, v?: Record<string, string | number>) => string
+}) {
+  const fields = getOutputFields(schema.output_schema)
+  const imageFields = fields.filter(f => f.type === "image_url" || f.type === "image_url_list")
+  const inputPreviewKeys = Object.keys(result.input_preview)
+
+  return (
+    <div className="grid grid-cols-2 gap-3 py-2 border-y border-border/50">
+      {/* Left: input preview (key fields) */}
+      <div className="space-y-1.5 text-xs overflow-auto max-h-[30vh]">
+        <div className="text-muted-foreground font-medium">{t("results.annotate.preview_input")}</div>
+        {inputPreviewKeys.length === 0 ? (
+          <div className="text-muted-foreground italic">-</div>
+        ) : (
+          inputPreviewKeys.map(k => (
+            <div key={k} className="space-y-0.5">
+              <div className="text-[10px] text-muted-foreground font-mono">{k}</div>
+              <div className="text-foreground break-words">{String(result.input_preview[k] ?? "")}</div>
+            </div>
+          ))
+        )}
+      </div>
+      {/* Right: image output(s) */}
+      <div className="space-y-1.5">
+        <div className="text-muted-foreground text-xs font-medium">{t("results.annotate.preview_image")}</div>
+        {imageFields.map(f => {
+          const value = readField(result, `output.${f.name}`)
+          if (value == null || value === "") return (
+            <div key={f.name} className="text-xs text-muted-foreground italic">-</div>
+          )
+          return (
+            <div key={f.name} className="max-h-[30vh] overflow-hidden rounded">
+              {renderField(value, "image")}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }

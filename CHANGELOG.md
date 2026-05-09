@@ -10,6 +10,27 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### 体验
+
+- **生图（Image Generation）评测 v1 完备支持** — text-in / image-out 评测端到端。
+  - LLM client：扩 `LlmResponse.images?`，`parseResponse` OpenAI 分支提取
+    `choices[0].message.images[]`（OpenRouter / sankuai 等 gateway 约定的
+    非标字段）。请求侧零改动（沿用 `api_format='openai'`）
+  - 图像存储：data URL 解码 → `data/results/{exp_id}/images/{task_id}_{idx}.{ext}`，
+    JSONL 里只存绝对 API URL `/api/results/{exp_id}/images/...`
+  - Schema：`JsonFieldType` 加 `image_url` / `image_url_list`，validate 跟上
+  - UI：全局 `ImageLightboxProvider` 挂 RootLayout；`renderField` image case
+    走 `<ClickableImage>` → 点击进 Lightbox；RubricAnnotator 弹窗 image 类
+    schema 自动展示双栏 preview
+  - 三件套 seed：`image_prompts_v1` 数据集（20 prompt × 5 类别）+
+    `image_gen_v1` schema + `image_quality_v1` rubric（HEIM 5 题改编）
+  - Skill 文档：`evalyst` + `evalyst-task` 加生图章节
+  - 验证：sankuai `gemini-3.1-flash-image-preview` 实跑通，5 单测组 +
+    1 e2e smoke
+
+- Spec: `docs/superpowers/specs/2026-05-08-image-generation-eval-design.md`
+- Plan: `docs/superpowers/plans/2026-05-08-image-generation-eval.md`
+
 
 ## [0.9.4] — 2026-05-09 · Copilot 架构 polish + loop detector 回归防御 (PR #50–51)
 

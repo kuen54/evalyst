@@ -39,6 +39,14 @@ function mockValue(prop: JsonPropDef, seedKey: string): unknown {
       // 给不同位置的坐标避免全部重叠
       const hash = seedKey.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
       return [0.3 + (hash % 40) / 100, 0.3 + ((hash * 7) % 40) / 100]
+    case "image_url":
+      // Inline gray SVG placeholder so preview works without network
+      return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='180' viewBox='0 0 240 180'><rect width='240' height='180' fill='%23e5e7eb'/><text x='120' y='90' font-family='monospace' font-size='14' fill='%236b7280' text-anchor='middle' dominant-baseline='middle'>image_url</text></svg>"
+    case "image_url_list":
+      return [
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='180' viewBox='0 0 240 180'><rect width='240' height='180' fill='%23e5e7eb'/><text x='120' y='90' font-family='monospace' font-size='12' fill='%236b7280' text-anchor='middle' dominant-baseline='middle'>image[0]</text></svg>",
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='180' viewBox='0 0 240 180'><rect width='240' height='180' fill='%23d1d5db'/><text x='120' y='90' font-family='monospace' font-size='12' fill='%236b7280' text-anchor='middle' dominant-baseline='middle'>image[1]</text></svg>",
+      ]
     case "object":
       if (prop.properties) {
         const nested: Record<string, unknown> = {}

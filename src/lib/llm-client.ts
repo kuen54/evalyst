@@ -45,6 +45,7 @@ export function isTextMessage(
 
 export interface LlmResponse {
   content: string
+  images?: Array<{ url: string; mime_type?: string }>
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
   latency_ms: number
 }
@@ -93,8 +94,8 @@ export async function callLlm(
   const start = Date.now()
   const req = buildApiRequest(p.config, buildRequestBody(p))
   const data = await executeWithRetry(req, p.signal)
-  const { content, usage } = parseResponse(p.config, data)
-  return { content, usage, latency_ms: Date.now() - start }
+  const { content, images, usage } = parseResponse(p.config, data)
+  return { content, images, usage, latency_ms: Date.now() - start }
 }
 
 // ---------- API 请求构造（按 api_format 分支） ----------
@@ -165,7 +166,7 @@ function buildRequestBody(p: CallLlmParams): Record<string, unknown> {
   return base
 }
 
-function parseResponse(config: ApiConfig, data: unknown): { content: string; usage?: LlmResponse['usage'] } {
+function parseResponse(config: ApiConfig, data: unknown): { content: string; images?: LlmResponse['images']; usage?: LlmResponse['usage'] } {
   const d = data as Record<string, unknown>
   if (config.api_format === 'anthropic') {
     const blocks = Array.isArray(d.content) ? (d.content as Array<{ type: string; text?: string }>) : []
@@ -176,12 +177,38 @@ function parseResponse(config: ApiConfig, data: unknown): { content: string; usa
       : undefined
     return { content, usage }
   }
-  const choices = d.choices as Array<{ message?: { content?: string } }> | undefined
+  const choices = d.choices as Array<{ message?: { content?: string; images?: unknown } }> | undefined
+  const message = choices?.[0]?.message
+  const content = message?.content ?? ''
+
+  // Extract images[] (OpenAI-compatible gateway convention for image-out models)
+  let images: LlmResponse['images'] | undefined
+  const rawImages = Array.isArray(message?.images) ? (message!.images as Array<Record<string, unknown>>) : null
+  if (rawImages) {
+    const parsed = rawImages
+      .map((img): { url: string; mime_type?: string } | null => {
+        const fromImageUrl = (img.image_url as { url?: unknown })?.url
+        const fromBareUrl = img.url
+        const url = typeof fromImageUrl === 'string'
+          ? fromImageUrl
+          : (typeof fromBareUrl === 'string' ? fromBareUrl : '')
+        if (!url) return null
+        const mimeMatch = /^data:([^;]+);base64,/.exec(url)
+        return mimeMatch ? { url, mime_type: mimeMatch[1] } : { url }
+      })
+      .filter((x): x is { url: string; mime_type?: string } => x !== null)
+    if (parsed.length > 0) images = parsed
+  }
+
   return {
-    content: choices?.[0]?.message?.content ?? '',
+    content,
+    images,
     usage: d.usage as LlmResponse['usage'],
   }
 }
+
+// Re-export for unit tests (private to project, not in public API of llm-client)
+export const parseResponseForTest = parseResponse
 
 // ---------- 共享 retry / timeout / abort 脚手架 ----------
 

@@ -1,6 +1,7 @@
 // ---------- Mini JSON Schema 校验 ----------
 // 只覆盖本项目用到的形态：object + nested properties、string/number/boolean/array、
-// tuple:number[]（用于 element_position [x,y]）、string|null（optional string）。
+// tuple:number[]（用于 element_position [x,y]）、string|null（optional string）、
+// image_url / image_url_list（生图评测用）。
 // 不装 ajv/zod；复杂度失控时再换。
 
 import type { JsonSchemaDef, JsonPropDef } from './types'
@@ -103,6 +104,19 @@ function validateProp(data: unknown, prop: JsonPropDef, path: string): ValidateR
             if (!r.ok) return r
           }
         }
+      }
+      return { ok: true }
+
+    case 'image_url':
+      if (typeof data !== 'string') return { ok: false, error: `${path}: expected image_url (string)` }
+      if (data.length === 0) return { ok: false, error: `${path}: image_url must be non-empty` }
+      return { ok: true }
+
+    case 'image_url_list':
+      if (!Array.isArray(data)) return { ok: false, error: `${path}: expected image_url_list (array)` }
+      for (let i = 0; i < data.length; i++) {
+        if (typeof data[i] !== 'string') return { ok: false, error: `${path}[${i}]: expected string` }
+        if ((data[i] as string).length === 0) return { ok: false, error: `${path}[${i}]: must be non-empty` }
       }
       return { ok: true }
   }

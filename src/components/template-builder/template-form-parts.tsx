@@ -31,6 +31,8 @@ const OUTPUT_TYPE_OPTIONS: FormOutputField["type"][] = [
   "object",
   "string|null",
   "tuple:number[]",
+  "image_url",
+  "image_url_list",
 ]
 
 /** 不可变 update 辅助：拷贝数组 → 合并 patch → 通过 set 回写 */

@@ -1,0 +1,13 @@
+{
+  "id": "image_prompts_v1",
+  "name": "Image Gen Prompts v1",
+  "description": "20 starter prompts across 5 categories (portrait / landscape / object / abstract / composition). Use as a baseline for image generation eval. Edit freely; seed restores only if you delete the file.",
+  "source": "builtin",
+  "id_field": "prompt_id",
+  "fields": [
+    { "key": "prompt_id", "type": "string", "label": "Prompt ID" },
+    { "key": "prompt", "type": "string", "label": "Prompt" },
+    { "key": "category", "type": "string", "label": "Category" },
+    { "key": "notes", "type": "string", "label": "Notes" }
+  ]
+}

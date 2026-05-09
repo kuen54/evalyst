@@ -28,9 +28,11 @@ export function inferFieldRenderType(
   field: OutputField,
   sampleValue?: unknown,
 ): "text" | "image" | "badge" | "json" {
+  // 显式 image 类型 → image（最高优先级）
+  if (field.type === "image_url" || field.type === "image_url_list") return "image"
   // 名字启发式 → badge
   if (/tag|label|category|status/i.test(field.name)) return "badge"
-  // URL 启发式 → image
+  // URL 启发式 → image (fallback for legacy schemas without image_url type)
   if (typeof sampleValue === "string" && /^https?:\/\//.test(sampleValue) && /(url|image|pic|img|photo)/i.test(field.name)) {
     return "image"
   }

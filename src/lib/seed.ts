@@ -30,6 +30,7 @@ function seedDatasets() {
   ensureDir(datasetsDir())
   const datasets = [
     { id: 'qa_pairs', meta: 'qa_pairs.meta.json', jsonl: 'qa_pairs.jsonl' },
+    { id: 'image_prompts_v1', meta: 'image_prompts_v1.meta.json', jsonl: 'image_prompts_v1.jsonl' },
   ]
   for (const ds of datasets) {
     const metaDst = path.join(datasetsDir(), `${ds.id}.meta.json`)
@@ -47,7 +48,7 @@ function seedDatasets() {
 
 function seedSchemas() {
   ensureDir(schemasDir())
-  const schemas = ['qa_answer_v1']
+  const schemas = ['qa_answer_v1', 'image_gen_v1']
   for (const id of schemas) {
     const dst = path.join(schemasDir(), `${id}.json`)
     if (!fs.existsSync(dst)) {
@@ -59,7 +60,7 @@ function seedSchemas() {
 
 function seedRubrics() {
   ensureDir(rubricsDir())
-  const rubrics = ['qa_accuracy']
+  const rubrics = ['qa_accuracy', 'image_quality_v1']
   for (const id of rubrics) {
     const dst = path.join(rubricsDir(), `${id}.json`)
     if (!fs.existsSync(dst)) {

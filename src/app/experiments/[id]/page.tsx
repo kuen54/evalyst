@@ -331,6 +331,8 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                               existing={existing}
                               onSaved={() => fetchAnnotations(rubric.id)}
                               triggerClassName="shrink-0"
+                              result={r}
+                              schema={schema}
                             />
                           </div>
                         )
