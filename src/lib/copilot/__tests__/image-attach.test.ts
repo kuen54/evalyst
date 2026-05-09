@@ -221,3 +221,109 @@ describe('collectImageRefs — schema-aware extraction', () => {
     expect(out.dropped_count).toBe(1)
   })
 })
+
+describe('extractImageRefsFromOutput — direct helper coverage', () => {
+  function makeSchemaT(props: Record<string, { type: string }>): TaskSchema {
+    return {
+      id: 'sch_t', label: 't', version: 1,
+      inputs: [], variables: [], default_prompt: '',
+      message_builder: {},
+      output_schema: {
+        type: 'object',
+        properties: Object.fromEntries(
+          Object.entries(props).map(([n, d]) => [n, { type: d.type } as never]),
+        ),
+      },
+    } as TaskSchema
+  }
+
+  it('image_url field with non-empty string → 1 ref, source_label includes field name', async () => {
+    const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+    const schema = makeSchemaT({ caption: { type: 'string' }, image_url: { type: 'image_url' } })
+    const refs = extractImageRefsFromOutput(
+      { caption: 'a cat', image_url: '/api/results/exp_1/images/cat.png' },
+      schema,
+      'exp_1',
+      7,
+      't_abc',
+    )
+    expect(refs).toHaveLength(1)
+    expect(refs[0]).toEqual({
+      url: '/api/results/exp_1/images/cat.png',
+      source_label: 'task_result#t_abc · field=image_url',
+      ctx_tag: 7,
+    })
+  })
+
+  it('image_url_list with 3 entries → 3 refs', async () => {
+    const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+    const schema = makeSchemaT({ images: { type: 'image_url_list' } })
+    const refs = extractImageRefsFromOutput(
+      { images: [
+        '/api/results/exp_1/images/a.png',
+        '/api/results/exp_1/images/b.png',
+        '/api/results/exp_1/images/c.png',
+      ] },
+      schema,
+      'exp_1',
+    )
+    expect(refs).toHaveLength(3)
+    expect(refs.map(r => r.url)).toEqual([
+      '/api/results/exp_1/images/a.png',
+      '/api/results/exp_1/images/b.png',
+      '/api/results/exp_1/images/c.png',
+    ])
+    expect(refs[0].ctx_tag).toBeUndefined()  // tool path doesn't pass ctx_tag
+  })
+
+  it('heuristic catches "photo_url" with /api/results/... value (marked inferred)', async () => {
+    const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+    const schema = makeSchemaT({ photo_url: { type: 'string' } })
+    const refs = extractImageRefsFromOutput(
+      { photo_url: '/api/results/exp_1/images/x.png' },
+      schema,
+      'exp_1',
+      undefined,
+      't_abc',
+    )
+    expect(refs).toHaveLength(1)
+    expect(refs[0].source_label).toBe('task_result#t_abc · field=photo_url (inferred)')
+  })
+
+  it('heuristic skips when name matches but value is empty string', async () => {
+    const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+    const schema = makeSchemaT({ photo_url: { type: 'string' } })
+    const refs = extractImageRefsFromOutput({ photo_url: '' }, schema, 'exp_1')
+    expect(refs).toHaveLength(0)
+  })
+
+  it('heuristic skips when name matches but value is non-path (e.g. a description)', async () => {
+    const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+    const schema = makeSchemaT({ image_caption: { type: 'string' } })
+    const refs = extractImageRefsFromOutput(
+      { image_caption: 'a brown dog with a red collar' },
+      schema,
+      'exp_1',
+    )
+    expect(refs).toHaveLength(0)
+  })
+
+  it('heuristic does not double-count a field already declared as image_url', async () => {
+    const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+    const schema = makeSchemaT({ image_url: { type: 'image_url' } })
+    const refs = extractImageRefsFromOutput(
+      { image_url: '/api/results/exp_1/images/dup.png' },
+      schema,
+      'exp_1',
+    )
+    expect(refs).toHaveLength(1)  // declared path, NOT also picked up by heuristic
+  })
+
+  it('does not enforce cap or dedup (caller responsibility)', async () => {
+    const { extractImageRefsFromOutput, MAX_IMAGES_PER_TURN } = await import('@/lib/copilot/image-attach')
+    const schema = makeSchemaT({ images: { type: 'image_url_list' } })
+    const arr = Array.from({ length: MAX_IMAGES_PER_TURN + 4 }, (_, i) => `/api/results/exp_1/images/i${i}.png`)
+    const refs = extractImageRefsFromOutput({ images: arr }, schema, 'exp_1')
+    expect(refs).toHaveLength(MAX_IMAGES_PER_TURN + 4)
+  })
+})
