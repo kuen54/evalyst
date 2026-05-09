@@ -990,7 +990,6 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.no_model_hint": "No model is enabled for Copilot yet.",
   "copilot.go_settings_llm": "Go to LLM settings",
   "copilot.model_picker_vision_required": "Vision-capable model required for image contexts",
-  "copilot.image_dropped_warn": "{n} image(s) not attached (per-turn cap is {cap})",
   "copilot.load_sessions_failed": "Failed to load sessions",
   "copilot.create_session_failed": "Failed to create session",
   "copilot.send_failed": "Send failed",

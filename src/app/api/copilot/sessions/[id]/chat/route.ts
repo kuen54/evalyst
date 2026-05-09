@@ -13,6 +13,7 @@ import { getLlmConfig } from '@/lib/llm-config'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
 import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
 import { streamSseResponse } from '@/lib/copilot/sse-response'
+import { validateVisionGate } from '@/lib/copilot/vision-gate'
 
 /**
  * POST body：
@@ -56,6 +57,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const model = modelId ? cfg.models.find(m => m.id === modelId && m.copilot_enabled) : undefined
   if (!model) return jsonError(400, 'copilot model not configured or not enabled')
   if (!model.base_url || !model.api_key) return jsonError(400, 'model missing base_url or api_key')
+
+  // Spec §3.3 layer 2: reject non-vision model + image-bearing contexts before
+  // we incur LLM cost. Layer 1 (UI picker) prevents most cases; layer 3
+  // (build-llm-messages strip) silently degrades. Layer 2 makes direct
+  // curl/agentic callers see a clear 400.
+  const visionGate = validateVisionGate(body.contexts, model)
+  if (!visionGate.ok) return jsonError(400, visionGate.reason)
 
   // 如果 model_id 被本次请求指定了且与 session 之前不同，更新 session.model_id
   if (body.model_id && body.model_id !== session.model_id) {
