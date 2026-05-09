@@ -82,13 +82,14 @@ export function assertSafeImageUrl(rawUrl: string): void {
     //   - dotted: ::ffff:10.0.0.1 (literal in input)
     //   - hex-compacted: ::ffff:a00:1 (Node's URL parser normalizes to this)
     const mappedDotted = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(host)
-    if (mappedDotted && isPrivateIpv4(mappedDotted[1])) {
+    if (mappedDotted && isPrivateIpv4(mappedDotted[1]!)) {
       throw new UnsafeImageUrlError(`private IPv4-mapped IPv6 ${host}`)
     }
     const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(host)
     if (mappedHex) {
-      const high = parseInt(mappedHex[1], 16)
-      const low = parseInt(mappedHex[2], 16)
+      // Capture groups [1] and [2] are guaranteed by the regex pattern.
+      const high = parseInt(mappedHex[1]!, 16)
+      const low = parseInt(mappedHex[2]!, 16)
       const v4 = `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`
       if (isPrivateIpv4(v4)) {
         throw new UnsafeImageUrlError(`private IPv4-mapped IPv6 ${host} (decodes to ${v4})`)
@@ -156,6 +157,7 @@ export async function saveImagesForTask(args: SaveImagesArgs): Promise<string[]>
   const out: string[] = []
   for (let i = 0; i < args.images.length; i++) {
     const img = args.images[i]
+    if (!img) continue // unreachable: i bounded by .length; satisfies noUncheckedIndexedAccess
     // Static SSRF gate — runs for every URL, before any network IO.
     // data: URLs are allowed (handled below); https:// is allowed only
     // for non-private hosts; everything else throws.
@@ -168,7 +170,7 @@ export async function saveImagesForTask(args: SaveImagesArgs): Promise<string[]>
     if (img.url.startsWith('data:')) {
       const base64Match = /^data:[^;]+;base64,(.*)$/.exec(img.url)
       if (!base64Match) throw new Error(`saveImagesForTask: malformed data URL at index ${i}`)
-      buf = Buffer.from(base64Match[1], 'base64')
+      buf = Buffer.from(base64Match[1]!, 'base64')
     } else {
       // assertSafeImageUrl above guarantees protocol === 'https:' at this point.
       const resp = await fetch(img.url)
