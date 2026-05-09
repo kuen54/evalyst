@@ -171,6 +171,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           // 找最后一条 assistant，没有就 push 一个 streaming=true 的新气泡
           for (let i = next.length - 1; i >= 0; i--) {
             const m = next[i]
+            if (!m) continue
             if (m.role === "assistant") {
               next[i] = { ...m, content: m.content + ev.delta, streaming: true }
               return next
@@ -185,6 +186,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           const next = prev.slice()
           for (let i = next.length - 1; i >= 0; i--) {
             const m = next[i]
+            if (!m) continue
             if (m.role === "user" && !m.id) {
               next[i] = { ...m, id: ev.id }
               break
@@ -200,6 +202,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           // content 的 JSON 字符串通过 summarizeResult 渲出 "5/12" 这种摘要。
           for (let i = next.length - 1; i >= 0; i--) {
             const m = next[i]
+            if (!m) continue
             if (m.role === "tool_result" && !m.id) {
               next[i] = {
                 ...m,
@@ -223,6 +226,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           const next = prev.slice()
           for (let i = next.length - 1; i >= 0; i--) {
             const m = next[i]
+            if (!m) continue
             if (m.role === "assistant" && m.streaming) {
               next[i] = { ...m, streaming: false }
               break
@@ -288,9 +292,11 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           let orderCursor = 0
           for (let i = 0; i < next.length && orderCursor < orderSnapshot.length; i++) {
             const m = next[i]
+            if (!m) continue
             if (m.role === "tool_use" && !m.id && m.call_id === orderSnapshot[orderCursor]) {
-              if (toolIds[orderCursor]) {
-                next[i] = { ...m, id: toolIds[orderCursor], streaming: false }
+              const newId = toolIds[orderCursor]
+              if (newId) {
+                next[i] = { ...m, id: newId, streaming: false }
               }
               orderCursor++
             }
@@ -298,6 +304,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           // 找到末尾 streaming assistant，挂上 id
           for (let i = next.length - 1; i >= 0; i--) {
             const m = next[i]
+            if (!m) continue
             if (m.role === "assistant" && m.streaming) {
               next[i] = { ...m, id: ev.assistant_message_id ?? m.id, streaming: false }
               break
@@ -331,6 +338,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           const next = prev.slice()
           for (let i = next.length - 1; i >= 0; i--) {
             const m = next[i]
+            if (!m) continue
             if (m.role === "assistant" && m.streaming) {
               next[i] = { ...m, content: m.content || p.tI18nReplyFailed, streaming: false }
               break
@@ -511,6 +519,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         const next = prev.slice()
         for (let i = next.length - 1; i >= 0; i--) {
           const m = next[i]
+          if (!m) continue
           if (m.role === "assistant" && m.streaming) {
             next[i] = { ...m, streaming: false }
             break
