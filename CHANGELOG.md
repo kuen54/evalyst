@@ -46,6 +46,13 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 - Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase A · #6
 - 不写独立 plan（< 1d 项，spec 直接 scope）
 
+### Deferred (follow-up PRs)
+
+跟踪从 audit-cleanup-2026-05-09 里被显式 defer 出去的工作。每条对应一个独立 branch / PR，避免散落在贴脸的 chore/* 里。
+
+- **`chore/lint-fix-batch`** —— 清 `chore/audit-cleanup` (PR #60) 留下的 26 个真实 lint 问题：23 errors（80% `react-hooks/set-state-in-effect`，其余 `rules-of-hooks` + `no-use-before-define`，每条需 per-occurrence review，不是机械修）+ 3 `react-hooks/exhaustive-deps` warnings；最后一步把 CI lint `continue-on-error: true → false`，让 lint 真正成为 gate
+- **`chore/knip-config-and-cleanup`** —— audit spec §Tier 3 的 "16 unused exports + 38 unused types" 长尾。当前 knip 在 `package.json` deps 里但缺 `knip.json` 配置 + 缺 `npm run knip` script。先把 knip 跑起来（含 `**/.next/**` / `.claude/**` / `coverage/**` ignore）再清剩余 unused 导出 / 类型；PR #60 已先手清了 22 条最高确信度的（`src/lib/types.ts` × 11 + `src/lib/copilot/manifest.ts` × 11）
+
 ## [0.10.1] — 2026-05-09 · 测试硬编码审计 + P0/P1 hygiene fix (PR #55)
 
 PR #54 在 CI 上挂了 e2e —— 根因是测试 hardcode 了开发机本地才有的 model id (`gemini-31-pro` / `opus-46-anthropic`)。fix-forward 走 self-provision fixture pattern 修了，但担心同类 hardcode 散落在别的 spec 里等着撞。这个版本扫了一遍全仓库的测试套，把"真撞过 / 真会撞 CI"的两条修了，剩下的 P2 留作 design smell 记录。
