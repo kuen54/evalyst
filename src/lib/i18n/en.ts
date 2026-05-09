@@ -1110,4 +1110,6 @@ export const en: Record<keyof typeof zh, string> = {
   // LLM settings — Copilot toggle
   "settings.llm.copilot_enabled_label": "Available to Copilot",
   "settings.llm.copilot_enabled_hint": "Allow Evalyst Copilot to use this model for chat",
+  "settings.llm.vision_capable_label": "Vision capable",
+  "settings.llm.vision_capable_desc": "Enable to allow this model to receive image attachments from circled task results in Copilot. Only affects Copilot, not batch experiments.",
 }

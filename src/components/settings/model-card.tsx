@@ -229,6 +229,20 @@ export function ModelCard({ entry, isDefault, onChange, onSetDefault, onDelete }
           </span>
         </div>
 
+        <div className="flex items-center gap-2 py-1">
+          <Checkbox
+            id={`vision-capable-${entry.id}`}
+            checked={!!entry.vision_capable}
+            onCheckedChange={v => set("vision_capable", !!v)}
+          />
+          <Label htmlFor={`vision-capable-${entry.id}`} className="text-[13px] font-normal cursor-pointer">
+            {t("settings.llm.vision_capable_label")}
+          </Label>
+          <span className="text-[11px] text-muted-foreground ml-1">
+            {t("settings.llm.vision_capable_desc")}
+          </span>
+        </div>
+
         <Separator />
 
         <div className="space-y-2">

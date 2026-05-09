@@ -1109,4 +1109,6 @@ export const zh = {
   // LLM settings —— Copilot 开关
   "settings.llm.copilot_enabled_label": "Copilot 可用",
   "settings.llm.copilot_enabled_hint": "允许 Evalyst Copilot 使用该模型对话",
+  "settings.llm.vision_capable_label": "支持图像输入",
+  "settings.llm.vision_capable_desc": "允许此模型在 Copilot 接收圈选结果中的图像。仅影响 Copilot，不影响批量评测。",
 }
