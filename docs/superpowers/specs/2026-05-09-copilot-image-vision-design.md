@@ -38,7 +38,7 @@ v0.10.0 ship 后实测发现的核心 gap：圈选含图 result 跟 Copilot 对�
 |---|---|---|
 | 1 | **Vision 模型识别走手动 `vision_capable?: boolean` 标记**，默认 `false` | 匹配现有 `copilot_enabled` 模式；显式 > 启发式；网关前缀模型名（`sankuai/gemini-3.1-flash-image-preview`）regex 易漏 |
 | 2 | **图像永远走 base64 内联**（`fs.readFile` → `data:image/png;base64,...`） | 唯一同时在 dev 和 prod 都能 work 的方式；vision LLM 拉不到 localhost；零网络往返；payload 增 ~33% 是可接受成本 |
-| 3 | **每轮 LLM 消息附图上限 N=8**（圈选 + 工具返回合计） | 包住 compare 用例（≤8 张图）；不会撑爆 context window；超出走 LLM 多轮交互或后续 user 提交 |
+| 3 | **每轮 LLM 消息附图上限 N=5**（圈选 + 工具返回合计） | 包住典型 compare 用例（≤5 张图）；不会撑爆 context window 或撞 10MB 请求上限；超出走 LLM 多轮交互或后续 user 提交 |
 | 4 | **Vision 门控走硬筛 model picker**（image contexts 存在 → 非 vision 模型不可选） | 防静默失败；用户显式认知"这是个 vision 任务"；和 `copilot_enabled` 筛逻辑同形 |
 
 副推论（base64 → 必须修 Anthropic 序列化器）：
@@ -80,7 +80,7 @@ Browser (chip rail / model picker / chat-view)        Server (chat route → bui
                                                                找 image_url / image_url_list 字段
                                                                → resolve to data/results/{exp}/images/{f}
                                                              • window 内 tool_result.attachments → 取
-                                                             • dedupe by URL；cap 8
+                                                             • dedupe by URL；cap 5
                                                                 ▼
                                                           6. readImageBytes(refs):
                                                              fs.readFile per ref → base64
@@ -199,7 +199,7 @@ import type { CopilotMessage, CopilotContextRef, ImageRef } from './types'
 
 const IMAGE_FIELD_NAME_RE = /url|image|pic|img|photo/i
 const PATH_PREFIX_RE = /^(images\/|\/api\/results\/[^/]+\/images\/)/
-const MAX_IMAGES_PER_TURN = 8
+const MAX_IMAGES_PER_TURN = 5
 
 interface CollectInput {
   branch: CopilotMessage[]      // active branch 已 sliced + microcompacted
@@ -212,7 +212,7 @@ interface CollectOutput {
   dropped_count: number          // 超 cap 被丢弃数；UI 显示 warning
 }
 
-/** 主入口：扫整个 branch 收集所有图像 ref（dedupe + cap 8） */
+/** 主入口：扫整个 branch 收集所有图像 ref（dedupe + cap 5） */
 export function collectImageRefs(input: CollectInput): CollectOutput { ... }
 
 /** 把 ref.url 解析成磁盘路径并 base64 编码；失败返 null + 错误说明 */
@@ -585,7 +585,7 @@ const imageContextCount = useMemo(
 
 | 文件 | 覆盖 |
 |---|---|
-| `src/lib/copilot/__tests__/image-attach.test.ts` | `collectImageRefs` schema-aware 提取（image_url + image_url_list）；启发式 fallback；dedup；N=8 cap + dropped_count；URL 规范化；非 vision 模型直接返空 |
+| `src/lib/copilot/__tests__/image-attach.test.ts` | `collectImageRefs` schema-aware 提取（image_url + image_url_list）；启发式 fallback；dedup；N=5 cap + dropped_count；URL 规范化；非 vision 模型直接返空 |
 | `src/lib/copilot/__tests__/image-attach.read-bytes.test.ts` | `readImageBytes` data URL 直通；磁盘文件成功；缺失文件返 error；非法路径阻断 |
 | `src/lib/copilot/__tests__/build-llm-messages.image.test.ts` | user msg multimodal 重写（含图 / 不含图）；tool_result inline kind 加 attachments；tool_result ref kind 不加；vision 兜底 strip + system note；dropped_count system note |
 | `src/lib/copilot/__tests__/llm-stream.anthropic-data-url.test.ts` | data: URL → source.type=base64 + media_type 解析；http URL 保持 source.type=url；混合 content array 正确遍历 |
@@ -605,7 +605,7 @@ const imageContextCount = useMemo(
 - [ ] 实验详情页：圈选 1 张图 result → 打开 Copilot → 模型选择器只显示 vision_capable 模型 → 提问"为什么这张图主体偏左？" → LLM 回答应基于图像内容（非"我看不到图"套话）
 - [ ] 圈 2 张图 → "对比 #1 和 #2 哪张更清晰" → LLM 应对应 ctx_1/ctx_2 给出图像级别评论
 - [ ] 圈实验整体 → "这一批图整体偏暗吗？" → LLM 调 `read_experiment_results` → 应收到 _attachments 含 8 张图（cap）→ 给出整体评估
-- [ ] 圈 9 张图 result → 应见 chip 警告"1 image not attached (cap 8)"
+- [ ] 圈 6 张图 result → 应见 chip 警告"1 image not attached (cap 5)"
 - [ ] 选非 vision 模型 + 试圈图 → 模型选择器应剔除该模型；强行 contexts 注入（dev tools 模拟）→ build-llm-messages 兜底 strip + system note
 - [ ] 删图后再问 → "Image unavailable: ... — ENOENT" 占位文本可见
 - [ ] Anthropic provider（claude-sonnet）+ data URL → 序列化为 source.type=base64；HTTP URL（远程）若有 → source.type=url
@@ -658,7 +658,7 @@ const imageContextCount = useMemo(
 | VLM-as-judge 自动评分 | v0.10.0 spec 已明确放 v2；本 spec 是 v2 也不做 | 用户明确反馈手动评分慢 |
 | 输入图（input_refs）的 vision 注入 | v1 outputs-only。input image 在 bubble overlay schema 用 url 类型字段，需要走 dataset 解析路径，复杂 | 用户明确想"看输入图调 prompt" |
 | 远程 HTTP 图像 fetch & cache | base64 path 已覆盖主用例。HTTP fetch 涉及超时/重试/cache 策略 | 用户用远程 storage（S3 等） |
-| Token-budget per-session 累计上限 | 每轮 N=8 cap 已 bound；多轮累计由 micro-compact + chain cap 5 兜底 | 实测发现某用户对话长期吃不消 |
+| Token-budget per-session 累计上限 | 每轮 N=5 cap 已 bound；多轮累计由 micro-compact + chain cap 5 兜底 | 实测发现某用户对话长期吃不消 |
 | 图像 lightbox 缩放 / 平移 / 多图切换 | v0.10.0 spec 已放 v2 | 用户反馈要细看像素 |
 | Image-aware tool（如 `compare_images(ctx_a, ctx_b)`） | 现有 read_context + 多模态注入已能让 LLM 自己 compare | 多次 chain miss / LLM 不会主动比较 |
 | `app_base_url` 静态配置（HTTP URL fallback） | base64 always 简单可靠；公网部署的优化收益小 | 用户实际部署到公网 + 投诉 token 费 |
@@ -678,7 +678,7 @@ const imageContextCount = useMemo(
 - `src/lib/copilot/stream-response.ts` — `await buildLlmMessages(...)`
 - `src/lib/copilot/tool-result-store.ts` — persist `attachments` 字段
 - `src/lib/copilot/tools/read-context.ts` — _attachments 输出
-- `src/lib/copilot/tools/read-experiment-results.ts` — _attachments + cap 8
+- `src/lib/copilot/tools/read-experiment-results.ts` — _attachments + cap 5
 - `src/lib/copilot/tools/read-resource.ts` — task_result 取首图（适用时）
 
 UI / 配置：
@@ -706,7 +706,7 @@ UI / 配置：
 
 1. **OpenAI tool_result content array 兼容性** —— Plan Step 1 必须 curl 实测 sankuai gateway 是否接受 `tool` role + `content: [{type:'text'},{type:'image_url'}]`。若不接受，落 §4.4.1 备选 B（tool_result 文字 + 紧跟 user image message）。
 2. **Schema cache 作用域** —— buildLlmMessages 内 per-call Map vs 模块级 Map（per-process）。倾向 per-call 保纯函数；如实测 perf 不足再升级。
-3. **`read_tool_result` 回捞后的图像重附** —— 落盘 attachments 是 `ImageRef[]`，回捞后 build-llm-messages 重新走 `materializeImagePlan`。需明确：是按 cap 8 重新计算，还是该次 tool_result 独立 cap？倾向独立 cap（每个 tool_result 各自最多 8），避免重复计数。Plan 阶段确认。
+3. **`read_tool_result` 回捞后的图像重附** —— 落盘 attachments 是 `ImageRef[]`，回捞后 build-llm-messages 重新走 `materializeImagePlan`。需明确：是按 cap 5 重新计算，还是该次 tool_result 独立 cap？倾向独立 cap（每个 tool_result 各自最多 5），避免重复计数。Plan 阶段确认。
 4. **`task_result` 的 imageContextCount 前端检测精度** —— chat-view 拿不到 schema 元数据，无法 100% 判定。当前提案"task_result 类型一律按可能含图"是保守上限，会过度 filter model picker。可选优化：context capture 时同步带 `has_image: boolean` flag（schema 在 server resolve 时填回）。Plan 阶段考虑。
 5. **Vision capable 默认值的迁移建议** —— 是否在 first-run UX 给现有 vision 主流模型（claude-sonnet/opus、gpt-4o、gemini-pro）预填 true？倾向保守：留空，让用户主动开。文档 + skill 里写清。Plan 阶段定。
 
