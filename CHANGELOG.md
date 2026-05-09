@@ -23,6 +23,17 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 - Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md
 - Plan: docs/superpowers/plans/2026-05-09-audit-auth-gate-rce.md
 
+### Security (PR fix/image-url-ssrf — Phase A of audit-cleanup-2026-05-09)
+
+审视报告 §8 S4 + §16 单独点的 SSRF 缺口：`saveImagesForTask` 把 LLM 返回的图片 URL 直接 fetch 写盘，没有协议 / 私网段过滤。一个被劫持或恶意的 LLM 可让 evalyst 拉 `http://169.254.169.254/...`（云元数据）或 `http://10.x.x.x/...`（内网）。
+
+- **新增 `assertSafeImageUrl()` 静态守门**：只放行 `data:image/*` 和 `https://` + 公网 host；拒绝所有非 https 远程 scheme（`http:` `file:` `ftp:` `gopher:` …）；拒绝 hostname 为私网/回环/链路本地/多播 IP literal（IPv4 RFC1918 + 0/8 + 127/8 + 169.254/16 cloud metadata + 224+；IPv6 ::1 / ::、fe80::/10、fc00::/7；以及 `::ffff:a.b.c.d` IPv4-mapped IPv6 含 dotted 和 hex-compacted 两种形式——Node URL 解析会把 `[::ffff:10.0.0.1]` 规范化成 `[::ffff:a00:1]`，两种都拦）
+- **`saveImagesForTask` 在每次 URL 进 fetch 前调用守门**——`UnsafeImageUrlError` 通过 `batch-runner.ts:301` 既有 try/catch 自然落到 `task.error`，UI 看到可读错误而不是默默写入或挂死。data: URLs 走 base64 解码路径不变
+- 测试：`image-store-ssrf.test.ts` 32 case（19 pure helper + 2 集成）。集成测验证拒绝时盘上没残留文件（短路在 fetch 之前）。这是 spec §"#6 验收标准"承诺的"8 边界单测"的超集
+
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase A · #6
+- 不写独立 plan（< 1d 项，spec 直接 scope）
+
 ## [0.10.1] — 2026-05-09 · 测试硬编码审计 + P0/P1 hygiene fix (PR #55)
 
 PR #54 在 CI 上挂了 e2e —— 根因是测试 hardcode 了开发机本地才有的 model id (`gemini-31-pro` / `opus-46-anthropic`)。fix-forward 走 self-provision fixture pattern 修了，但担心同类 hardcode 散落在别的 spec 里等着撞。这个版本扫了一遍全仓库的测试套，把"真撞过 / 真会撞 CI"的两条修了，剩下的 P2 留作 design smell 记录。
