@@ -1,7 +1,9 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useT } from "@/lib/i18n/provider"
-import type { CacheUsageStat, CacheHitRateResult, CacheBreaksSummary, BreakPair } from "@/lib/copilot/cache-stats-store"
+import type { CacheUsageStat } from "@/lib/copilot/cache-stats-store"
+import type { CacheHitRateResult, CacheBreaksSummary } from "@/lib/copilot/cache-aggregate"
+import type { BreakPair } from "@/lib/copilot/cache-break-detect"
 
 interface ApiResponse {
   session: CacheHitRateResult & { recent: CacheUsageStat[] }

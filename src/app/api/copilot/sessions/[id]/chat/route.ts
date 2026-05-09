@@ -12,6 +12,7 @@ import type { CopilotContextRef, ClientSnapshot } from '@/lib/copilot/types'
 import { getLlmConfig } from '@/lib/llm-config'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
 import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
+import { streamSseResponse } from '@/lib/copilot/sse-response'
 
 /**
  * POST body：
@@ -79,52 +80,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const branch = getActiveBranch(sessionId, userMsg.id)
 
-  const encoder = new TextEncoder()
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      // race fix：客户端已 abort / 流已关时 controller.enqueue 会抛
-      // "Controller is already closed"；吞掉 —— 没法再回写客户端。
-      const write = (payload: unknown) => {
-        try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
-        } catch { /* stream closed */ }
-      }
-      write({ kind: 'user_message', id: userMsg.id })
-
-      try {
-        const pageContext = body.client_snapshot?.page_context ?? null
-        const result = await runToolAwareLlmStream({
-          sessionId,
-          branch,
-          model,
-          tools: visibleToolsForRoute(TOOLS, pageContext?.route_type ?? null),
-          pageContext,
-          startParentId: userMsg.id,
-          signal: req.signal,
-          write,
-        })
-        // helper 已保证 assistant / tool_use 落盘先于这里 emit done
-        write({
-          kind: 'done',
-          assistant_message_id: result.assistantMessageId,
-          tool_use_message_ids: result.toolUseMessageIds,
-          usage: result.usage,
-          stop_reason: result.stopReason,
-        })
-      } catch (e) {
-        write({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
-      } finally {
-        controller.close()
-      }
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no',
+  return streamSseResponse({
+    initialEvents: [{ kind: 'user_message', id: userMsg.id }],
+    runner: async (write) => {
+      const pageContext = body.client_snapshot?.page_context ?? null
+      const result = await runToolAwareLlmStream({
+        sessionId,
+        branch,
+        model,
+        tools: visibleToolsForRoute(TOOLS, pageContext?.route_type ?? null),
+        pageContext,
+        startParentId: userMsg.id,
+        signal: req.signal,
+        write,
+      })
+      // helper 已保证 assistant / tool_use 落盘先于这里 emit done
+      write({
+        kind: 'done',
+        assistant_message_id: result.assistantMessageId,
+        tool_use_message_ids: result.toolUseMessageIds,
+        usage: result.usage,
+        stop_reason: result.stopReason,
+      })
     },
   })
 }

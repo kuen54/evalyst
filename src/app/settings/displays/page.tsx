@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
 import { GlassCard } from "@/components/copilot/shell"
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/components/copilot/use-page-context"
 import type { Display } from "@/lib/schema/types"
 
 export default function SettingsDisplaysPage() {

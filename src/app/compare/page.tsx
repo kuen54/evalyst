@@ -14,7 +14,7 @@ import { GlassRegular, GlassThin } from "@/components/copilot/shell"
 import { GlassStickyHeader } from "@/components/copilot/sticky-chrome"
 import { useGlassStyle } from "@/components/copilot/shell"
 import { useCopilotStore } from "@/components/copilot/store"
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/components/copilot/use-page-context"
 import { PreviewCard } from "@base-ui/react/preview-card"
 
 function formatLatency(ms: number | undefined): string {

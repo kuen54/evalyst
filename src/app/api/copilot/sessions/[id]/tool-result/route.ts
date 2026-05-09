@@ -11,6 +11,7 @@ import { getLlmConfig } from '@/lib/llm-config'
 import type { ClientSnapshot } from '@/lib/copilot/types'
 import { setSnapshot } from '@/lib/copilot/snapshot-cache'
 import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
+import { streamSseResponse } from '@/lib/copilot/sse-response'
 import { analyzeToolLoop, type ToolLoopDecision } from '@/lib/copilot/tool-loop-detector'
 
 /**
@@ -129,18 +130,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (r.kind === 'done') {
       resultContent = r.output
     } else if (r.kind === 'error') {
-      // v2.5 P2: tool throw / tool return err 统一走结构化 ToolError 形态
+      // v2.5 P2/P3: tool throw / tool return err / server hook deny 统一走
+      // 结构化 ToolError 形态。USER_DENIED code 由 confirmGateHook 写入。
       resultContent = { ok: false, error: r.error }
-    } else if (r.kind === 'denied') {
-      // server hook 拒绝（sessionDeny 命中）
-      resultContent = {
-        ok: false,
-        error: {
-          code: 'USER_DENIED' as const,
-          message: r.reason,
-          retry_safe: false,
-        },
-      }
     } else {
       // skipConfirm=true 不该走到 awaiting_confirm；防御性兜底
       resultContent = {
@@ -169,70 +161,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // 重新拉 branch（含刚 append 的 tool_result）
   const branch = getActiveBranch(sessionId, toolResultMsg.id)
 
-  const encoder = new TextEncoder()
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      // race fix：客户端已 abort / 流已关时 controller.enqueue 会抛
-      // "Controller is already closed"；吞掉 —— 没法再回写客户端。
-      const write = (payload: unknown) => {
-        try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
-        } catch { /* stream closed */ }
-      }
-      // 回传 content + denied + reason 给前端，让 ToolCallCard.summarizeResult 能渲出
-      // "5/12" 这种读工具摘要。只发 id 会让占位 UiMessage 的 content 保持空串。
-      write({
-        kind: 'tool_result_message',
-        id: toolResultMsg.id,
-        content: JSON.stringify(resultContent),
-        denied: body.denied,
-        reason: body.reason,
-      })
-
-      // v2.5 P0 §3.4: warn 档命中时通知前端，但仍继续执行
-      if (loopWarnDecision) {
-        write({
-          kind: 'loop_warn',
-          call_id: body.call_id,
-          reason_key: loopWarnDecision.reasonKey,
-          reason_vars: loopWarnDecision.reasonVars,
-        })
-      }
-
-      try {
-        const pageContext = body.client_snapshot?.page_context ?? null
-        const result = await runToolAwareLlmStream({
-          sessionId,
-          branch,
-          model,
-          tools: visibleToolsForRoute(TOOLS, pageContext?.route_type ?? null),
-          pageContext,
-          startParentId: toolResultMsg.id,
-          signal: req.signal,
-          write,
-        })
-        // helper 已保证 assistant / tool_use 落盘先于这里 emit done
-        write({
-          kind: 'done',
-          assistant_message_id: result.assistantMessageId,
-          tool_use_message_ids: result.toolUseMessageIds,
-          usage: result.usage,
-          stop_reason: result.stopReason,
-        })
-      } catch (e) {
-        write({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
-      } finally {
-        controller.close()
-      }
+  // 初始事件：tool_result_message 回填（让 ToolCallCard.summarizeResult 能渲出
+  // "5/12" 摘要）+ 可选 loop_warn（warn 档命中时通知前端，但仍继续执行）。
+  const initialEvents: unknown[] = [
+    {
+      kind: 'tool_result_message',
+      id: toolResultMsg.id,
+      content: JSON.stringify(resultContent),
+      denied: body.denied,
+      reason: body.reason,
     },
-  })
+  ]
+  if (loopWarnDecision) {
+    initialEvents.push({
+      kind: 'loop_warn',
+      call_id: body.call_id,
+      reason_key: loopWarnDecision.reasonKey,
+      reason_vars: loopWarnDecision.reasonVars,
+    })
+  }
 
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no',
+  return streamSseResponse({
+    initialEvents,
+    runner: async (write) => {
+      const pageContext = body.client_snapshot?.page_context ?? null
+      const result = await runToolAwareLlmStream({
+        sessionId,
+        branch,
+        model,
+        tools: visibleToolsForRoute(TOOLS, pageContext?.route_type ?? null),
+        pageContext,
+        startParentId: toolResultMsg.id,
+        signal: req.signal,
+        write,
+      })
+      // helper 已保证 assistant / tool_use 落盘先于这里 emit done
+      write({
+        kind: 'done',
+        assistant_message_id: result.assistantMessageId,
+        tool_use_message_ids: result.toolUseMessageIds,
+        usage: result.usage,
+        stop_reason: result.stopReason,
+      })
     },
   })
 }

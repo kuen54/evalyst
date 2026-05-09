@@ -11,7 +11,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
 import type { Rubric } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/components/copilot/use-page-context"
 
 const TYPE_LABELS: Record<string, string> = {
   pass_fail: "pass/fail",

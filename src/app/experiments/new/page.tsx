@@ -16,7 +16,7 @@ import type { TaskSchema, FilterValues, DatasetDef, Rubric } from "@/lib/schema/
 import type { LlmConfig, ModelConfig } from "@/lib/llm-config"
 import { GlassRegular } from "@/components/copilot/shell"
 import { GlassSegmentedItem } from "@/components/copilot/glass-segmented"
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/components/copilot/use-page-context"
 
 export default function NewExperiment() {
   const router = useRouter()

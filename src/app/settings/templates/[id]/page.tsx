@@ -14,7 +14,7 @@ import { GlassRegular, GlassCard } from "@/components/copilot/shell"
 import type { TaskSchema, DatasetDef, Display } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
 import { inferDisplayBuiltinId } from "@/lib/display-inference"
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/components/copilot/use-page-context"
 
 export default function TemplateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)

@@ -1,7 +1,7 @@
 "use client"
 
 import { RubricFormPage } from "@/components/settings/rubric-form-page"
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/components/copilot/use-page-context"
 
 export default function NewRubricPage() {
   useRegisterPageContext(() => ({
