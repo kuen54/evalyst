@@ -50,6 +50,9 @@ export default function NewExperiment() {
   const [model, setModel] = useState("")
   const [temperature, setTemperature] = useState(1)
   const [maxTokens, setMaxTokens] = useState(4096)
+  // Seed: optional reproducibility hint forwarded to OpenAI-format providers
+  // (Anthropic ignores it). Empty string = "user did not set" → omit from request.
+  const [seed, setSeed] = useState<string>("")
   const [promptTemplate, setPromptTemplate] = useState("")
   const [filterValues, setFilterValues] = useState<FilterValues>({})
 
@@ -136,6 +139,12 @@ export default function NewExperiment() {
         if (!ok) return
       }
     }
+    const seedTrimmed = seed.trim()
+    const seedNum = seedTrimmed === "" ? undefined : Number(seedTrimmed)
+    if (seedNum !== undefined && !Number.isFinite(seedNum)) {
+      alert(t("experiment.new.seed_invalid"))
+      return
+    }
     setSubmitting(true)
 
     const res = await fetch("/api/experiments", {
@@ -151,6 +160,7 @@ export default function NewExperiment() {
         model,
         temperature,
         max_tokens: maxTokens,
+        ...(seedNum !== undefined ? { seed: seedNum } : {}),
         prompt_template: promptTemplate,
         notes: notes.trim() || undefined,
       }),
@@ -243,6 +253,17 @@ export default function NewExperiment() {
             onValueChange={v => setTemperature(Array.isArray(v) ? v[0] : v)}
             min={0} max={2} step={0.1}
           />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("experiment.new.seed_label")}</Label>
+          <Input
+            type="number"
+            value={seed}
+            onChange={e => setSeed(e.target.value)}
+            placeholder={t("experiment.new.seed_placeholder")}
+            className="font-mono text-xs"
+          />
+          <p className="text-xs text-muted-foreground">{t("experiment.new.seed_hint")}</p>
         </div>
         <div className="space-y-1.5">
           <Label>{t("experiment.new.rubric_label")}</Label>

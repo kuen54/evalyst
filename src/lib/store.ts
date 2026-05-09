@@ -85,6 +85,7 @@ export function createExperiment(req: CreateExperimentRequest): ExperimentConfig
     model: req.model || selected.model,
     temperature: req.temperature ?? selected.default_temperature ?? 1,
     max_tokens: req.max_tokens ?? selected.default_max_tokens ?? 4096,
+    seed: typeof req.seed === 'number' ? req.seed : undefined,
     api_config: { api_format: selected.api_format, base_url: selected.base_url, api_key: selected.api_key },
     prompt_template: req.prompt_template,
     status: 'draft',

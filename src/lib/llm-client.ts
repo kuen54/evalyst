@@ -88,6 +88,15 @@ export interface CallLlmParams {
   model: string
   temperature: number
   max_tokens: number
+  /**
+   * Optional reproducibility seed.
+   * - OpenAI-format gateways: passed through as `body.seed`. Skipped entirely
+   *   (key omitted) when undefined — `{"seed": undefined}` triggers 400 on
+   *   strict gateways.
+   * - Anthropic: dropped with `console.warn` (Anthropic Messages API has no
+   *   seed parameter as of 2026; sampling determinism is not exposed).
+   */
+  seed?: number
   signal?: AbortSignal
 }
 
@@ -188,6 +197,22 @@ function buildRequestBody(p: CallLlmParams): Record<string, unknown> {
   } else {
     base.stream = false
     base.messages = textMessages
+    // OpenAI: pass seed through transparently when set. SKIP the key when
+    // undefined — some OpenAI-compatible gateways (DeepSeek, certain
+    // 沿海机房 forwarders) 400 on `{"seed": null}` / `{"seed": undefined}`
+    // payloads even though spec-pure OpenAI tolerates it.
+    if (typeof p.seed === 'number') {
+      base.seed = p.seed
+    }
+  }
+  // Anthropic does NOT support a seed parameter on the Messages API; drop
+  // with a single warn so the user sees their reproducibility intent was
+  // not honored on this provider. We do not silently drop — silent drops
+  // mask "I set seed=42 but my Anthropic results vary every run" surprises.
+  if (p.config.api_format === 'anthropic' && typeof p.seed === 'number') {
+    console.warn(
+      `[evalyst] Anthropic Messages API does not support 'seed' parameter; dropped (was: ${p.seed})`,
+    )
   }
   if (p.config.extra_body) Object.assign(base, p.config.extra_body)
   return base
@@ -236,6 +261,7 @@ function parseResponse(config: ApiConfig, data: unknown): { content: string; ima
 
 // Re-export for unit tests (private to project, not in public API of llm-client)
 export const parseResponseForTest = parseResponse
+export const buildRequestBodyForTest = buildRequestBody
 
 // ---------- 共享 retry / timeout / abort 脚手架 ----------
 

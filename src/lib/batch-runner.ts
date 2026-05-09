@@ -254,14 +254,15 @@ export class BatchRunner {
 
     try {
       const messages = buildMessages(schema, this.config.prompt_template, task.inputs)
-      const response = await callLlm(
+      const response = await callLlm({
         messages,
-        this.config.api_config,
-        this.config.model,
-        this.config.temperature,
-        this.config.max_tokens,
-        this.abortController.signal,
-      )
+        config: this.config.api_config,
+        model: this.config.model,
+        temperature: this.config.temperature,
+        max_tokens: this.config.max_tokens,
+        seed: this.config.seed,
+        signal: this.abortController.signal,
+      })
 
       const input_tokens = response.usage?.prompt_tokens
       const output_tokens = response.usage?.completion_tokens
