@@ -41,6 +41,7 @@ export function ImageLightboxProvider({ children }: { children: React.ReactNode 
       const timer = setTimeout(() => setSrc(null), 300)
       return () => clearTimeout(timer)
     }
+    return undefined
   }, [open])
 
   return (
