@@ -64,7 +64,7 @@ export function SingleListResults({ results, schema }: ResultViewProps) {
                       className="flex gap-2 text-sm items-baseline"
                       data-copilot-context="task_field"
                       data-copilot-context-id={`${r.task_id}#${f.name}`}
-                      data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id, task_id: r.task_id, field: f.name })}
+                      data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id, task_id: r.task_id, field: f.name, ...(f.type === 'image_url' || f.type === 'image_url_list' ? { field_type: f.type } : {}) })}
                       data-copilot-context-summary={`${f.name}`}
                     >
                       <span className="text-xs text-muted-foreground min-w-[60px]">{f.name}:</span>
@@ -97,7 +97,7 @@ export function SingleListCell({ result, schema }: CellViewProps) {
             key={f.name}
             data-copilot-context="task_field"
             data-copilot-context-id={`${result.task_id}#${f.name}`}
-            data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id, task_id: result.task_id, field: f.name })}
+            data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id, task_id: result.task_id, field: f.name, ...(f.type === 'image_url' || f.type === 'image_url_list' ? { field_type: f.type } : {}) })}
             data-copilot-context-summary={`${f.name} · ${String(val ?? "").slice(0, 24)}`}
           >
             {renderField(val, type)}
