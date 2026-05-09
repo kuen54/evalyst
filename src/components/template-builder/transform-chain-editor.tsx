@@ -4,7 +4,6 @@ import { useState, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ArrowUpIcon, ArrowDownIcon, XIcon } from "lucide-react"
 import { KeyValueEditor } from "./key-value-editor"
@@ -25,7 +24,6 @@ function buildOpMeta(t: TFn): Array<{ op: Op; label: string; hint: string }> {
     { op: "map", label: t("transform.op_map"), hint: t("transform.op_map_hint") },
     { op: "prompt_excerpt", label: t("transform.op_prompt_excerpt"), hint: t("transform.op_prompt_excerpt_hint") },
     { op: "spu_desc_list", label: t("transform.op_spu_desc_list"), hint: t("transform.op_spu_desc_list_hint") },
-    { op: "js", label: t("transform.op_js"), hint: t("transform.op_js_hint") },
   ]
 }
 
@@ -181,18 +179,6 @@ function StepParams({ step, onUpdate, t }: { step: TransformStep; onUpdate: (p: 
           </div>
         </div>
       )
-    case "js":
-      return (
-        <div className="space-y-0.5">
-          <ParamLabel>{t("transform.param_js_body")}</ParamLabel>
-          <Textarea
-            value={step.fn}
-            onChange={e => onUpdate({ fn: e.target.value } as Partial<TransformStep>)}
-            placeholder="return String(v).toUpperCase()"
-            className="font-mono text-[11px] min-h-[50px]"
-          />
-        </div>
-      )
   }
 }
 
@@ -211,7 +197,6 @@ function defaultStep(op: Op): TransformStep {
     case "map": return { op, mapping: {} }
     case "prompt_excerpt": return { op }
     case "spu_desc_list": return { op }
-    case "js": return { op, fn: "return v" }
   }
 }
 

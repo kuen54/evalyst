@@ -730,8 +730,6 @@ export const zh = {
   "transform.op_prompt_excerpt_hint": "prompt 字段摘要，截到 maxLen",
   "transform.op_spu_desc_list": "spu_desc_list（SPU 描述列表）",
   "transform.op_spu_desc_list_hint": "把 `{spus: [{spu_name, description}]}` 这种形状的数组对象拼成简述",
-  "transform.op_js": "js（任意 JS 函数）",
-  "transform.op_js_hint": "写 function body，入参 v 输出新值",
   "transform.param_sep": "分隔符",
   "transform.param_max": "最大字符数 max",
   "transform.param_suffix": "截断后缀（可选）",
@@ -745,7 +743,6 @@ export const zh = {
   "transform.param_max_len": "maxLen（可选，默认 200）",
   "transform.param_max_spus": "最多 SPU 数（默认 3）",
   "transform.param_max_chars_per_spu": "每条最多字符（默认 200）",
-  "transform.param_js_body": "函数体（入参 v；返回新值）",
 
   // filters editor
   "filters.section_label": "过滤器（实验页上展示给用户的筛选控件）",

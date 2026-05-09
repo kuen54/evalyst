@@ -28,7 +28,6 @@ export type TransformStep =
   | { op: 'map'; mapping: Record<string, string> }
   | { op: 'prompt_excerpt'; maxLen?: number }
   | { op: 'spu_desc_list'; maxSpus?: number; maxCharsPerSpu?: number }
-  | { op: 'js'; fn: string }
 
 // --- Dataset & Field ---
 

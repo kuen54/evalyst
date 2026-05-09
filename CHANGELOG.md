@@ -10,6 +10,19 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Security (PR fix/auth-gate-rce — Phase A of audit-cleanup-2026-05-09)
+
+代码审视报告 `docs/code-review-2026-05-09.md` §8 把三条暴露面定为 blocker：服务端 RCE（`js` transform op = `new Function`）、API key 明文 GET、27 个 API route 无任何 origin / auth gate。本 PR 同一威胁模型一次性关掉。
+
+- **删 `js` transform op**：`schema/transform.ts` 的 `case 'js'` 分支移除；`TransformStep` 联合不再含 `{ op: 'js'; fn: string }`；TransformChainEditor / i18n keys（zh + en 各 4 条）一并清。`data/schemas/*.json` 和 seeds grep 0 命中，删除无需迁移；如果用户旧 schema 仍含该 op，runtime guard 抛 `INVALID_TRANSFORM_OP` friendly error 而不是静默吞
+- **mask api_key**：新增 `maskKey(k)` 保末 4 位返 `sk-***xxxx`；`GET /api/llm-config` 和 `PUT` 响应都 mask；`saveLlmConfig` 检测到 mask 占位符（`/^sk-\*\*\*.{4}$/`）自动从当前盘上配置恢复真 key —— UI round-trip 不破坏
+- **auth gate middleware**：新增 `src/middleware.ts`，按 `Sec-Fetch-Site` 放行同源 / same-site / 直接打开（curl/agent）；`cross-site` 一律 403，除非 origin 出现在 `EVALYST_ALLOW_ORIGIN` 白名单。`/api/skills/[name]` 函数体内显式公开（agent-driven 设计）
+- README "Docker 启动" 节加部署说明（`EVALYST_ALLOW_ORIGIN` 用法 + skills 公开规则）
+- 测试：`maskKey` 5 case 单测（mask + unmask round-trip + 显式覆盖 + 显式清空）；新增 `e2e/auth-gate.spec.ts` 5 case；`schema/__tests__/transform.test.ts` 把老 `js` op 两条测改成 runtime guard 一条
+
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md
+- Plan: docs/superpowers/plans/2026-05-09-audit-auth-gate-rce.md
+
 ## [0.10.1] — 2026-05-09 · 测试硬编码审计 + P0/P1 hygiene fix (PR #55)
 
 PR #54 在 CI 上挂了 e2e —— 根因是测试 hardcode 了开发机本地才有的 model id (`gemini-31-pro` / `opus-46-anthropic`)。fix-forward 走 self-provision fixture pattern 修了，但担心同类 hardcode 散落在别的 spec 里等着撞。这个版本扫了一遍全仓库的测试套，把"真撞过 / 真会撞 CI"的两条修了，剩下的 P2 留作 design smell 记录。

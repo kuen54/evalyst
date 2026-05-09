@@ -129,12 +129,11 @@ describe("applyTransforms", () => {
     })
   })
 
-  describe("js", () => {
-    it("runs custom fn", () => {
-      expect(applyTransforms(5, [{ op: "js", fn: "return v * 2" }], ctx)).toBe("10")
-    })
-    it("returns empty on error", () => {
-      expect(applyTransforms(5, [{ op: "js", fn: "throw new Error('x')" }], ctx)).toBe("")
+  describe("removed js op", () => {
+    it("throws a friendly error when legacy data still has it (runtime guard)", () => {
+      expect(() =>
+        applyTransforms(5, [{ op: "js", fn: "return v * 2" } as unknown as never], ctx),
+      ).toThrow(/INVALID_TRANSFORM_OP/)
     })
   })
 

@@ -61,6 +61,17 @@ docker compose up -d
 
 镜像是多阶段 build 的 node:20-alpine，runner 只带 `.next` / `public` / 必要 `node_modules` / `src/lib/seeds`，不含源码。
 
+### 安全 / 跨源访问
+
+`/api/*` 由 `src/middleware.ts` 守门。默认放行：浏览器同源（same-origin / same-site）+ 直接打开（地址栏 / curl / agent 脚本，浏览器侧 `Sec-Fetch-Site` 为空或 `none`）。**跨源（cross-site）请求一律 403**，除非 origin 出现在 `EVALYST_ALLOW_ORIGIN` 白名单：
+
+```bash
+# docker-compose.yml（或 .env）
+EVALYST_ALLOW_ORIGIN=https://your-tool.example.com,https://another.example.org
+```
+
+`/api/skills/[name]` 公开放行——Claude Code agent 跨源拉 SKILL.md 是产品定位的一部分。`/api/llm-config` GET 已对 `api_key` 做 mask（保留末 4 位 `sk-***xxxx`）；编辑保存时若收到 mask 占位符自动恢复原 key，UI round-trip 不破坏。
+
 ---
 
 ## 核心概念

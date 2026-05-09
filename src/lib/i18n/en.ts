@@ -732,8 +732,6 @@ export const en: Record<keyof typeof zh, string> = {
   "transform.op_prompt_excerpt_hint": "Prompt summary; truncated to maxLen",
   "transform.op_spu_desc_list": "spu_desc_list",
   "transform.op_spu_desc_list_hint": "Summarize a `{spus: [{spu_name, description}]}` shaped object array",
-  "transform.op_js": "js (arbitrary JS)",
-  "transform.op_js_hint": "Write a function body; input v, return the new value",
   "transform.param_sep": "Separator",
   "transform.param_max": "Max chars (max)",
   "transform.param_suffix": "Truncate suffix (optional)",
@@ -747,7 +745,6 @@ export const en: Record<keyof typeof zh, string> = {
   "transform.param_max_len": "maxLen (optional, default 200)",
   "transform.param_max_spus": "Max SPUs (default 3)",
   "transform.param_max_chars_per_spu": "Max chars per entry (default 200)",
-  "transform.param_js_body": "Function body (input v; return new value)",
 
   // filters editor
   "filters.section_label": "Filters (controls shown to users on the experiment page)",
