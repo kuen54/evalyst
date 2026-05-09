@@ -989,6 +989,8 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.model_picker_placeholder": "Pick a Copilot model",
   "copilot.no_model_hint": "No model is enabled for Copilot yet.",
   "copilot.go_settings_llm": "Go to LLM settings",
+  "copilot.model_picker_vision_required": "Vision-capable model required for image contexts",
+  "copilot.image_dropped_warn": "{n} image(s) not attached (per-turn cap is {cap})",
   "copilot.load_sessions_failed": "Failed to load sessions",
   "copilot.create_session_failed": "Failed to create session",
   "copilot.send_failed": "Send failed",
@@ -1022,6 +1024,7 @@ export const en: Record<keyof typeof zh, string> = {
   "copilot.chip.context_anchor": "Context anchor",
   "copilot.chip.anchor_taken_from": "taken from {hostType} {hostId}",
   "copilot.chip.anchor_full_value_hint": "full field value via read_context(ctx_{tag}, scope='parent')",
+  "copilot.chip.image_preview_label": "Image preview",
   "copilot.context_stale_title": "This entity is stale (deleted or no longer resolvable). It will be marked missing when sent.",
   // Copilot tool calling (PR-3)
   "copilot.tool.loading": "Running…",

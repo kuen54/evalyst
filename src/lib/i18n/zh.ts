@@ -987,6 +987,8 @@ export const zh = {
   "copilot.model_picker_placeholder": "选一个 Copilot 模型",
   "copilot.no_model_hint": "还没有模型被允许给 Copilot 使用。",
   "copilot.go_settings_llm": "去 LLM 设置",
+  "copilot.model_picker_vision_required": "含图 context 需要支持视觉的模型",
+  "copilot.image_dropped_warn": "{n} 张图未附（每轮上限 {cap}）",
   "copilot.load_sessions_failed": "加载会话列表失败",
   "copilot.create_session_failed": "新建会话失败",
   "copilot.send_failed": "发送失败",
@@ -1020,6 +1022,7 @@ export const zh = {
   "copilot.chip.context_anchor": "上下文锚点",
   "copilot.chip.anchor_taken_from": "取自 {hostType} {hostId}",
   "copilot.chip.anchor_full_value_hint": "完整字段值走 read_context(ctx_{tag}, scope='parent')",
+  "copilot.chip.image_preview_label": "图像预览",
   "copilot.context_stale_title": "这个对象已失效（被删或刷新后找不到），发送时会被标记为 missing",
   // Copilot tool calling (PR-3)
   "copilot.tool.loading": "查询中…",
