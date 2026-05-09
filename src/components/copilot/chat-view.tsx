@@ -78,6 +78,15 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
 
   const canSend = !!input.trim() && !stream.sending && !!sessionId && !!modelId
 
+  // 含图 context 计数 — 用于 ModelPicker 过滤掉非 vision 模型。
+  // 保守口径：task_result / task_field 默认按潜在含图记，无服务端 roundtrip。
+  // 其他类型（text_selection / page / experiment / template / dataset / display / rubric / rubric_stats）不计。
+  const imageContextCount = contexts.reduce((n, c) => {
+    if (c.type === 'task_result' || c.type === 'task_field') return n + 1
+    if ((c.extra as { field_type?: string } | undefined)?.field_type === 'image_url') return n + 1
+    return n
+  }, 0)
+
   const handleSend = async () => {
     if (!canSend) return
     const text = input.trim()
@@ -219,7 +228,11 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
-            <ModelPicker selectedModelId={modelId} onChange={onPickModel} />
+            <ModelPicker
+              selectedModelId={modelId}
+              onChange={onPickModel}
+              requireVision={imageContextCount > 0}
+            />
           </div>
           <Button size="sm" onClick={handleSend} disabled={!canSend} className="shrink-0 gap-1.5">
             <span>{stream.sending ? t("copilot.thinking") : t("copilot.send")}</span>

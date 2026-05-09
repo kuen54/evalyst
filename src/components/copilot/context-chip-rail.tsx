@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { useT } from "@/lib/i18n/provider"
+import { useImageLightbox } from "@/components/ui/image-lightbox"
 import { colorForTag } from "./context-mask"
 import type { CapturedContext } from "./store"
 
@@ -240,6 +241,21 @@ function ContextChip({
                     {detail.data !== undefined ? JSON.stringify(detail.data, null, 2) : "(empty)"}
                   </pre>
                 </div>
+                {(() => {
+                  const expId = (ctx.extra as { experiment_id?: string } | undefined)?.experiment_id
+                  const urls = extractImageUrlsFromDetail(detail.data, expId)
+                  if (urls.length === 0) return null
+                  return (
+                    <div>
+                      <div className="text-muted-foreground mb-0.5">{t("copilot.chip.image_preview_label")}</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {urls.map((u, i) => (
+                          <ChipImageThumb key={`${u}-${i}`} src={u} alt={`ctx_${ctx.tag}_img_${i}`} />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
                 <div>
                   <div className="text-muted-foreground mb-0.5">{t("copilot.chip.metadata_label")}</div>
                   <div className="text-muted-foreground">
@@ -258,5 +274,54 @@ function ContextChip({
         </div>
       )}
     </div>
+  )
+}
+
+// ---------- chip-local image preview helpers ----------
+
+/** Walks any JSON-ish detail.data and extracts URLs that look like images. Loose. */
+function extractImageUrlsFromDetail(data: unknown, expId?: string): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const visit = (v: unknown) => {
+    if (v == null) return
+    if (typeof v === 'string') {
+      const url = looksLikeImageUrl(v) ? normalizeChipImageUrl(v, expId) : null
+      if (url && !seen.has(url)) { seen.add(url); out.push(url) }
+      return
+    }
+    if (Array.isArray(v)) { v.forEach(visit); return }
+    if (typeof v === 'object') {
+      for (const inner of Object.values(v as Record<string, unknown>)) visit(inner)
+    }
+  }
+  visit(data)
+  return out
+}
+
+function looksLikeImageUrl(s: string): boolean {
+  return s.startsWith('data:image/')
+    || /^\/api\/results\/[^/]+\/images\//.test(s)
+    || /^images\//.test(s)
+    || /^https?:\/\/.*\.(png|jpe?g|webp|gif)(\?|$)/i.test(s)
+}
+
+function normalizeChipImageUrl(raw: string, expId?: string): string {
+  if (raw.startsWith('data:') || raw.startsWith('http') || raw.startsWith('/api/')) return raw
+  if (raw.startsWith('images/') && expId) return `/api/results/${expId}/${raw}`
+  return raw
+}
+
+/** 120×120 thumbnail; click → ImageLightbox (mounted at root via ImageLightboxProvider). */
+function ChipImageThumb({ src, alt }: { src: string; alt: string }) {
+  const { openLightbox } = useImageLightbox()
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      onClick={(e) => { e.stopPropagation(); openLightbox(src, alt) }}
+      className="w-[120px] h-[120px] object-contain cursor-zoom-in rounded border bg-background/40"
+    />
   )
 }

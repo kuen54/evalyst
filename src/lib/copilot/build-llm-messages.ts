@@ -12,13 +12,15 @@
 // Anthropic user/assistant 严格交替约束由 serializeMessagesForProvider 在
 // provider 序列化阶段统一处理，此处不交织。
 
-import type { CopilotMessage, CopilotContextRef } from './types'
+import type { CopilotMessage, CopilotContextRef, ImageRef, ToolResultContent } from './types'
 import type { LlmMessage } from '../llm-client'
 import { normalizeToolResult, appendCompactBoundary } from './session-store'
 import { buildSystemHeader } from './system-header'
 import { microCompact } from './micro-compact'
 import { sliceAfterBoundary } from './boundary'
 import { isToolErrorShape } from './tools/tool-result'
+import { collectImageRefs, readImageBytes, MAX_IMAGES_PER_TURN } from './image-attach'
+import type { TaskSchema } from '@/lib/schema/types'
 
 /** v2 §5.6: 保留最近 N 条可重放（read-only）tool_result 的完整形态，老的压成 summary。 */
 const MICRO_COMPACT_KEEP_RECENT_READ_RESULTS = 3
@@ -38,11 +40,98 @@ You have access to tools for progressive disclosure:
 
 When the user circles context, refer to it by its chip tag ("根据你圈的 #1 这个实验..."). Don't fabricate data that wasn't shared.`
 
-export function buildLlmMessages(
+/**
+ * 把 collectImageRefs 输出（仍是 ImageRef[]）落成发给 LLM 的 ContentBlock[]：
+ * - 每个 ref 调 readImageBytes（disk → base64 / data URL passthrough / error）
+ * - 失败的 ref 退化为 text 块（"[Image unavailable: <reason>]"），不阻塞流程
+ * - 块顺序：[text("[Image #N · src_label]"), image_url, ...]
+ *
+ * Task 8 只产出 plan；splicing 在 Task 9 / 10 / 11 完成。
+ */
+export interface ImagePlan {
+  user_blocks: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>
+  tool_blocks_by_call_id: Map<string, Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>>
+  system_notes: string[]
+  hadImageRefs: boolean
+}
+
+async function refsToBlocks(
+  refs: ImageRef[],
+): Promise<Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>> {
+  const blocks: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = []
+  for (const r of refs) {
+    const tagPart = r.ctx_tag !== undefined ? `#${r.ctx_tag} · ` : ''
+    const label = `[Image ${tagPart}${r.source_label}]`
+    const bytes = await readImageBytes(r)
+    if ('error' in bytes) {
+      blocks.push({ type: 'text', text: `${label} (unavailable: ${bytes.error})` })
+      continue
+    }
+    blocks.push({ type: 'text', text: label })
+    blocks.push({ type: 'image_url', image_url: { url: bytes.data_url } })
+  }
+  return blocks
+}
+
+async function materializeImagePlan(
+  branch: CopilotMessage[],
+  modelVisionCapable: boolean,
+): Promise<ImagePlan> {
+  const empty: ImagePlan = {
+    user_blocks: [],
+    tool_blocks_by_call_id: new Map(),
+    system_notes: [],
+    hadImageRefs: false,
+  }
+  // 即使 model 不支持 vision 也要 collectImageRefs 一次（强行收集）来知道 hadImageRefs
+  // —— 这是 Task 11 strip-note 提示语依据。
+  const probed = collectImageRefs({
+    branch,
+    schemaCache: new Map<string, TaskSchema>(),
+    modelVisionCapable: true,
+  })
+  const hadImageRefs =
+    probed.user_image_refs.length > 0 ||
+    Array.from(probed.tool_image_refs.values()).some((arr) => arr.length > 0)
+
+  if (!modelVisionCapable) {
+    const system_notes: string[] = []
+    if (hadImageRefs) {
+      system_notes.push('[Image attachments dropped: model not vision_capable]')
+    }
+    return {
+      user_blocks: [],
+      tool_blocks_by_call_id: new Map(),
+      system_notes,
+      hadImageRefs,
+    }
+  }
+
+  const user_blocks = await refsToBlocks(probed.user_image_refs)
+  // v1 选项 A（2026-05-09 brainstorm 决策）：工具返回的图暂不进 LLM。
+  // 原因：sankuai OpenAI-compat 拒绝 image_url in tool role（Task 0 finding），
+  // 而 Anthropic 的 user/assistant alternation 又不允许在 tool_result 后追加
+  // user 消息。第一版只支持用户主动圈选这条路；用户圈选触达 user_image_refs 路径。
+  // 等 sankuai 解禁或我们做 provider-specific 分支时，把这个循环加回来即可：
+  //   for (const [callId, refs] of probed.tool_image_refs.entries()) {
+  //     const blocks = await refsToBlocks(refs)
+  //     if (blocks.length > 0) tool_blocks_by_call_id.set(callId, blocks)
+  //   }
+  const tool_blocks_by_call_id = new Map<string, ImagePlan['user_blocks']>()
+  const system_notes: string[] = []
+  if (probed.dropped_count > 0) {
+    system_notes.push(
+      `${probed.dropped_count} image(s) not attached (per-turn cap is ${MAX_IMAGES_PER_TURN})`,
+    )
+  }
+  return { user_blocks, tool_blocks_by_call_id, system_notes, hadImageRefs }
+}
+
+export async function buildLlmMessages(
   branch: CopilotMessage[],
   pageContext?: import('./types').PageContext | null,
-  opts?: { sessionId?: string },
-): LlmMessage[] {
+  opts?: { sessionId?: string; modelVisionCapable?: boolean },
+): Promise<LlmMessage[]> {
   const out: LlmMessage[] = [{ role: 'system', content: COPILOT_SYSTEM_PROMPT }]
 
   // v2.5 §5.4: 找最近 boundary，之前的消息不参与本轮组装
@@ -51,6 +140,11 @@ export function buildLlmMessages(
   // 当前分支最后一条 user 消息挂的 contexts 渲染成 SystemHeader 并塞第二条 system message。
   // 历史 user 消息可能有 contexts，但那是旧状态，不再重放。
   const lastUser = [...usable].reverse().find((m) => m.role === 'user')
+
+  // image-vision §3.1: 预先 materializeImagePlan —— Task 9/10 复用 imageMap 决定 user / tool_result
+  // 是否走多模态 content array；Task 11 用 imageMap.hadImageRefs + modelVisionCapable 决定加 strip note。
+  const imageMap = await materializeImagePlan(usable, opts?.modelVisionCapable === true)
+
   const refs = (lastUser?.contexts ?? []) as CopilotContextRef[]
   const header = buildSystemHeader({
     route_type: pageContext?.route_type,
@@ -65,6 +159,16 @@ export function buildLlmMessages(
     out.push({
       role: 'system',
       content: 'Session context (JSON):\n' + JSON.stringify(header, null, 2),
+    })
+  }
+
+  // image-vision §4.4: 把 imageMap.system_notes（dropped_count 提示 / vision-strip 提示）
+  // 合并成一条 system 消息塞在 SystemHeader 之后。两类提示理论上互斥（strip 路径短路了 dropped_count
+  // 计算），但 join('\n') 形态对 future-proofing 友好。
+  if (imageMap.system_notes.length > 0) {
+    out.push({
+      role: 'system',
+      content: imageMap.system_notes.join('\n'),
     })
   }
 
@@ -87,7 +191,20 @@ export function buildLlmMessages(
     // v2.5 §5: system 消息（含 boundary）不进 LlmMessages
     if (m.role === 'system') continue
     if (m.role === 'user') {
-      out.push({ role: 'user', content: m.content })
+      // image-vision §4.4: 仅当当前 m 是最后一条 user 且 imageMap 有 user_blocks 时,
+      // 把 user 内容升级为多模态 content array。块顺序：[(text+image_url) × N, text(原 user content)]。
+      // m.content 为空字符串时仍 push 一条空 text 块，避免 Anthropic 拒绝 image-only content array。
+      if (m === lastUser && imageMap.user_blocks.length > 0) {
+        out.push({
+          role: 'user',
+          content: [
+            ...imageMap.user_blocks,
+            { type: 'text', text: m.content },
+          ],
+        })
+      } else {
+        out.push({ role: 'user', content: m.content })
+      }
     } else if (m.role === 'assistant') {
       out.push({ role: 'assistant', content: m.content })
     } else if (m.role === 'tool_use') {

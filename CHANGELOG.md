@@ -10,13 +10,6 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-
-## [0.10.0] — 2026-05-09 · 生图（Image Generation）评测 v1 完备支持 (PR #52)
-
-evalyst 原本只是 text-in / text-out 的 LLM 评测平台。v0.10.0 把生图模型纳入一等公民：把 sankuai `aigc.sankuai.com/v1/openai/native` + `gemini-3.1-flash-image-preview` 作为参考 gateway，端到端打通"prompt → 调 LLM → 图像落盘 → 详情页可看 → 可点放大 → rubric 评分"。
-
-设计目标是 manual 评测全链路（auto-eval VLM-as-judge / pairwise ranking / 专用 reward model 留 v2）。OSS 调研借鉴 Stanford HEIM `ImageCritiqueMetric` 的 5 题（alignment / subject_clarity / aesthetic / originality / safety）做内置 seed rubric；图像存盘约定参考 HEIM / T2I-CompBench 的 filesystem-path 风格，JSONL 永远只存 `/api/results/.../images/...` 绝对 URL，避免 base64 inline 把 jsonl 撑炸。
-
 ### 体验
 
 - **生图（Image Generation）评测 v1 完备支持** — text-in / image-out 评测端到端。
@@ -37,6 +30,44 @@ evalyst 原本只是 text-in / text-out 的 LLM 评测平台。v0.10.0 把生图
 
 - Spec: `docs/superpowers/specs/2026-05-08-image-generation-eval-design.md`
 - Plan: `docs/superpowers/plans/2026-05-08-image-generation-eval.md`
+
+### Copilot × Image Vision
+
+让 Evalyst Copilot 在用户圈选含图 task_result / task_field 时真正"看见"图像。视觉评测闭环（"为什么这张图主体偏左"、"对比 #1 和 #2 哪张更清晰"）从被迫复制图链接到另开 Claude Code 网页，变成圈选 → 自然语言反馈 → 编辑 prompt template → 重跑实验。
+
+#### 体验
+
+- **圈选驱动的视觉对话**：含图 task_result（声明 `image_url` / `image_url_list` 字段）或单独的 image task_field 被圈选时，最多 5 张图（按 URL dedupe）以 base64 内联进 user message multimodal content array
+- **3 层 vision 防御**：(1) ModelPicker 隐藏非 `vision_capable` 模型并显示 amber warning；(2) chat route 入口校验；(3) `build-llm-messages` 兜底 strip 图块 + 注入 system note `[Image attachments dropped: model not vision_capable]`
+- **`vision_capable` 模型标记**：`/settings/llm` 一行 checkbox；旧 config 默认 undefined（≈ false），无需迁移
+- **Chip 缩略图**：context-chip-rail 展开时识别图像 URL（`/api/results/`、`data:image/`、http(s) 图片扩展名）→ 渲染 120×120 缩略图，点击进 `ImageLightbox`
+- **超额提示**：圈超 5 张图时 system note `{n} image(s) not attached (per-turn cap is 5)`
+
+#### 架构
+
+- **新模块** `src/lib/copilot/image-attach.ts`：`collectImageRefs`（schema-aware + heuristic + dedup + cap=5，用户优先 vs 工具优先）+ `readImageBytes`（fs.readFile + base64 + path traversal 防御 + mime-by-ext）+ `extractImageRefsFromOutput`（tool 复用助手）
+- **单点改造** `build-llm-messages.ts`：sync → async；新 `materializeImagePlan` 把圈选 refs → multimodal blocks；user message 重写为 `[(text,image)*N, text(原内容)]` 数组；其余链路（stream-response）只跟 await 一下
+- **Anthropic 序列化器修复**：`source.type='url'` 不接 data URL；新 `imageBlockForAnthropic` helper 检测 data URL → `source.type='base64'` + parsed media_type；HTTP URL 走 `source.type='url'`。`llm-client.ts`（非流式）+ `llm-stream.ts`（流式）两条路径都覆盖
+- **工具 forward-compat**：`read_experiment_results` / `read_context` / `read_resource` 的 output 在含图 schema 下挂 `_attachments: ImageRef[]`；`payloadGuardHook` 把 `_attachments`（值层带下划线）提到 `ToolResultContent.attachments`（wrapper 层无下划线）；落盘自动 round-trip
+- **结果组件 task_field 注入** `field_type`：`single-list-results` / `dual-list-results` / `triple-grid-results` 6 处 callsite，让 chat-view 能算 `imageContextCount` 决定 ModelPicker 是否 require vision
+
+#### v1 选项 A 限制
+
+工具返回的 `_attachments` 在 v1 **不进入 LLM 多模态消息**（`build-llm-messages` 不消费 `tool_blocks_by_call_id`）。原因：
+- Task 0 探针发现 sankuai OpenAI-compat 拒绝 `image_url` in `tool` role 消息（"An 'image_url' 'content' object element is unsupported for a(n) 'tool' message."）
+- Anthropic 协议 user/assistant 严格交替，无法在 `tool_result` 后追加 `user` 消息携带图
+
+LLM 只在用户**主动圈选**时看到图——这是用户主诉求的核心场景。"让 LLM 自驱看一批图整体评估"这种用例延后到 v2，等 sankuai 解禁或做 provider-specific 分支（Anthropic 内嵌 / OpenAI 用户消息追加）。Tools 仍发 `_attachments`、payloadGuardHook 仍 lift——翻一个 `if` 即可启用，零下游改动。
+
+#### 测试
+
+- 新增 ~7 组 vitest（image-attach × 2、build-llm-messages.image、llm-stream.anthropic-data-url、llm-client.anthropic-data-url、hooks.attachments-lift、read-context.image / read-experiment-results.image / read-resource.image），约 35+ case
+- 既有测试全绿；`tsc --noEmit` / `build` / `e2e smoke` 均通过
+- 手动 checklist 留给 PR merge 前/后真机跑（含 sankuai claude-sonnet vision_capable=true 实跑）
+
+- Spec: `docs/superpowers/specs/2026-05-09-copilot-image-vision-design.md`
+- Plan: `docs/superpowers/plans/2026-05-09-copilot-image-vision.md`
+- Branch A→B finding: `docs/superpowers/plans/findings/2026-05-09-tool-result-content-array.md`
 
 
 ## [0.9.4] — 2026-05-09 · Copilot 架构 polish + loop detector 回归防御 (PR #50–51)

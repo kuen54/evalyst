@@ -139,7 +139,7 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
                               className="text-xs leading-relaxed"
                               data-copilot-context="task_field"
                               data-copilot-context-id={`${r.task_id}#${f.name}`}
-                              data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id, task_id: r.task_id, field: f.name })}
+                              data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id, task_id: r.task_id, field: f.name, ...(f.type === 'image_url' || f.type === 'image_url_list' ? { field_type: f.type } : {}) })}
                               data-copilot-context-summary={f.name}
                             >
                               {renderField(val, type, 100)}
@@ -194,7 +194,7 @@ export function TripleGridCell({ result, schema }: CellViewProps) {
             key={f.name}
             data-copilot-context="task_field"
             data-copilot-context-id={`${result.task_id}#${f.name}`}
-            data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id, task_id: result.task_id, field: f.name })}
+            data-copilot-context-extra={JSON.stringify({ experiment_id: result.experiment_id, task_id: result.task_id, field: f.name, ...(f.type === 'image_url' || f.type === 'image_url_list' ? { field_type: f.type } : {}) })}
             data-copilot-context-summary={`${f.name} · ${String(val ?? "").slice(0, 24)}`}
           >
             {renderField(val, type)}

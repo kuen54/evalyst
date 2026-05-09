@@ -14,6 +14,14 @@ vi.mock("@/lib/store", () => ({
       { task_id: "t7", status: "success" /* no score */ },
     ]
   },
+  // image-vision §4.5: tool now also reads experiment to schema-aware extract images.
+  // These tests don't assert on _attachments; returning null short-circuits collectAttachmentsForFiltered.
+  getExperiment: () => null,
+}))
+// image-vision §4.5: schema lookup is gated by getExperiment returning null above, but
+// the import must resolve. Provide a no-op mock to keep the module graph clean.
+vi.mock("@/lib/schema", () => ({
+  getSchema: () => null,
 }))
 
 // Import AFTER mocks. The tool lives in the same dir; re-import via relative path.

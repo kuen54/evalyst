@@ -99,7 +99,7 @@ describe("tool-result route integration", () => {
     // need a full branch — re-read
     const { getActiveBranch } = await import("../session-store")
     const branch = getActiveBranch(sessionId)
-    const llm = buildLlmMessages(branch, null)
+    const llm = await buildLlmMessages(branch, null)
     const tr = llm.find((m) => m.role === "tool_result")
     expect(tr?.content).toContain("items")
     expect(tr?.content).not.toContain("ref://")
@@ -168,7 +168,7 @@ describe("tool-result route integration", () => {
     // LLM messages: preview + hint, not full body
     const { getActiveBranch } = await import("../session-store")
     const branch = getActiveBranch(sessionId)
-    const llm = buildLlmMessages(branch, null)
+    const llm = await buildLlmMessages(branch, null)
     const tr = llm.find((m) => m.role === "tool_result")
     expect(tr?.content).toContain("read_tool_result")
     expect(tr?.content).toContain("truncated")
@@ -378,7 +378,7 @@ describe("tool-result route integration", () => {
     // 1 user + 5 pairs = 11 messages
     expect(branch).toHaveLength(11)
 
-    const llm = buildLlmMessages(branch, null)
+    const llm = await buildLlmMessages(branch, null)
     const toolResults = llm.filter((m) => m.role === "tool_result")
     expect(toolResults).toHaveLength(5)
 

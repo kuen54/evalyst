@@ -9,6 +9,7 @@
 import type { AnyToolDescriptor } from "./registry"
 import { maybePersistToolResult } from "../tool-result-store"
 import { isSessionAllowed, isSessionDenied } from "../session-allow"
+import type { ImageRef } from "../types"
 
 export interface PreToolCallCtx {
   tool: AnyToolDescriptor
@@ -62,12 +63,39 @@ export const confirmGateHook: PreToolCallHook = async ({ tool, session_allow_lis
 export const auditLogHook: PreToolCallHook = async () => ({ action: "proceed" })
 
 /**
+ * 检测 tool 返回的 output 是否带 `_attachments: ImageRef[]`。命中即剥离并返还。
+ * 仅对 plain-object output 生效；非对象 / `_attachments` 非 array 时按"无 attachments"处理。
+ * 注意：`runTool` 已 unwrap `ToolResult`，所以这里看到的 `output` 是 tool.call 返回的
+ * 内层 value（e.g. `{results, _attachments}`），不是 `{ok:true, value:{...}}`。
+ */
+function liftAttachments(output: unknown): { value: unknown; attachments: ImageRef[] | undefined } {
+  if (output === null || typeof output !== "object") {
+    return { value: output, attachments: undefined }
+  }
+  const obj = output as Record<string, unknown>
+  if (!Array.isArray(obj._attachments)) {
+    return { value: output, attachments: undefined }
+  }
+  const { _attachments, ...rest } = obj
+  return { value: rest, attachments: _attachments as ImageRef[] }
+}
+
+/**
  * Payload guard：tool 返回后把 output 经 maybePersistToolResult 压成 ToolResultContent
  * (inline | ref)。caller 拿到的 output 就是 ToolResultContent 形态，可以直接
  * JSON.stringify 到 tool_result 消息 content 字段 —— 不用再区分"裸 output vs 封装"。
+ *
+ * Image vision §4.5：先 lift `_attachments`（如有），再走 maybePersistToolResult。
+ * 这样落盘的 inner value 不带 `_attachments`（避免 base64 路径名串撑大），
+ * wrapper 上挂 `attachments` 让 build-llm-messages 后续 collectImageRefs 能识别。
  */
 export const payloadGuardHook: PostToolCallHook = async ({ tool, output, session_id }) => {
-  const wrapped = await maybePersistToolResult(session_id, output, tool.metadata.maxResultSizeChars)
+  const { value, attachments } = liftAttachments(output)
+  const wrapped = await maybePersistToolResult(session_id, value, tool.metadata.maxResultSizeChars)
+  if (attachments && attachments.length > 0 && wrapped.kind !== "compacted") {
+    // ToolResultContent.inline / .ref 都接受 attachments?: ImageRef[]
+    ;(wrapped as { attachments?: ImageRef[] }).attachments = attachments
+  }
   return { output: wrapped }
 }
 

@@ -27,12 +27,12 @@ describe("real v1 session data smoke", () => {
     expect(Array.isArray(sessions)).toBe(true)
   })
 
-  it("buildLlmMessages does not crash on any existing session's active branch", () => {
+  it("buildLlmMessages does not crash on any existing session's active branch", async () => {
     if (!fs.existsSync(sessionsDir)) return
     const sessions = listSessions()
     for (const s of sessions) {
       const branch = getActiveBranch(s.id)
-      expect(() => buildLlmMessages(branch, null)).not.toThrow()
+      await expect(buildLlmMessages(branch, null)).resolves.toBeDefined()
     }
   })
 

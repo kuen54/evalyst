@@ -12,6 +12,29 @@ import { isTextMessage, buildApiRequest } from '../llm-client'
 import type { StreamEvent } from './types'
 import { applyAnthropicCacheControl, type AnthropicBody } from './anthropic-cache-control'
 
+/**
+ * 与 src/lib/llm-client.ts 同名 helper 同形（YAGNI 就地拷贝，避免跨模块依赖）：
+ * data:image/{mime};base64,... → source.type='base64' + media_type + data
+ * 其他 URL → source.type='url'
+ */
+function imageBlockForAnthropic(url: string): Record<string, unknown> {
+  const m = /^data:([^;]+);base64,(.+)$/.exec(url)
+  if (m) {
+    return {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: m[1],
+        data: m[2],
+      },
+    }
+  }
+  return {
+    type: 'image',
+    source: { type: 'url', url },
+  }
+}
+
 export interface CallLlmStreamingParams {
   messages: LlmMessage[]
   config: ApiConfig
@@ -630,7 +653,7 @@ function serializeAnthropicNonAssistant(m: LlmMessage): Record<string, unknown> 
       ? m.content
       : m.content.map(b => {
           if (b.type === 'text') return { type: 'text', text: b.text }
-          return { type: 'image', source: { type: 'url', url: b.image_url.url } }
+          return imageBlockForAnthropic(b.image_url.url)
         })
     return { role: m.role, content }
   }

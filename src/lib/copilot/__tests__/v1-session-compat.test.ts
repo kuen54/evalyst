@@ -101,7 +101,7 @@ describe("v1 session backward compat", () => {
     expect(branch[2].role).toBe("tool_result")
 
     // Build LLM messages — v1 tool_result should be rendered as inline (no ref, no compacted)
-    const llm = buildLlmMessages(branch, null)
+    const llm = await buildLlmMessages(branch, null)
     const tr = llm.find((m) => m.role === "tool_result")
     expect(tr).toBeTruthy()
     expect(tr?.content).toContain("exp_A")
@@ -190,7 +190,7 @@ describe("v1 session backward compat", () => {
     const branch = getActiveBranch(sessionId)
     expect(branch).toHaveLength(7)
 
-    const llm = buildLlmMessages(branch, null)
+    const llm = await buildLlmMessages(branch, null)
     const trs = llm.filter((m) => m.role === "tool_result")
     expect(trs).toHaveLength(2)
 
@@ -230,8 +230,8 @@ describe("v1 session backward compat", () => {
     const branch = getActiveBranch(sessionId)
     expect(branch).toHaveLength(2)
     // buildLlmMessages silently skips the malformed tool_result — should not throw
-    expect(() => buildLlmMessages(branch, null)).not.toThrow()
-    const llm = buildLlmMessages(branch, null)
+    await expect(buildLlmMessages(branch, null)).resolves.toBeDefined()
+    const llm = await buildLlmMessages(branch, null)
     // Only user message + system prompt; no tool_result emitted
     expect(llm.filter((m) => m.role === "tool_result")).toHaveLength(0)
   })

@@ -15,9 +15,21 @@ export type CopilotRole = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 's
  * jsonl 存储：CopilotMessage.content 仍是 string（JSON.stringify(ToolResultContent)），
  * 向后兼容既有裸 output 数据——normalizeToolResult 读时包装为 {kind:'inline', value:...}。
  */
+/**
+ * 图像引用 —— 圈选 task_result/task_field 时由 image-attach.collectImageRefs 产出，
+ * 工具调用产出时由 image-attach.extractImageRefsFromOutput 产出。
+ * url 是公开可寻址形式（/api/results/{exp}/images/{f}.png  |  data:image/...  |  http(s)://...），
+ * 不是磁盘路径。disk 路径在 readImageBytes 内部解析。
+ */
+export interface ImageRef {
+  url: string                   // /api/results/{exp}/images/{f}.png  |  data:image/...;base64,...  |  http(s)://...
+  source_label: string          // human-readable, e.g. "task_result#abc123 · field=image_url"
+  ctx_tag?: number              // 圈选路径填；工具路径不填
+}
+
 export type ToolResultContent =
-  | { kind: 'inline'; value: unknown }
-  | { kind: 'ref'; ref: string; preview: string }
+  | { kind: 'inline'; value: unknown; attachments?: ImageRef[] }
+  | { kind: 'ref'; ref: string; preview: string; attachments?: ImageRef[] }
   | { kind: 'compacted'; summary: string; ref?: string }
 
 /**

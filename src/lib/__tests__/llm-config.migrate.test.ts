@@ -122,6 +122,49 @@ describe("getLlmConfig migrate", () => {
     expect(cfg.models[0].copilot_enabled).toBe(true)
     expect(cfg.models[1].copilot_enabled).toBeUndefined()
   })
+
+  it("preserves vision_capable flag through migration (V3 pass-through)", () => {
+    writeCfg({
+      models: [
+        { id: "m1", name: "M1", model: "claude-sonnet-4", api_format: "anthropic", base_url: "x", api_key: "k", vision_capable: true },
+        { id: "m2", name: "M2", model: "deepseek-chat", api_format: "openai", base_url: "y", api_key: "k2" },
+      ],
+      active_model_id: "m1",
+    })
+    const cfg = getLlmConfig()
+    expect(cfg.models[0].vision_capable).toBe(true)
+    expect(cfg.models[1].vision_capable).toBeUndefined()
+  })
+
+  it("V2 providers shape leaves vision_capable undefined (additive field)", () => {
+    writeCfg({
+      providers: [
+        {
+          id: "prov-1",
+          name: "OpenAI",
+          api_format: "openai",
+          base_url: "https://api.openai.com/v1",
+          api_key: "sk-1",
+          default_model: "gpt-4o-mini",
+        },
+      ],
+      active_provider_id: "prov-1",
+    })
+    const cfg = getLlmConfig()
+    expect(cfg.models).toHaveLength(1)
+    expect(cfg.models[0].vision_capable).toBeUndefined()
+  })
+
+  it("V1 legacy single-instance leaves vision_capable undefined", () => {
+    writeCfg({
+      api_format: "openai",
+      base_url: "https://api.openai.com/v1",
+      api_key: "sk-x",
+      default_model: "gpt-4o-mini",
+    })
+    const cfg = getLlmConfig()
+    expect(cfg.models[0].vision_capable).toBeUndefined()
+  })
 })
 
 describe("pickModel", () => {
