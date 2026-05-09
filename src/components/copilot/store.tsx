@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { CopilotContextRef, PageContext } from "@/lib/copilot/types"
-import { applyRevealCascade, clearRevealCascade } from "./material-reveal-overlay"
+import { applyRevealCascade, clearRevealCascade } from "./material-reveal-cascade"
 
 // ---------- 全局面板状态 ----------
 // 持久化：localStorage 存 open/width/activeSessionId。
