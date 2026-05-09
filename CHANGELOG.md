@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-05-10 · audit-cleanup-2026-05-09 完工：security blockers + cartesian cap + reproducibility seed + 物理切边整理 (PR #56–#61)
+
+跨 6 个 PR 收掉 `docs/code-review-2026-05-09.md` 报出的 Phase A blocker（auth gate / SSRF）+ Phase B 测试地基（batch-runner.run 状态机覆盖）+ Phase C 速胜（cartesian hard cap、experiment seed、机械化 cleanup batch）。Phase D（tsconfig strict）+ Phase E（Copilot 物理切边 + tools 拆分 + 文件锁）+ Phase F（文档分裂）留作下一波。
+
 ### Security (PR fix/auth-gate-rce — Phase A of audit-cleanup-2026-05-09)
 
 代码审视报告 `docs/code-review-2026-05-09.md` §8 把三条暴露面定为 blocker：服务端 RCE（`js` transform op = `new Function`）、API key 明文 GET、27 个 API route 无任何 origin / auth gate。本 PR 同一威胁模型一次性关掉。
@@ -45,6 +49,48 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 - Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase A · #6
 - 不写独立 plan（< 1d 项，spec 直接 scope）
+
+### Cartesian cap (PR fix/cartesian-cap — Phase C #3)
+
+审视报告 §Phase C #3：3 alias × 1k records 的 schema 配置（1B 任务）会 OOM 服务器；`/api/estimate` 之前调 `generateTasks().length`，把整个 array 物化只为数 length，本身就是 OOM 触发器。本 PR 把 estimate 改成纯计数 + 给 generate 加上限。
+
+- 新增纯函数 `estimateTaskCount(schema, fv, bindings)` —— O(inputs) 时间，不物化 cartesian。`/api/estimate` 切过去用它，response shape 不变（仍是 `{ task_count: number }`）
+- `generateTasks(..., opts: { maxTasks })`：默认 100_000 上限；超了在 cartesian 物化前抛 `TooManyTasksError`（带 `taskCount` + `maxTasks` props 给 caller surface）
+- UI `/experiments/new`：estimate > 5_000 弹 `confirm()`「本次将生成 N 个任务...」，> 100_000 直接 `alert()` 阻断提交。i18n 加 zh + en 各 2 条
+- 单测 `schema/__tests__/cartesian-cap.test.ts`（9 case，5ms）：3 alias × 1000 records perf < 50ms / `0` records / 默认 cap throw / 自定义 maxTasks / boundary
+- E2E `e2e/cartesian-cap.spec.ts`（5 case）：mock estimate 5_001 cancel→不提交、accept→提交；mock 100_001 alert 阻断；< 5_000 golden path；`/api/estimate` shape lock-in
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase C #3
+- Plan: docs/superpowers/plans/2026-05-09-audit-phase-c-coordination.md（覆盖 Phase C 三件套）
+
+### Cleanup batch (PR chore/audit-cleanup — Phase C Tier 3，scope-reduced per R1)
+
+审视报告 §Tier 3 的 10 项 cleanup batch。开工时 `npm run lint` 报 62k+ warning，绝大多数来自 `.claude/worktrees/agent-*/.next/` 自动生成 build chunks——eslint config `.next/**` ignore 只在 top-level 命中。修了 ignore pattern 之后真实 src/ 还有 64 problems，其中 23 是新版 react-hooks 规则（`set-state-in-effect` / `rules-of-hooks` / `no-use-before-define`）的 NEW errors，每个都需 per-occurrence review，不是机械活——按 R1 协议停下问用户，scope 缩到下面这一组。
+
+- ESLint scope 修：`globalIgnores` 改 `**/.next/**` 任意深度 + 加 `.claude/**` + `coverage/**`；`@typescript-eslint/no-unused-vars` 加 `argsIgnorePattern: ^_` / `varsIgnorePattern: ^_` 让 `_ev` / `_r` / `_ctx` 这种 "intentionally unused" 约定真生效
+- `.gitignore` 加 `/.claude/worktrees/`
+- Dockerfile：`npm prune --omit=dev`（runner 阶段瘦身）+ `chown -R node:node /app` + `USER node`（不要 root 跑 next start）
+- README 加「`.next/` Turbopack stale-cache 偶尔卡坏中间状态 → `rm -rf .next && npm run dev`」一句
+- `src/lib/types.ts` 删 11 条 dead export（1 重复 type、9 schema re-export 0 importer、1 `RunRequest` interface 0 ref）
+- `src/lib/copilot/manifest.ts` 11 个 internal interface 去掉 `export`（0 external importer 已 verify）
+- `display-form` 循环依赖：`FormState` + `GroupConfig` 抽到新 `display-form-types.ts`，两边都从那里 import
+- ~14 处 unused import / unused var 清理；session-store.test.ts 5 个故意保留的 setup vars 重命名为 `_m1b` / `_m2` 等
+- E2E `e2e/audit-cleanup-coverage.spec.ts`（6 case，361 LOC）走 `pageerror` 监听 + 模拟用户点击：display form mode 切换 / submit shape / templates new render / 实验 results 页 / Cmd+K Copilot / dashboard tinted button
+- **显式 defer 见本 release 末尾「Deferred (follow-up PRs)」节**：`chore/lint-fix-batch`（清 26 lint 问题 + 翻 CI gate）/ `chore/knip-config-and-cleanup`（knip 接入 + 清长尾 unused）
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Tier 3
+- Plan: 走 coordination plan，本 PR 不写独立 plan
+
+### Reproducibility (PR feat/experiment-seed — Phase C #8)
+
+审视报告 §Phase C #8：之前没法在 OpenAI 系 provider 上 pin sampling 确定性，跑一次和下一次结果常变，给 LLM eval 「同条件复现」体验差。
+
+- 表单 `/experiments/new` 加可选 `Seed` Input（type=number，placeholder「留空 = 随机」），下面带 hint：「整数；OpenAI 系网关透传，Anthropic 不支持会自动忽略并在服务端日志告警」
+- `ExperimentConfig.seed?: number` + `CreateExperimentRequest.seed?: number` 端到端串通，`createExperiment` persist 到 disk，`batch-runner` 通过 param-object 形式的 `callLlm({ ..., seed })` 传下去
+- `buildRequestBody`：OpenAI `if (typeof p.seed === 'number') base.seed = p.seed`（**严格不让 `seed: undefined` 进 body**——某些 gateway 对 `null/undefined` payload 会 400）；Anthropic `console.warn` + drop（Messages API 当前没 seed 参数）
+- 单测 `lib/__tests__/llm-client-seed.test.ts`（9 case）：OpenAI seed=42 / 0 / undefined / 不传；Anthropic seed=42/0 警告 + drop / undefined 静默；其余 body 字段不被 seed 干扰
+- E2E `e2e/experiment-seed.spec.ts`（4 case）+ `e2e/experiment-seed-extra.spec.ts`（6 supplementary case，覆盖负数 / 零 / 小数 / int32-max / state stability / Anthropic flow）
+- 后续：detail page 当前不展示 seed（`/experiments/[id]/page.tsx`），是 follow-up enhancement，本 PR 不在 scope
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase C #8
+- 不写独立 plan（< 1d 项）
 
 ### Deferred (follow-up PRs)
 
