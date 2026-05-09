@@ -161,14 +161,57 @@ export function isLlmConfigured(cfg?: LlmConfig): boolean {
   return c.models.some(m => !!(m.base_url && m.api_key && m.model))
 }
 
+/**
+ * Mask placeholder pattern: `sk-***` followed by exactly 4 chars (the
+ * tail we kept). The 4-char tail can be any printable char — anchoring
+ * `^` and `$` plus the prefix makes false positives essentially zero
+ * (a real key would have to be exactly 11 chars and start with this
+ * exact prefix, which no real provider returns).
+ */
+const MASK_PATTERN = /^sk-\*\*\*.{4}$/
+
+function isMasked(key: string | undefined | null): boolean {
+  return !!key && MASK_PATTERN.test(key)
+}
+
+/**
+ * Restore the real api_key when the incoming `cfg` is round-tripped
+ * from a masked GET response. For each model whose api_key matches the
+ * mask shape, look up the same model id in the current on-disk config
+ * and reuse its plaintext key. Models whose key was actually edited
+ * (real plaintext, or explicit empty) pass through unchanged.
+ */
+function unmaskApiKeys(incoming: ModelConfig[], current: ModelConfig[]): ModelConfig[] {
+  return incoming.map(m => {
+    if (!isMasked(m.api_key)) return m
+    const prev = current.find(c => c.id === m.id)
+    return { ...m, api_key: prev?.api_key ?? '' }
+  })
+}
+
 export function saveLlmConfig(cfg: Partial<LlmConfig>): LlmConfig {
   ensureDir(configDir())
   const current = getLlmConfig()
   const merged: LlmConfig = { ...current, ...cfg }
+  if (cfg.models) {
+    merged.models = unmaskApiKeys(cfg.models, current.models)
+  }
   // 规整 active_model_id：指向不存在的 id 时自动纠正到 models[0]
   if (!merged.models.some(m => m.id === merged.active_model_id)) {
     merged.active_model_id = merged.models[0]?.id
   }
   writeAtomic(configPath(), JSON.stringify(merged, null, 2))
   return merged
+}
+
+/**
+ * Mask an api_key for safe transport over GET responses. Keeps the last 4
+ * characters so the user can still distinguish keys, but never reveals the
+ * full secret. Empty input → empty string (avoids producing a fake "sk-***"
+ * placeholder that looks like a configured key).
+ */
+export function maskKey(key: string | undefined | null): string {
+  if (!key) return ''
+  const tail = key.slice(-4)
+  return `sk-***${tail}`
 }

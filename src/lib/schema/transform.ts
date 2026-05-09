@@ -14,6 +14,15 @@ export function applyTransforms(value: unknown, steps: TransformStep[] | undefin
 }
 
 function applyOne(v: unknown, step: TransformStep, ctx: Ctx): unknown {
+  // Runtime guard for the removed `js` op (PR fix/auth-gate-rce, v0.11):
+  // type union no longer includes it, but data/schemas/*.json may still
+  // carry it from older configs. Refuse with a friendly error rather than
+  // silently falling through the switch.
+  if ((step as { op: string }).op === 'js') {
+    throw new Error(
+      'INVALID_TRANSFORM_OP: "js" transform op was removed for security reasons. Edit the schema to remove this step.',
+    )
+  }
   switch (step.op) {
     case 'join':
       return Array.isArray(v) ? v.join(step.sep) : v
@@ -65,16 +74,6 @@ function applyOne(v: unknown, step: TransformStep, ctx: Ctx): unknown {
       return desc
         .map(s => `${s.spu_name}: ${s.description!.slice(0, maxCharsPerSpu)}`)
         .join('\n')
-    }
-
-    case 'js': {
-      try {
-        // eslint-disable-next-line no-new-func
-        const fn = new Function('v', 'ctx', step.fn) as (v: unknown, c: Ctx) => unknown
-        return fn(v, ctx)
-      } catch {
-        return ''
-      }
     }
   }
 }
