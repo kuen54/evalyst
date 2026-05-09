@@ -63,7 +63,7 @@ describe('appendCacheStat + readCacheStats', () => {
 
   it('skips malformed lines gracefully', () => {
     appendCacheStat(stat({ session_id: 'a' }))
-    fs.appendFileSync(path.join(tmp, 'data/copilot/cache-stats.jsonl'), '{not json}\n')
+    fs.appendFileSync(path.join(tmp, 'data', 'copilot', 'cache-stats.jsonl'), '{not json}\n')
     appendCacheStat(stat({ session_id: 'b' }))
     expect(readCacheStats().map((s) => s.session_id)).toEqual(['a', 'b'])
   })
