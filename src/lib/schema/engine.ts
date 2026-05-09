@@ -17,22 +17,75 @@ export interface Task {
   inputs: Record<string, Record<string, unknown>>   // { qa: {...}, user: {...} }
 }
 
+/** Default cartesian product cap. Above this, generateTasks throws TooManyTasksError. */
+export const DEFAULT_MAX_TASKS = 100_000
+
+export class TooManyTasksError extends Error {
+  readonly code = 'TOO_MANY_TASKS'
+  constructor(public readonly taskCount: number, public readonly maxTasks: number) {
+    super(`TOO_MANY_TASKS: estimated ${taskCount} tasks exceeds cap of ${maxTasks}`)
+    this.name = 'TooManyTasksError'
+  }
+}
+
+interface FilteredAlias {
+  alias: string
+  records: Record<string, unknown>[]
+  idField: string
+}
+
+function getFilteredAlias(
+  input: InputSourceDef,
+  filterValues: FilterValues,
+  datasetBindings: Record<string, string>,
+): FilteredAlias {
+  const dsId = datasetBindings[input.alias] ?? input.dataset_id
+  const { records, def } = getDataset(dsId)
+  let filtered = applyHardFilter(records, input.hard_filter)
+  filtered = applyFilters(filtered, input.filters, filterValues)
+  filtered = applyDedupe(filtered, input.dedupe_by)
+  return { alias: input.alias, records: filtered, idField: def.id_field }
+}
+
+/**
+ * Pure count of cartesian product without materializing the array.
+ * Used by /api/estimate so huge configs don't OOM the server.
+ */
+export function estimateTaskCount(
+  schema: TaskSchema,
+  filterValues: FilterValues,
+  datasetBindings: Record<string, string> = {},
+): number {
+  let product = 1
+  for (const input of schema.inputs) {
+    const f = getFilteredAlias(input, filterValues, datasetBindings)
+    if (f.records.length === 0) return 0
+    product *= f.records.length
+  }
+  return product
+}
+
 // --- Step 1: generate tasks from schema + filter values ---
 
 export function generateTasks(
   schema: TaskSchema,
   filterValues: FilterValues,
   datasetBindings: Record<string, string> = {},
+  opts: { maxTasks?: number } = {},
 ): Task[] {
-  const perAlias: Array<{ alias: string; records: Record<string, unknown>[]; idField: string }> = []
+  const maxTasks = opts.maxTasks ?? DEFAULT_MAX_TASKS
+  const perAlias: FilteredAlias[] = schema.inputs.map(input =>
+    getFilteredAlias(input, filterValues, datasetBindings),
+  )
 
-  for (const input of schema.inputs) {
-    const dsId = datasetBindings[input.alias] ?? input.dataset_id
-    const { records, def } = getDataset(dsId)
-    let filtered = applyHardFilter(records, input.hard_filter)
-    filtered = applyFilters(filtered, input.filters, filterValues)
-    filtered = applyDedupe(filtered, input.dedupe_by)
-    perAlias.push({ alias: input.alias, records: filtered, idField: def.id_field })
+  // Count check before materializing — prevents OOM on accidental huge carts
+  let count = 1
+  for (const p of perAlias) {
+    if (p.records.length === 0) { count = 0; break }
+    count *= p.records.length
+  }
+  if (count > maxTasks) {
+    throw new TooManyTasksError(count, maxTasks)
   }
 
   // 笛卡尔积
