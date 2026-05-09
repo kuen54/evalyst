@@ -1,7 +1,10 @@
-import { readResults } from "@/lib/store"
+import { readResults, getExperiment } from "@/lib/store"
+import { getSchema } from "@/lib/schema"
 import type { GenericResultRecord } from "@/lib/schema/types"
+import type { ImageRef } from "../types"
 import type { ToolDescriptor } from "./types"
 import { ok, err } from "./tool-result"
+import { extractImageRefsFromOutput, MAX_IMAGES_PER_TURN } from "../image-attach"
 
 type GroupBy = "error_type" | "score_bucket" | "task_id"
 type Aggregate = "count" | "pass_rate" | "avg_score" | "sample_ids"
@@ -122,14 +125,44 @@ export const readExperimentResultsTool: ToolDescriptor<Input, unknown> = {
       filtered = filtered.filter((r) => typeof r.score === "number" && r.score >= gte)
     }
 
+    // image-vision §4.5: 在 filtered 上扫前 N=MAX_IMAGES_PER_TURN 张图，schema-aware 提取。
+    // 全空时返 undefined，让 caller 用 `...(attachments ? { _attachments: attachments } : {})`
+    // 完全省略字段——避免 text-only schema 也带 `_attachments` 空数组扰动 LLM。
+    function collectAttachmentsForFiltered(): ImageRef[] | undefined {
+      const exp = getExperiment(String(input.experiment_id))
+      if (!exp) return undefined
+      if (!exp.schema_id) return undefined
+      const schema = getSchema(exp.schema_id)
+      if (!schema) return undefined
+      const refs: ImageRef[] = []
+      for (const r of filtered) {
+        if (r.status !== "success") continue
+        if (refs.length >= MAX_IMAGES_PER_TURN) break
+        const outRefs = extractImageRefsFromOutput(
+          (r.output ?? {}) as Record<string, unknown>,
+          schema,
+          exp.id,
+          undefined,
+          r.task_id,
+        )
+        for (const ref of outRefs) {
+          if (refs.length >= MAX_IMAGES_PER_TURN) break
+          refs.push(ref)
+        }
+      }
+      return refs.length > 0 ? refs : undefined
+    }
+
     // Legacy mode: no group_by → original shape
     if (!input.group_by) {
       const limit = Math.min(Number(input.limit ?? 20), 50)
+      const attachments = collectAttachmentsForFiltered()
       return ok({
         results: filtered.slice(0, limit),
         total_matching: filtered.length,
         returned: Math.min(filtered.length, limit),
         truncated: filtered.length > limit,
+        ...(attachments ? { _attachments: attachments } : {}),
       })
     }
 
@@ -147,6 +180,7 @@ export const readExperimentResultsTool: ToolDescriptor<Input, unknown> = {
       arr.push(r)
     }
 
+    const attachments = collectAttachmentsForFiltered()
     return ok({
       groups: Array.from(groups.entries()).map(([key, members]) => ({
         group_key: key,
@@ -156,6 +190,7 @@ export const readExperimentResultsTool: ToolDescriptor<Input, unknown> = {
           : {}),
       })),
       total: filtered.length,
+      ...(attachments ? { _attachments: attachments } : {}),
     })
   },
 }
