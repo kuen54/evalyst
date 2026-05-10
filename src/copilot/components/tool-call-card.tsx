@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useT } from "@/lib/i18n/provider"
 import type { CopilotMessage } from "@/copilot/lib/types"
-import { findClientToolMetadata, needsConfirm } from "@/copilot/lib/tools/metadata-client"
+import { findClientToolMetadata, needsConfirm } from "@/copilot/lib/tools/client-registry"
 import { colorForTag } from "./context-mask"
 
 interface Props {
@@ -37,7 +37,7 @@ function pickVariant(toolName: string): Variant {
   const explicit = VARIANT_BY_TOOL[toolName]
   if (explicit) return explicit
   const meta = findClientToolMetadata(toolName)
-  if (meta?.isDestructive) return "write"
+  if (meta?.metadata.isDestructive) return "write"
   return "default"
 }
 
