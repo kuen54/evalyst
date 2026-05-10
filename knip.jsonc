@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+
+  // Files knip should NOT scan as source. Each entry is defensive — knip 6
+  // already auto-handles git worktrees (.claude/) and Next.js build output
+  // (.next/), but keeping these explicit guards against config regressions
+  // and silences "unused file" noise on agent worktrees + non-ts dirs.
+  "ignore": [
+    ".claude/**",
+    ".next/**",
+    "data/**",
+    "docs/**",
+    "*.config.{ts,mjs}",
+    "src/**/__tests__/**",
+    // shadcn-vendored UI primitives — copy-pasted upstream components.
+    // We preserve the full export surface (Card, DialogClose, Select* etc.)
+    // even when not currently consumed, because adding a missing sub-export
+    // back later is friction; the vendor pattern is "import the whole file
+    // verbatim". Treat the directory as a vendored library boundary.
+    "src/components/ui/**"
+  ]
+}
