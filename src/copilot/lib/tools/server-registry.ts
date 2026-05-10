@@ -6,15 +6,15 @@
 // unknown-input 槽位。UI / runtime 遇 tool 时都经由 toolByName 查找
 // → dispatch，不再关心具体 Input/Output。
 
-import { listExperimentsTool } from "./list-experiments"
-import { readExperimentResultsTool } from "./read-experiment-results"
-import { restartExperimentTool } from "./restart-experiment"
-import { readPageTool } from "./read-page"
-import { readToolResultTool } from "./read-tool-result"
-import { readContextTool } from "./read-context"
-import { readResourceTool } from "./read-resource"
-import { readDatasetRecordsTool } from "./read-dataset-records"
-import { editTemplateTool } from "./edit-template"
+import { listExperimentsTool } from "./list-experiments.server"
+import { readExperimentResultsTool } from "./read-experiment-results.server"
+import { restartExperimentTool } from "./restart-experiment.server"
+import { readPageTool } from "./read-page.server"
+import { readToolResultTool } from "./read-tool-result.server"
+import { readContextTool } from "./read-context.server"
+import { readResourceTool } from "./read-resource.server"
+import { readDatasetRecordsTool } from "./read-dataset-records.server"
+import { editTemplateTool } from "./edit-template.server"
 import type { ToolDescriptor } from "./types"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

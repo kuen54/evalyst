@@ -10,7 +10,7 @@ vi.mock("@/lib/schema/user-schema-store", () => ({
 }))
 
 // Import AFTER vi.mock so the tool picks up the mocked module.
-import { editTemplateTool } from "../edit-template"
+import { editTemplateTool } from "../edit-template.server"
 
 const ctx = { session_id: "s", signal: new AbortController().signal }
 

@@ -32,7 +32,7 @@ export const CLIENT_TOOLS: ReadonlyArray<ToolMetadataDescriptor> = [
   editTemplateMetadata,
 ] as const
 
-export const toolMetadataByName = new Map<string, ToolMetadataDescriptor>(
+const toolMetadataByName = new Map<string, ToolMetadataDescriptor>(
   CLIENT_TOOLS.map((t) => [t.name, t] as const),
 )
 

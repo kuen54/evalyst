@@ -3,7 +3,7 @@
 
 import type { ToolResult } from "./tool-result"
 
-export interface ToolMetadata {
+interface ToolMetadata {
   /** 读工具为 true，参与 micro-compact（旧结果可压成 summary + ref） */
   isReadOnly: boolean
   /** 写 / 破坏性工具为 true，默认触发 preToolCall Confirm */

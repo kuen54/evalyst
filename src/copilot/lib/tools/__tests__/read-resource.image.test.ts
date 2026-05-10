@@ -56,7 +56,7 @@ vi.mock("@/lib/datasets", () => ({ getDataset: () => null }))
 vi.mock("@/lib/displays", () => ({ getDisplay: () => null }))
 vi.mock("@/lib/rubric-store", () => ({ getRubric: () => null }))
 
-import { readResourceTool } from "../read-resource"
+import { readResourceTool } from "../read-resource.server"
 
 const ctx = { session_id: "s_rr_img", signal: new AbortController().signal }
 

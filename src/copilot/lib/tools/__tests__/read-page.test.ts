@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { readPageTool } from '../read-page'
+import { readPageTool } from '../read-page.server'
 
 vi.mock('../../snapshot-cache', () => ({
   getSnapshot: () => ({

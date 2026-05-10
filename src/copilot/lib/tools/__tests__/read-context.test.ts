@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import fs from "node:fs/promises"
 import path from "node:path"
 import os from "node:os"
-import { readContextTool } from "../read-context"
+import { readContextTool } from "../read-context.server"
 
 // Mock session store to return a controlled active context set
 const mockTag = vi.fn<(sessionId: string, tag: number) => unknown>()

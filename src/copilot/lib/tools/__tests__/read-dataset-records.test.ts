@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
-import { readDatasetRecordsTool } from "../read-dataset-records"
+import { readDatasetRecordsTool } from "../read-dataset-records.server"
 
 vi.mock("@/lib/datasets", () => ({
   getDataset: (id: string) => {

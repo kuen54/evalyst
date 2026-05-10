@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import fs from "node:fs/promises"
 import path from "node:path"
 import os from "node:os"
-import { readToolResultTool } from "../read-tool-result"
+import { readToolResultTool } from "../read-tool-result.server"
 import { maybePersistToolResult } from "../../tool-result-store"
 
 let testDir: string
