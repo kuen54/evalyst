@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+- fix(results): hoist hooks before early return in triple-grid + dual-list (Tier 2 #11)
+
 ## [0.11.5] — 2026-05-10 · tsconfig strict baseline + 顺手 hooks fix (Phase D, PR #62 #63)
 
 收掉 audit-cleanup-2026-05-09 §Phase D：tsc 三档 strict 全开（`noUncheckedIndexedAccess` + `noImplicitReturns` + `exactOptionalPropertyTypes`），把项目 ~570 处隐式 undefined 全显式化。零用户可见行为变化——这是 internal-quality 提升 / Phase E（Copilot 物理切边）的前置防护网（spec §Phase D Stop condition：strict 必须先于 Copilot 重构合，否则切边后再开 strict 会让搬走的文件二次改类型）。patch 级版本号刻意——Phase D 是 zero-user-perceived 改动，留 v0.12.0 给 Phase E 真正的 minor bump。
