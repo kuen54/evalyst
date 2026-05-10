@@ -10,9 +10,73 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-- refactor(copilot): physical boundary split (#2) — 把 `src/lib/copilot/` + `src/components/copilot/` 归到 `src/copilot/{lib,components}/`；`src/app/api/copilot/` 因 Next.js App Router 强制留原位。`tsconfig.json` 加 `@/copilot/*` paths。README + AGENTS 顶部声明 9k+11k LOC 边界（excl 测试）。零行为变更，纯路径重组。Plan: `docs/superpowers/plans/2026-05-09-audit-copilot-boundary.md`
-- refactor(copilot): drop metadata mirror, split tools to .metadata + .server (#10) — 9 工具每个拆成 `{name}.metadata.ts` (client-safe — name + description + inputSchema + metadata, 不带 fs/store) + `{name}.server.ts` (call 函数 + 全 server deps)。新增 `client-registry.ts` (UI 用) + `server-registry.ts` (runtime 用)，老 `registry.ts` 改为 thin re-export shim 保 14 处 consumer 不动。删 `metadata-client.ts` + `metadata-client-sync.test.ts`，加 `metadata-identity.test.ts` 用 reference equality 检查 server descriptor.metadata 与 client metadata 同对象 (R1)。验证：tsc/test (766) /lint/build/knip 全绿；client chunks 0 fs imports。加新 tool 步骤从 6 处减到 3 处。Plan: `docs/superpowers/plans/2026-05-09-audit-tool-metadata-split.md`
-- refactor(batch-runner): file lock replaces globalThis singleton (#9) — `data/results/{exp_id}/.runner.lock` 写 `{ pid, started_at, last_heartbeat, node_version }`。`startBatch` 用 `acquireLock` 探活 + 心跳判活；`BatchRunner.run` 主循环每 `writeProgress` 后 `touchHeartbeat` 让长跑实验不被 1h stale 兜底误判；finally 删锁。Dev 模式启动一次性 `clearStaleLocksOnBoot` 清 HMR 残留。`globalForRunners` / `globalThis.__activeRunners` 移除，内存 Map 改 module-local 仅做 same-process abort 派发。零公共 API 变化（`startBatch` / `stopBatch` 签名 + 返回值不变）。新增 6 case 单测覆盖 acquire/reject/stale/dev-boot/heartbeat/prod-noop。验证：tsc/test (772) /lint/build/knip 全绿。Plan: `docs/superpowers/plans/2026-05-09-audit-batch-runner-file-lock.md`
+## [0.12.0] — 2026-05-10 · Phase E 结构性重构：Copilot 物理边界 + tool metadata 拆分 + batch-runner 文件锁 (PR #70 #71 #72)
+
+收掉 audit-cleanup-2026-05-09 §Phase E。三个独立 PR 把仓库长期累积的物理 / 逻辑 / 协调层耦合一次性切清：Copilot 子树物理收敛、tool 注册去镜像化、批处理协调从 globalThis hack 换成文件锁。零运行时行为变化——这是 Phase F 文档收尾前最后一次大规模结构动作。minor 跳是因为 `src/copilot/` 子树落地是仓库导航语义的明显改变，不再是 patch 级 polish。
+
+### Copilot 物理边界 (PR #70 `refactor/copilot-boundary` — Phase E #2)
+
+`src/lib/copilot/` (91 文件) + `src/components/copilot/` (25 文件) 物理收敛到 `src/copilot/{lib,components}/`。`src/app/api/copilot/` 因 Next.js App Router 强制 api routes 在 `src/app/api/<route>/route.ts` 下，留原位（plan §2 锁明此例外）。
+
+- **commit 1 pure git mv**：116 文件 100% 相似度 rename，0 ins/0 del；commit 1 后 tsc/test/build 故意全爆——commit message 标明
+- **commit 2 import rewrite**：75 文件改 alias `@/lib/copilot/` → `@/copilot/lib/`、`@/components/copilot/` → `@/copilot/components/`；含 7 处 cross-edge 相对 import (`'../llm-client'` 等)→ `@/lib/*` (plan §7 R4 anticipated)；vi.mock factory 字符串一并改；`tsconfig.json` 加 `@/copilot/*` 显式路径
+- **commit 3 doc 同步**：CLAUDE.md / AGENTS.md prose 路径同步改；README + AGENTS 顶部加 LOC 边界声明段；docs/superpowers/{specs,plans}/ 中纯 Copilot 文件的 `@/(lib\|components)/copilot/` 字面量同步替换
+- **LOC 数字校正**：原 plan 写 "9k vs 18k" 是 eyeball 估算，实测 18k 评测核心 vs 11k Copilot (excl 测试) / 21k vs 18k (incl 测试)。README + AGENTS 顶部段写真实数字 + 透明注
+- **§6 grep 验收**：`git grep -e "@/lib/copilot/" -e "@/components/copilot/"` 在 src/ + e2e/ + CLAUDE.md + AGENTS.md 返 0 行；docs/superpowers/plans/2026-05-09-audit-copilot-boundary.md 内 6 处自指匹配（描述 before→after 箭头）保留
+- 验证：tsc/test (765) /lint/build/knip 全绿；e2e individual 12/12 PASS；Playwright manual UI 全 10 路由 + Copilot 面板 0 regression
+
+### Tool metadata 镜像拆掉 (PR #71 `refactor/copilot-tool-metadata-split` — Phase E #10)
+
+加新 tool 从 6 处登记 (tool 文件 + registry + metadata-client mirror + sync test + tool-call-card variant + tool-call-card import) 减到 3 处，metadata-client 手动镜像 + 强制 sync 测试整套去掉。
+
+- 9 个工具每个拆 `{name}.metadata.ts` (client-safe — name + description + inputSchema + metadata, **禁 import fs/store**) + `{name}.server.ts` (call 函数 + 全 server deps)。`{name}.server.ts` import 自家 metadata + spread `{ ...xxxMetadata, call }` 拼回完整 ToolDescriptor，nested metadata 引用通过 shallow spread 保持不变
+- 新增 `client-registry.ts` (UI 用 — `findClientToolMetadata` / `needsConfirm`) + `server-registry.ts` (runtime 用 — `TOOLS` / `toolByName` / `AnyToolDescriptor`)。老 `registry.ts` 改为 thin re-export shim (`export * from './server-registry'`) 保 14 处 consumer call sites 不动
+- 删 `metadata-client.ts` + `metadata-client-sync.test.ts` (整套手动镜像消失)；加 `metadata-identity.test.ts` 用 `toBe` (reference equality) 检查 server descriptor.metadata 与 client metadata 同对象——shallow spread 链上任何未来 deep copy refactor 立即 fail
+- `tool-call-card.tsx` + `use-chat-stream.ts` import 切到 `client-registry`；`pickVariant()` 现读 `meta.metadata.isDestructive` (nested — 之前 ClientToolMetadata 是 flat shape)
+- 13 commit 拆分（1 prep + 9 per-tool + 2 wrap + 1 changelog），每 commit tsc/test 全绿
+- 验证：tsc/test (766) /lint/build/knip 全绿；plan §6 client bundle fs check `grep "fs/promises\|node:fs" .next/static/chunks/` 0 行；plan §6 metadata server-only deps grep 0 行 (仅 `edit-template.metadata.ts` 走 `import type { TaskSchema }` type-erase)；e2e individual 12/12 PASS；Playwright manual UI 验 5 个 tool-call-card variant + needsConfirm gating 全部正常
+
+### batch-runner 文件锁 (PR #72 `refactor/batch-runner-file-lock` — Phase E #9)
+
+`globalThis.__activeRunners` 模块 hack 换成 `data/results/{exp_id}/.runner.lock` 文件锁。旧设计在 dev HMR 下能跨重载存活但跨多 worker (`next start -w 4`) 直接错乱、进程崩溃后留 silent stuck 实验；新设计在 prod 多 worker 正确，dev HMR 副作用换成可控的 boot-time cleanup。
+
+- 新增 `src/lib/batch-runner-lock.ts`：`acquireLock` / `releaseLock` / `touchHeartbeat` / `clearStaleLocksOnBoot`。锁内容 `{ pid, started_at, last_heartbeat, node_version }`，写入走 `writeAtomic`
+- `acquireLock` 双重判活：`process.kill(pid, 0)` 探活 (区分 ESRCH = 死 / EPERM = 活但无权限) + `last_heartbeat` 距今 > 1h 视作 stale 兜底 (防 hang 进程持锁)
+- `BatchRunner.run` 主循环每 `writeProgress` 后调 `touchHeartbeat`(3 处：initial / per-task / final)——长跑实验持续刷锁，不被 1h stale 误判
+- `clearStaleLocksOnBoot` dev 模式启动一次性扫 `data/results/*/.runner.lock` 全删（`bootCleanupDone` flag 防多次跑），prod 跳过此 hook
+- `globalForRunners` / `globalThis.__activeRunners` 完全移除，内存 Map 改 module-local 仅做 same-process abort 派发；`stopBatch` 公开行为不变（不存在 → false；存在 → runner.stop）
+- 公开 API 完全保持：`startBatch` / `stopBatch` 签名 + 返回值 + "Experiment is already running" 异常 message 一字不改；14 处 consumer 不动
+- 6 case 单测覆盖 acquire/reject/stale-ESRCH/dev-boot/heartbeat-refresh/prod-no-op；用 `vi.stubEnv` 改 NODE_ENV (TS-strict-friendly) + `vi.spyOn(process, 'kill')` mock ESRCH
+- **取舍**：dev HMR 重载期间正在跑的实验失去 abort 入口（旧的 globalThis 跨 HMR 存活在新设计里改成 `clearStaleLocksOnBoot` 重置）；prod 不受影响（无 HMR）；换得多 worker 正确性
+- 验证：tsc/test (772) /lint/build/knip 全绿；`grep "globalThis\|__activeRunners\|globalForRunners" src/lib/batch-runner.ts` 0 行；Playwright manual UI 跑了完整 25/25 task 实验，端到端验证锁创建 → 心跳刷新 (22s 实测) → release → 0 orphan 跨 22 个 results 目录；并发 `curl POST .../run` 拒绝返 verbatim "Experiment is already running"
+
+### 用户感知
+
+零。三个 PR 都是 refactor，外部行为不变：
+- API endpoints / data paths / i18n / Glass UI / hooks / tool 行为 全不变
+- `startBatch` / `stopBatch` / `TOOLS` / `toolByName` / `AnyToolDescriptor` 公开 surface 完全保持
+- `<GlassCard>` / `useGlassStyle` / Copilot panel 视觉 + 交互不变
+
+### 验收
+
+- main HEAD = `0c47c85` (PR #72 merge commit)
+- `npx tsc --noEmit` 0 errors
+- `npm test` 772 / 772 passing (Phase E 累计 +6 净增：+3 metadata-identity / -2 metadata-client-sync / +6 batch-runner-lock / -1 (其它合并))
+- `npm run build` Compiled successfully
+- `npm run lint` 0 problems
+- `npm run knip` 0 unused exports
+- e2e individual: 12/12 PASS
+- 三个 PR 各做了 Playwright Opus subagent manual UI verification (Phase E #2 → 10 路由 + Copilot 面板；#10 → tool-call-card 5 variants + needsConfirm；#9 → 完整 25/25 task run 锁生命周期)
+
+### 下一步
+
+Phase F (#5 文档分裂 + 砍冗余) 需要 v0.12.0 tag 后启动。
+
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase E
+- Plans:
+  - docs/superpowers/plans/2026-05-09-audit-copilot-boundary.md (#2)
+  - docs/superpowers/plans/2026-05-09-audit-tool-metadata-split.md (#10)
+  - docs/superpowers/plans/2026-05-09-audit-batch-runner-file-lock.md (#9)
 
 ## [0.11.7] — 2026-05-10 · knip 配置上线 + dead-export cleanup (PR #66)
 
