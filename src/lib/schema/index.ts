@@ -13,5 +13,3 @@ export function listSchemas(): TaskSchema[] {
   ensureSeeds()
   return listUserSchemas()
 }
-
-export type { TaskSchema } from './types'

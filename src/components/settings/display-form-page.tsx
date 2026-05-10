@@ -17,10 +17,6 @@ import { pickView } from "@/components/results/registry"
 import { TableModeForm, GroupedGridModeForm, JsxModeForm } from "./display-form-modes"
 import type { FormState } from "./display-form-types"
 
-// Re-export so existing consumers (and `display-form-modes.tsx` via its own
-// dedicated import from `display-form-types`) keep working without churn.
-export type { FormState } from "./display-form-types"
-
 function emptyState(): FormState {
   return {
     id: "",
