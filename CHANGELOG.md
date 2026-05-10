@@ -10,6 +10,12 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Security (#R2-B)
+
+- `src/middleware.ts` 顶部 doc 真名化：`Auth gate` → **CSRF gate (NOT auth)**；删除误导性 "could exfiltrate keys / run arbitrary server-side JS / trigger writes" 措辞（这些 R1 已在域代码层修了），明示 LAN curl 绕过这条限制。
+- `docker-compose.yml` `ports` 绑 loopback：`"3000:3000"` → `"127.0.0.1:3000:3000"`，容器外不可见。
+- `README.md` 新增 `## 部署须知（Deployment caveat）` 段：明示 evalyst 不支持 LAN/公网暴露；推荐 ssh tunnel / VPN / 反代 + auth 前置。
+
 ### Fixed (#R2-C)
 
 - `src/lib/batch-runner-lock.ts` `acquireLock`: 用 `fs.openSync(p, 'wx')` (O_EXCL) 替换 read-check-write，关闭 round-2 §14 的 TOCTOU 窗口（两个 worker 同时见到 stale lock 双双 overwrite 都返 true 的真伤）。stale 检测路径行为等价；lock schema 不变。新增 race test (`Promise.all([acquireLock, acquireLock])` × 5 次循环，恰好 1 true / 1 false)。

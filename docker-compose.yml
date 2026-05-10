@@ -4,7 +4,11 @@ services:
     image: evalyst:latest
     container_name: evalyst
     ports:
-      - "3000:3000"
+      # Bound to loopback only — evalyst has no auth, exposing :3000 to
+      # LAN/WAN allows unauthenticated reads of LLM API keys and writes
+      # to experiments/datasets. See README §部署须知 for ssh tunnel /
+      # VPN / reverse-proxy patterns.
+      - "127.0.0.1:3000:3000"
     volumes:
       # 宿主机 ./data 持久化实验 / 数据集 / LLM 配置
       - ./data:/app/data

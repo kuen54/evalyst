@@ -1,26 +1,30 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
- * Auth gate for /api/* routes.
+ * CSRF gate (NOT auth) for /api/* routes.
  *
- * Rationale (PR fix/auth-gate-rce, v0.11):
- *   evalyst's data-mutating routes (POST/PUT/DELETE on /api/datasets,
- *   /api/schemas, /api/llm-config, /api/experiments, …) had no auth
- *   whatsoever. Combined with the now-removed `js` transform op and
- *   the now-masked api_key endpoint, anyone able to reach :3000 could
- *   exfiltrate keys, run arbitrary server-side JS, or trigger writes.
+ * Threat model: evalyst runs as a localhost dev tool with no auth on
+ * data-mutating routes (POST/PUT/DELETE on /api/datasets, /api/schemas,
+ * /api/llm-config, /api/experiments, …). This middleware closes ONE
+ * specific attack surface: a logged-in browser session being driven by
+ * a malicious cross-origin page (classic CSRF).
  *
- *   This middleware is a minimal CSRF / cross-origin defense, NOT a
- *   token auth system. It uses the browser-attested `Sec-Fetch-Site`
- *   header — set by the browser itself, not by the page — to allow
- *   first-party requests (same-origin / same-site / "none" = direct
- *   navigation, e.g. typing the URL or running curl/agents) and reject
- *   third-party `cross-site` requests unless explicitly allowlisted via
- *   EVALYST_ALLOW_ORIGIN (comma-separated origin list).
+ * It uses the browser-attested `Sec-Fetch-Site` header — set by the
+ * browser itself, not by the page — to allow first-party requests
+ * (same-origin / same-site / "none" = direct navigation, e.g. typing
+ * the URL or running curl/agents) and reject third-party `cross-site`
+ * requests unless explicitly allowlisted via EVALYST_ALLOW_ORIGIN
+ * (comma-separated origin list).
  *
- *   /api/skills/[name] is intentionally public — Claude Code agents on
- *   the user's machine fetch SKILL.md cross-origin from the platform
- *   itself, and that's the documented "agent-driven" entry point.
+ * What this is NOT: a token auth system. A LAN attacker running
+ * `curl http://victim:3000/api/llm-config` sends no `Sec-Fetch-Site`
+ * header and IS allowed through. evalyst is intended for localhost /
+ * loopback deployment only — see README §部署须知 for tunnel / VPN /
+ * reverse-proxy patterns if remote access is required.
+ *
+ * /api/skills/[name] is intentionally public — Claude Code agents on
+ * the user's machine fetch SKILL.md cross-origin from the platform
+ * itself, and that's the documented "agent-driven" entry point.
  */
 
 const SKILLS_PREFIX = '/api/skills/'

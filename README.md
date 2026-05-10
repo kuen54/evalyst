@@ -30,12 +30,13 @@
 
 1. [快速开始](#快速开始)
 2. [Docker 启动](#docker-启动)
-3. [核心概念](#核心概念)
-4. [完整教程：从零搭一个评测任务](#完整教程从零搭一个评测任务)
-5. [用 Agent 驱动](#用-agent-驱动)
-6. [进阶](#进阶)
-7. [常见问题](#常见问题)
-8. [贡献](#贡献)
+3. [部署须知](#部署须知deployment-caveat)
+4. [核心概念](#核心概念)
+5. [完整教程：从零搭一个评测任务](#完整教程从零搭一个评测任务)
+6. [用 Agent 驱动](#用-agent-驱动)
+7. [进阶](#进阶)
+8. [常见问题](#常见问题)
+9. [贡献](#贡献)
 
 ---
 
@@ -80,6 +81,24 @@ EVALYST_ALLOW_ORIGIN=https://your-tool.example.com,https://another.example.org
 ```
 
 `/api/skills/[name]` 公开放行——Claude Code agent 跨源拉 SKILL.md 是产品定位的一部分。`/api/llm-config` GET 已对 `api_key` 做 mask（保留末 4 位 `sk-***xxxx`）；编辑保存时若收到 mask 占位符自动恢复原 key，UI round-trip 不破坏。
+
+---
+
+## 部署须知（Deployment caveat）
+
+**evalyst 不支持 LAN / 公网暴露。** 只为本地开发工具场景设计——单用户、localhost、loopback only。
+
+`src/middleware.ts` 是 **CSRF gate（不是 auth）**：用浏览器 attested `Sec-Fetch-Site` header 拦 cross-site，关浏览器场景下"恶意页面驱动 logged-in session"那一面；但 **LAN 攻击者直接 `curl http://victim:3000/api/llm-config` 没有 `Sec-Fetch-Site` header，会直接放行**——拿走你 LLM API key、写入你的实验都行。
+
+`docker-compose.yml` 默认 `ports: "127.0.0.1:3000:3000"` 绑 loopback——容器外不可见。**不要**改成 `"3000:3000"` 或 `"0.0.0.0:3000:3000"` 暴露给宿主机网卡，除非你已经在前面加了 auth 反代。
+
+如果你需要远程访问（家里访问公司机器、团队共享 demo 等），用以下任一种：
+
+- **SSH tunnel**：`ssh -L 3000:localhost:3000 user@host` 把远端 :3000 绑到本地 :3000
+- **VPN / Tailscale**：把机器拉进私网，evalyst 只对私网 IP 可见
+- **反代 + auth 前置**：Caddy / Nginx / Cloudflare Tunnel 在前面挂 basic-auth / OAuth / mTLS / IP allowlist；evalyst 仍绑 127.0.0.1，只让反代访问
+
+**不要做**：直接 `EXPOSE` 到公网 / 把 :3000 写进 `0.0.0.0` / 在生产环境多用户共用一个实例。
 
 ---
 
