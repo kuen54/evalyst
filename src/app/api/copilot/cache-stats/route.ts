@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readCacheStats } from '@/lib/copilot/cache-stats-store'
+import { readCacheStats } from '@/copilot/lib/cache-stats-store'
 import {
   aggregateCacheHitRate,
   countRecentBreaks,
-} from '@/lib/copilot/cache-aggregate'
+} from '@/copilot/lib/cache-aggregate'
 import {
   collectRecentBreakReasons,
   findLatestBreakPair,
-} from '@/lib/copilot/cache-break-detect'
+} from '@/copilot/lib/cache-break-detect'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 const RECENT_LIMIT = 10

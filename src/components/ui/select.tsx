@@ -5,8 +5,8 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
-import { useGlassStyle } from "@/components/copilot/shell"
-import { useCopilotStore } from "@/components/copilot/store"
+import { useGlassStyle } from "@/copilot/components/shell"
+import { useCopilotStore } from "@/copilot/components/store"
 
 const Select = SelectPrimitive.Root
 

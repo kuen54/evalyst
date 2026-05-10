@@ -8,8 +8,8 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
-import { GlassCard } from "@/components/copilot/shell"
-import { useRegisterPageContext } from "@/components/copilot/use-page-context"
+import { GlassCard } from "@/copilot/components/shell"
+import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import type { Display } from "@/lib/schema/types"
 
 export default function SettingsDisplaysPage() {

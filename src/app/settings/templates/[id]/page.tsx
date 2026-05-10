@@ -10,11 +10,11 @@ import { CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT } from "@/lib/i18n/provider"
-import { GlassRegular, GlassCard } from "@/components/copilot/shell"
+import { GlassRegular, GlassCard } from "@/copilot/components/shell"
 import type { TaskSchema, DatasetDef, Display } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
 import { inferDisplayBuiltinId } from "@/lib/display-inference"
-import { useRegisterPageContext } from "@/components/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 
 export default function TemplateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)

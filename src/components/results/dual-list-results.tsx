@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { CardHeader } from "@/components/ui/card"
-import { GlassThin, GlassCardThin } from "@/components/copilot/shell"
+import { GlassThin, GlassCardThin } from "@/copilot/components/shell"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useT } from "@/lib/i18n/provider"

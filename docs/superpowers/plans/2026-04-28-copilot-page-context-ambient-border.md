@@ -581,7 +581,7 @@ interface CopilotStore {
 import 顶部加：
 
 ```ts
-import type { CopilotContextRef, PageContext } from "@/lib/copilot/types"
+import type { CopilotContextRef, PageContext } from "@/copilot/lib/types"
 ```
 
 Provider 实现（在既有 state 后追加）：
@@ -671,7 +671,7 @@ Create `src/lib/copilot/use-page-context.ts`:
 "use client"
 
 import { useEffect } from "react"
-import { useCopilotStore } from "@/components/copilot/store"
+import { useCopilotStore } from "@/copilot/components/store"
 import type { PageContext } from "./types"
 
 /**
@@ -730,7 +730,7 @@ git commit -m "feat(copilot): page context + typing/route-change store fields + 
 找到现有 `export default function DashboardPage()` 顶部，在所有 hook 之后、return 之前加：
 
 ```tsx
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/lib/use-page-context"
 // ...
 // （在组件 body 里，其它 hook 之后）
 useRegisterPageContext(() => ({
@@ -765,7 +765,7 @@ useRegisterPageContext(() => ({
 找到表单 state（大概率有 `templateId`, `datasetIds`, `modelId` 之类），在组件 body 里：
 
 ```tsx
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/lib/use-page-context"
 // ...
 useRegisterPageContext(() => ({
   route_type: 'experiment_new',
@@ -784,7 +784,7 @@ useRegisterPageContext(() => ({
 - [ ] **Step 3: 在 `src/app/experiments/[id]/page.tsx` 加 register**
 
 ```tsx
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/lib/use-page-context"
 // ...
 useRegisterPageContext(() => ({
   route_type: 'experiment_detail',
@@ -837,7 +837,7 @@ git commit -m "feat(copilot): register page_context for dashboard + experiment r
 - [ ] **Step 1: 加 useRegisterPageContext**
 
 ```tsx
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/lib/use-page-context"
 // ...
 useRegisterPageContext(() => ({
   route_type: 'compare',
@@ -888,7 +888,7 @@ git commit -m "feat(copilot): register page_context for compare route"
 - [ ] **Step 1: `src/app/settings/datasets/page.tsx`**
 
 ```tsx
-import { useRegisterPageContext } from "@/lib/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/lib/use-page-context"
 // ...
 useRegisterPageContext(() => ({
   route_type: 'datasets_list',
@@ -1430,8 +1430,8 @@ Edit `src/app/api/copilot/sessions/[id]/chat/route.ts`：
 
 1. 顶部 import 追加：
 ```ts
-import { setSnapshot } from '@/lib/copilot/snapshot-cache'
-import type { ClientSnapshot } from '@/lib/copilot/types'
+import { setSnapshot } from '@/copilot/lib/snapshot-cache'
+import type { ClientSnapshot } from '@/copilot/lib/types'
 ```
 
 2. body 类型扩展（约第 39 行）：
@@ -1470,7 +1470,7 @@ Edit `src/app/api/copilot/sessions/[id]/tool-result/route.ts`：
 
 Edit `src/app/api/copilot/sessions/[id]/route.ts` 顶部：
 ```ts
-import { deleteSnapshot } from '@/lib/copilot/snapshot-cache'
+import { deleteSnapshot } from '@/copilot/lib/snapshot-cache'
 ```
 
 DELETE 里：
@@ -1507,7 +1507,7 @@ git commit -m "feat(copilot): thread client_snapshot through /chat + /tool-resul
 
 加 import：
 ```ts
-import { collectClientSnapshot } from "@/lib/copilot/collect-snapshot"
+import { collectClientSnapshot } from "@/copilot/lib/collect-snapshot"
 ```
 
 修改既有 `useCopilotStore()` destructure（约第 77 行），把 `pageContext` 和 `bumpTypingSignal` 取出来：
@@ -2059,7 +2059,7 @@ Edit `src/app/layout.tsx`:
 
 Import（放在其它 copilot 组件 imports 旁）：
 ```tsx
-import { CopilotBorderGlow } from "@/components/copilot/border-glow"
+import { CopilotBorderGlow } from "@/copilot/components/border-glow"
 ```
 
 找到既有（**保持不变**，**不**包 wrapper）：

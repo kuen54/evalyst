@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveContexts, formatContextsForLlm } from '@/lib/copilot/resolve-context'
-import type { CopilotContextRef } from '@/lib/copilot/types'
+import { resolveContexts, formatContextsForLlm } from '@/copilot/lib/resolve-context'
+import type { CopilotContextRef } from '@/copilot/lib/types'
 
 // POST /api/copilot/contexts/resolve
 // body: { refs: CopilotContextRef[] }

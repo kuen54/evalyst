@@ -1,5 +1,12 @@
 # Agent 约定
 
+项目分两个独立域，可独立理解：
+
+- **评测核心 ≈ 18k LOC** —— schema engine / batch runner / file storage / 表单 UI
+- **Copilot 助手 ≈ 11k LOC** —— 嵌入式 LLM 工具，集中在 `src/copilot/` 子树
+
+含测试时核心 ~21k、Copilot ~18k；上面数字 excl 测试，便于读"实际产品逻辑量"。
+
 ## Next.js 版本
 
 本项目使用 Next.js 16.2.4，与训练数据中的版本存在 breaking changes。修改代码前先读 `node_modules/next/dist/docs/` 中的对应文档，注意废弃警告。
@@ -166,7 +173,7 @@ JSON 粘贴入口仍保留给 "AI agent 整份产出" 这一种场景（new 页�
 
 ### 加 / 改 copilot 工具
 
-- 每工具一文件 `src/lib/copilot/tools/{name}.ts`，`export const xxxTool: ToolDescriptor<Input, Output>`
+- 每工具一文件 `src/copilot/lib/tools/{name}.ts`，`export const xxxTool: ToolDescriptor<Input, Output>`
 - 必填 metadata：`isReadOnly` / `isDestructive` / `maxResultSizeChars`；可选 `requiresConfirm`（覆盖 isDestructive 默认）
 - `isDestructive: true` 自动走 preToolCall confirmGateHook → UI 弹 Confirm 卡
 - 超 `maxResultSizeChars` 的 output 自动被 payloadGuardHook 落盘到 `data/copilot/tool-results/{sid}/tr_xxx.json`，transcript 留 preview + ref

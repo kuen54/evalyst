@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useMemo } from "react"
-import { GlassCardThin, useGlassStyle } from "@/components/copilot/shell"
-import { useCopilotStore } from "@/components/copilot/store"
+import { GlassCardThin, useGlassStyle } from "@/copilot/components/shell"
+import { useCopilotStore } from "@/copilot/components/store"
 import { useT } from "@/lib/i18n/provider"
 import type { Display, GenericResultRecord, TaskSchema } from "@/lib/schema/types"
 import type { ResultViewProps, CellViewProps } from "./types"

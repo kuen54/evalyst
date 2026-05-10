@@ -14,9 +14,9 @@ import { FilterRenderer } from "@/components/filter-renderer"
 import { useT } from "@/lib/i18n/provider"
 import type { TaskSchema, FilterValues, DatasetDef, Rubric } from "@/lib/schema/types"
 import type { LlmConfig, ModelConfig } from "@/lib/llm-config"
-import { GlassRegular } from "@/components/copilot/shell"
-import { GlassSegmentedItem } from "@/components/copilot/glass-segmented"
-import { useRegisterPageContext } from "@/components/copilot/use-page-context"
+import { GlassRegular } from "@/copilot/components/shell"
+import { GlassSegmentedItem } from "@/copilot/components/glass-segmented"
+import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 
 const TASK_COUNT_CONFIRM_THRESHOLD = 5_000
 const TASK_COUNT_HARD_CAP = 100_000

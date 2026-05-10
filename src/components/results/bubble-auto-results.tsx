@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { CardContent, CardHeader } from "@/components/ui/card"
-import { GlassCardThin } from "@/components/copilot/shell"
+import { GlassCardThin } from "@/copilot/components/shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"

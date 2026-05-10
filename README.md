@@ -17,6 +17,13 @@
 
 **内嵌 Copilot**（`⌘K` 打开）：右侧滑出对话面板，能"看到"你当前屏幕上的东西 —— 圈选实验卡、task 行、prompt 模板、任意文本作为 context 发给 Copilot；切换到 copilot 模式时主内容区统一切到玻璃 UI 语言，和普通编辑模式视觉清晰区隔。工具调用闭环（代用户改模板 + 触发重跑）规划中。
 
+项目分两个独立域，可独立理解：
+
+- **评测核心 ≈ 18k LOC** —— schema engine / batch runner / file storage / 表单 UI
+- **Copilot 助手 ≈ 11k LOC** —— 嵌入式 LLM 工具，集中在 `src/copilot/` 子树
+
+含测试时核心 ~21k、Copilot ~18k；上面数字 excl 测试，便于读"实际产品逻辑量"。
+
 ---
 
 ## 目录

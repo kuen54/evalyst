@@ -575,13 +575,13 @@ Run: `cat src/app/layout.tsx`
 
 - [ ] **Step 3: 加 import**
 
-在 `src/app/layout.tsx` 的 import 区，找到现有 `import { GlowOverlay } from "@/components/copilot/glow-overlay"`（或类似行），紧接其后加：
+在 `src/app/layout.tsx` 的 import 区，找到现有 `import { GlowOverlay } from "@/copilot/components/glow-overlay"`（或类似行），紧接其后加：
 
 ```typescript
-import { MaterialRevealOverlay } from "@/components/copilot/material-reveal-overlay"
+import { MaterialRevealOverlay } from "@/copilot/components/material-reveal-overlay"
 ```
 
-若 GlowOverlay import 不存在，则在任意 `@/components/copilot/...` import 之后加即可（保持 import 区分组有序）。
+若 GlowOverlay import 不存在，则在任意 `@/copilot/components/...` import 之后加即可（保持 import 区分组有序）。
 
 - [ ] **Step 4: JSX 里挂载**
 

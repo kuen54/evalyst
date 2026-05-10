@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useT } from "@/lib/i18n/provider"
-import { GlassSegmentedItem } from "@/components/copilot/glass-segmented"
+import { GlassSegmentedItem } from "@/copilot/components/glass-segmented"
 
 type SettingsTabKey = "llm" | "datasets" | "templates" | "displays" | "rubrics"
 
