@@ -35,6 +35,7 @@ export function TextSelector() {
 
   useEffect(() => {
     if (!enabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
       setSelection(null)
       return
     }

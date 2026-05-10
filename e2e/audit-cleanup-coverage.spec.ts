@@ -145,7 +145,6 @@ test.describe("audit-cleanup: display form (circular-dep extract)", () => {
       // No POST fired (validation kept us on page). That's fine — the
       // important thing is no runtime error and the form is still alive.
       // A console hint helps a debugger:
-      // eslint-disable-next-line no-console
       console.log("[audit-cleanup] save did not POST — validation likely fired; that's still a passing case")
     }
 

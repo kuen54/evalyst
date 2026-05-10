@@ -61,6 +61,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
   }, [id])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch helpers seed initial state; see docs/conventions/react19-hydration.md
     fetchExperiment()
     fetchProgress()
     fetchResults()
@@ -71,6 +72,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
   // 有 rubric_id 时拉 rubric + annotations
   useEffect(() => {
     if (!experiment?.rubric_id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
       setRubric(null); setAnnotations([]); setAggregate(null)
       return
     }
@@ -92,6 +94,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       }
     }, 1000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run_stats are polled inside the interval, not deps
   }, [experiment?.status, fetchExperiment, fetchProgress, fetchResults])
 
   const handleRun = useCallback(async (resume = false, taskIds?: string[]) => {

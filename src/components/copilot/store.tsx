@@ -86,6 +86,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     try {
       const savedOpen = localStorage.getItem(LS_OPEN)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydrate; see docs/conventions/react19-hydration.md
       if (savedOpen === "1") setOpenState(true)
       const savedW = localStorage.getItem(LS_WIDTH)
       if (savedW) {

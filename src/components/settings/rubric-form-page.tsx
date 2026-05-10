@@ -39,6 +39,7 @@ export function RubricFormPage({ mode, initial }: Props) {
 
   useEffect(() => {
     if (initial) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from prop; see docs/conventions/react19-hydration.md
       setId(initial.id)
       setName(initial.name)
       setDescription(initial.description ?? "")

@@ -247,7 +247,7 @@ interface Annotation {
 Playwright 配置在 `playwright.config.ts`：`webServer` 跑 `npm run dev`（本地 `reuseExistingServer: true`），默认只用 chromium；失败时产出 `test-results/` 和 `playwright-report/`（已加 gitignore）。
 
 CI（`.github/workflows/ci.yml`）两个 job：
-- `verify` — `tsc --noEmit → lint（continue-on-error）→ test → build`
+- `verify` — `tsc --noEmit → lint（fail-on-warning）→ test → build`
 - `e2e`（依赖 verify 通过）— `npx playwright install --with-deps chromium → npm run test:e2e`，失败上传 HTML report 作为 artifact
 
 ## Copilot（内嵌 AI 助手）

@@ -145,6 +145,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
 
   useEffect(() => {
     currentSessionRef.current = sessionId
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on session change before async load; see docs/conventions/react19-hydration.md
     if (!sessionId) { setMessages([]); return }
     setLoadingSession(true)
     fetch(`/api/copilot/sessions/${sessionId}`)
