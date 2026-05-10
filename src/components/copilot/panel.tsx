@@ -21,6 +21,7 @@ export function CopilotPanel() {
 
   useEffect(() => {
     if (!open || sessionsLoaded) return
+    // eslint-disable-next-line react-hooks/immutability -- intentional: useCallback declared below; capture is stable for this load-once effect
     refreshSessions()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load-once on first open; sessionsLoaded gate prevents re-fire
   }, [open, sessionsLoaded])

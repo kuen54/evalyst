@@ -84,6 +84,7 @@ export function PreviewPane({ form, datasets, displays, datasetSamples, t }: {
   const mockResults = useMemo(() => {
     if (!schema) return []
     return generateMockResults(schema, datasets, datasetSamples, 3)
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- React Compiler hint: schema may mutate; this useMemo is just a cheap cache, not correctness-critical
   }, [schema, datasets, datasetSamples])
 
   const view = schema ? pickView(schema, effectiveDisplay) : null
