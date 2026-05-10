@@ -205,7 +205,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
             <CardContent className="pt-4">
               <ExperimentPromptPreview
                 template={experiment.prompt_template}
-                notes={experiment.notes}
+                {...(experiment.notes !== undefined ? { notes: experiment.notes } : {})}
                 notesLabel={t("experiment.detail.notes")}
               />
             </CardContent>
@@ -328,11 +328,11 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                               experimentId={id}
                               taskId={r.task_id}
                               rubric={rubric}
-                              existing={existing}
+                              {...(existing !== undefined ? { existing } : {})}
                               onSaved={() => fetchAnnotations(rubric.id)}
                               triggerClassName="shrink-0"
                               result={r}
-                              schema={schema}
+                              {...(schema !== undefined ? { schema } : {})}
                             />
                           </div>
                         )
