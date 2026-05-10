@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+- fix(results): hoist hooks before early return in triple-grid + dual-list (Tier 2 #11)
+
 ## [0.11.0] — 2026-05-10 · audit-cleanup-2026-05-09 完工：security blockers + cartesian cap + reproducibility seed + 物理切边整理 (PR #56–#61)
 
 跨 6 个 PR 收掉 `docs/code-review-2026-05-09.md` 报出的 Phase A blocker（auth gate / SSRF）+ Phase B 测试地基（batch-runner.run 状态机覆盖）+ Phase C 速胜（cartesian hard cap、experiment seed、机械化 cleanup batch）。Phase D（tsconfig strict）+ Phase E（Copilot 物理切边 + tools 拆分 + 文件锁）+ Phase F（文档分裂）留作下一波。
