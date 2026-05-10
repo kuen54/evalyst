@@ -28,8 +28,8 @@ describe('applyAnthropicCacheControl system handling', () => {
     }
     applyAnthropicCacheControl(body)
     const arr = body.system as Array<Record<string, unknown>>
-    expect(arr[0].cache_control).toBeUndefined()
-    expect(arr[1].cache_control).toEqual({ type: 'ephemeral' })
+    expect(arr[0]!.cache_control).toBeUndefined()
+    expect(arr[1]!.cache_control).toEqual({ type: 'ephemeral' })
   })
 
   it('system 缺失 → no-op', () => {
@@ -51,11 +51,11 @@ describe('applyAnthropicCacheControl system handling', () => {
     }
     applyAnthropicCacheControl(body)
     const firstArr = body.system as unknown as Array<Record<string, unknown>>
-    const firstControl = firstArr[0].cache_control
+    const firstControl = firstArr[0]!.cache_control
     applyAnthropicCacheControl(body as typeof body & { system: typeof firstArr })
     const secondArr = body.system as unknown as Array<Record<string, unknown>>
     expect(secondArr).toHaveLength(1)
-    expect(secondArr[0].cache_control).toEqual(firstControl)
+    expect(secondArr[0]!.cache_control).toEqual(firstControl)
   })
 })
 
@@ -71,10 +71,10 @@ describe('applyAnthropicCacheControl messages handling', () => {
       messages: [{ role: 'user', content: 'hello' }] as Array<Record<string, unknown>>,
     }
     applyAnthropicCacheControl(body)
-    const m0 = body.messages[0]
+    const m0 = body.messages[0]!
     expect(Array.isArray(m0.content)).toBe(true)
     const content = m0.content as Array<Record<string, unknown>>
-    expect(content[0].cache_control).toEqual({ type: 'ephemeral' })
+    expect(content[0]!.cache_control).toEqual({ type: 'ephemeral' })
   })
 
   it('messages 长度 = 3 → 全部 3 条 mutate', () => {
@@ -88,7 +88,7 @@ describe('applyAnthropicCacheControl messages handling', () => {
     applyAnthropicCacheControl(body)
     for (const m of body.messages) {
       const content = m.content as Array<Record<string, unknown>>
-      expect(content[0].cache_control).toEqual({ type: 'ephemeral' })
+      expect(content[0]!.cache_control).toEqual({ type: 'ephemeral' })
     }
   })
 
@@ -104,12 +104,12 @@ describe('applyAnthropicCacheControl messages handling', () => {
     }
     applyAnthropicCacheControl(body)
     // 前 2 条保持 string content 不动
-    expect(body.messages[0].content).toBe('q1')
-    expect(body.messages[1].content).toBe('a1')
+    expect(body.messages[0]!.content).toBe('q1')
+    expect(body.messages[1]!.content).toBe('a1')
     // 后 3 条转 array + cache_control
     for (let i = 2; i < 5; i++) {
-      const content = body.messages[i].content as Array<Record<string, unknown>>
-      expect(content[0].cache_control).toEqual({ type: 'ephemeral' })
+      const content = body.messages[i]!.content as Array<Record<string, unknown>>
+      expect(content[0]!.cache_control).toEqual({ type: 'ephemeral' })
     }
   })
 
@@ -126,10 +126,10 @@ describe('applyAnthropicCacheControl messages handling', () => {
       ] as Array<Record<string, unknown>>,
     }
     applyAnthropicCacheControl(body)
-    const content = body.messages[0].content as Array<Record<string, unknown>>
+    const content = body.messages[0]!.content as Array<Record<string, unknown>>
     expect(content).toHaveLength(2)
-    expect(content[0].cache_control).toBeUndefined()
-    expect(content[1].cache_control).toEqual({ type: 'ephemeral' })
+    expect(content[0]!.cache_control).toBeUndefined()
+    expect(content[1]!.cache_control).toEqual({ type: 'ephemeral' })
   })
 
   it('message.content 是 array with single tool_result block → cache_control on it', () => {
@@ -142,8 +142,8 @@ describe('applyAnthropicCacheControl messages handling', () => {
       ] as Array<Record<string, unknown>>,
     }
     applyAnthropicCacheControl(body)
-    const content = body.messages[0].content as Array<Record<string, unknown>>
-    expect(content[0].cache_control).toEqual({ type: 'ephemeral' })
+    const content = body.messages[0]!.content as Array<Record<string, unknown>>
+    expect(content[0]!.cache_control).toEqual({ type: 'ephemeral' })
   })
 
   it('空 content array → 跳过（防御）', () => {
@@ -152,7 +152,7 @@ describe('applyAnthropicCacheControl messages handling', () => {
     }
     applyAnthropicCacheControl(body)
     // 不应抛错；content 仍空
-    expect(body.messages[0].content).toEqual([])
+    expect(body.messages[0]!.content).toEqual([])
   })
 })
 

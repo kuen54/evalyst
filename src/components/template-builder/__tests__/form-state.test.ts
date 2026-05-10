@@ -89,7 +89,7 @@ describe("parseEqualsValue (via hard_filter)", () => {
       })
     )
     expect(res.errors).toEqual([])
-    return res.schema!.inputs[0].hard_filter!.equals
+    return res.schema!.inputs[0]!.hard_filter!.equals
   }
 
   it("parses 'true' → boolean true", () => {
@@ -130,12 +130,12 @@ describe("buildSchemaFromForm happy path", () => {
     expect(s.label).toBe("My Task")
     expect(s.version).toBe(1)
     expect(s.inputs).toHaveLength(1)
-    expect(s.inputs[0].alias).toBe("item")
-    expect(s.inputs[0].dataset_id).toBe("ds1")
+    expect(s.inputs[0]!.alias).toBe("item")
+    expect(s.inputs[0]!.dataset_id).toBe("ds1")
     // Empty filters / dedupe_by collapse to undefined (not empty array)
-    expect(s.inputs[0].dedupe_by).toBeUndefined()
-    expect(s.inputs[0].filters).toBeUndefined()
-    expect(s.inputs[0].hard_filter).toBeUndefined()
+    expect(s.inputs[0]!.dedupe_by).toBeUndefined()
+    expect(s.inputs[0]!.filters).toBeUndefined()
+    expect(s.inputs[0]!.hard_filter).toBeUndefined()
     expect(s.output_schema.type).toBe("object")
     expect(s.output_schema.required).toEqual(["answer"])
     expect(s.output_schema.properties?.answer).toEqual({ type: "string" })
@@ -163,7 +163,7 @@ describe("buildSchemaFromForm happy path", () => {
     })
     const res = buildSchemaFromForm(form)
     expect(res.errors).toEqual([])
-    expect(res.schema!.output_schema.properties?.score.enum).toEqual([1, 2, 3])
+    expect(res.schema!.output_schema.properties?.score?.enum).toEqual([1, 2, 3])
   })
 
   it("keeps enum values as strings for string-typed fields", () => {
@@ -179,7 +179,7 @@ describe("buildSchemaFromForm happy path", () => {
     })
     const res = buildSchemaFromForm(form)
     expect(res.errors).toEqual([])
-    expect(res.schema!.output_schema.properties?.status.enum).toEqual(["active", "archived"])
+    expect(res.schema!.output_schema.properties?.status?.enum).toEqual(["active", "archived"])
   })
 
   it("preserves description / compare_group / image_field / display_id_override when non-empty", () => {
@@ -356,9 +356,9 @@ describe("formFromSchema", () => {
     expect(f.description).toBe("")
     expect(f.compare_group).toBe("")
     expect(f.inputs).toHaveLength(1)
-    expect(f.inputs[0].alias).toBe("item")
-    expect(f.inputs[0].hard_filter_field).toBe("")
-    expect(f.inputs[0].hard_filter_equals_raw).toBe("")
+    expect(f.inputs[0]!.alias).toBe("item")
+    expect(f.inputs[0]!.hard_filter_field).toBe("")
+    expect(f.inputs[0]!.hard_filter_equals_raw).toBe("")
     expect(f.output_fields).toEqual([
       { name: "a", type: "string", required: true, max_length: undefined, min_length: undefined, tuple_len: undefined, enum_values: [] },
     ])
@@ -384,7 +384,7 @@ describe("formFromSchema", () => {
       },
     }
     const f = formFromSchema(schema)
-    expect(f.output_fields[0].enum_values).toEqual(["1", "2", "3"])
+    expect(f.output_fields[0]!.enum_values).toEqual(["1", "2", "3"])
   })
 })
 
@@ -460,9 +460,9 @@ describe("round-trip: formFromSchema ∘ buildSchemaFromForm", () => {
     })
     const res = buildSchemaFromForm(f)
     expect(res.errors).toEqual([])
-    expect(res.schema!.inputs[0].hard_filter!.equals).toBe(true)
+    expect(res.schema!.inputs[0]!.hard_filter!.equals).toBe(true)
     const reborn = formFromSchema(res.schema!)
-    expect(reborn.inputs[0].hard_filter_equals_raw).toBe("true")
+    expect(reborn.inputs[0]!.hard_filter_equals_raw).toBe("true")
     expect(reborn).toEqual(f)
   })
 
