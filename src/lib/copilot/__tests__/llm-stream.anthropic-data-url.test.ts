@@ -23,7 +23,7 @@ describe('llm-stream Anthropic image serialization', () => {
       temperature: 0,
       max_tokens: 100,
     })
-    const userMsg = (body.messages as Array<{ role: string; content: unknown[] }>)[0]
+    const userMsg = (body.messages as Array<{ role: string; content: unknown[] }>)[0]!
     expect(userMsg.role).toBe('user')
     // toMatchObject 忽略 anthropic-cache-control 在尾块上注入的 cache_control 字段，
     // 只校验本次改动的契约：source.type=base64 + media_type + data
@@ -52,7 +52,7 @@ describe('llm-stream Anthropic image serialization', () => {
       temperature: 0,
       max_tokens: 100,
     })
-    const content = (body.messages as Array<{ content: unknown[] }>)[0].content
+    const content = (body.messages as Array<{ content: unknown[] }>)[0]!.content
     // toMatchObject 忽略尾块 cache_control 注入；只校验 source 契约
     expect(content).toMatchObject([
       {

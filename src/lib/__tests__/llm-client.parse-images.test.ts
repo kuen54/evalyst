@@ -36,8 +36,8 @@ describe('parseResponse with images', () => {
     }
     const out = parseResponseForTest(openaiCfg, resp)
     expect(out.images).toHaveLength(1)
-    expect(out.images?.[0].url).toBe('https://example.com/img.png')
-    expect(out.images?.[0].mime_type).toBeUndefined()
+    expect(out.images?.[0]!.url).toBe('https://example.com/img.png')
+    expect(out.images?.[0]!.mime_type).toBeUndefined()
   })
 
   it('returns undefined images when none present', () => {
@@ -62,7 +62,7 @@ describe('parseResponse with images', () => {
     }
     const out = parseResponseForTest(openaiCfg, resp)
     expect(out.images).toHaveLength(1)
-    expect(out.images?.[0].url).toBe('data:image/png;base64,XXX')
+    expect(out.images?.[0]!.url).toBe('data:image/png;base64,XXX')
   })
 
   it('does not break Anthropic branch (no images extracted)', () => {

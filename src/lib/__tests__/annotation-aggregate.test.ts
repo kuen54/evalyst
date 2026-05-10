@@ -69,7 +69,7 @@ describe("latestAnnotations", () => {
       ann({ annotation_id: "2", task_id: "t1", rubric_id: "r2" }),
     ])
     expect(latestAnnotations(expId, "r1")).toHaveLength(1)
-    expect(latestAnnotations(expId, "r1")[0].rubric_id).toBe("r1")
+    expect(latestAnnotations(expId, "r1")[0]!.rubric_id).toBe("r1")
   })
 
   it("returns empty for nonexistent experiment", () => {

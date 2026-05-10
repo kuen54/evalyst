@@ -101,7 +101,7 @@ describe("read_experiment_results · image attachments", () => {
       "/api/results/exp_img_3/images/b.png",
       "/api/results/exp_img_3/images/c.png",
     ])
-    expect(r.value._attachments![0].ctx_tag).toBeUndefined()
+    expect(r.value._attachments![0]!.ctx_tag).toBeUndefined()
   })
 
   it("10 successful results → _attachments capped at MAX_IMAGES_PER_TURN=5", async () => {
