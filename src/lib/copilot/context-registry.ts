@@ -55,8 +55,8 @@ export function captureFromElement(el: Element | null): CapturedFromDom | null {
   return {
     type,
     id,
-    extra,
-    summary,
+    ...(extra !== undefined ? { extra } : {}),
+    ...(summary !== undefined ? { summary } : {}),
     elementKey: elementKey(type, id, extra),
   }
 }
@@ -98,7 +98,7 @@ export function collectAncestorChain(el: Element | null): Array<{ type: string; 
         if (parsed && typeof parsed === 'object') extra = parsed as Record<string, unknown>
       } catch { /* ignore */ }
     }
-    chain.push({ type, id, extra })
+    chain.push({ type, id, ...(extra !== undefined ? { extra } : {}) })
     cur = cur.parentElement?.closest('[data-copilot-context]') as HTMLElement | null
   }
   return chain
@@ -166,6 +166,6 @@ export function toContextRef(c: CapturedFromDom & { tag: number }): CopilotConte
     tag: c.tag,
     type: c.type,
     id: c.id,
-    extra: c.extra,
+    ...(c.extra !== undefined ? { extra: c.extra } : {}),
   }
 }

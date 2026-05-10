@@ -118,7 +118,14 @@ export async function callLlm(
   signal?: AbortSignal,
 ): Promise<LlmResponse> {
   const p: CallLlmParams = Array.isArray(messagesOrParams)
-    ? { messages: messagesOrParams, config: config!, model: model!, temperature: temperature!, max_tokens: maxTokens!, signal }
+    ? {
+        messages: messagesOrParams,
+        config: config!,
+        model: model!,
+        temperature: temperature!,
+        max_tokens: maxTokens!,
+        ...(signal !== undefined ? { signal } : {}),
+      }
     : messagesOrParams
 
   if (!p.config.base_url || !p.config.api_key) {
@@ -129,7 +136,12 @@ export async function callLlm(
   const req = buildApiRequest(p.config, buildRequestBody(p))
   const data = await executeWithRetry(req, p.signal)
   const { content, images, usage } = parseResponse(p.config, data)
-  return { content, images, usage, latency_ms: Date.now() - start }
+  return {
+    content,
+    ...(images !== undefined ? { images } : {}),
+    ...(usage !== undefined ? { usage } : {}),
+    latency_ms: Date.now() - start,
+  }
 }
 
 // ---------- API 请求构造（按 api_format 分支） ----------
@@ -246,7 +258,8 @@ function parseResponse(config: ApiConfig, data: unknown): { content: string; ima
           : (typeof fromBareUrl === 'string' ? fromBareUrl : '')
         if (!url) return null
         const mimeMatch = /^data:([^;]+);base64,/.exec(url)
-        return mimeMatch ? { url, mime_type: mimeMatch[1] } : { url }
+        const mime = mimeMatch?.[1]
+        return mime !== undefined ? { url, mime_type: mime } : { url }
       })
       .filter((x): x is { url: string; mime_type?: string } => x !== null)
     if (parsed.length > 0) images = parsed

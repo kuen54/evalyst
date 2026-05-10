@@ -70,7 +70,7 @@ export function extractImageRefsFromOutput(
         refs.push({
           url: normalizeUrl(v, expId),
           source_label: `${labelRoot} · field=${name}`,
-          ctx_tag,
+          ...(ctx_tag !== undefined ? { ctx_tag } : {}),
         })
       }
     } else if (def.type === 'image_url_list') {
@@ -82,7 +82,7 @@ export function extractImageRefsFromOutput(
             refs.push({
               url: normalizeUrl(u, expId),
               source_label: `${labelRoot} · field=${name}`,
-              ctx_tag,
+              ...(ctx_tag !== undefined ? { ctx_tag } : {}),
             })
           }
         }
@@ -99,7 +99,7 @@ export function extractImageRefsFromOutput(
       refs.push({
         url: normalizeUrl(v, expId),
         source_label: `${labelRoot} · field=${name} (inferred)`,
-        ctx_tag,
+        ...(ctx_tag !== undefined ? { ctx_tag } : {}),
       })
     }
   }
