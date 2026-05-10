@@ -35,7 +35,19 @@ const OUTPUT_TYPE_OPTIONS: FormOutputField["type"][] = [
   "image_url_list",
 ]
 
-/** 不可变 update 辅助：拷贝数组 → 合并 patch → 通过 set 回写 */
+/**
+ * 不可变 update 辅助：拷贝数组 → 合并 patch → 通过 set 回写。
+ *
+ * **Invariant**: iterates `patch` keys only (NOT the merged item). Existing
+ * fields on `next[index]` not present in `patch` are preserved. A literal
+ * `undefined` in `patch` means "clear that optional key" — under
+ * `exactOptionalPropertyTypes` we strip it from the merged result so the
+ * key truly disappears (vs. being present-with-value-undefined).
+ *
+ * Future maintainers: do NOT change to `Object.entries(merged)` — that
+ * would delete every optional field that happens to be undefined on the
+ * existing item, not just the ones the caller explicitly cleared.
+ */
 export function updateItem<K extends "inputs" | "variables" | "output_fields" | "display_dimensions">(
   form: TemplateFormState,
   set: <K2 extends keyof TemplateFormState>(k: K2, v: TemplateFormState[K2]) => void,
@@ -45,7 +57,8 @@ export function updateItem<K extends "inputs" | "variables" | "output_fields" | 
 ) {
   const next = [...form[key]]
   const merged = { ...next[index], ...patch } as TemplateFormState[K][number] & Record<string, unknown>
-  // eopt: explicit `undefined` in patch means "clear the optional key" — strip it out
+  // eopt: explicit `undefined` in patch means "clear the optional key" — strip it out.
+  // (Iterates `patch` keys only; see invariant in JSDoc above.)
   for (const [k, v] of Object.entries(patch as Record<string, unknown>)) {
     if (v === undefined) delete merged[k]
   }
