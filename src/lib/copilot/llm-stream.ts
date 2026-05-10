@@ -516,6 +516,7 @@ export function serializeMessagesForProvider(
   let i = 0
   while (i < src.length) {
     const m = src[i]
+    if (!m) { i++; continue }
 
     // assistant text 或 tool_use 开头 → 收集一段连续运行，合并为一条复合 assistant
     if ((isTextMessage(m) && m.role === 'assistant') || m.role === 'tool_use') {
@@ -523,6 +524,7 @@ export function serializeMessagesForProvider(
       const toolUses: Array<{ call_id: string; tool_name: string; tool_input: Record<string, unknown>; thought_signature?: string }> = []
       while (i < src.length) {
         const cur = src[i]
+        if (!cur) { i++; continue }
         if (isTextMessage(cur) && cur.role === 'assistant') {
           // 合并多段 assistant 文本（实际不太会出现，保守起见用换行拼）
           const curText = typeof cur.content === 'string'
