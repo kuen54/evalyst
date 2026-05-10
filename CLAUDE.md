@@ -2,6 +2,27 @@
 
 通用 LLM prompt 批量评测平台。资源（模型 / 数据集 / 评测任务 / 展示模板）都是 `data/` 下的文件，首次启动时从 `src/lib/seeds/` 种子示例过来。
 
+## 找东西？快速跳转
+
+| 我想找... | 直接答案 |
+|---|---|
+| LLM 调用入口（`callLlm` / OpenAI + Anthropic 适配 / 3 次 retry / 120s 超时） | `src/lib/llm-client.ts` |
+| 批量评测主循环（pool / progress / abort / resume） | `src/lib/batch-runner.ts` + 文件锁 `src/lib/batch-runner-lock.ts` |
+| 模型配置（baseURL / apiKey / pricing） | `src/lib/llm-config.ts` + UI `/settings/llm` |
+| 加新评测任务（TaskSchema） | UI `/settings/templates/new`（表单）；类型 `src/lib/schema/types.ts`；表单组件 `src/components/template-builder/template-form-page.tsx`；agent 路径走 `evalyst-task` skill |
+| 加新数据集 | UI `/settings/datasets/new`（CSV/JSONL/JSON 上传）；CRUD `src/lib/datasets.ts`；agent 路径走 `evalyst-dataset` skill |
+| 文件存储 + 原子写 + concurrent 锁 | `data/{experiments,results,datasets,schemas,displays,rubrics}/*` + `data/llm-config.json`；写都走 `src/lib/fs-utils.ts` `writeAtomic`（tmp + rename）；批处理并发避冲突走 `src/lib/batch-runner-lock.ts`（per-experiment 文件锁，Phase E #9） |
+| Copilot 子系统 | `src/copilot/{lib,components}/` 子树 + api routes 在 `src/app/api/copilot/`；详细见 [`docs/copilot.md`](docs/copilot.md) |
+| Copilot 工具（**9 个**） | `src/copilot/lib/tools/` 一文件一工具（`*.metadata.ts` client-safe + `*.server.ts` server-only）；注册表 `client-registry.ts` / `server-registry.ts`；当前：`list-experiments` / `read-experiment-results` / `restart-experiment` / `read-page` / `read-context` / `read-resource` / `read-tool-result` / `read-dataset-records` / `edit-template` |
+| Glass UI 9 档 | `docs/conventions/glass-ui.md` `## 9 档梯度` 段；6 primitive (`thin` / `regular` / `thick` / `tinted` / `chrome-up` / `chrome-down`) + 3 semantic (`success` / `warning` / `danger`)；典型：`thin`=数据密集行级卡 / `regular`=页面主外壳默认 / `thick`=浮层；组件实现 `src/copilot/components/shell.tsx` |
+| 加新 i18n 文案 | `src/lib/i18n/zh.ts` + `en.ts` **必须成对加 key**（`en.ts` 用 `Record<keyof typeof zh, string>` 强制完整性）；组件用 `useT()` 消费；插值 `t("k", { var })`；日期走 `formatDate(value, locale, opts)` |
+| 测试 / E2E | 单测 `src/**/__tests__/*.test.ts`（vitest）；E2E `e2e/*.spec.ts`（Playwright chromium）；CI `.github/workflows/ci.yml`（verify + e2e 两 job）；只测纯函数 |
+| 历史 audit cleanup / Copilot v1-v2-v25 / Glass UI 等 plan / spec | `docs/superpowers/archive/2026-Q2/{plans,specs,findings}/`；按主题分类索引 [`docs/superpowers/plans/_index.md`](docs/superpowers/plans/_index.md) |
+| API routes | `src/app/api/{datasets,schemas,displays,rubrics,experiments,llm-config,copilot,...}/route.ts` |
+| 部署 | `Dockerfile` + `docker-compose.yml`（Next.js 16 standalone build） |
+
+> 上面 14 条**直答**——找得到就别 grep / ls。详细架构 / 子系统 spec 在下面索引里。
+
 ## 索引
 
 | 主题 | 文件 |
