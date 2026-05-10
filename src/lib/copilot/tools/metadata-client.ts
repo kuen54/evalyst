@@ -5,7 +5,7 @@
 // 增/删工具时：修改 `src/lib/copilot/tools/*.ts` 的 metadata 后，同步在此 array 加/删条目。
 // 测试 `src/lib/copilot/tools/__tests__/metadata-client-sync.test.ts` 会强制两边对齐。
 
-export interface ClientToolMetadata {
+interface ClientToolMetadata {
   name: string
   isReadOnly: boolean
   isDestructive: boolean

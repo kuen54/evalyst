@@ -21,13 +21,13 @@ export const MAX_IMAGES_PER_TURN = 5
 const IMAGE_FIELD_NAME_RE = /url|image|pic|img|photo/i
 const PATH_PREFIX_RE = /^(images\/|\/api\/results\/[^/]+\/images\/)/
 
-export interface CollectInput {
+interface CollectInput {
   branch: CopilotMessage[]
   schemaCache: Map<string, TaskSchema>   // per-call cache; caller builds + passes
   modelVisionCapable: boolean
 }
 
-export interface CollectOutput {
+interface CollectOutput {
   user_image_refs: ImageRef[]
   tool_image_refs: Map<string, ImageRef[]>   // call_id → refs
   dropped_count: number

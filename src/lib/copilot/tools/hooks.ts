@@ -11,7 +11,7 @@ import { maybePersistToolResult } from "../tool-result-store"
 import { isSessionAllowed, isSessionDenied } from "../session-allow"
 import type { ImageRef } from "../types"
 
-export interface PreToolCallCtx {
+interface PreToolCallCtx {
   tool: AnyToolDescriptor
   input: unknown
   session_id: string
@@ -21,22 +21,22 @@ export interface PreToolCallCtx {
   session_deny_list?: string[]
 }
 
-export type PreToolCallResult =
+type PreToolCallResult =
   | { action: "proceed" }
   | { action: "require_confirm" }
   | { action: "deny"; reason: string }
 
-export type PreToolCallHook = (ctx: PreToolCallCtx) => Promise<PreToolCallResult>
+type PreToolCallHook = (ctx: PreToolCallCtx) => Promise<PreToolCallResult>
 
-export interface PostToolCallCtx {
+interface PostToolCallCtx {
   tool: AnyToolDescriptor
   input: unknown
   output: unknown
   session_id: string
 }
 
-export type PostToolCallResult = { output: unknown }
-export type PostToolCallHook = (ctx: PostToolCallCtx) => Promise<PostToolCallResult>
+type PostToolCallResult = { output: unknown }
+type PostToolCallHook = (ctx: PostToolCallCtx) => Promise<PostToolCallResult>
 
 // ---- 内置 hooks ----
 
@@ -60,7 +60,7 @@ export const confirmGateHook: PreToolCallHook = async ({ tool, session_allow_lis
 }
 
 /** Audit 占位，当前 no-op；未来串 structured log / 审计表 */
-export const auditLogHook: PreToolCallHook = async () => ({ action: "proceed" })
+const auditLogHook: PreToolCallHook = async () => ({ action: "proceed" })
 
 /**
  * 检测 tool 返回的 output 是否带 `_attachments: ImageRef[]`。命中即剥离并返还。
@@ -100,7 +100,7 @@ export const payloadGuardHook: PostToolCallHook = async ({ tool, output, session
 }
 
 /** Telemetry 占位，当前直通 output；未来串指标 / trace */
-export const telemetryHook: PostToolCallHook = async ({ output }) => ({ output })
+const telemetryHook: PostToolCallHook = async ({ output }) => ({ output })
 
 export const preToolCallHooks: PreToolCallHook[] = [confirmGateHook, auditLogHook]
 export const postToolCallHooks: PostToolCallHook[] = [payloadGuardHook, telemetryHook]

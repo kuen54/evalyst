@@ -161,7 +161,7 @@ export function ThinkingDots() {
 }
 
 /** Assistant 消息走 markdown；code / pre / table 等做基础样式，外层父用 .prose 兼容 tailwind typography。 */
-export const MarkdownBody = memo(function MarkdownBody({ text }: { text: string }) {
+const MarkdownBody = memo(function MarkdownBody({ text }: { text: string }) {
   return (
     <div className="copilot-md space-y-2 [&_p]:my-0 [&_p+p]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_h1]:text-[14px] [&_h1]:font-semibold [&_h2]:text-[13.5px] [&_h2]:font-semibold [&_h3]:text-[13px] [&_h3]:font-medium [&_hr]:my-2 [&_hr]:border-border/50 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-2 [&_blockquote]:text-muted-foreground [&_table]:text-[11px] [&_th]:px-1 [&_th]:py-0.5 [&_td]:px-1 [&_td]:py-0.5 [&_th]:border [&_td]:border [&_th]:border-border/60 [&_td]:border-border/60">
       <ReactMarkdown

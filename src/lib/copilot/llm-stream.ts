@@ -35,7 +35,7 @@ function imageBlockForAnthropic(url: string): Record<string, unknown> {
   }
 }
 
-export interface CallLlmStreamingParams {
+interface CallLlmStreamingParams {
   messages: LlmMessage[]
   config: ApiConfig
   model: string
@@ -158,14 +158,14 @@ export async function callLlmStreaming(
  * 把 buffer 按 SSE 规范 "\n\n" 分隔成事件块；最后一个元素可能不完整（调用方保留到下次）。
  * 兼容 \r\n\r\n。
  */
-export function splitSseEvents(buffer: string): string[] {
+function splitSseEvents(buffer: string): string[] {
   // 统一把 \r\n 规整成 \n，再按 \n\n split
   const normalized = buffer.replace(/\r\n/g, '\n')
   return normalized.split('\n\n')
 }
 
 /** 取 SSE 事件块里 data: 开头的行拼成 JSON string；如果有 event: 行，也取出来 */
-export function parseSseBlock(block: string): { event?: string; data: string } {
+function parseSseBlock(block: string): { event?: string; data: string } {
   const lines = block.split('\n')
   let event: string | undefined
   const dataLines: string[] = []

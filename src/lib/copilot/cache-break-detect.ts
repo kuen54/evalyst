@@ -51,9 +51,9 @@ export function computeToolDigest(toolNames: string[]): string {
   return crypto.createHash('sha256').update(sortedToolList(toolNames)).digest('hex').slice(0, 16)
 }
 
-export type BreakReason = 'system_prompt' | 'tools' | 'unknown'
+type BreakReason = 'system_prompt' | 'tools' | 'unknown'
 
-export interface BreakInfo {
+interface BreakInfo {
   broken: boolean
   reasons: BreakReason[]
 }

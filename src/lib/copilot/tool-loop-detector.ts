@@ -8,7 +8,7 @@
 
 import type { CopilotMessage } from "./types"
 
-export interface ToolLoopDetectorConfig {
+interface ToolLoopDetectorConfig {
   exactFailureWarn: number
   exactFailureBlock: number
   sameToolFailureWarn: number
@@ -23,7 +23,7 @@ export const DEFAULT_LOOP_CONFIG: ToolLoopDetectorConfig = {
   noProgressWarn: 2, noProgressBlock: 5,
 }
 
-export type LoopReasonKey = "exact_failure" | "same_tool" | "no_progress"
+type LoopReasonKey = "exact_failure" | "same_tool" | "no_progress"
 
 export type ToolLoopDecision =
   | { action: "proceed" }

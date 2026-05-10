@@ -48,7 +48,7 @@ When the user circles context, refer to it by its chip tag ("根据你圈的 #1 
  *
  * Task 8 只产出 plan；splicing 在 Task 9 / 10 / 11 完成。
  */
-export interface ImagePlan {
+interface ImagePlan {
   user_blocks: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>
   tool_blocks_by_call_id: Map<string, Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>>
   system_notes: string[]
