@@ -10,6 +10,54 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.11.5] — 2026-05-10 · tsconfig strict baseline + 顺手 hooks fix (Phase D, PR #62 #63)
+
+收掉 audit-cleanup-2026-05-09 §Phase D：tsc 三档 strict 全开（`noUncheckedIndexedAccess` + `noImplicitReturns` + `exactOptionalPropertyTypes`），把项目 ~570 处隐式 undefined 全显式化。零用户可见行为变化——这是 internal-quality 提升 / Phase E（Copilot 物理切边）的前置防护网（spec §Phase D Stop condition：strict 必须先于 Copilot 重构合，否则切边后再开 strict 会让搬走的文件二次改类型）。patch 级版本号刻意——Phase D 是 zero-user-perceived 改动，留 v0.12.0 给 Phase E 真正的 minor bump。
+
+### 类型严格化 (PR #62 `refactor/tsconfig-strict` — Phase D PR-1)
+
+启用 `noUncheckedIndexedAccess` + `noImplicitReturns` 两条 flag，450 → 0 errors。13 commits / 51 文件。post-PR-1 baseline 路径选 plan §2 R5 兜底 2 PR 拆（450 >> 80 阈值），单文件 ≥50 errs 单 commit（use-chat-stream.ts 47），余下按文件分组。
+
+- **§3.a guard + early continue**（默认手法）：reverse-scan 循环、forward 迭代里 `const m = arr[i]; if (!m) continue` 把 indexed access 的 `T | undefined` narrow 掉。8 处 use-chat-stream SSE handler、tool-loop-detector branch[i]/pairs[i]、image-store loop 等
+- **§3.a invariant explicit `!`**：上游已证明非空的位置（regex group capture / length 断言后 / modulo 范围 lookup）用 `arr[i]!` + 一行注释说明。color pool / `parts[0]!` / `dims[0]!` after `length>=2` guard 等
+- **§3.c noImplicitReturns**：唯一 baseline 触发点 `image-lightbox.tsx:39` `useEffect` 显式 `return undefined`；额外义务 `validate.ts` validateProp + `transform.ts` applyTransforms switch 末尾加防御性 exhaustive `default { const _: never = ... }` —— 防 union 扩展时漏 case 的网
+- **§3.b Map.get throw 不触发**：plan 标 tool-loop-detector / registry 是"重灾区"，实际 25 errors 全是 §3.a 数组访问，项目 `Map.get` 调用 100% 已 `if (!x)` / `?.` 守。§3.b 留作未来新工具引入时的 defensive standard
+- **测试 cast 策略**：prod 全 narrow / 测试允许 `as unknown as T` 跳 mock 摩擦但禁 `as any`；migrate test 实数据用 `!`（`cfg.models[0]!.field`）而非 mock cast，因为 cast 策略明确范围（plan §3）
+
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase D
+- Plan: docs/superpowers/plans/2026-05-09-audit-tsconfig-strict.md
+
+### exactOptionalPropertyTypes (PR #63 `refactor/tsconfig-strict-eopt` — Phase D PR-2)
+
+eopt 单条 flag layered 在 PR-1 之上。post-PR-1 baseline 122 errors → 0。12 commits / 30 文件。
+
+- **§3.d conditional spread**（默认手法）：`{ foo: maybeUndef }` 在 `{ foo?: T }` slot 下不合法（eopt 区分 absent vs present-with-undefined），改 `{ ...(maybeUndef !== undefined ? { foo: maybeUndef } : {}) }`。覆盖 llm-config migrate / use-chat-stream UI message builders / form-state buildSchemaFromForm / ParsedToolError 字段透传等
+- **5 处 React props widening to `?: T | undefined`**：chat-view / model-picker / session-list 等通过 nullable state 流入的 props，每个 JSX call site 写 conditional spread 反而过度——惯例直接放宽接口签名
+- **`signal: p.signal ?? null`**：`RequestInit.signal` 类型是 `AbortSignal | null` 不是 `| undefined`，nullish coalescing 一行修（llm-stream.ts:80）
+- **`clearSessionHead()`** —— ⭐ semantic-care fix：`pruneMessageAndDescendants` 原本传 `{ head_message_id: target.parent_id }` 让 parent_id=undefined 来清 head；eopt 禁该字面量。拆 `clearSessionHead()` 走 destructure 删 key（不是赋 `null`、不是 `undefined`），保持 jsonl 序列化形态等价。Smoke 测验证：`data/copilot/index.json` 的新建 session 字段 `head_message_id` 是 absent（删 key），不是 `null`
+- **`updateItem` patch-key-only invariant**（commit 3f6c877 docs）：表单层 `patch={min_length: undefined}` 用来清空可选字段。merge 后剥 undefined keys 的逻辑加 JSDoc 显式警告：iterate `patch` keys only（不是 `merged`），免得未来手滑改成 `Object.entries(merged)` 误删既有 undefined 字段
+- **playwright.config.ts** `workers` slot 是 `string | number` 不含 undefined，`...(process.env.CI ? { workers: 1 } : {})` 修
+- **R7 fallback 没触发**：`.next/dev/types/**` 0 errors，没需要往 `tsconfig.json` `exclude` 加 Next codegen 排除路径
+
+### Tuning (rules-of-hooks 衍生修)
+
+PR-2 review + e2e 跑过程中 surface 出 3 处 `useMemo` 在 React 组件 early-return 之后调用、违反 Rules of Hooks。**不是 Phase D 引入**——是 PR-1 把 array index 加 guard 后让 hook 顺序问题肉眼可见的副产品；属 audit-spec §Plan-外 scope 偏离规则判据 (a) 防一类回归，整合进本 release。
+
+- `dual-list-results.tsx` (60a833a)：useMemo 提前到 `if (dims.length < 2)` 之前
+- `triple-grid-results.tsx` (ca5dfcb)：useMemo 提前到 `if (dims.length < 3)` 之前
+
+### 验收
+
+- `npx tsc --noEmit` 0 errors（main HEAD = `52f4217`）
+- `npm test` 765/765 passing
+- `npm run build` Compiled successfully
+- `npm run lint` 27 problems = pre-D baseline，0 新违例
+- 手动 UI smoke through Playwright MCP（两次 dispatch，分别针对 PR-1 / PR-2+combined）：22 个 UI flow 全 PASS，0 console TypeError；含 `clearSessionHead` 生命周期端到端 + `updateItem` patch-clear round-trip + Triple-grid 25-cell 渲染 + JSX display 编译
+
+### 用户感知
+
+零。strict 是编译期纯 type 安全提升，没改任何运行时分支 / API shape / UI 形态。Phase E（Copilot 切边）开工后会感谢这个 tag——切边引入的所有 import 重构都会被 strict 立刻抓回归。
+
 ## [0.11.0] — 2026-05-10 · audit-cleanup-2026-05-09 完工：security blockers + cartesian cap + reproducibility seed + 物理切边整理 (PR #56–#61)
 
 跨 6 个 PR 收掉 `docs/code-review-2026-05-09.md` 报出的 Phase A blocker（auth gate / SSRF）+ Phase B 测试地基（batch-runner.run 状态机覆盖）+ Phase C 速胜（cartesian hard cap、experiment seed、机械化 cleanup batch）。Phase D（tsconfig strict）+ Phase E（Copilot 物理切边 + tools 拆分 + 文件锁）+ Phase F（文档分裂）留作下一波。
