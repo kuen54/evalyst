@@ -11,6 +11,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 ## [Unreleased]
 
 - fix(results): hoist hooks before early return in triple-grid + dual-list (Tier 2 #11)
+- chore(lint): zero warnings + enforce fail-on-warning in CI (Tier 3 R1 follow-up)
+- docs(conventions): add react19-hydration.md (localStorage hydrate pattern)
 
 ## [0.11.5] — 2026-05-10 · tsconfig strict baseline + 顺手 hooks fix (Phase D, PR #62 #63)
 
