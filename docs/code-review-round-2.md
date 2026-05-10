@@ -459,6 +459,19 @@ Round 1 同样问过："为什么先补测试不直接动 Copilot 切边"。答�
 
 ---
 
+## Errata（追溯订正）
+
+### E7 (2026-05-10) · Dockerfile USER/chown 子项早已 ship
+
+§第 0 步 / §S7 / §修复清单 T3 写「Dockerfile 没新加 USER——没改」是 stale 判断。
+验证：`git show v0.13.0:Dockerfile` line 35 + 40 已含 `chown -R node:node /app` + `USER node`，
+由 round-1 Phase C Tier 3 commit `98be5f1` (2026-05-10 00:10) 落地。
+影响：Phase 2 T3 omit 该子项；T3 PR 实做剩 3 项（npm audit fix / chrome-up,down 折叠 / npm outdated patch）。
+原因复盘：reviewer 在写 round-2 时未交叉复查 R1 已落地清单，仅看了主代码路径。
+下次写 audit 应：跑工具量化前先 `git diff <prev-baseline-tag>..HEAD --stat` 列一遍 R(N-1) 实际 ship。
+
+---
+
 ## 一句话结论
 
 **v0.13.0 是真实的工程进步**——RCE 关了、文档收了、tsconfig 严了、type/build/knip 三盏绿灯——但**round 1 真正想解决的两件事还在原地**：Copilot 边界画在路径上没画在 import 方向上，0% 覆盖的域核心模块没人补测。1.5-2 周再交一轮就能把真正的 conceptual border 立住，**不要再把"目录已分"当切边的胜利领走**。

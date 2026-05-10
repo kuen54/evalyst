@@ -69,6 +69,8 @@ Phase 3 — Glass primitive 切边  2d   #A
 
 **验收**：`docker run` 默认 user 非 root；audit 报告高危项处理；GlassVariant union 减少；`npm outdated` 绿色项 ≥ 80% 清零。
 
+> **Errata E7 (2026-05-10)**: Dockerfile USER/chown 子项已在 R1 commit 98be5f1 完成（v0.13.0 baseline），本 Phase 2 T3 omit。详见 docs/code-review-round-2.md §Errata E7。
+
 ### Phase 3 · #A · Glass primitive 物理切边（2d）
 
 **Scope**：
