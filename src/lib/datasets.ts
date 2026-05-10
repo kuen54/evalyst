@@ -172,7 +172,7 @@ export function inferFieldsFromJsonl(
   const samples: Record<string, unknown>[] = []
   for (let i = 0; i < lines.length; i++) {
     try {
-      const parsed = JSON.parse(lines[i])
+      const parsed = JSON.parse(lines[i]!)
       if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
         samples.push(parsed as Record<string, unknown>)
       }

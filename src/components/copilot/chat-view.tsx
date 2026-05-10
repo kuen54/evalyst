@@ -295,6 +295,7 @@ function renderToolUse(
   let paired: UiMessage | undefined
   for (let j = i + 1; j < allMessages.length; j++) {
     const x = allMessages[j]
+    if (!x) continue
     if (x.role === "tool_result" && x.call_id === m.call_id) { paired = x; break }
   }
   const pending = pendingCallIds.has(m.call_id)

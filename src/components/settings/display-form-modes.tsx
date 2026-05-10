@@ -43,7 +43,7 @@ export function TableModeForm({ form, set, tableDup, t }: {
             const j = i + dir
             if (j < 0 || j >= form.table_columns.length) return
             const next = [...form.table_columns]
-            ;[next[i], next[j]] = [next[j], next[i]]
+            ;[next[i], next[j]] = [next[j]!, next[i]!]
             set("table_columns", next)
           }}
           disableFirst={i === 0}
@@ -135,7 +135,7 @@ export function GroupedGridModeForm({ form, set, cellDup, t }: {
               const j = i + dir
               if (j < 0 || j >= form.cell_columns.length) return
               const next = [...form.cell_columns]
-              ;[next[i], next[j]] = [next[j], next[i]]
+              ;[next[i], next[j]] = [next[j]!, next[i]!]
               set("cell_columns", next)
             }}
             disableFirst={i === 0}

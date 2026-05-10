@@ -36,7 +36,7 @@ export function readField(result: GenericResultRecord, path: string): unknown {
   }
   for (let i = 1; i < parts.length; i++) {
     if (cur == null || typeof cur !== "object") return undefined
-    cur = (cur as Record<string, unknown>)[parts[i]]
+    cur = (cur as Record<string, unknown>)[parts[i]!]
   }
   return cur
 }

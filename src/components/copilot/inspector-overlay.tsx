@@ -19,7 +19,7 @@ const TAG_COLORS = [
 ]
 
 function colorForTag(tag: number): string {
-  return TAG_COLORS[(tag - 1) % TAG_COLORS.length]
+  return TAG_COLORS[(tag - 1) % TAG_COLORS.length]!
 }
 
 interface Burst {

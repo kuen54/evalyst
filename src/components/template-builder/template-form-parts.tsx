@@ -183,7 +183,7 @@ export function JsonApplyPane({ onApply, t }: { onApply: (schema: TaskSchema) =>
 
 /** 扫描 prompt 模板里的 {{var}} 占位，和 declaredVars 做 diff，标红缺失 / 提示冗余 */
 export function PromptVariableLint({ text, declaredVars, t }: { text: string; declaredVars: string[]; t: TFn }) {
-  const used = Array.from(text.matchAll(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g)).map(m => m[1])
+  const used = Array.from(text.matchAll(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g)).map(m => m[1]!)
   const usedSet = new Set(used)
   const declaredSet = new Set(declaredVars)
   const missing = Array.from(usedSet).filter(v => !declaredSet.has(v))

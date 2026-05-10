@@ -96,7 +96,7 @@ export function DisplayGroupedGrid({ results, display }: ResultViewProps & { dis
             <GroupCard
               key={key}
               headerFields={cfg.header_fields ?? []}
-              sampleRow={data.rows[0]}
+              sampleRow={data.rows[0]!}
               secondaryValues={orderedSecondaryValues}
               secondaryLabel={secondaryLabel}
               rowsMap={rowsMap}

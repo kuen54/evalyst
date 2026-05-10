@@ -30,7 +30,7 @@ function applyToSystem(body: AnthropicBody): void {
     return
   }
   if (Array.isArray(sys) && sys.length > 0) {
-    const last = sys[sys.length - 1]
+    const last = sys[sys.length - 1]!
     if (!last.cache_control) {
       last.cache_control = { type: 'ephemeral' }
     }

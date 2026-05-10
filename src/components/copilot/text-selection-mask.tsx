@@ -44,7 +44,7 @@ export function TextSelectionMask() {
       if (!range) continue
       const rects = Array.from(range.getClientRects())
       if (rects.length === 0) continue
-      const last = rects[rects.length - 1]
+      const last = rects[rects.length - 1]!
       next.push({
         elementKey: c.elementKey,
         tag: c.tag,
@@ -182,7 +182,7 @@ function locateTextRange(host: HTMLElement, offset: number, text: string): Range
 function rgba(color: string, alpha: number): string {
   const m = color.match(/^rgb\(([^)]+)\)$/)
   if (m) {
-    const parts = m[1].split(/[,\s]+/).filter(Boolean)
+    const parts = m[1]!.split(/[,\s]+/).filter(Boolean)
     if (parts.length >= 3) return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`
   }
   if (color.startsWith("oklch(")) {

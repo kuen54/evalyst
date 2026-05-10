@@ -31,7 +31,7 @@ function colorForSchema(id: string): string {
   if (SCHEMA_BADGE_COLORS[id]) return SCHEMA_BADGE_COLORS[id]
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
-  return SCHEMA_COLOR_POOL[Math.abs(h) % SCHEMA_COLOR_POOL.length]
+  return SCHEMA_COLOR_POOL[Math.abs(h) % SCHEMA_COLOR_POOL.length]!
 }
 
 export default function Dashboard() {

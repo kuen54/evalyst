@@ -216,7 +216,7 @@ export function resolveImageDiskPath(url: string): string | null {
   const m = URL_RE.exec(url)
   if (!m) return null
   const [, expId, filename] = m
-  return path.join(process.cwd(), 'data', 'results', expId, 'images', filename)
+  return path.join(process.cwd(), 'data', 'results', expId!, 'images', filename!)
 }
 
 /**

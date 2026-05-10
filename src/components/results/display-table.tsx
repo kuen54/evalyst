@@ -54,7 +54,7 @@ export function DisplayTable({ results, display }: ResultViewProps & { display: 
               <div key={c.field} className="min-w-0 overflow-hidden">
                 {r.status === "success"
                   ? renderField(readField(r, c.field), c.type, c.max_length)
-                  : c.field === cfg.columns[0].field
+                  : c.field === cfg.columns[0]!.field
                     ? <Badge variant="destructive" className="text-[10px]">{r.status}</Badge>
                     : <span className="text-xs text-muted-foreground">-</span>}
               </div>

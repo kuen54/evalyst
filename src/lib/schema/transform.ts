@@ -101,11 +101,11 @@ export function readPath(
 ): unknown {
   if (source.startsWith('literal:')) return source.slice('literal:'.length)
   const parts = source.split('.')
-  const alias = parts[0]
+  const alias = parts[0]!
   let cur: unknown = inputs[alias]
   for (let i = 1; i < parts.length; i++) {
     if (cur == null) return undefined
-    cur = (cur as Record<string, unknown>)[parts[i]]
+    cur = (cur as Record<string, unknown>)[parts[i]!]
   }
   return cur
 }

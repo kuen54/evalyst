@@ -52,7 +52,7 @@ function extractJson(raw: string): Record<string, unknown> | null {
   const codeBlockMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)```/)
   if (codeBlockMatch) {
     try {
-      const parsed = JSON.parse(codeBlockMatch[1].trim())
+      const parsed = JSON.parse(codeBlockMatch[1]!.trim())
       if (typeof parsed === 'object' && parsed !== null) return parsed
     } catch { /* continue */ }
   }

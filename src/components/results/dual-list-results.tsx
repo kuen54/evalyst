@@ -31,7 +31,9 @@ export function DualListResults({ results, schema }: ResultViewProps) {
     return <div className="text-xs text-muted-foreground py-4">{t("results.need_2_dims")}</div>
   }
 
-  const [primaryDim, secondaryDim] = dims
+  // dims.length >= 2 by guard above; positional access is safe.
+  const primaryDim = dims[0]!
+  const secondaryDim = dims[1]!
   const groups = useMemo(() => groupByDimension(results, primaryDim), [results, primaryDim])
   const secondaryValues = useMemo(() => collectDimensionValues(results, secondaryDim), [results, secondaryDim])
 

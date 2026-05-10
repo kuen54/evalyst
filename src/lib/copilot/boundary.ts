@@ -11,6 +11,7 @@ import type { CopilotMessage } from './types'
 export function sliceAfterBoundary(branch: CopilotMessage[]): CopilotMessage[] {
   for (let i = branch.length - 1; i >= 0; i--) {
     const m = branch[i]
+    if (!m) continue
     if (m.role === 'system' && m.kind === 'compact_boundary') {
       return branch.slice(i + 1)
     }

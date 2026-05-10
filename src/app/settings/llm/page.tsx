@@ -75,6 +75,7 @@ export default function LlmConfigPage() {
 
   const deleteModel = (idx: number) => {
     const toRemove = cfg.models[idx]
+    if (!toRemove) return
     const models = cfg.models.filter((_, i) => i !== idx)
     const active = cfg.active_model_id === toRemove.id
       ? models[0]?.id

@@ -31,7 +31,7 @@ export function CopilotPanel() {
       setSessions(d.sessions)
       setSessionsLoaded(true)
       if (!activeSessionId && d.sessions.length > 0) {
-        setActiveSessionId(d.sessions[0].id)
+        setActiveSessionId(d.sessions[0]!.id)
       } else if (activeSessionId && !d.sessions.find(s => s.id === activeSessionId)) {
         setActiveSessionId(d.sessions[0]?.id)
       }

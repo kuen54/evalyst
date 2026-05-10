@@ -60,7 +60,7 @@ export interface CacheBreaksSummary {
 export function countRecentBreaks(stats: CacheUsageStat[]): CacheBreaksSummary {
   let breaks = 0
   for (let i = 1; i < stats.length; i++) {
-    if (detectCacheBreak(stats[i - 1], stats[i])) breaks++
+    if (detectCacheBreak(stats[i - 1]!, stats[i]!)) breaks++
   }
   return { recent_breaks: breaks, total_pairs_considered: Math.max(0, stats.length - 1) }
 }

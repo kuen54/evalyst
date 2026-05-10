@@ -318,7 +318,7 @@ function buildPreviewInputs(form: FormState, t: TFn): {
   const results: GenericResultRecord[] = stubItems.flatMap((b, i) =>
     form.mode === "grouped_grid"
       ? stubTopics.map(u => mockRecord(schema, `${b}_${u}`, { qa: b, topic: u }, t))
-      : [mockRecord(schema, `t_${i}`, { qa: b, topic: stubTopics[i % stubTopics.length] }, t)]
+      : [mockRecord(schema, `t_${i}`, { qa: b, topic: stubTopics[i % stubTopics.length]! }, t)]
   )
 
   return { display, schema, results }
