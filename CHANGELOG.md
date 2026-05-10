@@ -13,6 +13,7 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 ### 测试 (#R2-D)
 
 - `src/lib/rubric-store.ts` 0% → 97.29% statements（5 个 export 函数全覆盖 + sorted/source-default 行为锁）。Round 2 #D Phase 1 模块 1。
+- `src/lib/result-parser.ts` 0% → 97.5% statements（4 条 JSON 提取路径 + `<think>` 剥离 + `raw_text_output` 主+边界 3 case 全覆盖）。Round 2 #D Phase 1 模块 2；中间 checkpoint 通过（lib/ 整体 56.86%→64.65%，外推剩 2 模块到 80% 时 lib/ ≥ 82%，spec 75% 验收不调降）。
 
 ## [0.13.0] — 2026-05-10 · Audit Cleanup 收尾 + R1 robust pass (PR #73 + #74)
 
