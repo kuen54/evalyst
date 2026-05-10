@@ -39,6 +39,7 @@ export function RubricFormPage({ mode, initial }: Props) {
 
   useEffect(() => {
     if (initial) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from prop; see docs/conventions/react19-hydration.md
       setId(initial.id)
       setName(initial.name)
       setDescription(initial.description ?? "")
@@ -94,7 +95,7 @@ export function RubricFormPage({ mode, initial }: Props) {
     const body: Rubric = {
       id,
       name: name.trim(),
-      description: description.trim() || undefined,
+      ...(description.trim() ? { description: description.trim() } : {}),
       criteria,
     }
     const url = mode === "create" ? "/api/rubrics" : `/api/rubrics/${id}`

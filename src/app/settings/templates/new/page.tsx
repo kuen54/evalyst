@@ -34,8 +34,8 @@ function NewTemplateInner() {
   return (
     <TemplateFormPage
       mode="create"
-      initialSchema={initialSchema ?? undefined}
-      fromId={fromId ?? undefined}
+      {...(initialSchema ? { initialSchema } : {})}
+      {...(fromId ? { fromId } : {})}
     />
   )
 }

@@ -82,19 +82,24 @@ function toUiMessage(m: CopilotMessage): UiMessage {
       call_id: m.call_id ?? "",
       tool_name: m.tool_name ?? "",
       content: m.content,
-      denied: m.denied,
-      reason: m.reason,
+      ...(m.denied !== undefined ? { denied: m.denied } : {}),
+      ...(m.reason !== undefined ? { reason: m.reason } : {}),
     }
   }
   if (m.role === "user") {
-    return { role: "user", id: m.id, content: m.content, contexts: m.contexts }
+    return {
+      role: "user",
+      id: m.id,
+      content: m.content,
+      ...(m.contexts !== undefined ? { contexts: m.contexts } : {}),
+    }
   }
   return { role: "assistant", id: m.id, content: m.content }
 }
 
 interface UseChatStreamParams {
-  sessionId?: string
-  modelId?: string
+  sessionId?: string | undefined
+  modelId?: string | undefined
   pageContext: PageContext | null
   onError: (message: string) => void
   tI18nReplyFailed: string
@@ -140,6 +145,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
 
   useEffect(() => {
     currentSessionRef.current = sessionId
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on session change before async load; see docs/conventions/react19-hydration.md
     if (!sessionId) { setMessages([]); return }
     setLoadingSession(true)
     fetch(`/api/copilot/sessions/${sessionId}`)
@@ -204,12 +210,14 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
             const m = next[i]
             if (!m) continue
             if (m.role === "tool_result" && !m.id) {
+              const denied = ev.denied ?? m.denied
+              const reason = ev.reason ?? m.reason
               next[i] = {
                 ...m,
                 id: ev.id,
                 content: ev.content ?? m.content,
-                denied: ev.denied ?? m.denied,
-                reason: ev.reason ?? m.reason,
+                ...(denied !== undefined ? { denied } : {}),
+                ...(reason !== undefined ? { reason } : {}),
               }
               break
             }
@@ -306,7 +314,12 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
             const m = next[i]
             if (!m) continue
             if (m.role === "assistant" && m.streaming) {
-              next[i] = { ...m, id: ev.assistant_message_id ?? m.id, streaming: false }
+              const newId = ev.assistant_message_id ?? m.id
+              next[i] = {
+                ...m,
+                ...(newId !== undefined ? { id: newId } : {}),
+                streaming: false,
+              }
               break
             }
             if (m.role === "assistant" && !m.id && ev.assistant_message_id) {
@@ -380,8 +393,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         call_id,
         tool_name,
         content: denied ? JSON.stringify({ denied: true, reason: reason ?? "" }) : "",
-        denied: denied || undefined,
-        reason,
+        ...(denied ? { denied: true } : {}),
+        ...(reason !== undefined ? { reason } : {}),
       },
     ])
     // 若前一个请求（另一个 postToolResult 或 doStreamSend）还没结束，先 abort：
@@ -482,7 +495,11 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
     setBusy(true)
     setMessages(prev => [
       ...prev,
-      { role: "user", content: text, contexts: sendContexts },
+      {
+        role: "user",
+        content: text,
+        ...(sendContexts !== undefined ? { contexts: sendContexts } : {}),
+      },
       { role: "assistant", content: "", streaming: true },
     ])
     // 同理先 abort 旧请求，防止用户连点 Send 时两个流并行跑

@@ -43,7 +43,7 @@ export function collectClientSnapshot(
         key: captured.elementKey,
         type: captured.type,
         preview_text,
-        ancestors: ancestors.length > 0 ? ancestors : undefined,
+        ...(ancestors.length > 0 ? { ancestors } : {}),
       })
     }
   }
@@ -51,7 +51,7 @@ export function collectClientSnapshot(
     session_id: sessionId,
     route_type: pageContext.route_type,
     path: pageContext.path,
-    search_params: pageContext.search_params,
+    ...(pageContext.search_params !== undefined ? { search_params: pageContext.search_params } : {}),
     page_context: pageContext,
     viewport_index,
     timestamp: new Date().toISOString(),

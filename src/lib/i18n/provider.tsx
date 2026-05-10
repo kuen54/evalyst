@@ -40,6 +40,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved === "zh" || saved === "en") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydrate; see docs/conventions/react19-hydration.md
         setLocaleState(saved)
         document.documentElement.lang = LOCALE_BCP47[saved]
       }

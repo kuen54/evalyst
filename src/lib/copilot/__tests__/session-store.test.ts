@@ -118,7 +118,7 @@ describe('getActiveBranch (fork semantics)', () => {
     const m1 = appendMessage({ session_id: s.id, role: 'user', content: 'q1' })
     const m2a = appendMessage({ session_id: s.id, role: 'assistant', content: 'old answer', parent_id: m1.id })
     // 用户编辑 m1 → 新 user 消息 m1b（同 parent_id）→ 再回复 m2b
-    const m1b = appendMessage({ session_id: s.id, role: 'user', content: 'q1 edited', parent_id: undefined })
+    const m1b = appendMessage({ session_id: s.id, role: 'user', content: 'q1 edited' })
     const _m2b = appendMessage({ session_id: s.id, role: 'assistant', content: 'new answer', parent_id: m1b.id })
     // head 此时指向 m2b
     const chain = getActiveBranch(s.id)
@@ -153,8 +153,8 @@ describe('siblingsOf', () => {
     const m1 = appendMessage({ session_id: s.id, role: 'user', content: 'q1' })
     const _m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'a1', parent_id: m1.id })
     // 两个 user 编辑分支
-    const _m1b = appendMessage({ session_id: s.id, role: 'user', content: 'q1 v2', parent_id: undefined })
-    const _m1c = appendMessage({ session_id: s.id, role: 'user', content: 'q1 v3', parent_id: undefined })
+    const _m1b = appendMessage({ session_id: s.id, role: 'user', content: 'q1 v2' })
+    const _m1c = appendMessage({ session_id: s.id, role: 'user', content: 'q1 v3' })
     const r = siblingsOf(s.id, m1.id)
     expect(r.total).toBe(3)
   })
@@ -231,11 +231,12 @@ describe('appendCompactBoundary', () => {
     const s = createSession({})
     appendMessage({ session_id: s.id, role: 'user', content: 'hi' })
     const bd = appendCompactBoundary(s.id)
+    const head = getSession(s.id)?.head_message_id
     const m2 = appendMessage({
       session_id: s.id,
       role: 'user',
       content: 'next',
-      parent_id: getSession(s.id)?.head_message_id,
+      ...(head !== undefined ? { parent_id: head } : {}),
     })
     expect(m2.parent_id).toBe(bd.id)
   })

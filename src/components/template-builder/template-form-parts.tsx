@@ -35,7 +35,19 @@ const OUTPUT_TYPE_OPTIONS: FormOutputField["type"][] = [
   "image_url_list",
 ]
 
-/** 不可变 update 辅助：拷贝数组 → 合并 patch → 通过 set 回写 */
+/**
+ * 不可变 update 辅助：拷贝数组 → 合并 patch → 通过 set 回写。
+ *
+ * **Invariant**: iterates `patch` keys only (NOT the merged item). Existing
+ * fields on `next[index]` not present in `patch` are preserved. A literal
+ * `undefined` in `patch` means "clear that optional key" — under
+ * `exactOptionalPropertyTypes` we strip it from the merged result so the
+ * key truly disappears (vs. being present-with-value-undefined).
+ *
+ * Future maintainers: do NOT change to `Object.entries(merged)` — that
+ * would delete every optional field that happens to be undefined on the
+ * existing item, not just the ones the caller explicitly cleared.
+ */
 export function updateItem<K extends "inputs" | "variables" | "output_fields" | "display_dimensions">(
   form: TemplateFormState,
   set: <K2 extends keyof TemplateFormState>(k: K2, v: TemplateFormState[K2]) => void,
@@ -44,7 +56,13 @@ export function updateItem<K extends "inputs" | "variables" | "output_fields" | 
   patch: Partial<TemplateFormState[K][number]>,
 ) {
   const next = [...form[key]]
-  next[index] = { ...next[index], ...patch } as TemplateFormState[K][number]
+  const merged = { ...next[index], ...patch } as TemplateFormState[K][number] & Record<string, unknown>
+  // eopt: explicit `undefined` in patch means "clear the optional key" — strip it out.
+  // (Iterates `patch` keys only; see invariant in JSDoc above.)
+  for (const [k, v] of Object.entries(patch as Record<string, unknown>)) {
+    if (v === undefined) delete merged[k]
+  }
+  next[index] = merged as TemplateFormState[K][number]
   set(key, next as TemplateFormState[K])
 }
 
@@ -66,6 +84,7 @@ export function PreviewPane({ form, datasets, displays, datasetSamples, t }: {
   const mockResults = useMemo(() => {
     if (!schema) return []
     return generateMockResults(schema, datasets, datasetSamples, 3)
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- React Compiler hint: schema may mutate; this useMemo is just a cheap cache, not correctness-critical
   }, [schema, datasets, datasetSamples])
 
   const view = schema ? pickView(schema, effectiveDisplay) : null
@@ -287,7 +306,10 @@ export function OutputFieldRow({
                 <Input
                   type="number"
                   value={field.min_length ?? ""}
-                  onChange={e => onChange({ min_length: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  onChange={e => {
+                    const v = e.target.value === "" ? undefined : Number(e.target.value)
+                    onChange({ min_length: v } as Partial<FormOutputField>)
+                  }}
                   placeholder={t("settings.templates.tform.unlimited")}
                   className="h-7 text-[11px]"
                 />
@@ -297,7 +319,10 @@ export function OutputFieldRow({
                 <Input
                   type="number"
                   value={field.max_length ?? ""}
-                  onChange={e => onChange({ max_length: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  onChange={e => {
+                    const v = e.target.value === "" ? undefined : Number(e.target.value)
+                    onChange({ max_length: v } as Partial<FormOutputField>)
+                  }}
                   placeholder={t("settings.templates.tform.unlimited")}
                   className="h-7 text-[11px]"
                 />
@@ -310,7 +335,10 @@ export function OutputFieldRow({
               <Input
                 type="number"
                 value={field.tuple_len ?? ""}
-                onChange={e => onChange({ tuple_len: e.target.value === "" ? undefined : Number(e.target.value) })}
+                onChange={e => {
+                  const v = e.target.value === "" ? undefined : Number(e.target.value)
+                  onChange({ tuple_len: v } as Partial<FormOutputField>)
+                }}
                 placeholder={t("settings.templates.tform.tuple_len_placeholder")}
                 className="h-7 text-[11px]"
               />

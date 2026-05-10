@@ -46,8 +46,8 @@ export async function runTool(
         tool,
         input,
         session_id: ctx.session_id,
-        session_allow_list: opts.sessionAllowList,
-        session_deny_list: opts.sessionDenyList,
+        ...(opts.sessionAllowList !== undefined ? { session_allow_list: opts.sessionAllowList } : {}),
+        ...(opts.sessionDenyList !== undefined ? { session_deny_list: opts.sessionDenyList } : {}),
       })
       if (r.action === "deny") {
         return {

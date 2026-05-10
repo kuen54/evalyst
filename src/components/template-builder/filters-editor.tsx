@@ -232,7 +232,10 @@ function FilterFields({
             <Input
               type="number"
               value={filter.defaultValue == null ? "" : String(filter.defaultValue)}
-              onChange={e => onChange({ defaultValue: e.target.value === "" ? undefined : Number(e.target.value) })}
+              onChange={e => {
+                const v = e.target.value === "" ? undefined : Number(e.target.value)
+                onChange((v !== undefined ? { defaultValue: v } : {}) as Partial<FilterDef>)
+              }}
               className="h-7 text-xs"
             />
           ))}
@@ -389,7 +392,7 @@ function convertKind(old: FilterDef, kind: FilterKind): FilterDef {
     case "checkbox":
       return { kind: "checkbox", key: base.key, field: base.field, label: base.label, truthy: true }
     case "number":
-      return { kind: "number", key: base.key, field: base.field || undefined, label: base.label, role: "limit" }
+      return { kind: "number", key: base.key, ...(base.field ? { field: base.field } : {}), label: base.label, role: "limit" }
     case "text_in":
       return { kind: "text_in", key: base.key, field: base.field, label: base.label }
   }

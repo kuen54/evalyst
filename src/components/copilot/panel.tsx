@@ -21,7 +21,9 @@ export function CopilotPanel() {
 
   useEffect(() => {
     if (!open || sessionsLoaded) return
+    // eslint-disable-next-line react-hooks/immutability -- intentional: useCallback declared below; capture is stable for this load-once effect
     refreshSessions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load-once on first open; sessionsLoaded gate prevents re-fire
   }, [open, sessionsLoaded])
 
   const refreshSessions = useCallback(async () => {
@@ -41,6 +43,7 @@ export function CopilotPanel() {
   }, [activeSessionId, setActiveSessionId, t])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
     if (!activeSessionId) { setModelId(undefined); return }
     const s = sessions.find(x => x.id === activeSessionId)
     if (s?.model_id) setModelId(s.model_id)

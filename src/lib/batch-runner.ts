@@ -260,7 +260,7 @@ export class BatchRunner {
         model: this.config.model,
         temperature: this.config.temperature,
         max_tokens: this.config.max_tokens,
-        seed: this.config.seed,
+        ...(this.config.seed !== undefined ? { seed: this.config.seed } : {}),
         signal: this.abortController.signal,
       })
 
@@ -277,13 +277,13 @@ export class BatchRunner {
       if (!parsed.success) {
         return baseRecord({
           status: 'parse_error',
-          error: parsed.error,
+          ...(parsed.error !== undefined ? { error: parsed.error } : {}),
           raw_response: response.content,
           latency_ms: response.latency_ms,
-          input_tokens,
-          output_tokens,
-          cost_value,
-          cost_currency,
+          ...(input_tokens !== undefined ? { input_tokens } : {}),
+          ...(output_tokens !== undefined ? { output_tokens } : {}),
+          ...(cost_value !== undefined ? { cost_value } : {}),
+          ...(cost_currency !== undefined ? { cost_currency } : {}),
         })
       }
 
@@ -306,10 +306,10 @@ export class BatchRunner {
             error: `image save failed: ${msg}`,
             raw_response: response.content,
             latency_ms: response.latency_ms,
-            input_tokens,
-            output_tokens,
-            cost_value,
-            cost_currency,
+            ...(input_tokens !== undefined ? { input_tokens } : {}),
+            ...(output_tokens !== undefined ? { output_tokens } : {}),
+            ...(cost_value !== undefined ? { cost_value } : {}),
+            ...(cost_currency !== undefined ? { cost_currency } : {}),
           })
         }
       }
@@ -318,10 +318,10 @@ export class BatchRunner {
         status: 'success',
         output: finalOutput,
         latency_ms: response.latency_ms,
-        input_tokens,
-        output_tokens,
-        cost_value,
-        cost_currency,
+        ...(input_tokens !== undefined ? { input_tokens } : {}),
+        ...(output_tokens !== undefined ? { output_tokens } : {}),
+        ...(cost_value !== undefined ? { cost_value } : {}),
+        ...(cost_currency !== undefined ? { cost_currency } : {}),
       })
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e)

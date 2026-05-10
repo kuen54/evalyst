@@ -19,10 +19,10 @@ const nanoid = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 8)
 interface PendingSelection {
   text: string
   rect: DOMRect
-  hostType?: string
-  hostId?: string
-  hostExtra?: Record<string, unknown>
-  textOffset?: number
+  hostType?: string | undefined
+  hostId?: string | undefined
+  hostExtra?: Record<string, unknown> | undefined
+  textOffset?: number | undefined
   ancestors: Array<{ type: string; id: string; extra?: Record<string, unknown> }>
 }
 
@@ -35,6 +35,7 @@ export function TextSelector() {
 
   useEffect(() => {
     if (!enabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
       setSelection(null)
       return
     }

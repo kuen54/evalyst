@@ -81,8 +81,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     session_id: sessionId,
     role: 'user',
     content: body.user_message,
-    parent_id,
-    contexts: body.contexts,
+    ...(parent_id !== undefined ? { parent_id } : {}),
+    ...(body.contexts !== undefined ? { contexts: body.contexts } : {}),
   })
   autoTitleSessionIfNeeded(sessionId, body.user_message)
 

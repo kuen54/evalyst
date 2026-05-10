@@ -396,7 +396,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
                 {Object.keys(recordsPreview.records[0]).length > 8 && " ..."}
               </span>
             )}
-            <MissingFieldsWarning declaredKeys={fieldKeys} record={recordsPreview.records[0]} t={t} />
+            <MissingFieldsWarning declaredKeys={fieldKeys} {...(recordsPreview.records[0] !== undefined ? { record: recordsPreview.records[0] } : {})} t={t} />
           </div>
         ) : null}
       </section>
@@ -414,7 +414,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
         onSave={handleSubmit}
         onCancel={() => (window.location.href = isEdit ? `/settings/datasets/${form.id}` : "/settings/datasets")}
         submitting={submitting}
-        saveLabel={isEdit ? t("settings.datasets.form.submit_update") : undefined}
+        {...(isEdit ? { saveLabel: t("settings.datasets.form.submit_update") } : {})}
       />
       </div>
 
@@ -440,6 +440,7 @@ function DatasetPreviewPane({
   t: TFn
 }) {
   const declared = fields.filter(f => f.key).map(f => f.key)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: derived from stable form args; useMemo cost negligible
   const declaredSet = new Set(declared)
 
   // 字段覆盖统计：每个已声明字段在多少条记录里出现

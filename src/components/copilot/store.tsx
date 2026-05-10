@@ -27,7 +27,7 @@ interface CopilotStore {
   toggleOpen: () => void
   width: number
   setWidth: (w: number) => void
-  activeSessionId?: string
+  activeSessionId?: string | undefined
   setActiveSessionId: (id?: string) => void
   mounted: boolean
   /** rising-edge 时间戳，供 MaterialRevealOverlay 订阅。0 = 从未开过或刚 mount。 */
@@ -86,6 +86,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     try {
       const savedOpen = localStorage.getItem(LS_OPEN)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydrate; see docs/conventions/react19-hydration.md
       if (savedOpen === "1") setOpenState(true)
       const savedW = localStorage.getItem(LS_WIDTH)
       if (savedW) {

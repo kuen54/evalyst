@@ -6,7 +6,7 @@ import { useT } from "@/lib/i18n/provider"
 import type { ModelConfig, LlmConfig } from "@/lib/llm-config"
 
 interface Props {
-  selectedModelId?: string
+  selectedModelId?: string | undefined
   onChange: (modelId: string) => void
   /** When true, also require m.vision_capable. Set by chat-view based on circled contexts. */
   requireVision?: boolean

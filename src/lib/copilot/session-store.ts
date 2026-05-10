@@ -69,7 +69,7 @@ export function createSession(opts: { title?: string; model_id?: string } = {}):
     title: opts.title ?? '新会话',
     created_at: nowIso(),
     updated_at: nowIso(),
-    model_id: opts.model_id,
+    ...(opts.model_id !== undefined ? { model_id: opts.model_id } : {}),
   }
   const idx = readIndex()
   idx.sessions.push(meta)
@@ -85,6 +85,22 @@ export function updateSession(id: string, patch: Partial<Pick<CopilotSessionMeta
   const i = idx.sessions.findIndex(s => s.id === id)
   if (i < 0) return undefined
   idx.sessions[i] = { ...idx.sessions[i]!, ...patch, updated_at: nowIso() }
+  writeIndex(idx)
+  return idx.sessions[i]
+}
+
+/**
+ * Clear head_message_id (eopt-safe: cannot use updateSession with explicit
+ * `undefined` because of `exactOptionalPropertyTypes`).
+ */
+function clearSessionHead(id: string): CopilotSessionMeta | undefined {
+  const idx = readIndex()
+  const i = idx.sessions.findIndex(s => s.id === id)
+  if (i < 0) return undefined
+  const cur = idx.sessions[i]!
+  const { head_message_id: _drop, ...rest } = cur
+  void _drop
+  idx.sessions[i] = { ...rest, updated_at: nowIso() }
   writeIndex(idx)
   return idx.sessions[i]
 }
@@ -187,21 +203,21 @@ export function appendMessage(input: AppendMessageInput): CopilotMessage {
   const msg: CopilotMessage = {
     id: nanoid(),
     session_id: input.session_id,
-    parent_id: input.parent_id,
+    ...(input.parent_id !== undefined ? { parent_id: input.parent_id } : {}),
     role: input.role,
     content: input.content,
-    contexts: input.contexts,
+    ...(input.contexts !== undefined ? { contexts: input.contexts } : {}),
     timestamp: nowIso(),
-    usage: input.usage,
-    model_id: input.model_id,
-    call_id: input.call_id,
-    tool_name: input.tool_name,
-    tool_input: input.tool_input,
-    thought_signature: input.thought_signature,
-    denied: input.denied,
-    reason: input.reason,
-    kind: input.kind,
-    at: input.at,
+    ...(input.usage !== undefined ? { usage: input.usage } : {}),
+    ...(input.model_id !== undefined ? { model_id: input.model_id } : {}),
+    ...(input.call_id !== undefined ? { call_id: input.call_id } : {}),
+    ...(input.tool_name !== undefined ? { tool_name: input.tool_name } : {}),
+    ...(input.tool_input !== undefined ? { tool_input: input.tool_input } : {}),
+    ...(input.thought_signature !== undefined ? { thought_signature: input.thought_signature } : {}),
+    ...(input.denied !== undefined ? { denied: input.denied } : {}),
+    ...(input.reason !== undefined ? { reason: input.reason } : {}),
+    ...(input.kind !== undefined ? { kind: input.kind } : {}),
+    ...(input.at !== undefined ? { at: input.at } : {}),
   }
   ensureDir(sessionsDir())
   const file = sessionPath(input.session_id)
@@ -228,10 +244,10 @@ export function appendCompactBoundary(
     session_id: sessionId,
     role: 'system',
     content: '',
-    parent_id: session?.head_message_id,
+    ...(session?.head_message_id !== undefined ? { parent_id: session.head_message_id } : {}),
     kind: 'compact_boundary',
     at: nowIso(),
-    reason: opts?.reason,
+    ...(opts?.reason !== undefined ? { reason: opts.reason } : {}),
   })
 }
 
@@ -276,7 +292,12 @@ export function pruneMessageAndDescendants(sessionId: string, messageId: string)
   // 如果 head 在被删范围里，head 回到目标 message 的 parent
   const meta = getSession(sessionId)
   if (meta?.head_message_id && toRemove.has(meta.head_message_id)) {
-    updateSession(sessionId, { head_message_id: target.parent_id })
+    if (target.parent_id !== undefined) {
+      updateSession(sessionId, { head_message_id: target.parent_id })
+    } else {
+      // 目标无 parent（被删的就是 root），head 应清空
+      clearSessionHead(sessionId)
+    }
   } else {
     // 还是要动一下 updated_at
     updateSession(sessionId, {})

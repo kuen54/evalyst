@@ -80,7 +80,13 @@ export default function LlmConfigPage() {
     const active = cfg.active_model_id === toRemove.id
       ? models[0]?.id
       : cfg.active_model_id
-    setCfg({ ...cfg, models, active_model_id: active })
+    if (active !== undefined) {
+      setCfg({ ...cfg, models, active_model_id: active })
+    } else {
+      const { active_model_id: _drop, ...rest } = cfg
+      void _drop
+      setCfg({ ...rest, models })
+    }
   }
 
   const setDefaultModel = (id: string) => {

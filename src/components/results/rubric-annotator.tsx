@@ -43,6 +43,7 @@ export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSave
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from prop on open; see docs/conventions/react19-hydration.md
       setScores(existing ? { ...emptyScores(rubric), ...existing.scores } : emptyScores(rubric))
       setRationale(existing?.rationale ?? "")
     }

@@ -10,7 +10,7 @@ import type { CopilotSessionMeta } from "@/lib/copilot/types"
 
 interface Props {
   sessions: CopilotSessionMeta[]
-  activeSessionId?: string
+  activeSessionId?: string | undefined
   onSelect: (id: string) => void
   onCreate: () => void
   onRename: (id: string, title: string) => void

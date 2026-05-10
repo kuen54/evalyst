@@ -12,7 +12,7 @@ import { colorForTag } from "./context-mask"
 
 interface Props {
   toolUse: CopilotMessage
-  toolResult?: CopilotMessage
+  toolResult?: CopilotMessage | undefined
   onConfirm: (alwaysAllow: boolean) => void
   onDeny: (reason: string, alwaysDeny: boolean) => void
   pending: boolean
@@ -210,8 +210,8 @@ function parseToolError(value: unknown): ParsedToolError | null {
     return {
       code: typeof e.code === "string" ? e.code : "INTERNAL",
       message: typeof e.message === "string" ? e.message : "",
-      hint: typeof e.hint === "string" ? e.hint : undefined,
-      retry_safe: typeof e.retry_safe === "boolean" ? e.retry_safe : undefined,
+      ...(typeof e.hint === "string" ? { hint: e.hint } : {}),
+      ...(typeof e.retry_safe === "boolean" ? { retry_safe: e.retry_safe } : {}),
     }
   }
   // 旧 deny shape
@@ -289,7 +289,7 @@ function ErrorRender({
 
 // ---------- Default (existing pattern) ----------
 
-function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage }) {
+function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage | undefined }) {
   const t = useT()
   const [expanded, setExpanded] = useState(false)
   const toolName = toolUse.tool_name ?? ""
@@ -360,7 +360,7 @@ function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
 
 // ---------- ContextVariant (read_context) ----------
 
-function ContextVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage }) {
+function ContextVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage | undefined }) {
   const t = useT()
   const [expanded, setExpanded] = useState(true)
   const input = (toolUse.tool_input ?? {}) as { id?: string; scope?: string; tag?: number }
@@ -420,7 +420,7 @@ function ContextVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
 
 // ---------- ResourceVariant (read_resource) ----------
 
-function ResourceVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage }) {
+function ResourceVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage | undefined }) {
   const t = useT()
   const [expanded, setExpanded] = useState(true)
   const input = (toolUse.tool_input ?? {}) as { type?: string; id?: string; fields?: string[] }
@@ -477,7 +477,7 @@ function ResourceVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; too
 
 // ---------- RetrievalVariant (read_tool_result) ----------
 
-function RetrievalVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage }) {
+function RetrievalVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage | undefined }) {
   const t = useT()
   const [expanded, setExpanded] = useState(true)
   const input = (toolUse.tool_input ?? {}) as { ref?: string }

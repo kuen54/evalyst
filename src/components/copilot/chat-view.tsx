@@ -16,8 +16,8 @@ import { ContextChipRail } from "./context-chip-rail"
 import { useChatStream } from "./use-chat-stream"
 
 interface Props {
-  sessionId?: string
-  selectedModelId?: string
+  sessionId?: string | undefined
+  selectedModelId?: string | undefined
   onPickModel: (modelId: string) => void
 }
 
@@ -53,8 +53,14 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   // 每次 contexts 变动，向服务端 resolve 拿 per-ref status（chip 状态显示用）。
   // v2 起 LLM 不再消费这段 system_message，前端也不再展示 preview 面板。
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
     if (contexts.length === 0) { setCtxStatus({}); return }
-    const refs = contexts.map(c => ({ tag: c.tag, type: c.type, id: c.id, extra: c.extra }))
+    const refs = contexts.map(c => ({
+      tag: c.tag,
+      type: c.type,
+      id: c.id,
+      ...(c.extra !== undefined ? { extra: c.extra } : {}),
+    }))
     let cancelled = false
     fetch("/api/copilot/contexts/resolve", {
       method: "POST",
@@ -92,7 +98,12 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
     const text = input.trim()
     setInput("")
     // 快照当前 context refs（每条消息快照自己那一刻看到的 contexts，以便历史稳定）
-    const snapshot: CopilotContextRef[] = contexts.map(c => ({ tag: c.tag, type: c.type, id: c.id, extra: c.extra }))
+    const snapshot: CopilotContextRef[] = contexts.map(c => ({
+      tag: c.tag,
+      type: c.type,
+      id: c.id,
+      ...(c.extra !== undefined ? { extra: c.extra } : {}),
+    }))
     await stream.send(text, snapshot.length > 0 ? snapshot : undefined)
   }
 
@@ -309,7 +320,8 @@ function renderToolUse(
         id: paired.id ?? `tr-${i}`, session_id: sessionId, role: "tool_result",
         content: paired.content, timestamp: "",
         call_id: paired.call_id, tool_name: paired.tool_name,
-        denied: paired.denied, reason: paired.reason,
+        ...(paired.denied !== undefined ? { denied: paired.denied } : {}),
+        ...(paired.reason !== undefined ? { reason: paired.reason } : {}),
       }
     : undefined
   return (

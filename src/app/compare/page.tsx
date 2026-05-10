@@ -91,6 +91,7 @@ export default function ComparePage() {
 
   useEffect(() => {
     if (selectedIds.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
       setCompareData({})
       return
     }

@@ -76,6 +76,7 @@ export default function NewExperiment() {
   // When schema changes: reset prompt, filter values, bindings
   useEffect(() => {
     if (!schema) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from dep change; see docs/conventions/react19-hydration.md
     setPromptTemplate(schema.default_prompt)
     setFilterValues(initFilterValues(schema))
     setDatasetBindings(Object.fromEntries(schema.inputs.map(i => [i.alias, i.dataset_id])))
@@ -84,6 +85,7 @@ export default function NewExperiment() {
   // When selected model changes: prefill model / temp / max_tokens from the entry
   useEffect(() => {
     if (!selectedModel) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from dep change; see docs/conventions/react19-hydration.md
     setModel(selectedModel.model || "")
     setTemperature(selectedModel.default_temperature ?? 1)
     setMaxTokens(selectedModel.default_max_tokens ?? 4096)
@@ -92,6 +94,7 @@ export default function NewExperiment() {
   // Estimate task count whenever config changes
   useEffect(() => {
     if (!schema) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset before fetch; see docs/conventions/react19-hydration.md
     setEstimatedTasks(null)
     fetch("/api/estimate", {
       method: "POST",

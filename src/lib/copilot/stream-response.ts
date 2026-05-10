@@ -126,7 +126,7 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
           call_id: ev.call_id,
           tool_name: ev.tool_name,
           input: ev.input,
-          thought_signature: ev.thought_signature,
+          ...(ev.thought_signature !== undefined ? { thought_signature: ev.thought_signature } : {}),
         })
         p.write({ kind: 'tool_use_end', call_id: ev.call_id, tool_name: ev.tool_name, input: ev.input })
       } else if (ev.type === 'done') {
@@ -147,8 +147,8 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
       session_id: p.sessionId,
       role: 'assistant',
       content: assistantText,
-      parent_id: parentId,
-      usage: assistantUsage,
+      ...(parentId !== undefined ? { parent_id: parentId } : {}),
+      ...(assistantUsage !== undefined ? { usage: assistantUsage } : {}),
       model_id: p.model.id,
     })
     assistantMessageId = asst.id
@@ -161,11 +161,11 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
       session_id: p.sessionId,
       role: 'tool_use',
       content: JSON.stringify(tu.input),
-      parent_id: parentId,
+      ...(parentId !== undefined ? { parent_id: parentId } : {}),
       call_id: tu.call_id,
       tool_name: tu.tool_name,
       tool_input: tu.input,
-      thought_signature: tu.thought_signature,
+      ...(tu.thought_signature !== undefined ? { thought_signature: tu.thought_signature } : {}),
       model_id: p.model.id,
     })
     toolUseMessageIds.push(msg.id)
@@ -185,8 +185,8 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
     ts: new Date().toISOString(),
     input_tokens: assistantUsage?.input_tokens ?? 0,
     output_tokens: assistantUsage?.output_tokens ?? 0,
-    cache_creation_tokens: assistantUsage?.cache_creation_tokens,
-    cache_read_tokens: assistantUsage?.cache_read_tokens,
+    ...(assistantUsage?.cache_creation_tokens !== undefined ? { cache_creation_tokens: assistantUsage.cache_creation_tokens } : {}),
+    ...(assistantUsage?.cache_read_tokens !== undefined ? { cache_read_tokens: assistantUsage.cache_read_tokens } : {}),
     provider: p.model.api_format === 'anthropic' ? 'anthropic' : 'openai',
     model: p.model.model,
     system_prompt_digest: computeSystemPromptDigest(systemPromptString),
@@ -196,9 +196,9 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
   })
 
   return {
-    assistantMessageId,
+    ...(assistantMessageId !== undefined ? { assistantMessageId } : {}),
     toolUseMessageIds,
-    usage: assistantUsage,
-    stopReason,
+    ...(assistantUsage !== undefined ? { usage: assistantUsage } : {}),
+    ...(stopReason !== undefined ? { stopReason } : {}),
   }
 }
