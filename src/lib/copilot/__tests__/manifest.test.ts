@@ -78,7 +78,7 @@ describe('manifestTaskResult', () => {
   it('self: failed task has error, no output', () => {
     const failed: GenericResultRecord = {
       ...found, status: 'error', output: undefined, error: 'boom',
-    }
+    } as unknown as GenericResultRecord
     const out = manifestTaskResult(failed, 'self')
     expect(out).toMatchObject({ task_id: 't1', status: 'error', error: 'boom' })
     expect((out as unknown as Record<string, unknown>).output).toBeUndefined()

@@ -92,7 +92,7 @@ describe('aggregateCacheHitRate by provider', () => {
 
   it('no cache fields (undefined): returns null hit_rate', () => {
     const r = aggregateCacheHitRate([
-      stat({ input_tokens: 100, provider: 'openai', cache_read_tokens: undefined }),
+      stat({ input_tokens: 100, provider: 'openai', cache_read_tokens: undefined } as unknown as Partial<CacheUsageStat>),
     ])
     expect(r.hit_rate).toBeNull()
     expect(r.calls).toBe(1)
@@ -146,7 +146,7 @@ describe('detectCacheBreak (v2.5 P0 §3.2)', () => {
 
   it('curr.cache_read_tokens undefined 视作 0', () => {
     const a = stat({ cache_read_tokens: 5000 })
-    const b = stat({ cache_read_tokens: undefined })
+    const b = stat({ cache_read_tokens: undefined } as unknown as Partial<CacheUsageStat>)
     expect(detectCacheBreak(a, b)).toBe(true)  // drop=5000, ratio=0
   })
 
@@ -300,7 +300,7 @@ describe('detectCacheBreakWithReasons (v2.5 P1b §3.1.3)', () => {
   })
 
   it('prev 缺失 digest（旧 jsonl）→ reasons=["unknown"]', () => {
-    const a = statWithDigest({ cache_read_tokens: 5000, system_prompt_digest: undefined, tool_digest: undefined })
+    const a = statWithDigest({ cache_read_tokens: 5000, system_prompt_digest: undefined, tool_digest: undefined } as unknown as Partial<CacheUsageStat>)
     const b = statWithDigest({ cache_read_tokens: 0 })
     const r = detectCacheBreakWithReasons(a, b)
     expect(r.broken).toBe(true)
@@ -523,7 +523,7 @@ describe('appendCacheStat with previews round-trip (v2.5 P2)', () => {
       session_id: 'legacy',
       system_prompt_preview: undefined,
       tool_preview: undefined,
-    })
+    } as unknown as Partial<CacheUsageStat>)
     appendCacheStat(old)
     const read = readCacheStats({ session_id: 'legacy' })
     expect(read[0]!.system_prompt_preview).toBeUndefined()
