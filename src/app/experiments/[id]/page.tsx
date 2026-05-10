@@ -94,6 +94,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       }
     }, 1000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run_stats are polled inside the interval, not deps
   }, [experiment?.status, fetchExperiment, fetchProgress, fetchResults])
 
   const handleRun = useCallback(async (resume = false, taskIds?: string[]) => {

@@ -440,6 +440,7 @@ function DatasetPreviewPane({
   t: TFn
 }) {
   const declared = fields.filter(f => f.key).map(f => f.key)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: derived from stable form args; useMemo cost negligible
   const declaredSet = new Set(declared)
 
   // 字段覆盖统计：每个已声明字段在多少条记录里出现

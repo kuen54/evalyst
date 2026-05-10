@@ -22,6 +22,7 @@ export function CopilotPanel() {
   useEffect(() => {
     if (!open || sessionsLoaded) return
     refreshSessions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load-once on first open; sessionsLoaded gate prevents re-fire
   }, [open, sessionsLoaded])
 
   const refreshSessions = useCallback(async () => {
