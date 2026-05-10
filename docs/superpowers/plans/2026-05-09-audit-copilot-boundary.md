@@ -97,3 +97,26 @@ git commit -m "docs(copilot): declare boundary in README/AGENTS, fix stale impor
 - 单文件 strict 修复属 D 范围，本 PR 不做
 - 实施中发现改动涉及行为修改而非纯路径重组，**停下问用户**
 - 不自合 PR；push 后等用户 review
+
+## 9. Post-cleanup 重核（2026-05-09，main = 31f35f0）
+
+v0.11.5 / v0.11.6 / knip / lint-fix / rules-of-hooks 全部合并后实测：
+
+| 数字 | plan-write | 实测 | 备注 |
+|---|---|---|---|
+| `src/lib/copilot/**` | 91 | 91 | 不变 |
+| `src/components/copilot/**` | 25 | 25 | 不变 |
+| `src/app/api/copilot/**` | 7 | 7 | 不变 |
+| alias-import 文件数 | 81 | **82** | +1（容差内） |
+| 跨子树相对 import | 0 | 0 | 不变 |
+
+cross-cutting 复核：
+
+- **knip 配置文件名是 `knip.jsonc`**（plan §3/§5 未提，但配置内 zero copilot 路径——`ignore` 都是 `.claude/**` / `.next/**` / `data/**` / `docs/**` / `src/**/__tests__/**` / `src/components/ui/**`——本 PR 无需联动改 knip）
+- **eslint.config.mjs**：zero copilot 路径；`globalIgnores` 都是构建产物 / `.claude/**` / `coverage/**`——本 PR 无需联动改
+- **§6 grep 形式**：line 80 已用 `-e ... -e ...` 形式，无需再修
+- **CLAUDE.md 字面量**：除 line :398（plan §4 commit 3 已点名）外，prose 路径还在 :259 / :278 / :307 / :336 / :406；AGENTS.md :169（`src/lib/copilot/tools/{name}.ts`）。commit 3 grep 一并改即可（plan 原文「grep 出剩余字面量一并改」已覆盖）。MEMORY.md 仓库根无此文件
+- **`src/lib/types.ts`**：grep 0 行 copilot ref（Phase C Tier 3 + knip cleanup 后假设仍成立）
+- **`vi.mock` copilot 字面量**：1 处 `src/lib/copilot/__tests__/build-llm-messages.image.test.ts:7`（plan §5 已点名）
+
+**结论**：plan 主体仍正确，无需重写或大幅修订。execution 启动时按 §4 commit 1/2/3 顺序执行，commit 2 内 grep + 替换覆盖上面所列字面量即可。
