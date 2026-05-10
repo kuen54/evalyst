@@ -175,13 +175,13 @@ vi.mock('@/lib/store', () => ({
 describe('resolveContextSelf via resolveContexts (manifest form)', () => {
   it('experiment data omits prompt_template / notes / temperature', () => {
     const [r] = resolveContexts([{ tag: 1, type: 'experiment', id: 'exp_1' }])
-    expect(r.status).toBe('ok')
-    expect(JSON.stringify(r.data)).not.toContain('SECRET')
-    expect(r.data).toMatchObject({
+    expect(r!.status).toBe('ok')
+    expect(JSON.stringify(r!.data)).not.toContain('SECRET')
+    expect(r!.data).toMatchObject({
       id: 'exp_1', name: 'E', schema_id: 'sch_1', model: 'gpt-4o',
     })
-    expect((r.data as Record<string, unknown>).prompt_template).toBeUndefined()
-    expect((r.data as Record<string, unknown>).notes).toBeUndefined()
+    expect((r!.data as Record<string, unknown>).prompt_template).toBeUndefined()
+    expect((r!.data as Record<string, unknown>).notes).toBeUndefined()
   })
 
   it('task_result data drops input_preview and input_refs', () => {
@@ -189,11 +189,11 @@ describe('resolveContextSelf via resolveContexts (manifest form)', () => {
       tag: 2, type: 'task_result', id: 't1',
       extra: { experiment_id: 'exp_1' },
     }])
-    expect(r.status).toBe('ok')
-    expect(JSON.stringify(r.data)).not.toContain('SENSITIVE_RAW')
-    expect((r.data as Record<string, unknown>).input_preview).toBeUndefined()
-    expect((r.data as Record<string, unknown>).input_refs).toBeUndefined()
-    expect(r.data).toMatchObject({ task_id: 't1', status: 'success', output: { answer: 'A' } })
+    expect(r!.status).toBe('ok')
+    expect(JSON.stringify(r!.data)).not.toContain('SENSITIVE_RAW')
+    expect((r!.data as Record<string, unknown>).input_preview).toBeUndefined()
+    expect((r!.data as Record<string, unknown>).input_refs).toBeUndefined()
+    expect(r!.data).toMatchObject({ task_id: 't1', status: 'success', output: { answer: 'A' } })
   })
 
   it('task_field data only has targeted_field + targeted_value', () => {
@@ -201,8 +201,8 @@ describe('resolveContextSelf via resolveContexts (manifest form)', () => {
       tag: 3, type: 'task_field', id: 't1#answer',
       extra: { experiment_id: 'exp_1', task_id: 't1', field: 'answer' },
     }])
-    expect(r.status).toBe('ok')
-    expect(r.data).toEqual({ targeted_field: 'answer', targeted_value: 'A' })
-    expect(JSON.stringify(r.data)).not.toContain('SENSITIVE_RAW')
+    expect(r!.status).toBe('ok')
+    expect(r!.data).toEqual({ targeted_field: 'answer', targeted_value: 'A' })
+    expect(JSON.stringify(r!.data)).not.toContain('SENSITIVE_RAW')
   })
 })
