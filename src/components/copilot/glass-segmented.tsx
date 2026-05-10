@@ -77,10 +77,11 @@ export function GlassSegmentedItem({
   const existingClassName = typeof existingProps.className === "string" ? existingProps.className : ""
   const existingStyle = existingProps.style as CSSProperties | undefined
 
+  const styleToApply = mergedStyle ? { ...existingStyle, ...mergedStyle } : existingStyle
   return cloneElement(target, {
     className: `${mergedClassName} ${existingClassName}`.trim(),
-    style: mergedStyle ? { ...existingStyle, ...mergedStyle } : existingStyle,
-    "data-glass-variant": dataVariant,
+    ...(styleToApply !== undefined ? { style: styleToApply } : {}),
+    ...(dataVariant !== undefined ? { "data-glass-variant": dataVariant } : {}),
     children,
   })
 }

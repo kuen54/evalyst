@@ -58,7 +58,7 @@ function makeUserMsg(contexts: CopilotContextRef[]): CopilotMessage {
 }
 
 function ctx(tag: number, type: string, id: string, extra?: Record<string, unknown>): CopilotContextRef {
-  return { tag, type, id, extra }
+  return { tag, type, id, ...(extra !== undefined ? { extra } : {}) }
 }
 
 beforeEach(() => {

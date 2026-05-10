@@ -31,11 +31,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   try {
     const next = updateCustomDataset(id, {
-      name: body.name as string | undefined,
-      description: body.description as string | undefined,
-      id_field: body.id_field as string | undefined,
-      fields: body.fields as never,
-      records: body.records as never,
+      ...(body.name !== undefined ? { name: body.name as string } : {}),
+      ...(body.description !== undefined ? { description: body.description as string } : {}),
+      ...(body.id_field !== undefined ? { id_field: body.id_field as string } : {}),
+      ...(body.fields !== undefined ? { fields: body.fields as never } : {}),
+      ...(body.records !== undefined ? { records: body.records as never } : {}),
     })
     return NextResponse.json(next)
   } catch (e) {

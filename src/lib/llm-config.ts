@@ -40,7 +40,6 @@ export interface LlmConfig {
 
 const EMPTY: LlmConfig = {
   models: [],
-  active_model_id: undefined,
 }
 
 // 老单例 shape
@@ -77,7 +76,11 @@ function migrate(parsed: unknown): LlmConfig {
 
   // 已经是新 shape
   if (Array.isArray(raw.models)) {
-    return { ...EMPTY, active_model_id: raw.active_model_id, models: raw.models }
+    return {
+      ...EMPTY,
+      models: raw.models,
+      ...(raw.active_model_id !== undefined ? { active_model_id: raw.active_model_id } : {}),
+    }
   }
 
   // 中间版：providers → models（每个 provider 变一个 model，用其 default_model 作为 model 标识，
@@ -90,11 +93,14 @@ function migrate(parsed: unknown): LlmConfig {
       api_format: p.api_format,
       base_url: p.base_url,
       api_key: p.api_key,
-      default_temperature: p.default_temperature,
-      default_max_tokens: p.default_max_tokens,
-      pricing: p.pricing?.[p.default_model] ?? raw.pricing?.[p.default_model],
+      ...(p.default_temperature !== undefined ? { default_temperature: p.default_temperature } : {}),
+      ...(p.default_max_tokens !== undefined ? { default_max_tokens: p.default_max_tokens } : {}),
+      ...((p.pricing?.[p.default_model] ?? raw.pricing?.[p.default_model]) !== undefined
+        ? { pricing: (p.pricing?.[p.default_model] ?? raw.pricing?.[p.default_model])! }
+        : {}),
     }))
-    return { models, active_model_id: raw.active_provider_id ?? models[0]?.id }
+    const active = raw.active_provider_id ?? models[0]?.id
+    return { models, ...(active !== undefined ? { active_model_id: active } : {}) }
   }
 
   // 老单例 shape → 合成一个 model
@@ -102,6 +108,7 @@ function migrate(parsed: unknown): LlmConfig {
   const hasAnyField = !!(legacy.api_format || legacy.base_url || legacy.api_key || legacy.default_model)
   if (!hasAnyField) return { ...EMPTY }
   const modelName = legacy.default_model ?? ''
+  const legacyPricing = modelName ? legacy.pricing?.[modelName] : undefined
   const model: ModelConfig = {
     id: 'default',
     name: 'Default',
@@ -109,9 +116,9 @@ function migrate(parsed: unknown): LlmConfig {
     api_format: legacy.api_format ?? 'openai',
     base_url: legacy.base_url ?? '',
     api_key: legacy.api_key ?? '',
-    default_temperature: legacy.default_temperature,
-    default_max_tokens: legacy.default_max_tokens,
-    pricing: modelName ? legacy.pricing?.[modelName] : undefined,
+    ...(legacy.default_temperature !== undefined ? { default_temperature: legacy.default_temperature } : {}),
+    ...(legacy.default_max_tokens !== undefined ? { default_max_tokens: legacy.default_max_tokens } : {}),
+    ...(legacyPricing !== undefined ? { pricing: legacyPricing } : {}),
   }
   return {
     models: [model],
@@ -198,7 +205,12 @@ export function saveLlmConfig(cfg: Partial<LlmConfig>): LlmConfig {
   }
   // 规整 active_model_id：指向不存在的 id 时自动纠正到 models[0]
   if (!merged.models.some(m => m.id === merged.active_model_id)) {
-    merged.active_model_id = merged.models[0]?.id
+    const fallback = merged.models[0]?.id
+    if (fallback !== undefined) {
+      merged.active_model_id = fallback
+    } else {
+      delete merged.active_model_id
+    }
   }
   writeAtomic(configPath(), JSON.stringify(merged, null, 2))
   return merged

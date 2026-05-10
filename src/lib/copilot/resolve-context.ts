@@ -202,7 +202,7 @@ function deriveImplicitAncestors(ref: CopilotContextRef, explicit: AncestorRef[]
   }
 
   // 从 ref 本身推
-  maybeExpandFrom({ type: ref.type, extra: ref.extra as Record<string, unknown> | undefined })
+  maybeExpandFrom({ type: ref.type, ...(ref.extra !== undefined ? { extra: ref.extra as Record<string, unknown> } : {}) })
   // 从 explicit ancestor 继续推
   for (const a of explicit) maybeExpandFrom(a)
 
@@ -224,7 +224,7 @@ export function resolveContext(ref: CopilotContextRef): ResolvedContext {
     tag: 0,
     type: a.type,
     id: a.id,
-    extra: a.extra,
+    ...(a.extra !== undefined ? { extra: a.extra } : {}),
   }))
   return { ...self, context_chain: chain }
 }
@@ -430,11 +430,11 @@ export function resolveContextById(
       const taskMeta = task ? {
         task_id: task.task_id,
         status: task.status,
-        latency_ms: task.latency_ms,
-        input_tokens: task.input_tokens,
-        output_tokens: task.output_tokens,
-        cost_value: task.cost_value,
-        cost_currency: task.cost_currency,
+        ...(task.latency_ms !== undefined ? { latency_ms: task.latency_ms } : {}),
+        ...(task.input_tokens !== undefined ? { input_tokens: task.input_tokens } : {}),
+        ...(task.output_tokens !== undefined ? { output_tokens: task.output_tokens } : {}),
+        ...(task.cost_value !== undefined ? { cost_value: task.cost_value } : {}),
+        ...(task.cost_currency !== undefined ? { cost_currency: task.cost_currency } : {}),
       } : undefined
       return {
         type: ref.type,

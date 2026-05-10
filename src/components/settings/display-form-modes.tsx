@@ -37,7 +37,12 @@ export function TableModeForm({ form, set, tableDup, t }: {
           key={i}
           col={c}
           t={t}
-          onChange={patch => set("table_columns", form.table_columns.map((x, idx) => idx === i ? { ...x, ...patch } : x))}
+      onChange={patch => set("table_columns", form.table_columns.map((x, idx) => {
+        if (idx !== i) return x
+        const merged = { ...x, ...patch }
+        if ('max_length' in patch && patch.max_length === undefined) delete (merged as { max_length?: number }).max_length
+        return merged
+      }))}
           onDelete={() => set("table_columns", form.table_columns.filter((_, idx) => idx !== i))}
           onMove={dir => {
             const j = i + dir
@@ -129,7 +134,12 @@ export function GroupedGridModeForm({ form, set, cellDup, t }: {
             key={i}
             col={c}
             t={t}
-            onChange={patch => set("cell_columns", form.cell_columns.map((x, idx) => idx === i ? { ...x, ...patch } : x))}
+            onChange={patch => set("cell_columns", form.cell_columns.map((x, idx) => {
+              if (idx !== i) return x
+              const merged = { ...x, ...patch }
+              if ('max_length' in patch && patch.max_length === undefined) delete (merged as { max_length?: number }).max_length
+              return merged
+            }))}
             onDelete={() => set("cell_columns", form.cell_columns.filter((_, idx) => idx !== i))}
             onMove={dir => {
               const j = i + dir
@@ -212,7 +222,10 @@ function ColumnRow({
         </Select>
         <Input
           value={col.max_length ?? ""}
-          onChange={e => onChange({ max_length: e.target.value === "" ? undefined : Number(e.target.value) })}
+          onChange={e => {
+            const next = e.target.value === "" ? undefined : Number(e.target.value)
+            onChange({ max_length: next } as Partial<DisplayColumn>)
+          }}
           placeholder={t("settings.displays.form.col_max_length_placeholder")}
           type="number"
           className="h-8 text-xs"

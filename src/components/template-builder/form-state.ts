@@ -119,9 +119,9 @@ export function buildSchemaFromForm(form: TemplateFormState): BuildResult {
     inputs.push({
       alias: inp.alias,
       dataset_id: inp.dataset_id,
-      dedupe_by: inp.dedupe_by.length ? inp.dedupe_by : undefined,
-      hard_filter: hard,
-      filters: inp.filters.length ? inp.filters : undefined,
+      ...(inp.dedupe_by.length ? { dedupe_by: inp.dedupe_by } : {}),
+      ...(hard !== undefined ? { hard_filter: hard } : {}),
+      ...(inp.filters.length ? { filters: inp.filters } : {}),
     })
   })
 
@@ -135,8 +135,8 @@ export function buildSchemaFromForm(form: TemplateFormState): BuildResult {
     variables.push({
       name: v.name,
       source: v.source,
-      transform: v.transform.length ? v.transform : undefined,
-      fallback: v.fallback || undefined,
+      ...(v.transform.length ? { transform: v.transform } : {}),
+      ...(v.fallback ? { fallback: v.fallback } : {}),
     })
   })
 
@@ -185,10 +185,10 @@ export function buildSchemaFromForm(form: TemplateFormState): BuildResult {
   // display_dimensions
   const display_dimensions: DisplayDimension[] = form.display_dimensions.map(d => ({
     field: d.field,
-    label: d.label || undefined,
-    value_labels: Object.keys(d.value_labels).length ? d.value_labels : undefined,
-    order: d.order.length ? d.order : undefined,
-    header_fields: d.header_fields.length ? d.header_fields : undefined,
+    ...(d.label ? { label: d.label } : {}),
+    ...(Object.keys(d.value_labels).length ? { value_labels: d.value_labels } : {}),
+    ...(d.order.length ? { order: d.order } : {}),
+    ...(d.header_fields.length ? { header_fields: d.header_fields } : {}),
   }))
 
   if (errors.length) return { errors }
@@ -196,20 +196,20 @@ export function buildSchemaFromForm(form: TemplateFormState): BuildResult {
   const schema: TaskSchema = {
     id: form.id,
     label: form.label,
-    description: form.description || undefined,
+    ...(form.description ? { description: form.description } : {}),
     version: 1,
-    compare_group: form.compare_group || undefined,
+    ...(form.compare_group ? { compare_group: form.compare_group } : {}),
     inputs,
     variables,
     default_prompt: form.default_prompt,
     message_builder: {
       user_template: form.user_template,
-      image: form.image_field ? { field: form.image_field, required: false } : undefined,
+      ...(form.image_field ? { image: { field: form.image_field, required: false } } : {}),
     },
     output_schema,
-    display_dimensions: display_dimensions.length ? display_dimensions : undefined,
-    display_id: form.display_id_override || undefined,
-    raw_text_output: form.raw_text_output || undefined,
+    ...(display_dimensions.length ? { display_dimensions } : {}),
+    ...(form.display_id_override ? { display_id: form.display_id_override } : {}),
+    ...(form.raw_text_output ? { raw_text_output: form.raw_text_output } : {}),
   }
   return { schema, errors: [] }
 }
@@ -253,9 +253,9 @@ export function formFromSchema(schema: TaskSchema): TemplateFormState {
       name,
       type: p.type as FormOutputField["type"],
       required: (schema.output_schema.required ?? []).includes(name),
-      max_length: p.max_length,
-      min_length: p.min_length,
-      tuple_len: p.tuple_len,
+      ...(p.max_length !== undefined ? { max_length: p.max_length } : {}),
+      ...(p.min_length !== undefined ? { min_length: p.min_length } : {}),
+      ...(p.tuple_len !== undefined ? { tuple_len: p.tuple_len } : {}),
       enum_values: p.enum ? p.enum.map(String) : [],
     })),
     display_dimensions: (schema.display_dimensions ?? []).map(d => ({

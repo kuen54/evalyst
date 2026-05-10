@@ -124,7 +124,7 @@ export function buildSystemHeader(args: BuildHeaderArgs): SystemHeader {
       type: ref.type,
       ref: ref.id,
       summary,
-      within,
+      ...(within !== undefined ? { within } : {}),
       ...(inline !== undefined ? { inline } : {}),
     })
   }

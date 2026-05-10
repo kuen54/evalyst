@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
   if (v.value.id !== id) return NextResponse.json({ error: 'id mismatch' }, { status: 400 })
   // builtin 可以编辑（跟 datasets 一致）；保留 source 字段
-  const saved = saveRubric({ ...v.value, source: existing.source })
+  const saved = saveRubric({ ...v.value, ...(existing.source !== undefined ? { source: existing.source } : {}) })
   return NextResponse.json(saved)
 }
 

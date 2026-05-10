@@ -81,7 +81,7 @@ export async function callLlmStreaming(
       method: 'POST',
       headers: req.headers,
       body: JSON.stringify(req.body),
-      signal: p.signal,
+      signal: p.signal ?? null,
     })
   } catch (e) {
     onEvent({ type: 'error', message: e instanceof Error ? e.message : String(e) })
@@ -118,7 +118,7 @@ export async function callLlmStreaming(
     if (!isAnthropic && toolState.size > 0) {
       flushOpenaiTools(toolState, onEvent)
     }
-    onEvent({ type: 'done', usage, stop_reason: stopReason })
+    onEvent({ type: 'done', usage, ...(stopReason !== undefined ? { stop_reason: stopReason } : {}) })
   }
 
   try {
@@ -174,7 +174,7 @@ export function parseSseBlock(block: string): { event?: string; data: string } {
     else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
     // 忽略其他行（id:、retry: 等）
   }
-  return { event, data: dataLines.join('\n') }
+  return { ...(event !== undefined ? { event } : {}), data: dataLines.join('\n') }
 }
 
 // ---------- OpenAI 格式 ----------
@@ -539,7 +539,7 @@ export function serializeMessagesForProvider(
             call_id: cur.call_id,
             tool_name: cur.tool_name,
             tool_input: cur.tool_input ?? {},
-            thought_signature: cur.thought_signature,
+            ...(cur.thought_signature !== undefined ? { thought_signature: cur.thought_signature } : {}),
           })
           i++
           continue

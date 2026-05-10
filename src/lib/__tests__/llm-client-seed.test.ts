@@ -51,7 +51,7 @@ describe("OpenAI seed transparently passed", () => {
     // Some OpenAI-compatible gateways reject `{"seed": null}` or `{"seed": undefined}`
     // payloads. The contract: when caller doesn't set seed, the request must look
     // exactly like before this feature shipped.
-    const body = buildRequestBodyForTest(openaiParams({ seed: undefined }))
+    const body = buildRequestBodyForTest(openaiParams({ seed: undefined } as unknown as Partial<CallLlmParams>))
     expect("seed" in body).toBe(false)
   })
 
@@ -85,7 +85,7 @@ describe("Anthropic does not support seed → drop with warning", () => {
   })
 
   it("seed: undefined → no warn; key not in body (golden path, no log spam)", () => {
-    const body = buildRequestBodyForTest(anthropicParams({ seed: undefined }))
+    const body = buildRequestBodyForTest(anthropicParams({ seed: undefined } as unknown as Partial<CallLlmParams>))
     expect("seed" in body).toBe(false)
     expect(warnSpy).not.toHaveBeenCalled()
   })

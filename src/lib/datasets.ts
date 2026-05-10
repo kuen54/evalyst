@@ -85,7 +85,7 @@ export function createDatasetFromJson(data: {
     fields: data.fields,
     path: `data/datasets/${data.id}.jsonl`,
     created_at: new Date().toISOString(),
-    description: data.description,
+    ...(data.description !== undefined ? { description: data.description } : {}),
   }
   const jsonl = data.records.map(r => JSON.stringify(r)).join('\n') + '\n'
   writeAtomic(path.join(datasetsDir(), `${data.id}.jsonl`), jsonl)
@@ -134,10 +134,11 @@ export function updateCustomDataset(id: string, patch: {
     throw new Error(`id_field "${nextIdField}" not in fields list`)
   }
 
+  const nextDescription = patch.description ?? existing.description
   const next: DatasetDef = {
     ...existing,
     name: patch.name ?? existing.name,
-    description: patch.description ?? existing.description,
+    ...(nextDescription !== undefined ? { description: nextDescription } : {}),
     id_field: nextIdField,
     fields: nextFields,
   }

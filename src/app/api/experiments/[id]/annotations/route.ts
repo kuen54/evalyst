@@ -63,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     rubric_id: body.rubric_id,
     evaluator: body.evaluator === 'llm' || body.evaluator === 'rule' ? body.evaluator : 'human',
     scores: body.scores as Record<string, number | boolean>,
-    rationale: typeof body.rationale === 'string' ? body.rationale : undefined,
+    ...(typeof body.rationale === 'string' ? { rationale: body.rationale } : {}),
     timestamp: new Date().toISOString(),
   }
   appendAnnotation(experimentId, annotation)

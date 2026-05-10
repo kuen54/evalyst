@@ -46,11 +46,11 @@ export function manifestExperiment(exp: ExperimentConfig): ExperimentManifest {
     id: exp.id,
     name: exp.name,
     status: exp.status,
-    schema_id: exp.schema_id,
-    display_id: exp.display_id,
-    rubric_id: exp.rubric_id,
+    ...(exp.schema_id !== undefined ? { schema_id: exp.schema_id } : {}),
+    ...(exp.display_id !== undefined ? { display_id: exp.display_id } : {}),
+    ...(exp.rubric_id !== undefined ? { rubric_id: exp.rubric_id } : {}),
     model: exp.model,
-    run_stats: exp.run_stats,
+    ...(exp.run_stats !== undefined ? { run_stats: exp.run_stats } : {}),
   }
 }
 
@@ -85,13 +85,13 @@ export function manifestTaskResult(
   const self: TaskResultManifest = {
     task_id: found.task_id,
     status: found.status,
-    output: found.status === 'success' ? found.output : undefined,
-    error: found.error,
-    latency_ms: found.latency_ms,
-    input_tokens: found.input_tokens,
-    output_tokens: found.output_tokens,
-    cost_value: found.cost_value,
-    cost_currency: found.cost_currency,
+    ...(found.status === 'success' && found.output !== undefined ? { output: found.output } : {}),
+    ...(found.error !== undefined ? { error: found.error } : {}),
+    ...(found.latency_ms !== undefined ? { latency_ms: found.latency_ms } : {}),
+    ...(found.input_tokens !== undefined ? { input_tokens: found.input_tokens } : {}),
+    ...(found.output_tokens !== undefined ? { output_tokens: found.output_tokens } : {}),
+    ...(found.cost_value !== undefined ? { cost_value: found.cost_value } : {}),
+    ...(found.cost_currency !== undefined ? { cost_currency: found.cost_currency } : {}),
   }
   if (scope === 'parent' && experiment) {
     return {
@@ -99,7 +99,7 @@ export function manifestTaskResult(
       experiment: {
         id: experiment.id,
         name: experiment.name,
-        schema_id: experiment.schema_id,
+        ...(experiment.schema_id !== undefined ? { schema_id: experiment.schema_id } : {}),
         model: experiment.model,
       },
     }
@@ -179,7 +179,7 @@ export function manifestTemplate(schema: TaskSchema): TemplateManifest {
   return {
     id: schema.id,
     label: schema.label,
-    description: schema.description,
+    ...(schema.description !== undefined ? { description: schema.description } : {}),
     prompt_template_excerpt: prompt.slice(0, PROMPT_EXCERPT_LIMIT),
     variable_names: variables.map((v) => v.name),
     output_field_names: Object.keys(properties),

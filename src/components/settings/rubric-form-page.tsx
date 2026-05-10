@@ -94,7 +94,7 @@ export function RubricFormPage({ mode, initial }: Props) {
     const body: Rubric = {
       id,
       name: name.trim(),
-      description: description.trim() || undefined,
+      ...(description.trim() ? { description: description.trim() } : {}),
       criteria,
     }
     const url = mode === "create" ? "/api/rubrics" : `/api/rubrics/${id}`

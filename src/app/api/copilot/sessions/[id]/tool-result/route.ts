@@ -122,8 +122,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { session_id: sessionId, signal: req.signal },
       {
         skipConfirm: true,
-        sessionAllowList: body.session_allow_list,
-        sessionDenyList: body.session_deny_list,
+        ...(body.session_allow_list !== undefined ? { sessionAllowList: body.session_allow_list } : {}),
+        ...(body.session_deny_list !== undefined ? { sessionDenyList: body.session_deny_list } : {}),
       },
     )
 
@@ -153,9 +153,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     content: JSON.stringify(resultContent),
     call_id: body.call_id,
     tool_name: body.tool_name,
-    denied: body.denied,
-    reason: body.reason,
-    parent_id: tailId,
+    ...(body.denied !== undefined ? { denied: body.denied } : {}),
+    ...(body.reason !== undefined ? { reason: body.reason } : {}),
+    ...(tailId !== undefined ? { parent_id: tailId } : {}),
   })
 
   // 重新拉 branch（含刚 append 的 tool_result）

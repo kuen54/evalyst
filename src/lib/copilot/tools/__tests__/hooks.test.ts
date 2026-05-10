@@ -57,7 +57,7 @@ describe("confirmGateHook session allow list short-circuit (v2.5 M3)", () => {
 
   it("require_confirm when session_allow_list undefined", async () => {
     const r = await confirmGateHook({
-      tool: destructiveTool, input: {}, session_id: "s", session_allow_list: undefined,
+      tool: destructiveTool, input: {}, session_id: "s",
     })
     expect(r.action).toBe("require_confirm")
   })

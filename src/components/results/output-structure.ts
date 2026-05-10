@@ -18,8 +18,8 @@ export function getOutputFields(schema: JsonSchemaDef): OutputField[] {
     name,
     type: p.type,
     required: required.has(name),
-    items: p.items,
-    properties: p.properties,
+    ...(p.items !== undefined ? { items: p.items } : {}),
+    ...(p.properties !== undefined ? { properties: p.properties } : {}),
   }))
 }
 
@@ -78,5 +78,5 @@ export function findBubbleTextField(bubbleField: OutputField): { text?: string; 
     return p?.type === "string"
   })
   const emoji = names.find(n => /emoji|icon/i.test(n))
-  return { text, emoji }
+  return { ...(text !== undefined ? { text } : {}), ...(emoji !== undefined ? { emoji } : {}) }
 }

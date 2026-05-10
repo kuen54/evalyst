@@ -8,8 +8,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as { title?: string; model_id?: string }
   const session = createSession({
-    title: body.title,
-    model_id: body.model_id,
+    ...(body.title !== undefined ? { title: body.title } : {}),
+    ...(body.model_id !== undefined ? { model_id: body.model_id } : {}),
   })
   return NextResponse.json(session)
 }

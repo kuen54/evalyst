@@ -396,7 +396,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
                 {Object.keys(recordsPreview.records[0]).length > 8 && " ..."}
               </span>
             )}
-            <MissingFieldsWarning declaredKeys={fieldKeys} record={recordsPreview.records[0]} t={t} />
+            <MissingFieldsWarning declaredKeys={fieldKeys} {...(recordsPreview.records[0] !== undefined ? { record: recordsPreview.records[0] } : {})} t={t} />
           </div>
         ) : null}
       </section>
@@ -414,7 +414,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
         onSave={handleSubmit}
         onCancel={() => (window.location.href = isEdit ? `/settings/datasets/${form.id}` : "/settings/datasets")}
         submitting={submitting}
-        saveLabel={isEdit ? t("settings.datasets.form.submit_update") : undefined}
+        {...(isEdit ? { saveLabel: t("settings.datasets.form.submit_update") } : {})}
       />
       </div>
 
