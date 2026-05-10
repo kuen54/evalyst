@@ -730,6 +730,21 @@ Phase E (Copilot 切边)
 
 理由：E 的 `git mv` 会把所有 Copilot 文件搬到新路径；如果 lint-fix 或 rules-of-hooks 还没合，文件搬完后还得在新路径下再修一遍。让两个 follow-up 先合，E 看到的是干净基线。
 
+### E5 · §1 / §0 步 LOC 数字 back-of-envelope，Phase E #2 实测后修订（2026-05-10 更新）
+
+审视报告 §第 0 步 + §1 给的 "Copilot 占 45.6% / Copilot ≈ 18k LOC / 评测核心 ≈ 9k LOC" 是 audit 当时 back-of-envelope 估算（仓库总 LOC 数对，但 Copilot/核心拆分比例及 evalyst 核心 LOC 是眼估）。Phase E #2 commit 3 实测：
+
+| 区块 | excl 测试 | incl 测试 |
+|---|---|---|
+| 评测核心（src/ 除 src/copilot/ 子树）| ~18k | ~21k |
+| Copilot 子树（src/copilot/lib + src/copilot/components）| ~10k | ~17k |
+| Copilot api routes（src/app/api/copilot/）| ~0.5k | ~0.5k |
+
+**结构性结论不变**——Copilot 仍是嵌入式独立域，11k LOC（excl 测试）足以独立成域，Phase E 物理切边后边界已画清。原 §1 数字保留作 audit 当时估算的历史快照，本 errata 给读者实测对照。
+
+### E6 · plan / spec 路径在 Phase F 后变化（2026-05-10 更新）
+
+§修复清单 #5 / §6 所有引用 `docs/superpowers/{plans,specs,findings}/<...>.md` 的路径在 Phase F (本 PR) 后已 `git mv` 到 `docs/superpowers/archive/2026-Q2/{plans,specs,findings}/<...>.md`。本审视报告主体保留原路径作为 audit-time 快照（path drift 是 doc 整合的预期结果，不重写报告主体）；当前可定位的索引见 [`docs/superpowers/plans/_index.md`](../superpowers/plans/_index.md)。
 
 
 ---

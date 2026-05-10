@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+- docs(audit): split CLAUDE.md / AGENTS.md, archive historical plans (#5)
+  - 文档收尾 Phase F。CLAUDE.md 42KB → 4.5KB（索引 + 反直觉 3 强约束 + pinpoint），AGENTS.md 24KB → 4.9KB（开发流程 + AI 协议）。3 份外置 doc 接收：`docs/architecture.md` / `docs/copilot.md` / `docs/conventions/glass-ui.md`。`docs/superpowers/{plans,specs,findings}/*` 全部归档到 `archive/2026-Q2/`，根目录留 `_index.md` 多维分类索引（按 audit-cleanup phase / Copilot 子系统 / Glass UI / 评测能力）。README L18 删 "工具调用闭环规划中" 过期描述。Audit doc append §Errata E5（Phase E #2 实测 LOC 修订）。
+  - Plan: docs/superpowers/plans/2026-05-09-audit-doc-split.md
+
 ## [0.12.0] — 2026-05-10 · Phase E 结构性重构：Copilot 物理边界 + tool metadata 拆分 + batch-runner 文件锁 (PR #70 #71 #72)
 
 收掉 audit-cleanup-2026-05-09 §Phase E。三个独立 PR 把仓库长期累积的物理 / 逻辑 / 协调层耦合一次性切清：Copilot 子树物理收敛、tool 注册去镜像化、批处理协调从 globalThis hack 换成文件锁。零运行时行为变化——这是 Phase F 文档收尾前最后一次大规模结构动作。minor 跳是因为 `src/copilot/` 子树落地是仓库导航语义的明显改变，不再是 patch 级 polish。
