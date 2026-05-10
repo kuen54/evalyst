@@ -6,7 +6,7 @@
 
 import type { TaskSchema, JsonPropDef, JsonSchemaDef } from './schema/types'
 
-export type Builtin4Id =
+type Builtin4Id =
   | 'builtin_single_list'
   | 'builtin_dual_list'
   | 'builtin_triple_grid'

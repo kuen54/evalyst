@@ -18,7 +18,7 @@ export interface Task {
 }
 
 /** Default cartesian product cap. Above this, generateTasks throws TooManyTasksError. */
-export const DEFAULT_MAX_TASKS = 100_000
+const DEFAULT_MAX_TASKS = 100_000
 
 export class TooManyTasksError extends Error {
   readonly code = 'TOO_MANY_TASKS'

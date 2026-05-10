@@ -33,7 +33,7 @@ const VARIANT_BY_TOOL: Record<string, Variant> = {
  * Pick a variant for the tool-call-card based on tool name, falling back
  * to metadata.isDestructive → write, otherwise default.
  */
-export function pickVariant(toolName: string): Variant {
+function pickVariant(toolName: string): Variant {
   const explicit = VARIANT_BY_TOOL[toolName]
   if (explicit) return explicit
   const meta = findClientToolMetadata(toolName)

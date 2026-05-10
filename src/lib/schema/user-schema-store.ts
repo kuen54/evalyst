@@ -55,7 +55,7 @@ export function deleteUserSchema(id: string): boolean {
 
 // --- Validator ---
 
-export interface SchemaValidationError {
+interface SchemaValidationError {
   field: string
   message: string
 }

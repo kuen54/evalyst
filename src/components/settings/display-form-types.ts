@@ -8,7 +8,7 @@
 
 import type { DisplayColumn, DisplayMode } from "@/lib/schema/types"
 
-export interface GroupConfig {
+interface GroupConfig {
   field: string
   label: string
 }

@@ -214,7 +214,7 @@ function deriveImplicitAncestors(ref: CopilotContextRef, explicit: AncestorRef[]
  * 隐式祖先的价值：实验详情页的 experiment 数据挂在状态卡上，不是整页外层 → DOM 走不到它 →
  * 需要通过 task_result.extra.experiment_id 显式补回来。
  */
-export function resolveContext(ref: CopilotContextRef): ResolvedContext {
+function resolveContext(ref: CopilotContextRef): ResolvedContext {
   const self = resolveContextSelf(ref)
   const explicit = ((ref.extra as { ancestors?: AncestorRef[] } | undefined)?.ancestors) ?? []
   const implicit = deriveImplicitAncestors(ref, explicit)
@@ -378,7 +378,7 @@ import { getActiveContextByTag } from './session-store'
 
 export type ContextScope = 'self' | 'parent' | 'full'
 
-export interface ScopedContextResolution {
+interface ScopedContextResolution {
   type: string
   ref: CopilotContextRef
   self_value: unknown

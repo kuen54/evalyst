@@ -34,7 +34,7 @@ function isReplayableTool(name: string | undefined): boolean {
   return tool?.metadata.isReadOnly ?? false
 }
 
-export interface MicroCompactConfig {
+interface MicroCompactConfig {
   /** 保留最近 N 条可重放 tool_result 的完整形态；其余（更老的）压成 compacted。 */
   keepRecentReadResults: number
   /**
@@ -47,14 +47,14 @@ export interface MicroCompactConfig {
   maxTotalReplayableTokens?: number
 }
 
-export interface MicroCompactResult {
+interface MicroCompactResult {
   messages: CopilotMessage[]
   /** true 表示至少一条 replayable tool_result 被压成 compacted；spec §5.3 用于决定是否落 boundary */
   didCompact: boolean
 }
 
 /** Hermes context_compressor.py:65 _IMAGE_TOKEN_ESTIMATE = 1600 */
-export const IMAGE_TOKEN_COST = 1600
+const IMAGE_TOKEN_COST = 1600
 
 /**
  * 匹配 image url（http/https + 常见图片扩展名）和 data URL。

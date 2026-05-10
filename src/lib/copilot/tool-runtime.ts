@@ -20,7 +20,7 @@ import { preToolCallHooks, postToolCallHooks } from "./tools/hooks"
 // v2.5 P3: 'denied' kind 收敛进 'error'（USER_DENIED ToolError）。caller 不再
 // 区分 deny 与 error 两条 dispatch 分支，统一走 ToolError shape。
 
-export type RunToolResult =
+type RunToolResult =
   | { kind: "done"; output: unknown }
   | { kind: "awaiting_confirm" }
   | { kind: "error"; error: ToolError }

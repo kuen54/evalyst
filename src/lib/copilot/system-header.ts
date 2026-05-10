@@ -14,7 +14,7 @@
 
 import type { CopilotContextRef, PageContext } from "./types"
 
-export interface InlineLimits {
+interface InlineLimits {
   maxContexts: number
   maxTokensPerContext: number
   maxTotalTokens: number
@@ -26,7 +26,7 @@ export const DEFAULT_INLINE_LIMITS: InlineLimits = {
   maxTotalTokens: 2000,
 }
 
-export interface SystemHeaderActiveContext {
+interface SystemHeaderActiveContext {
   /** ctx_N 形态的 session-scoped id，对应 CopilotContextRef.tag */
   id: string
   type: string
@@ -40,7 +40,7 @@ export interface SystemHeaderActiveContext {
   inline?: unknown
 }
 
-export interface SystemHeader {
+interface SystemHeader {
   route_type: string
   path: string
   active_contexts: SystemHeaderActiveContext[]
@@ -67,7 +67,7 @@ export function shouldInlineContext(
   return true
 }
 
-export interface BuildHeaderArgs {
+interface BuildHeaderArgs {
   route_type?: string
   path?: string
   page_context?: PageContext | null

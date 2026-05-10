@@ -21,9 +21,7 @@ export const KNOWN_CONTEXT_TYPES = [
   'rubric_stats',
 ] as const
 
-export type KnownContextType = (typeof KNOWN_CONTEXT_TYPES)[number]
-
-export interface CapturedFromDom {
+interface CapturedFromDom {
   type: string
   id: string
   extra?: Record<string, unknown>

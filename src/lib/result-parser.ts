@@ -1,7 +1,7 @@
 import type { TaskSchema } from './schema/types'
 import { validateJson } from './schema/validate'
 
-export interface ParseResult {
+interface ParseResult {
   success: boolean
   data?: Record<string, unknown>
   error?: string

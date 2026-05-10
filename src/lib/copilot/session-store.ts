@@ -177,7 +177,7 @@ export function siblingsOf(sessionId: string, messageId: string): { current: num
   return { current: idx + 1, total: siblings.length, siblingIds: siblings.map(s => s.id) }
 }
 
-export interface AppendMessageInput {
+interface AppendMessageInput {
   session_id: string
   role: CopilotRole
   content: string
@@ -340,7 +340,7 @@ export function normalizeToolResult(content: unknown): ToolResultContent {
 // 历史 user 消息的 contexts 是当时圈的，不代表当前视图；只取最新那条。
 // read_context 工具按 ctx_N （= tag） 找对应 ref。
 
-export function getActiveContexts(sessionId: string): CopilotContextRef[] {
+function getActiveContexts(sessionId: string): CopilotContextRef[] {
   const branch = getActiveBranch(sessionId)
   const lastUser = [...branch].reverse().find((m) => m.role === 'user')
   return lastUser?.contexts ?? []

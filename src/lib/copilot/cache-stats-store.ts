@@ -57,17 +57,17 @@ export function readCacheStats(opts?: {
   return out
 }
 
-export interface PruneConfig {
+interface PruneConfig {
   maxAgeDays: number
   maxLines: number
 }
 
-export const DEFAULT_PRUNE_CONFIG: PruneConfig = {
+const DEFAULT_PRUNE_CONFIG: PruneConfig = {
   maxAgeDays: 30,
   maxLines: 10000,
 }
 
-export interface PruneResult {
+interface PruneResult {
   before_lines: number
   after_lines: number
   pruned_by_age: number

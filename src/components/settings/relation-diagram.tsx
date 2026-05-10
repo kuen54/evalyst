@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useT } from "@/lib/i18n/provider"
 import { GlassSegmentedItem } from "@/components/copilot/glass-segmented"
 
-export type SettingsTabKey = "llm" | "datasets" | "templates" | "displays" | "rubrics"
+type SettingsTabKey = "llm" | "datasets" | "templates" | "displays" | "rubrics"
 
 interface Item {
   key: SettingsTabKey

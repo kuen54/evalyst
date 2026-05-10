@@ -16,9 +16,9 @@ const SSE_HEADERS = {
   'X-Accel-Buffering': 'no',
 } as const
 
-export type SseWrite = (payload: unknown) => void
+type SseWrite = (payload: unknown) => void
 
-export interface StreamSseOptions {
+interface StreamSseOptions {
   /** 流打开后立即依次发的事件（如 user_message id / tool_result_message 回填等） */
   initialEvents?: readonly unknown[]
   /** runner 执行业务，可借 write 持续推 SSE 帧。runner return 之后流会 close。 */

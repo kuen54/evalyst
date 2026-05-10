@@ -16,7 +16,7 @@ import type { ModelConfig } from '@/lib/llm-config'
 import type { TaskSchema } from '@/lib/schema/types'
 import { collectImageRefs } from './image-attach'
 
-export type VisionGateResult =
+type VisionGateResult =
   | { ok: true }
   | { ok: false; reason: string }
 

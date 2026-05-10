@@ -107,7 +107,7 @@ export type FilterValues = Record<string, unknown>
 
 // --- Message builder ---
 
-export interface MessageBuilderDef {
+interface MessageBuilderDef {
   user_template?: string                // fallback 用户消息
   user_templates_by_cond?: Array<{      // 按变量命中条件选不同模板（取第一个命中的）
     when: string                        // 变量名：渲染后非空即 match
@@ -121,7 +121,7 @@ export interface MessageBuilderDef {
 
 // --- Output JSON schema (mini) ---
 
-export type JsonFieldType =
+type JsonFieldType =
   | 'string'
   | 'number'
   | 'boolean'
@@ -202,11 +202,11 @@ export interface DisplayColumn {
   width?: string
 }
 
-export interface DisplayTableConfig {
+interface DisplayTableConfig {
   columns: DisplayColumn[]
 }
 
-export interface DisplayGroupedGridConfig {
+interface DisplayGroupedGridConfig {
   primary_group: { field: string; label?: string }
   secondary_group: {
     field: string
@@ -219,7 +219,7 @@ export interface DisplayGroupedGridConfig {
   cell_columns: DisplayColumn[]
 }
 
-export interface DisplayJsxConfig {
+interface DisplayJsxConfig {
   source: string             // function ({ result, schema, helpers }) { return <...> }
 }
 

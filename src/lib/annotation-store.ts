@@ -50,7 +50,7 @@ export function latestAnnotations(experimentId: string, rubricId?: string): Anno
   return Array.from(map.values())
 }
 
-export interface CriterionAggregate {
+interface CriterionAggregate {
   key: string
   label: string
   type: 'pass_fail' | 'likert_1_5' | 'score_0_100'

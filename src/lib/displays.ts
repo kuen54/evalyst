@@ -113,7 +113,7 @@ export function deleteUserDisplay(id: string): boolean {
 
 // --- Validators ---
 
-export interface DisplayValidationError {
+interface DisplayValidationError {
   field: string
   message: string
 }

@@ -2,7 +2,7 @@
 
 import type { JsonPropDef, JsonSchemaDef } from "@/lib/schema/types"
 
-export interface OutputField {
+interface OutputField {
   name: string
   type: JsonPropDef["type"]
   required: boolean

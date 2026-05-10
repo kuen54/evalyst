@@ -41,7 +41,7 @@ export function readField(result: GenericResultRecord, path: string): unknown {
   return cur
 }
 
-export function formatValue(v: unknown, maxLength?: number): string {
+function formatValue(v: unknown, maxLength?: number): string {
   if (v == null) return "-"
   let s: string
   if (typeof v === "string") s = v

@@ -97,7 +97,7 @@ function toUiMessage(m: CopilotMessage): UiMessage {
   return { role: "assistant", id: m.id, content: m.content }
 }
 
-export interface UseChatStreamParams {
+interface UseChatStreamParams {
   sessionId?: string | undefined
   modelId?: string | undefined
   pageContext: PageContext | null
@@ -109,7 +109,7 @@ export interface UseChatStreamParams {
   tI18nDeleteConfirm: string
 }
 
-export interface UseChatStreamResult {
+interface UseChatStreamResult {
   messages: UiMessage[]
   setMessages: React.Dispatch<React.SetStateAction<UiMessage[]>>
   sending: boolean

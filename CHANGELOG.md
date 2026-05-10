@@ -10,6 +10,16 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Architecture / Tooling
+
+- **chore(knip): configure + cleanup confirmed-dead exports** —— Errata §E2 follow-up. `knip` was a devDep but never wired up; default invocation scanned `.claude/worktrees/` + `.next/` as source, masking real signal under ~2k unused-files false positives. Adds `knip.jsonc` with explicit ignore patterns + `npm run knip` / `knip:fix` scripts. Then deletes only confirmed-dead surface:
+  - 2 unused barrel re-exports dropped: `src/lib/schema/index.ts:17` (`export type { TaskSchema }` — every consumer goes through `@/lib/schema/types`) and `src/components/settings/display-form-page.tsx:22` (`export type { FormState }` — `display-form-modes.tsx` imports from `./display-form-types` directly).
+  - 1 truly orphan type alias deleted: `KnownContextType` (context-registry.ts:24, no internal use either).
+  - 67 unused exports across `src/{lib,components}/copilot`, `src/lib/schema`, `src/lib/{annotation-store, displays, image-store, llm-client, result-parser, results-aggregate, display-inference}`, `src/components/results`, `src/components/settings`, `src/components/template-builder` demoted to module-internal (drop `export` keyword; implementations stay — each is still used inside its own file by sibling functions / types / hook arrays).
+  - `src/components/ui/**` (shadcn-vendored primitives — Card / Dialog\* / Select\* / Progress\* etc.) marked as a vendored library boundary in `knip.jsonc`. The full export surface stays verbatim regardless of current consumption; adding back is one keyword if a future caller needs it.
+  - `formatValue` (results/view-helpers.tsx:44) verified safe before demotion: zero cross-file TS imports; the only outside reference is a literal string inside `meta-prompts/display.ts` (LLM prompt content, not a TS import). Still flows into JSX displays at runtime via the same-file `makeHelpers` spread.
+  - Audit §17 reported "16 unused exports + 38 unused types"; with knip properly configured the actual baseline was 32 + 63 (audit numbers were unreliable without the config). After cleanup: knip clean, 0 unused.
+
 ## [0.11.6] — 2026-05-10 · lint hygiene 零警告 + CI fail-on-warning + post-tag hooks fix 真合入 (PR #65 #67)
 
 收掉 audit-cleanup-2026-05-09 §Phase C Tier 3 R1（lint warning 清零 + CI fail-fast）+ Tier 2 #11 后续（rules-of-hooks 修复通过 PR #67 真正合入 main —— v0.11.5 tag commit 实际不含此修复，详见 v0.11.5 errata note）。零行为变化：全 inline disable 注释 + CI workflow flag flip + 一份 convention doc + hooks 顺序结构调整。

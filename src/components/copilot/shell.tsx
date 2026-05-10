@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from "react"
 import { useCopilotStore } from "./store"
 
-export type GlassVariant =
+type GlassVariant =
   | "thin"
   | "regular"
   | "thick"

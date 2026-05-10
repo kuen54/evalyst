@@ -38,7 +38,7 @@ import {
   extractSystemPromptString,
 } from './cache-break-detect'
 
-export interface RunStreamParams {
+interface RunStreamParams {
   sessionId: string
   /** 已经拉好的 active branch（含上游消息，新 user / tool_result 已 append） */
   branch: CopilotMessage[]
@@ -53,7 +53,7 @@ export interface RunStreamParams {
   write: (payload: unknown) => void
 }
 
-export interface RunStreamResult {
+interface RunStreamResult {
   assistantMessageId?: string
   toolUseMessageIds: string[]
   usage?: {
