@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { CopilotMessage, CopilotContextRef, PageContext } from "@/copilot/lib/types"
-import { needsConfirm } from "@/copilot/lib/tools/metadata-client"
+import { needsConfirm } from "@/copilot/lib/tools/client-registry"
 import { isSessionAllowed, getSessionAllowList, addSessionAllow, isSessionDenied, getSessionDenyList, addSessionDeny } from "@/copilot/lib/session-allow"
 import { collectClientSnapshot } from "@/copilot/lib/collect-snapshot"
 import { useCopilotStore } from "./store"

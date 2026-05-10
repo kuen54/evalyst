@@ -2,36 +2,14 @@ import { startBatch } from "@/lib/batch-runner"
 import { getExperiment } from "@/lib/store"
 import type { ToolDescriptor } from "./types"
 import { ok, err } from "./tool-result"
+import {
+  restartExperimentMetadata,
+  type RestartExperimentInput,
+  type RestartExperimentOutput,
+} from "./restart-experiment.metadata"
 
-interface Input {
-  experiment_id: string
-  task_ids?: string[]
-}
-
-interface Output {
-  triggered: boolean
-  experiment_id: string
-  task_count: number
-  message: string
-}
-
-export const restartExperimentTool: ToolDescriptor<Input, Output> = {
-  name: "restart_experiment",
-  description:
-    "重新运行一个实验。可选：只跑指定的 task_ids 子集（用于修了 prompt 后只重跑失败的几条）。",
-  inputSchema: {
-    type: "object",
-    required: ["experiment_id"],
-    properties: {
-      experiment_id: { type: "string" },
-      task_ids: { type: "array", items: { type: "string" } },
-    },
-  },
-  metadata: {
-    isReadOnly: false,
-    isDestructive: true,
-    maxResultSizeChars: 500,
-  },
+export const restartExperimentTool: ToolDescriptor<RestartExperimentInput, RestartExperimentOutput> = {
+  ...restartExperimentMetadata,
   call: async (input) => {
     if (!input.experiment_id) {
       return err("INVALID_INPUT", "experiment_id is required", {

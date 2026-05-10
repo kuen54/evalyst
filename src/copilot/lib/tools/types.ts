@@ -16,6 +16,20 @@ interface ToolMetadata {
   isConcurrencySafe?: boolean
 }
 
+/**
+ * Client-safe slice of a ToolDescriptor — name + description + inputSchema +
+ * metadata. `.metadata.ts` files export this shape; `client-registry.ts`
+ * consolidates them so UI components can render Confirm gates, badges, etc.
+ * without pulling server-only dependencies (fs / store / etc.).
+ */
+export type ToolMetadataDescriptor = {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  outputSchema?: Record<string, unknown>
+  metadata: ToolMetadata
+}
+
 export interface ToolContext {
   /** 当前 copilot session id，工具实现通过它访问 snapshot-cache / tool-result-store */
   session_id: string

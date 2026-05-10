@@ -49,7 +49,7 @@ vi.mock("@/lib/schema", () => ({
   },
 }))
 
-import { readContextTool } from "../read-context"
+import { readContextTool } from "../read-context.server"
 
 let tmpDir: string
 let originalCwd: string

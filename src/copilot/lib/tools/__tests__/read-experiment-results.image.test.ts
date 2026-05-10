@@ -79,7 +79,7 @@ vi.mock("@/lib/schema", () => ({
   },
 }))
 
-import { readExperimentResultsTool } from "../read-experiment-results"
+import { readExperimentResultsTool } from "../read-experiment-results.server"
 
 const ctx = { session_id: "s_img", signal: new AbortController().signal }
 

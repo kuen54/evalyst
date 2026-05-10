@@ -25,7 +25,7 @@ vi.mock("@/lib/schema", () => ({
 }))
 
 // Import AFTER mocks. The tool lives in the same dir; re-import via relative path.
-import { readExperimentResultsTool } from "../read-experiment-results"
+import { readExperimentResultsTool } from "../read-experiment-results.server"
 
 const ctx = { session_id: "s", signal: new AbortController().signal }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
-import { readResourceTool } from "../read-resource"
+import { readResourceTool } from "../read-resource.server"
 
 vi.mock("@/lib/store", () => ({
   getExperiment: (id: string) =>

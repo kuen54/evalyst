@@ -10,7 +10,7 @@ vi.mock("@/lib/store", () => ({
   getExperiment: (...args: unknown[]) => getExperimentMock(...args),
 }))
 
-import { restartExperimentTool } from "../restart-experiment"
+import { restartExperimentTool } from "../restart-experiment.server"
 
 const ctx = { session_id: "s", signal: new AbortController().signal }
 

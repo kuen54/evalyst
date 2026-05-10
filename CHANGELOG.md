@@ -11,6 +11,7 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 ## [Unreleased]
 
 - refactor(copilot): physical boundary split (#2) — 把 `src/lib/copilot/` + `src/components/copilot/` 归到 `src/copilot/{lib,components}/`；`src/app/api/copilot/` 因 Next.js App Router 强制留原位。`tsconfig.json` 加 `@/copilot/*` paths。README + AGENTS 顶部声明 9k+11k LOC 边界（excl 测试）。零行为变更，纯路径重组。Plan: `docs/superpowers/plans/2026-05-09-audit-copilot-boundary.md`
+- refactor(copilot): drop metadata mirror, split tools to .metadata + .server (#10) — 9 工具每个拆成 `{name}.metadata.ts` (client-safe — name + description + inputSchema + metadata, 不带 fs/store) + `{name}.server.ts` (call 函数 + 全 server deps)。新增 `client-registry.ts` (UI 用) + `server-registry.ts` (runtime 用)，老 `registry.ts` 改为 thin re-export shim 保 14 处 consumer 不动。删 `metadata-client.ts` + `metadata-client-sync.test.ts`，加 `metadata-identity.test.ts` 用 reference equality 检查 server descriptor.metadata 与 client metadata 同对象 (R1)。验证：tsc/test (766) /lint/build/knip 全绿；client chunks 0 fs imports。加新 tool 步骤从 6 处减到 3 处。Plan: `docs/superpowers/plans/2026-05-09-audit-tool-metadata-split.md`
 
 ## [0.11.7] — 2026-05-10 · knip 配置上线 + dead-export cleanup (PR #66)
 

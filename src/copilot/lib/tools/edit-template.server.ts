@@ -16,40 +16,14 @@ import type { ToolDescriptor } from "./types"
 import type { TaskSchema } from "@/lib/schema/types"
 import { getUserSchema, createUserSchema } from "@/lib/schema/user-schema-store"
 import { ok, err } from "./tool-result"
+import {
+  editTemplateMetadata,
+  type EditTemplateInput,
+  type EditTemplateOutput,
+} from "./edit-template.metadata"
 
-interface Input {
-  schema_id: string
-  /** Shallow-merged into the loaded TaskSchema. Missing keys are preserved. */
-  patch: Partial<TaskSchema>
-}
-
-interface Output {
-  success: boolean
-  new_version: number
-  schema_id: string
-}
-
-export const editTemplateTool: ToolDescriptor<Input, Output> = {
-  name: "edit_template",
-  description:
-    "Edit a prompt template by shallow-merging `patch` into the stored TaskSchema. DESTRUCTIVE — user confirmation is required. Use after read_resource(type='template', id=schema_id) to see the current state. Returns the bumped version.",
-  inputSchema: {
-    type: "object",
-    required: ["schema_id", "patch"],
-    properties: {
-      schema_id: { type: "string" },
-      patch: {
-        type: "object",
-        description:
-          "Partial<TaskSchema> shallow-merged into the loaded schema. Common fields: label, description, default_prompt. Deep fields (variables, message_builder, output_schema) must be provided whole — they replace, not merge.",
-      },
-    },
-  },
-  metadata: {
-    isReadOnly: false,
-    isDestructive: true,
-    maxResultSizeChars: 1000,
-  },
+export const editTemplateTool: ToolDescriptor<EditTemplateInput, EditTemplateOutput> = {
+  ...editTemplateMetadata,
   call: async ({ schema_id, patch }) => {
     if (!schema_id || typeof schema_id !== "string") {
       return err("INVALID_INPUT", "schema_id is required", {

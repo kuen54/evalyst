@@ -5,24 +5,12 @@ import type { ImageRef } from "../types"
 import type { ToolDescriptor } from "./types"
 import { ok, err } from "./tool-result"
 import { extractImageRefsFromOutput, MAX_IMAGES_PER_TURN } from "../image-attach"
-
-type GroupBy = "error_type" | "score_bucket" | "task_id"
-type Aggregate = "count" | "pass_rate" | "avg_score" | "sample_ids"
-
-interface Input {
-  experiment_id: string
-  task_ids?: string[]
-  status?: "success" | "error" | "parse_error"
-  limit?: number
-  // M6: optional aggregation
-  group_by?: GroupBy
-  aggregate?: Aggregate[]
-  filter?: {
-    score_lt?: number
-    score_gte?: number
-    error_contains?: string
-  }
-}
+import {
+  readExperimentResultsMetadata,
+  type ReadExperimentResultsInput,
+  type ReadExperimentResultsGroupBy,
+  type ReadExperimentResultsAggregate,
+} from "./read-experiment-results.metadata"
 
 /** Row view — allow optional score (not in GenericResultRecord; user eval schemas may populate). */
 type Row = GenericResultRecord & { score?: number }
@@ -34,13 +22,16 @@ function scoreBucket(score: number | undefined): string {
   return "≥0.8"
 }
 
-function groupKeyFor(r: Row, by: GroupBy): string {
+function groupKeyFor(r: Row, by: ReadExperimentResultsGroupBy): string {
   if (by === "error_type") return r.error ?? "no_error"
   if (by === "score_bucket") return scoreBucket(r.score)
   return r.task_id
 }
 
-function computeMetrics(members: Row[], aggs: Aggregate[]): Record<string, unknown> {
+function computeMetrics(
+  members: Row[],
+  aggs: ReadExperimentResultsAggregate[],
+): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   const wants = new Set(aggs)
   if (wants.has("count")) out.count = members.length
@@ -60,45 +51,8 @@ function computeMetrics(members: Row[], aggs: Aggregate[]): Record<string, unkno
   return out
 }
 
-export const readExperimentResultsTool: ToolDescriptor<Input, unknown> = {
-  name: "read_experiment_results",
-  description:
-    "读取某个实验的 task 结果，可按 task_id 列表或 status 过滤。带 group_by 时返回分组聚合（count/pass_rate/avg_score/sample_ids），用于扫描失败样本分布或分数分布，避免主 LLM 遍历原始数据。",
-  inputSchema: {
-    type: "object",
-    required: ["experiment_id"],
-    properties: {
-      experiment_id: { type: "string" },
-      task_ids: { type: "array", items: { type: "string" } },
-      status: { type: "string", enum: ["success", "error", "parse_error"] },
-      limit: { type: "number" },
-      group_by: {
-        type: "string",
-        enum: ["error_type", "score_bucket", "task_id"],
-        description:
-          "Return aggregated groups instead of raw rows. error_type buckets by r.error; score_bucket uses <0.5 / 0.5-0.8 / ≥0.8 / no_score.",
-      },
-      aggregate: {
-        type: "array",
-        items: { type: "string", enum: ["count", "pass_rate", "avg_score", "sample_ids"] },
-        description:
-          "Which metrics to compute per group. sample_ids returns up to 5 task_ids per group.",
-      },
-      filter: {
-        type: "object",
-        properties: {
-          score_lt: { type: "number" },
-          score_gte: { type: "number" },
-          error_contains: { type: "string" },
-        },
-      },
-    },
-  },
-  metadata: {
-    isReadOnly: true,
-    isDestructive: false,
-    maxResultSizeChars: 4000,
-  },
+export const readExperimentResultsTool: ToolDescriptor<ReadExperimentResultsInput, unknown> = {
+  ...readExperimentResultsMetadata,
   call: async (input) => {
     if (!input.experiment_id) {
       return err("INVALID_INPUT", "experiment_id is required", {
