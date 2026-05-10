@@ -13,15 +13,28 @@ import { parseResponse } from './result-parser'
 import { appendResult, readResults, writeProgress, getProgress, updateExperiment } from './store'
 import { getLlmConfig, findPricing } from './llm-config'
 import { saveImagesForTask, assignImagePathsToOutput } from './image-store'
+import {
+  acquireLock,
+  releaseLock,
+  touchHeartbeat,
+  clearStaleLocksOnBoot,
+} from './batch-runner-lock'
 
-// Singleton map: at most one runner per experiment.
-// 挂到 globalThis 上避免 Next.js dev 模式 HMR 重载模块时清空——否则 /run 启动的 runner
-// 在下一次 /stop 路由加载时查不到，暂停按钮会返回 409 "not running"。
-const globalForRunners = globalThis as unknown as { __activeRunners?: Map<string, BatchRunner> }
-const activeRunners = (globalForRunners.__activeRunners ??= new Map<string, BatchRunner>())
+// Module-local map: at most one runner instance per experiment in THIS Node
+// process. Used by `stopBatch` to dispatch abort to the in-memory runner.
+// Cross-process coordination ("is anyone running this experiment?") is handled
+// by the file lock — see batch-runner-lock.ts. Previously this map was hung
+// off the global object to survive HMR, but that masked real failures under
+// multi-worker `next start -w N` and process crashes; the lock + heartbeat
+// design replaces it (#9).
+const activeRunners = new Map<string, BatchRunner>()
 
 export function startBatch(config: ExperimentConfig, resume: boolean, concurrency = 10, taskIds?: string[]): { totalTasks: number } {
-  if (activeRunners.has(config.id)) {
+  // Dev-only: wipe orphan locks left over from HMR / crashed dev sessions
+  // before deciding whether this experiment is currently running. No-op in prod.
+  clearStaleLocksOnBoot()
+
+  if (!acquireLock(config.id)) {
     throw new Error('Experiment is already running')
   }
 
@@ -29,12 +42,17 @@ export function startBatch(config: ExperimentConfig, resume: boolean, concurrenc
   activeRunners.set(config.id, runner)
   runner.run(resume, taskIds).finally(() => {
     activeRunners.delete(config.id)
+    releaseLock(config.id)
   })
 
   return { totalTasks: runner.totalTasks }
 }
 
 export function stopBatch(experimentId: string): boolean {
+  // Same-process abort dispatch: if the runner instance lives in this Node
+  // process's map, signal it. Cross-process stop is not supported (would
+  // require IPC + signal handling); returns false in that case — but the
+  // lock will eventually go stale and a fresh /run will succeed.
   const runner = activeRunners.get(experimentId)
   if (!runner) return false
   runner.stop()
@@ -136,6 +154,9 @@ export class BatchRunner {
       },
     })
     writeProgress(progress)
+    // Refresh lock heartbeat so a long-running experiment isn't misdiagnosed
+    // as hung by acquireLock's STALE_HEARTBEAT_MS check.
+    touchHeartbeat(this.config.id)
 
     const errors: Array<{ task_id: string; error: string; timestamp: string }> = []
     const inFlight = new Set<Promise<void>>()
@@ -175,6 +196,7 @@ export class BatchRunner {
           progress.total_output_tokens = totalOutputTokens
           progress.total_cost_by_currency = { ...totalCostByCurrency }
           writeProgress(progress)
+          touchHeartbeat(this.config.id)
 
           updateExperiment(this.config.id, {
             run_stats: {
@@ -212,6 +234,7 @@ export class BatchRunner {
     progress.total_output_tokens = totalOutputTokens
     progress.total_cost_by_currency = { ...totalCostByCurrency }
     writeProgress(progress)
+    touchHeartbeat(this.config.id)
 
     updateExperiment(this.config.id, {
       status: finalStatus,

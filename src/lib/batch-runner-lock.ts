@@ -23,7 +23,7 @@ import fs from 'fs'
 import path from 'path'
 import { ensureDir, writeAtomic } from './fs-utils'
 
-export interface RunnerLock {
+interface RunnerLock {
   /** OS PID of the process holding the lock. */
   pid: number
   /** ISO timestamp of when this lock was first written. */
