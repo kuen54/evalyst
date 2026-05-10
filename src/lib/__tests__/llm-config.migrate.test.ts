@@ -51,7 +51,7 @@ describe("getLlmConfig migrate", () => {
     const cfg = getLlmConfig()
     expect(cfg.models).toHaveLength(1)
     expect(cfg.active_model_id).toBe("default")
-    const m = cfg.models[0]
+    const m = cfg.models[0]!
     expect(m.id).toBe("default")
     expect(m.name).toBe("Default")
     expect(m.model).toBe("gpt-4o-mini")
@@ -91,10 +91,10 @@ describe("getLlmConfig migrate", () => {
     const cfg = getLlmConfig()
     expect(cfg.models).toHaveLength(2)
     expect(cfg.active_model_id).toBe("prov-2")
-    expect(cfg.models[0].id).toBe("prov-1")
-    expect(cfg.models[0].pricing?.input_per_mtok).toBe(0.15)
-    expect(cfg.models[1].id).toBe("prov-2")
-    expect(cfg.models[1].pricing?.currency).toBe("CNY")
+    expect(cfg.models[0]!.id).toBe("prov-1")
+    expect(cfg.models[0]!.pricing?.input_per_mtok).toBe(0.15)
+    expect(cfg.models[1]!.id).toBe("prov-2")
+    expect(cfg.models[1]!.pricing?.currency).toBe("CNY")
   })
 
   it("V3 models shape → pass-through", () => {
@@ -106,7 +106,7 @@ describe("getLlmConfig migrate", () => {
     })
     const cfg = getLlmConfig()
     expect(cfg.models).toHaveLength(1)
-    expect(cfg.models[0].id).toBe("m1")
+    expect(cfg.models[0]!.id).toBe("m1")
     expect(cfg.active_model_id).toBe("m1")
   })
 
@@ -119,8 +119,8 @@ describe("getLlmConfig migrate", () => {
       active_model_id: "m1",
     })
     const cfg = getLlmConfig()
-    expect(cfg.models[0].copilot_enabled).toBe(true)
-    expect(cfg.models[1].copilot_enabled).toBeUndefined()
+    expect(cfg.models[0]!.copilot_enabled).toBe(true)
+    expect(cfg.models[1]!.copilot_enabled).toBeUndefined()
   })
 
   it("preserves vision_capable flag through migration (V3 pass-through)", () => {
@@ -132,8 +132,8 @@ describe("getLlmConfig migrate", () => {
       active_model_id: "m1",
     })
     const cfg = getLlmConfig()
-    expect(cfg.models[0].vision_capable).toBe(true)
-    expect(cfg.models[1].vision_capable).toBeUndefined()
+    expect(cfg.models[0]!.vision_capable).toBe(true)
+    expect(cfg.models[1]!.vision_capable).toBeUndefined()
   })
 
   it("V2 providers shape leaves vision_capable undefined (additive field)", () => {
@@ -152,7 +152,7 @@ describe("getLlmConfig migrate", () => {
     })
     const cfg = getLlmConfig()
     expect(cfg.models).toHaveLength(1)
-    expect(cfg.models[0].vision_capable).toBeUndefined()
+    expect(cfg.models[0]!.vision_capable).toBeUndefined()
   })
 
   it("V1 legacy single-instance leaves vision_capable undefined", () => {
@@ -163,7 +163,7 @@ describe("getLlmConfig migrate", () => {
       default_model: "gpt-4o-mini",
     })
     const cfg = getLlmConfig()
-    expect(cfg.models[0].vision_capable).toBeUndefined()
+    expect(cfg.models[0]!.vision_capable).toBeUndefined()
   })
 })
 
