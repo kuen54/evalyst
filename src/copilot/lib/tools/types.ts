@@ -3,7 +3,7 @@
 
 import type { ToolResult } from "./tool-result"
 
-interface ToolMetadata {
+export interface ToolMetadata {
   /** 读工具为 true，参与 micro-compact（旧结果可压成 summary + ref） */
   isReadOnly: boolean
   /** 写 / 破坏性工具为 true，默认触发 preToolCall Confirm */
@@ -14,6 +14,20 @@ interface ToolMetadata {
   maxResultSizeChars: number
   /** 预留：并行 dispatch 是否安全。当前不消费 */
   isConcurrencySafe?: boolean
+}
+
+/**
+ * Client-safe slice of a ToolDescriptor — name + description + inputSchema +
+ * metadata. `.metadata.ts` files export this shape; `client-registry.ts`
+ * consolidates them so UI components can render Confirm gates, badges, etc.
+ * without pulling server-only dependencies (fs / store / etc.).
+ */
+export type ToolMetadataDescriptor = {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  outputSchema?: Record<string, unknown>
+  metadata: ToolMetadata
 }
 
 export interface ToolContext {
