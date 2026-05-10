@@ -10,23 +10,30 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-### Cleanup (#R2-T3)
+## [0.13.2] — 2026-05-10 · Round 2 audit Phase 2 · quick-wins 批 (PR #79–#82)
 
-Round 2 audit Phase 2 Tier 3 cleanup batch（3 子项；Dockerfile USER node 子项已在 R1 commit 98be5f1 完成，per Errata E7 omit）。
+第二轮 audit Phase 2 全收完：4 个独立 PR 串行 merge，Errata + #C file-lock O_EXCL + #B middleware csrf-rename + T3 cleanup batch。**audit 增量调优、零功能改动**。
 
-- **deps audit**：`npm audit fix`（不带 `--force`） 解 4/6 advisories（hono / ip-address / express-rate-limit / 1 个 postcss transitive）。剩 2 个 moderate 是 next 16 内嵌的 postcss + next 自身——`--force` 会降到 next 9（破坏性 3 major），等 next 16.x point release 内含新版 postcss。
-- **Glass UI 9 档 → 7 档**：`chrome-up` / `chrome-down` 两档 inline 进 `src/copilot/components/sticky-chrome.tsx`（各只 1 调用点，per round-2 DHH "证据说话——不是 9 档系统"）；`GlassVariant` union 从 9 → 7（4 primitive + 3 semantic）；同步更新 `docs/conventions/glass-ui.md` / `CLAUDE.md` FAQ + 索引 / `docs/copilot.md` 注释。
+### Audit Errata (PR #79)
+
+- `docs/code-review-round-2.md` 末追加 `## Errata` § + `### E7 (2026-05-10) · Dockerfile USER/chown 子项早已 ship`：round-2 §S7 写"没新加 USER"是 stale 判断（R1 commit `98be5f1` 实际已落 `chown -R node:node /app` + `USER node`）。`docs/superpowers/specs/2026-05-10-audit-r2-design.md` Phase 2 T3 末同步加 quote 引用。**append-only**，原文一字未改。
+- 影响：Phase 2 T3 PR omit Dockerfile USER 子项；T3 实做剩 3 子项（npm audit fix / chrome-up,down 折叠 / npm outdated patch）。
+
+### Cleanup (#R2-T3, PR #82)
+
+- **deps audit**：`npm audit fix`（不带 `--force`）解 4/6 advisories（hono / ip-address / express-rate-limit / 1 个 postcss transitive）。剩 2 个 moderate 是 `next 16` 内嵌 postcss + next 自身——`--force` 会降到 `next 9`（破坏性 3 major），等 next 16.x point release 内含新版 postcss。
+- **Glass UI 9 档 → 7 档**：`chrome-up` / `chrome-down` 两档 inline 进 `src/copilot/components/sticky-chrome.tsx`（各只 1 调用点，per round-2 DHH "证据说话——不是 9 档系统"）；`GlassVariant` union 从 9 → 7（4 primitive + 3 semantic）；同步更新 `docs/conventions/glass-ui.md` / `CLAUDE.md` FAQ + 索引 / `docs/copilot.md` 注释。视觉等价（CSS byte-for-byte 复制 + `data-glass-variant` rename `chrome-* → sticky-*` 在通用属性选择器下安全）。
 - **deps patch upgrade**：`npm install` 12/13 plan 列出的 patch / minor 升级（`@babel/standalone` 7.29.4 / `@base-ui/react` 1.4.1 / `lucide-react` 1.14 / `nanoid` 5.1.11 / `jsdom` 29.1.1 / `@types/node` 20.19.40 / `tailwind-merge` 3.6.0 / `tailwindcss` + `@tailwindcss/postcss` 4.3.0 / `shadcn` 4.7.0 / `next` + `eslint-config-next` 16.2.6）。**knip 6.12.2 跳过**：upstream transitive `@oxc-project/types@^0.128.0` 还未 published（npm ETARGET）—— 留 6.7.0 跟。**跨 major 不动**：typescript 6 / eslint 10 / @types/node 25。
 
-### Security (#R2-B)
+### Security (#R2-B, PR #81)
 
-- `src/middleware.ts` 顶部 doc 真名化：`Auth gate` → **CSRF gate (NOT auth)**；删除误导性 "could exfiltrate keys / run arbitrary server-side JS / trigger writes" 措辞（这些 R1 已在域代码层修了），明示 LAN curl 绕过这条限制。
-- `docker-compose.yml` `ports` 绑 loopback：`"3000:3000"` → `"127.0.0.1:3000:3000"`，容器外不可见。
-- `README.md` 新增 `## 部署须知（Deployment caveat）` 段：明示 evalyst 不支持 LAN/公网暴露；推荐 ssh tunnel / VPN / 反代 + auth 前置。
+- `src/middleware.ts` 顶部 doc 真名化：`Auth gate` → **CSRF gate (NOT auth)**；删除误导性 "could exfiltrate keys / run arbitrary server-side JS / trigger writes" 措辞（这些 R1 已在域代码层修了），明示 LAN curl 绕过这条限制。**实现行为零变更**——middleware 仍用浏览器 attested `Sec-Fetch-Site` 拦 cross-site。
+- `docker-compose.yml` `ports` 绑 loopback：`"3000:3000"` → `"127.0.0.1:3000:3000"`，容器外不可见。**user-visible 配置变化**：依赖 LAN 访问 :3000 的部署需切到 ssh tunnel / VPN / 反代 + auth 前置。
+- `README.md` 新增 `## 部署须知（Deployment caveat）` 顶级 §（目录第 3 条同步加）：明示 evalyst 不支持 LAN/公网暴露；列 ssh tunnel / VPN / 反代 + auth 三种正确远程访问做法 + 显式列「不要做」反例。
 
-### Fixed (#R2-C)
+### Fixed (#R2-C, PR #80)
 
-- `src/lib/batch-runner-lock.ts` `acquireLock`: 用 `fs.openSync(p, 'wx')` (O_EXCL) 替换 read-check-write，关闭 round-2 §14 的 TOCTOU 窗口（两个 worker 同时见到 stale lock 双双 overwrite 都返 true 的真伤）。stale 检测路径行为等价；lock schema 不变。新增 race test (`Promise.all([acquireLock, acquireLock])` × 5 次循环，恰好 1 true / 1 false)。
+- `src/lib/batch-runner-lock.ts` `acquireLock`: 用 `fs.openSync(p, 'wx')` (O_EXCL) 替换 read-check-write，关闭 round-2 §14 的 TOCTOU 窗口（两个 worker 同时见到 stale lock 双双 overwrite 都返 true 的真伤）。stale 检测路径行为等价；lock schema 不变。新增 race test (`Promise.all([acquireLock, acquireLock])` × 5 次循环，恰好 1 true / 1 false 作为回归 sentinel）。生产真跨进程并发 curl 实测 1 win / 1 reject。
 
 ## [0.13.1] — 2026-05-10 · Round 2 audit Phase 1 · domain coverage 补完 (PR #75–#78)
 
