@@ -165,7 +165,7 @@ export function clearThemeCascade(): void {
 // src/components/sidebar.tsx 片段
 import { applyThemeClass, type ResolvableTheme } from "@/lib/theme/apply"
 import { applyThemeCascade, clearThemeCascade } from "@/lib/theme/cascade"
-import { useCopilotStore } from "@/components/copilot/store"
+import { useCopilotStore } from "@/copilot/components/store"
 
 const { open: copilotOpen, width: copilotWidth } = useCopilotStore()
 

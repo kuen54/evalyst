@@ -65,7 +65,7 @@ tools/client-registry.ts   ← UI 用：合并 9 个 .metadata.ts 拿 CLIENT_TOO
 - **R1（中）· 行为漂移**：拆 metadata 后某工具运行时 metadata 与 server-registry 拼出的 metadata 不一致——`server-registry.ts` 直接 `import { xxxMetadata } from "./xxx.metadata"` 复用同一对象，**不允许重复定义**；测试加一条 `metadata-identity.test.ts` 检查 server descriptor.metadata 与 client metadata 同 reference
 - **R2（中）· client bundle fs 漏入**：某 .metadata.ts 不小心 import 了 server-only module（typeof import 链）。Mitigation：每 commit 跑 `grep -rn "from ['\"]@/lib/store\\|from ['\"]node:fs\\|from ['\"]fs" src/copilot/lib/tools/*.metadata.ts`，应返 0；commit 10 后跑 build 看 chunk
 - **R3（低）· tool-call-card.tsx VARIANT_BY_TOOL**：保留原状（依然写在 component），只把 metadata 来源换成 `client-registry`。**不重构 VARIANT_BY_TOOL 抽象**——YAGNI
-- **R4（低）· 测试 mock 路径**：现有测试 `mock('@/lib/copilot/tools/registry')` 等需改 `'@/copilot/lib/tools/server-registry'`。每 commit grep 验
+- **R4（低）· 测试 mock 路径**：现有测试 `mock('@/copilot/lib/tools/registry')` 等需改 `'@/copilot/lib/tools/server-registry'`。每 commit grep 验
 
 ## 7. 边界 / 禁区
 

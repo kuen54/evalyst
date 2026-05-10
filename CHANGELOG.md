@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+- refactor(copilot): physical boundary split (#2) — 把 `src/lib/copilot/` + `src/components/copilot/` 归到 `src/copilot/{lib,components}/`；`src/app/api/copilot/` 因 Next.js App Router 强制留原位。`tsconfig.json` 加 `@/copilot/*` paths。README + AGENTS 顶部声明 9k+11k LOC 边界（excl 测试）。零行为变更，纯路径重组。Plan: `docs/superpowers/plans/2026-05-09-audit-copilot-boundary.md`
+
 ## [0.11.7] — 2026-05-10 · knip 配置上线 + dead-export cleanup (PR #66)
 
 收掉 audit-cleanup-2026-05-09 §Errata §E2：`knip` 在 devDeps 里但从未配置过，默认调用扫 `.claude/worktrees/` + `.next/` 当源码，~2k 个 unused-files 假阳性把真信号埋了。本 tag 把 knip 真正配上 + 顺手清掉确认死掉的 export surface。零行为变化。

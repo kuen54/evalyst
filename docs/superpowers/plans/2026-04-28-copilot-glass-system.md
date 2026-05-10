@@ -391,8 +391,8 @@ tinted:
 Then update the `Button` function to wrap with a `useGlassStyle("tinted")` consumer when `variant === "tinted"` and copilot is open:
 
 ```tsx
-import { useGlassStyle } from "@/components/copilot/shell"
-import { useCopilotStore } from "@/components/copilot/store"
+import { useGlassStyle } from "@/copilot/components/shell"
+import { useCopilotStore } from "@/copilot/components/store"
 
 function Button({
   className,
@@ -457,7 +457,7 @@ In `src/app/page.tsx`:
 
 Add import:
 ```ts
-import { GlassRegular } from "@/components/copilot/shell"
+import { GlassRegular } from "@/copilot/components/shell"
 ```
 
 Replace the `ExperimentCard` return block. Find:
@@ -567,12 +567,12 @@ In `src/app/experiments/new/page.tsx`:
 
 Replace:
 ```ts
-import { CopilotShell } from "@/components/copilot/shell"
+import { CopilotShell } from "@/copilot/components/shell"
 ```
 
 With:
 ```ts
-import { GlassRegular } from "@/components/copilot/shell"
+import { GlassRegular } from "@/copilot/components/shell"
 ```
 
 Replace `<CopilotShell className="p-6 space-y-0">` → `<GlassRegular className="p-6 space-y-0">`.
@@ -633,12 +633,12 @@ EOF
 
 Replace:
 ```ts
-import { CopilotShell, GlassSurface } from "@/components/copilot/shell"
+import { CopilotShell, GlassSurface } from "@/copilot/components/shell"
 ```
 
 With:
 ```ts
-import { GlassRegular, GlassThin } from "@/components/copilot/shell"
+import { GlassRegular, GlassThin } from "@/copilot/components/shell"
 ```
 
 - [ ] **Step 2: Swap outer shell**
@@ -753,7 +753,7 @@ EOF
 
 - [ ] **Step 1: settings/layout.tsx → GlassRegular**
 
-Replace `import { CopilotShell } from "@/components/copilot/shell"` with `import { GlassRegular } from "@/components/copilot/shell"`.
+Replace `import { CopilotShell } from "@/copilot/components/shell"` with `import { GlassRegular } from "@/copilot/components/shell"`.
 Replace `<CopilotShell className="p-6">` with `<GlassRegular className="p-6">`.
 Replace `</CopilotShell>` with `</GlassRegular>`.
 
@@ -761,7 +761,7 @@ Replace `</CopilotShell>` with `</GlassRegular>`.
 
 In `src/app/settings/datasets/page.tsx`:
 
-Add import: `import { GlassRegular } from "@/components/copilot/shell"`.
+Add import: `import { GlassRegular } from "@/copilot/components/shell"`.
 
 Find:
 ```tsx
@@ -795,8 +795,8 @@ Read `src/components/settings/relation-diagram.tsx`. Find the tab button render 
 
 For the button rendered as "active / selected", apply:
 ```tsx
-import { useGlassStyle } from "@/components/copilot/shell"
-import { useCopilotStore } from "@/components/copilot/store"
+import { useGlassStyle } from "@/copilot/components/shell"
+import { useCopilotStore } from "@/copilot/components/store"
 
 // inside component:
 const { open: copilotOpen } = useCopilotStore()
@@ -848,7 +848,7 @@ EOF
 
 - [ ] **Step 1: Update imports**
 
-Replace `import { CopilotShell } from "@/components/copilot/shell"` with `import { GlassRegular } from "@/components/copilot/shell"`.
+Replace `import { CopilotShell } from "@/copilot/components/shell"` with `import { GlassRegular } from "@/copilot/components/shell"`.
 
 - [ ] **Step 2: Swap outer shell**
 
@@ -918,7 +918,7 @@ EOF
 Read `src/components/sidebar.tsx`. Find the top-level `<aside>` / `<nav>` element. Add:
 
 ```tsx
-import { useGlassStyle } from "@/components/copilot/shell"
+import { useGlassStyle } from "@/copilot/components/shell"
 // inside component:
 const glass = useGlassStyle("thin")
 
@@ -935,11 +935,11 @@ In `src/components/ui/sticky-save-bar.tsx`:
 
 Replace import:
 ```ts
-import { GlassSurface } from "@/components/copilot/shell"
+import { GlassSurface } from "@/copilot/components/shell"
 ```
 →
 ```ts
-import { GlassThin } from "@/components/copilot/shell"
+import { GlassThin } from "@/copilot/components/shell"
 ```
 
 Replace `<GlassSurface` → `<GlassThin`. Add `copilot-scroll-edge-top` utility to its className. Replace `</GlassSurface>` → `</GlassThin>`.
@@ -982,7 +982,7 @@ EOF
 Read `src/components/copilot/panel.tsx`. Find the panel root element (usually has `fixed right-0` or similar). Find whatever backdrop-filter / bg style is currently applied. Replace inline bg + backdrop-filter with:
 
 ```tsx
-import { useGlassStyle } from "@/components/copilot/shell"
+import { useGlassStyle } from "@/copilot/components/shell"
 // inside component:
 const glass = useGlassStyle("thick")
 
@@ -1054,7 +1054,7 @@ EOF
 Read `src/components/ui/dialog.tsx`. Find the `DialogContent` (or equivalent) component render. Add:
 
 ```tsx
-import { useGlassStyle } from "@/components/copilot/shell"
+import { useGlassStyle } from "@/copilot/components/shell"
 
 // inside DialogContent:
 const glass = useGlassStyle("thick")

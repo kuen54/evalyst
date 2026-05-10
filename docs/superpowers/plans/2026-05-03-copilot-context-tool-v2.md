@@ -30,7 +30,7 @@
 | `src/lib/copilot/types.ts` | 134 行，`CopilotMessage` 有 `role: 'user'\|'assistant'\|'tool_use'\|'tool_result'` + content:string + tool_* sibling 字段 | **按 spec §7.1 迁移**。`role='tool_use'` / `'tool_result'` 改为 `role='tool'`，`content` 改为 `ToolResultContent` union。破坏既有 JSONL 数据（见下方）|
 | `src/lib/copilot/stream-response.ts` | 158 行，接收 `CopilotTool[]` 走 adapter | **适配**。参数改 `ToolDescriptor[]`，dispatch 改走 `toolByName` Map；Task 1.8 |
 | `src/lib/copilot/build-llm-messages.ts` | 67 行 | **重写**。Task 4.1 / 4.6 替换为 SystemHeader + 按 ToolResultContent 分渲染 |
-| `src/app/api/copilot/sessions/[id]/chat/route.ts` | 现有路由，`import { tools } from '@/lib/copilot/tools'` | **适配**。import 路径改走新 barrel `@/lib/copilot/tools`（index.ts） |
+| `src/app/api/copilot/sessions/[id]/chat/route.ts` | 现有路由，`import { tools } from '@/copilot/lib/tools'` | **适配**。import 路径改走新 barrel `@/copilot/lib/tools`（index.ts） |
 | `src/app/api/copilot/sessions/[id]/tool-result/route.ts` | 同上 | 同上 |
 
 ### 既有函数签名纠正
@@ -1585,7 +1585,7 @@ export function clearSnapshot(session_id: string): void {
 
 ```ts
 // src/app/api/copilot/sessions/[id]/chat/route.ts
-import { setSnapshot } from "@/lib/copilot/snapshot-cache";
+import { setSnapshot } from "@/copilot/lib/snapshot-cache";
 
 // 在处理请求前：
 if (body.client_snapshot) {
@@ -1633,7 +1633,7 @@ cat src/lib/copilot/resolve-context.ts | head -80
 ```ts
 // src/lib/copilot/tools/read-context.ts
 import type { ToolDescriptor } from "./types";
-import { resolveContextById } from "@/lib/copilot/resolve-context";
+import { resolveContextById } from "@/copilot/lib/resolve-context";
 
 type Scope = "self" | "parent" | "full";
 
@@ -2128,7 +2128,7 @@ function ContextChip({ ctx, onRemove }: { ctx: CapturedContext; onRemove: () => 
 
 ```ts
 // src/app/api/copilot/contexts/[ctx_id]/resolve/route.ts（新建）
-import { resolveContextById } from "@/lib/copilot/resolve-context";
+import { resolveContextById } from "@/copilot/lib/resolve-context";
 
 export async function GET(req: Request, { params }: { params: Promise<{ ctx_id: string }> }) {
   const { ctx_id } = await params;

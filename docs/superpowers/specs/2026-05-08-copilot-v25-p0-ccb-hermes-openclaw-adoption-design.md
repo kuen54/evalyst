@@ -289,7 +289,7 @@ export function analyzeToolLoop(
 
 - `analyzeToolLoop` 返回 `{ action: "warn"; reason }` 时，`/tool-result` route 在 SSE 流里 emit 一个新事件 `kind: "loop_warn"; call_id; reason_key; reason_vars`
 - `use-chat-stream.ts` 的 makeSseHandler 收到后 push 一条新 UiMessage：`{ role: "system_notice"; kind: "loop_warn"; reason_key; reason_vars }`
-- `chat-view-parts` / `chat-view.tsx` 按 `role === "system_notice"` 分支渲染成一个独立的 **GlassWarning 档气泡**（import from `@/components/copilot/shell`），amber border + ambient shadow，i18n 文案
+- `chat-view-parts` / `chat-view.tsx` 按 `role === "system_notice"` 分支渲染成一个独立的 **GlassWarning 档气泡**（import from `@/copilot/components/shell`），amber border + ambient shadow，i18n 文案
 - Copilot panel **是扁平区**（AGENTS.md 约定），所以这里不用 `<GlassWarning>`（那是中间内容区规则）；panel 内部用 shadcn 扁平 + 轻量 tinted 表面（`bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300`，AGENTS.md "轻量 tinted 表面"章节）
 
 ```tsx

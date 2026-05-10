@@ -596,13 +596,13 @@ EOF
 ```ts
 import { NextRequest, NextResponse } from "next/server"
 import { nanoid } from "nanoid"
-import { tools } from "@/lib/copilot/tools"
-import { assertKnownTool } from "@/lib/copilot/tool-registry"
-import { toOpenaiTools, toAnthropicTools } from "@/lib/copilot/tool-adapters"
-import { appendMessage, readSession } from "@/lib/copilot/session-store"
-import { callLlmStreaming } from "@/lib/copilot/llm-stream"
-import { getLlmConfigFor } from "@/lib/copilot/model-config"  // 实施时对齐真实模块
-import type { CopilotEvent, ToolUseMessage, ToolResultMessage } from "@/lib/copilot/types"
+import { tools } from "@/copilot/lib/tools"
+import { assertKnownTool } from "@/copilot/lib/tool-registry"
+import { toOpenaiTools, toAnthropicTools } from "@/copilot/lib/tool-adapters"
+import { appendMessage, readSession } from "@/copilot/lib/session-store"
+import { callLlmStreaming } from "@/copilot/lib/llm-stream"
+import { getLlmConfigFor } from "@/copilot/lib/model-config"  // 实施时对齐真实模块
+import type { CopilotEvent, ToolUseMessage, ToolResultMessage } from "@/copilot/lib/types"
 
 const CHAIN_CAP = 5
 
@@ -780,9 +780,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useT } from "@/lib/i18n/provider"
-import type { ToolUseMessage, ToolResultMessage } from "@/lib/copilot/types"
-import { tools } from "@/lib/copilot/tools"
-import { findTool } from "@/lib/copilot/tool-registry"
+import type { ToolUseMessage, ToolResultMessage } from "@/copilot/lib/types"
+import { tools } from "@/copilot/lib/tools"
+import { findTool } from "@/copilot/lib/tool-registry"
 
 interface Props {
   toolUse: ToolUseMessage

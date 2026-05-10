@@ -735,7 +735,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
 
   ```ts
   import { describe, it, expect } from 'vitest'
-  import { __testOnly } from '@/lib/copilot/llm-stream'
+  import { __testOnly } from '@/copilot/lib/llm-stream'
   import type { LlmMessage } from '@/lib/llm-client'
   import type { ApiConfig } from '@/lib/types'
 
@@ -1114,7 +1114,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
 
   ```ts
   import { describe, it, expect, beforeEach, vi } from 'vitest'
-  import type { CopilotMessage, CopilotContextRef, ImageRef } from '@/lib/copilot/types'
+  import type { CopilotMessage, CopilotContextRef, ImageRef } from '@/copilot/lib/types'
   import type { TaskSchema, GenericResultRecord } from '@/lib/schema/types'
   import type { ExperimentConfig } from '@/lib/types'
 
@@ -1127,7 +1127,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
     getSchema: vi.fn(),
   }))
 
-  import { collectImageRefs, MAX_IMAGES_PER_TURN } from '@/lib/copilot/image-attach'
+  import { collectImageRefs, MAX_IMAGES_PER_TURN } from '@/copilot/lib/image-attach'
   import { readResults, getExperiment } from '@/lib/store'
   import { getSchema } from '@/lib/schema'
 
@@ -1345,7 +1345,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
   Expected: FAIL — module does not exist. Sample error excerpt:
 
   ```
-  Error: Failed to resolve import "@/lib/copilot/image-attach"
+  Error: Failed to resolve import "@/copilot/lib/image-attach"
   ```
 
 - [ ] **Step 3: Implement**
@@ -1608,7 +1608,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
   import * as fs from 'fs'
   import * as path from 'path'
   import * as os from 'os'
-  import { readImageBytes, resolveImageDiskPath } from '@/lib/copilot/image-attach'
+  import { readImageBytes, resolveImageDiskPath } from '@/copilot/lib/image-attach'
 
   // readImageBytes resolves /api/results/{exp}/images/{f}.{ext} against process.cwd();
   // chdir into a tmp dir per case so each test has a clean filesystem.
@@ -1711,7 +1711,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
   Expected: FAIL — `readImageBytes` and `resolveImageDiskPath` are not exported yet. Sample error excerpt:
 
   ```
-  SyntaxError: The requested module '@/lib/copilot/image-attach' does not provide an export named 'readImageBytes'
+  SyntaxError: The requested module '@/copilot/lib/image-attach' does not provide an export named 'readImageBytes'
   ```
 
 - [ ] **Step 3: Implement**
@@ -1853,7 +1853,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
     }
 
     it('image_url field with non-empty string → 1 ref, source_label includes field name', async () => {
-      const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+      const { extractImageRefsFromOutput } = await import('@/copilot/lib/image-attach')
       const schema = makeSchemaT({ caption: { type: 'string' }, image_url: { type: 'image_url' } })
       const refs = extractImageRefsFromOutput(
         { caption: 'a cat', image_url: '/api/results/exp_1/images/cat.png' },
@@ -1871,7 +1871,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
     })
 
     it('image_url_list with 3 entries → 3 refs', async () => {
-      const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+      const { extractImageRefsFromOutput } = await import('@/copilot/lib/image-attach')
       const schema = makeSchemaT({ images: { type: 'image_url_list' } })
       const refs = extractImageRefsFromOutput(
         { images: [
@@ -1892,7 +1892,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
     })
 
     it('heuristic catches "photo_url" with /api/results/... value (marked inferred)', async () => {
-      const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+      const { extractImageRefsFromOutput } = await import('@/copilot/lib/image-attach')
       const schema = makeSchemaT({ photo_url: { type: 'string' } })
       const refs = extractImageRefsFromOutput(
         { photo_url: '/api/results/exp_1/images/x.png' },
@@ -1906,14 +1906,14 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
     })
 
     it('heuristic skips when name matches but value is empty string', async () => {
-      const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+      const { extractImageRefsFromOutput } = await import('@/copilot/lib/image-attach')
       const schema = makeSchemaT({ photo_url: { type: 'string' } })
       const refs = extractImageRefsFromOutput({ photo_url: '' }, schema, 'exp_1')
       expect(refs).toHaveLength(0)
     })
 
     it('heuristic skips when name matches but value is non-path (e.g. a description)', async () => {
-      const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+      const { extractImageRefsFromOutput } = await import('@/copilot/lib/image-attach')
       const schema = makeSchemaT({ image_caption: { type: 'string' } })
       const refs = extractImageRefsFromOutput(
         { image_caption: 'a brown dog with a red collar' },
@@ -1924,7 +1924,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
     })
 
     it('heuristic does not double-count a field already declared as image_url', async () => {
-      const { extractImageRefsFromOutput } = await import('@/lib/copilot/image-attach')
+      const { extractImageRefsFromOutput } = await import('@/copilot/lib/image-attach')
       const schema = makeSchemaT({ image_url: { type: 'image_url' } })
       const refs = extractImageRefsFromOutput(
         { image_url: '/api/results/exp_1/images/dup.png' },
@@ -1935,7 +1935,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
     })
 
     it('does not enforce cap or dedup (caller responsibility)', async () => {
-      const { extractImageRefsFromOutput, MAX_IMAGES_PER_TURN } = await import('@/lib/copilot/image-attach')
+      const { extractImageRefsFromOutput, MAX_IMAGES_PER_TURN } = await import('@/copilot/lib/image-attach')
       const schema = makeSchemaT({ images: { type: 'image_url_list' } })
       const arr = Array.from({ length: MAX_IMAGES_PER_TURN + 4 }, (_, i) => `/api/results/exp_1/images/i${i}.png`)
       const refs = extractImageRefsFromOutput({ images: arr }, schema, 'exp_1')
@@ -1953,7 +1953,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
   Alternatively, if you took Task 5 as "minimal-to-make-collectImageRefs-pass" and only inlined the schema walk without a separate exported helper, this step will FAIL with:
 
   ```
-  SyntaxError: The requested module '@/lib/copilot/image-attach' does not provide an export named 'extractImageRefsFromOutput'
+  SyntaxError: The requested module '@/copilot/lib/image-attach' does not provide an export named 'extractImageRefsFromOutput'
   ```
 
   In that case proceed to Step 3 to lift the walker out into the named export.
@@ -2345,7 +2345,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
 - Last text block carries the user's typed message even when empty string (Anthropic rejects content arrays containing only image blocks; an explicit text block keeps the array valid)
 - Only the LAST user message gets the multimodal rewrite — historical user messages stay as plain string (their image refs were resolved in earlier turns; not re-attaching avoids context bloat)
 - Both OpenAI and Anthropic accept this `[text, image_url, ...]` user content array natively (no Anthropic-specific transform needed at this layer; serialization happens later in `llm-stream.ts` via Task 4's `imageBlockForAnthropic`)
-- New test file mocks `@/lib/copilot/image-attach` — provides deterministic `collectImageRefs` and `readImageBytes` implementations so tests don't depend on disk
+- New test file mocks `@/copilot/lib/image-attach` — provides deterministic `collectImageRefs` and `readImageBytes` implementations so tests don't depend on disk
 
 **Steps:**
 
@@ -2360,14 +2360,14 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
 
   // Mock image-attach so the test doesn't touch fs / store / schema. The real
   // collectImageRefs is exercised in image-attach.test.ts.
-  vi.mock("@/lib/copilot/image-attach", () => ({
+  vi.mock("@/copilot/lib/image-attach", () => ({
     MAX_IMAGES_PER_TURN: 5,
     collectImageRefs: vi.fn(),
     readImageBytes: vi.fn(),
   }))
 
   import { buildLlmMessages } from "../build-llm-messages"
-  import { collectImageRefs, readImageBytes } from "@/lib/copilot/image-attach"
+  import { collectImageRefs, readImageBytes } from "@/copilot/lib/image-attach"
 
   function userMsg(content: string, contexts?: CopilotMessage["contexts"]): CopilotMessage {
     return { id: "m_u", session_id: "s", role: "user", content, contexts: contexts ?? [], timestamp: "t" }
@@ -3396,7 +3396,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
   import { describe, it, expect, vi, beforeEach } from "vitest"
   import type { TaskSchema } from "@/lib/schema/types"
   import type { ExperimentConfig } from "@/lib/types"
-  import type { ImageRef } from "@/lib/copilot/types"
+  import type { ImageRef } from "@/copilot/lib/types"
 
   // Build a schema with a single declared image_url field so extractImageRefsFromOutput
   // produces deterministic refs without falling through to heuristic.
@@ -3712,7 +3712,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
   import fs from "node:fs/promises"
   import path from "node:path"
   import os from "node:os"
-  import type { ImageRef } from "@/lib/copilot/types"
+  import type { ImageRef } from "@/copilot/lib/types"
 
   // Mock session store to return a controlled active context set (matches read-context.test.ts pattern)
   const mockTag = vi.fn<(sessionId: string, tag: number) => unknown>()
@@ -4097,7 +4097,7 @@ Tasks are ordered for **incremental green-bar TDD**: each task ends with `npm te
 
   ```ts
   import { describe, it, expect, vi } from "vitest"
-  import type { ImageRef } from "@/lib/copilot/types"
+  import type { ImageRef } from "@/copilot/lib/types"
 
   // Stub stores so resource lookups return controlled shapes.
   vi.mock("@/lib/store", () => ({

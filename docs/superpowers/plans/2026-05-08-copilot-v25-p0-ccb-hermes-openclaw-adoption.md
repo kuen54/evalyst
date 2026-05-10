@@ -345,7 +345,7 @@ Expected: 全绿。
 
 ```ts
 import { NextRequest, NextResponse } from 'next/server'
-import { readCacheStats, aggregateCacheHitRate, countRecentBreaks } from '@/lib/copilot/cache-stats-store'
+import { readCacheStats, aggregateCacheHitRate, countRecentBreaks } from '@/copilot/lib/cache-stats-store'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 const RECENT_LIMIT = 10
@@ -694,7 +694,7 @@ export async function runTool(
 
 ```ts
 import { isSessionAllowed, getSessionAllowList, addSessionAllow,
-         isSessionDenied, getSessionDenyList, addSessionDeny } from "@/lib/copilot/session-allow"
+         isSessionDenied, getSessionDenyList, addSessionDeny } from "@/copilot/lib/session-allow"
 ```
 
 `postToolResult` body 加 deny_list：
@@ -1183,7 +1183,7 @@ b) 这里其实是处理"用户已 confirm 的 tool 结果"，**不需要在这�
 ```ts
 // v2.5 P0 §3.4: 从硬 cap 5 改成 hermes 三档重复检测。
 // 这里的 next tool 是 body.tool_name + body.input
-import { analyzeToolLoop } from '@/lib/copilot/tool-loop-detector'
+import { analyzeToolLoop } from '@/copilot/lib/tool-loop-detector'
 
 // ... 拿到 branchBefore 之后:
 const branchBefore = getActiveBranch(sessionId)

@@ -1087,12 +1087,12 @@ import {
   getActiveBranch,
   autoTitleSessionIfNeeded,
   updateSession,
-} from '@/lib/copilot/session-store'
-import { tools } from '@/lib/copilot/tools'
-import type { CopilotContextRef, ClientSnapshot } from '@/lib/copilot/types'
+} from '@/copilot/lib/session-store'
+import { tools } from '@/copilot/lib/tools'
+import type { CopilotContextRef, ClientSnapshot } from '@/copilot/lib/types'
 import { getLlmConfig } from '@/lib/llm-config'
-import { setSnapshot } from '@/lib/copilot/snapshot-cache'
-import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
+import { setSnapshot } from '@/copilot/lib/snapshot-cache'
+import { runToolAwareLlmStream } from '@/copilot/lib/stream-response'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = await params
@@ -1235,13 +1235,13 @@ import {
   getSession,
   appendMessage,
   getActiveBranch,
-} from '@/lib/copilot/session-store'
-import { tools } from '@/lib/copilot/tools'
-import { findTool } from '@/lib/copilot/tool-registry'
+} from '@/copilot/lib/session-store'
+import { tools } from '@/copilot/lib/tools'
+import { findTool } from '@/copilot/lib/tool-registry'
 import { getLlmConfig } from '@/lib/llm-config'
-import type { ClientSnapshot } from '@/lib/copilot/types'
-import { setSnapshot } from '@/lib/copilot/snapshot-cache'
-import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
+import type { ClientSnapshot } from '@/copilot/lib/types'
+import { setSnapshot } from '@/copilot/lib/snapshot-cache'
+import { runToolAwareLlmStream } from '@/copilot/lib/stream-response'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = await params
@@ -1514,9 +1514,9 @@ EOF
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { CopilotMessage, CopilotContextRef, PageContext } from "@/lib/copilot/types"
-import { findToolMetadata } from "@/lib/copilot/tool-metadata"
-import { collectClientSnapshot } from "@/lib/copilot/collect-snapshot"
+import type { CopilotMessage, CopilotContextRef, PageContext } from "@/copilot/lib/types"
+import { findToolMetadata } from "@/copilot/lib/tool-metadata"
+import { collectClientSnapshot } from "@/copilot/lib/collect-snapshot"
 import { useCopilotStore } from "./store"
 import type { UiMessage } from "./chat-view-parts"
 

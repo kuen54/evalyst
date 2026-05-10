@@ -256,7 +256,7 @@ CI（`.github/workflows/ci.yml`）两个 job：
 
 ### 状态（2026-05-03 · v2）
 
-- ✅ **Session + 流式对话**：`src/lib/copilot/session-store.ts` jsonl append-only + fork + prune-descendants；`llm-stream.ts` OpenAI + Anthropic SSE 归一化
+- ✅ **Session + 流式对话**：`src/copilot/lib/session-store.ts` jsonl append-only + fork + prune-descendants；`llm-stream.ts` OpenAI + Anthropic SSE 归一化
 - ✅ **Share Context + Inspector**：9 种 context 类型（experiment / task_result / task_field / text_selection / template / dataset / display / rubric / rubric_stats），Chrome DevTools 风格元素圈选，彩色 mask + 数字徽章，context 层级链（ancestors → `within: A → B → C`）
 - ✅ **划线选中**：选区 → "+加入 Copilot" 胶囊 → 持久化高亮（TextSelectionMask 用 TreeWalker 按 offset 重建 Range）
 - ✅ **Liquid Glass UI 系统**（见下一节）
@@ -275,7 +275,7 @@ CI（`.github/workflows/ci.yml`）两个 job：
 ### 关键文件
 
 ```
-src/lib/copilot/
+src/copilot/lib/
 ├── types.ts                   # CopilotSession/Message/Event/ContextRef + ToolResultContent
 ├── session-store.ts           # jsonl 会话存储 + fork + normalizeToolResult + getActiveContext*
 ├── llm-stream.ts              # callLlmStreaming OpenAI + Anthropic 归一化
@@ -304,7 +304,7 @@ src/lib/copilot/
 │   └── edit-template.ts             # 第一个写工具，Confirm gate
 └── __tests__/                 # 单测（含 v2 测）
 
-src/components/copilot/
+src/copilot/components/
 ├── panel.tsx                  # 右侧 slide-in panel（resizable 360–720px）
 ├── session-list.tsx           # 顶部 session 切换 + 新建 + 改名 + 删除
 ├── chat-view.tsx              # markdown 渲染 + 流式 token + chip rail + expand textarea
@@ -333,7 +333,7 @@ data/copilot/
 
 ### 加新工具流程（v2）
 
-1. 写 `src/lib/copilot/tools/{name}.ts`，export `ToolDescriptor`：name / description / inputSchema / metadata (`isReadOnly` / `isDestructive` / `maxResultSizeChars` / 可选 `requiresConfirm`) / call
+1. 写 `src/copilot/lib/tools/{name}.ts`，export `ToolDescriptor`：name / description / inputSchema / metadata (`isReadOnly` / `isDestructive` / `maxResultSizeChars` / 可选 `requiresConfirm`) / call
 2. 在 `tools/registry.ts` 的 `TOOLS` 数组加入 import
 3. 在 `tools/metadata-client.ts` 的 `CLIENT_TOOL_METADATA` 镜像一条（测试会强制两边对齐）
 4. 若是写工具，在 `tool-call-card.tsx` 的 `VARIANT_BY_TOOL` 映射到 `"write"`（大部分写工具走默认 isDestructive 兜底即可）
@@ -395,7 +395,7 @@ Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（
 
 Semantic 档的 border 色 class（如 `border-emerald-200/60`）要**保留在 className 上**，作为 copilot 关闭态（shadcn 扁平）下的 border fallback——inline `borderColor` 只在 copilot 开时生效。
 
-组件 `GlassThin` / `GlassRegular` / `GlassThick` / `GlassTinted` / `GlassCard` / `GlassCardThin` / `GlassSuccess` / `GlassWarning` / `GlassDanger` 从 `@/components/copilot/shell` 导出。`GlassStickyHeader` / `GlassStickyFooter` 从 `@/components/copilot/sticky-chrome` 导出。`GlassSegmentedItem` 从 `@/components/copilot/glass-segmented` 导出。非 JSX 场景用 `useGlassStyle(variant)` hook 取 `CSSProperties`。
+组件 `GlassThin` / `GlassRegular` / `GlassThick` / `GlassTinted` / `GlassCard` / `GlassCardThin` / `GlassSuccess` / `GlassWarning` / `GlassDanger` 从 `@/copilot/components/shell` 导出。`GlassStickyHeader` / `GlassStickyFooter` 从 `@/copilot/components/sticky-chrome` 导出。`GlassSegmentedItem` 从 `@/copilot/components/glass-segmented` 导出。非 JSX 场景用 `useGlassStyle(variant)` hook 取 `CSSProperties`。
 
 ### `--copilot-accent` 而非 `--primary`
 
@@ -403,7 +403,7 @@ Semantic 档的 border 色 class（如 `border-emerald-200/60`）要**保留在 
 
 ### Segmented 选中态
 
-**`<GlassSegmentedItem>` (`src/components/copilot/glass-segmented.tsx`)** 是 segmented control / active tab / nav item 的统一组件。通过 `render` prop 支持 `<button>` / `<Link>` / `<a>` 等任意底层 element：
+**`<GlassSegmentedItem>` (`src/copilot/components/glass-segmented.tsx`)** 是 segmented control / active tab / nav item 的统一组件。通过 `render` prop 支持 `<button>` / `<Link>` / `<a>` 等任意底层 element：
 ```tsx
 <GlassSegmentedItem active={isActive} className="p-3 text-left" render={<button type="button" onClick={...} />}>
   ...

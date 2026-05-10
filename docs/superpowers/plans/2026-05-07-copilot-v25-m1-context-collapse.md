@@ -3047,7 +3047,7 @@ appendCacheStat({
 ```typescript
 // src/app/api/copilot/cache-stats/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { readCacheStats, aggregateCacheHitRate } from '@/lib/copilot/cache-stats-store'
+import { readCacheStats, aggregateCacheHitRate } from '@/copilot/lib/cache-stats-store'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 const RECENT_LIMIT = 10
@@ -3139,7 +3139,7 @@ git commit -m "feat(copilot): persist cache stats on every LLM call; add GET /ca
 "use client"
 import { useEffect, useState } from "react"
 import { useT } from "@/lib/i18n/provider"
-import type { CacheUsageStat, CacheHitRateResult } from "@/lib/copilot/cache-stats-store"
+import type { CacheUsageStat, CacheHitRateResult } from "@/copilot/lib/cache-stats-store"
 
 interface ApiResponse {
   session: CacheHitRateResult & { recent: CacheUsageStat[] }
@@ -3732,7 +3732,7 @@ import {
   isSessionAllowed,
   getSessionAllowList,
   addSessionAllow,
-} from "@/lib/copilot/session-allow"
+} from "@/copilot/lib/session-allow"
 ```
 
 **核心客户端短路**——SSE handler 的 `tool_use_end` 处（约 L238）：
