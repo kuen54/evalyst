@@ -10,9 +10,44 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-- docs(audit): split CLAUDE.md / AGENTS.md, archive historical plans (#5)
-  - 文档收尾 Phase F。CLAUDE.md 42KB → 4.5KB（索引 + 反直觉 3 强约束 + pinpoint），AGENTS.md 24KB → 4.9KB（开发流程 + AI 协议）。3 份外置 doc 接收：`docs/architecture.md` / `docs/copilot.md` / `docs/conventions/glass-ui.md`。`docs/superpowers/{plans,specs,findings}/*` 全部归档到 `archive/2026-Q2/`，根目录留 `_index.md` 多维分类索引（按 audit-cleanup phase / Copilot 子系统 / Glass UI / 评测能力）。README L18 删 "工具调用闭环规划中" 过期描述。Audit doc append §Errata E5（Phase E #2 实测 LOC 修订）。
-  - Plan: docs/superpowers/plans/2026-05-09-audit-doc-split.md
+## [0.13.0] — 2026-05-10 · Audit Cleanup 收尾 + R1 robust pass (PR #73 + #74)
+
+audit-cleanup 全套 (Phase A-F) 闭环。文档分裂 + R1 cold-start 兼容性硬验收。14-15 人天工程纪律落地为长期可维护的项目结构。
+
+### Phase F · 文档分裂 + 收敛 (PR #73)
+
+- CLAUDE.md 42KB → 4.5KB（索引 + 反直觉 3 强约束 + pinpoint）
+- AGENTS.md 24KB → 4.9KB（开发流程 + AI 协议）
+- 新建 `docs/architecture.md`（项目架构 / 资源 CRUD / 测试 / i18n / 目录结构）/ `docs/copilot.md`（v2 工具协议 / 关键文件 / context 抽取）/ `docs/conventions/glass-ui.md`（9 档梯度 + tinted 名额 + a11y 降级）
+- 30+ 历史 plan/spec/findings 归档到 `docs/superpowers/archive/2026-Q2/`，按主题双维度索引 [`plans/_index.md`](docs/superpowers/plans/_index.md)
+- README L18 删 "工具调用闭环规划中"（v0.4.0 PR-3 起 ship）
+- Audit doc Errata E5（LOC 实测修订：核心 18k / Copilot 10k excl tests）+ E6（plan/spec 路径漂移标注）
+- Plan: docs/superpowers/plans/2026-05-09-audit-doc-split.md
+
+### R1 cold-start AI session 兼容性硬验收 (PR #74)
+
+Phase F merge 后跑 R1 cold-start `claude -p` 验证：CLAUDE.md auto-load 正常 ✓、索引关键词正确 ✓，但 cold-start agent 仍跑 `Bash ls / Grep src/` 而不是 Read 文档。诊断揭根因：**agent perceived cost asymmetry**——`Read 26KB architecture.md` 感觉贵、`Bash ls src/lib/` 一行输出感觉便宜，即使索引描述精准（"数据流"→architecture.md），agent 仍走自 grep 捷径。
+
+- CLAUDE.md 顶部加 14 行 FAQ literal-path 直答表（"找东西？快速跳转"），把高频问题压到 1-hop（Read CLAUDE.md → 直答）
+- 7Q battery cold-start 验收 7/7 PASS（5/7 zero-tool-call），grep-first 行为完全消失
+- Standing rule 入项目 memory：「AI-loaded docs · FAQ direct-answer rule」——FAQ literal-path 是攻破 perceived-cost asymmetry 的关键设计；新 FAQ 入口测试必须 cold-start `claude -p` 不用 Agent tool subagent（subagent inherits parent context，证伪验证）
+
+### 工程纪律亮点（A-F 整套 14-15 人天）
+
+- 7 份 lightweight plan ≤ 100 行，禁止 1000+ 行史诗 plan
+- "Plan-外 scope 偏离规则" standing rule（4+ 次合理触发：cartesian-cap e2e / Errata E6 / R1 fix 边界等）
+- 3 次预案 R 触发都按 plan 处理（lint > 50 拆 batch / tsconfig errors > 80 拆 PR / hooks-fix 提前融入 PR-2）
+- subagent inheritance 验证陷阱发现 + 用 `claude -p` 真 cold-start 修正
+- 无工程性事故，无紧急 hotfix，零运行时回归
+
+### 意外发现 / Errata（reference）
+
+- E1: `extractImageRefsFromOutput` 实测 5 params（lizard noise 报 9）
+- E2: knip 从未真正配置（在 devDeps 但无 config / script）
+- E3: ESLint scope bug — 62k+ warnings 来自 `.claude/worktrees/.next` 噪音
+- E4: Lint baseline 实测后拆 chore/lint-fix-batch 为 2 个 PR
+- E5: §1 LOC 数字 back-of-envelope，实测核心 18k / Copilot 10k（excl tests）
+- E6: archive 后 audit doc 引用路径漂移，已标注
 
 ## [0.12.0] — 2026-05-10 · Phase E 结构性重构：Copilot 物理边界 + tool metadata 拆分 + batch-runner 文件锁 (PR #70 #71 #72)
 
