@@ -3,6 +3,8 @@
 > 基于 `22efde3` (HEAD on main, 2026-05-09)
 > 审视视角：Linus / Carmack / DHH / Abramov 四人组
 
+> **2026-05-10 Errata**：执行 Phase C Tier 3 时发现 3 处 audit drift / measurement noise，统一修订在文末 [§Errata](#errata2026-05-10更新)。Tier 3 实际拆为「PR #60 已合」+「v0.11.1 / .2 patch 延后」两段，工作量从 0.5d 修订到 2.5-3d。原文不动。
+
 ## 第 0 步 · 读完即可消费的总判断
 
 Evalyst 是一个名义上「LLM 批量评测平台」、实质上**45.6% 的 TS 代码花在了一个嵌入式 Copilot**（`src/lib/copilot/` + `src/components/copilot/` + `src/app/api/copilot/` = 18,474 LOC，整库 32,915）的项目。Carmack 会问"评测核心 9k 行，Copilot 18k 行——这个比例对吗？"；DHH 会指出文档体量 95KB CHANGELOG + 31k 行 superpowers/specs/plans 比代码还多——"心智模型已经撑不住了"。但抛开这层，**领域核心（schema 引擎、batch runner、文件存储）是干净、克制、可读的**，没有过度设计。问题集中在三个地方：(1) 没有边界假设的 zero-config 出厂设置，(2) 用户输入直接驱动两处任意代码执行通路，(3) Copilot 子系统是另一个项目寄生在主项目里。
@@ -281,12 +283,14 @@ DX：编译错误返回 babel 的错误 message，给用户行号——OK。运�
 
 ### 17. knip 直接证据 — minor
 
+> ⚠️ **本节数字不可信，详见 [§Errata E2](#errata2026-05-10更新)**。`knip` 当时未配置（in devDeps 但无 config / 无 script），下面 16 + 38 是默认行为输出，未排 worktrees / .next / 测试代码噪音。真要量化先把 knip 配上。
+
 实际有效信号（去掉 worktree 噪音）：
 - 16 unused exports（`pickVariant` `formatValue` `splitSseEvents` 等几个工具函数；shadcn ui 暴露了未使用的 sub-component 是常态）
 - 38 unused exported types（约 11 个在 `manifest.ts`，是 §3 提到的早抽象）
 - 1 unlisted dep: `postcss`
 
-修复 30 分钟以内，但 `.claude/worktrees/` 没 ignore 让 knip 输出"2361 unused files"——首次跑 knip 的人会觉得整个项目都死了。**应当在 package.json 加 `knip.ignore: ['.claude/worktrees/**']`**
+修复 30 分钟以内，但 `.claude/worktrees/` 没 ignore 让 knip 输出"2361 unused files"——首次跑 knip 的人会觉得整个项目都死了。**应当在 package.json 加 `knip.ignore: ['.claude/worktrees/**']`** —— Errata E2 修订：还要先加 `knip.json` 配置 + `npm run knip` script，本审视报告里这条假设了 knip 已正确配置，事实没。同样 ESLint 也没排 worktrees（[Errata E3](#errata2026-05-10更新)）。
 
 ### 18. 三大文档关系 — major
 
@@ -412,7 +416,7 @@ README 自称"Copilot 工具调用闭环规划中"——CHANGELOG 显示 v0.7.0 
 
 **解锁**：onboarding 30 分钟变可能；AI session 加载成本降一半
 
-### Tier 2 — 该修但不紧急（5 条 · ~4.5 人天）
+### Tier 2 — 该修但不紧急（6 条 · ~5-5.5 人天）
 
 #### 6. SSRF: LLM 返回的图片 URL 加 allowlist
 
@@ -454,7 +458,21 @@ README 自称"Copilot 工具调用闭环规划中"——CHANGELOG 显示 v0.7.0 
 
 **工作量**：1 人天 · **解锁**：加新 tool 从改 6 处变改 3 处
 
-### Tier 3 — Cleanup Batch PR（一个 PR 收 · 0.5 人天）
+#### 11. 修 `react-hooks/rules-of-hooks` 5 处真 bug（2026-05-?? lint baseline 暴露）
+
+> **2026-05-?? 状态：✅ closed via PR #67 + v0.11.6**——`fix/react-hooks-rules-of-hooks` branch 完整修复合入 main（重生成 commits `9e625ca` triple-grid + `413f1cf` dual-list + `1c19658` CHANGELOG），手法 Pattern B（useMemo bodies short-circuit when dim is undefined）。`npm run lint` 当前 0 处 rules-of-hooks errors。**v0.11.5 CHANGELOG 引用的原 commit hash (`ca5dfcb` / `60a833a`) 在 main 上已不存在**（merge 时重生成）—— 历史精度问题，不影响功能；v0.11.6 release 包含完整修复。Phase E gate 不再含此项前置依赖。
+
+**当前状态**：`chore/lint-fix-batch` 跑 baseline 时发现 5 处 `useMemo` 在 early return 之后调用——`triple-grid-results.tsx:37,38,39` + `dual-list-results.tsx:37,38`。违反 React hook 顺序约束，触发会爆 `Rendered fewer hooks than expected` 或更阴险的状态错位。
+
+**未爆原因**：early return 条件（如 `results.length === 0`）实际很少命中。这是定时炸弹不是已坏。
+
+**期望状态**：把这些 useMemo 移到 early return 之前；e2e smoke 覆盖 early return 路径渲染稳定。
+
+**工作量**：~~0.5–1 人天~~（实际 0.5d，含 branch fix + retrofit PR）· **解锁**：消除潜在 production crash 隐患 · **PR**：~~`fix/react-hooks-rules-of-hooks`~~ ✅ PR #67 已合
+
+### Tier 3 — Cleanup Batch PR（原估 0.5 人天 · 实际 2.5-3d，详 [§Errata](#errata2026-05-10更新)）
+
+> **2026-05-10 更新**：实际拆为 3 个 PR。原列表里有几项 audit drift（详 Errata），有几项 defer 到 v0.11.1 / .2 patch。下面保留原文备参考，**真实施工范围以 Errata 表格为准**。
 
 打包成 `chore/audit-cleanup` 一个 PR：
 
@@ -475,10 +493,10 @@ README 自称"Copilot 工具调用闭环规划中"——CHANGELOG 显示 v0.7.0 
 
 ```
 Tier 1 (blocker / 巨大解锁) ── 5 条 ── ~7 人天
-Tier 2 (该修但不紧急)       ── 5 条 ── ~4.5 人天
-Tier 3 (cleanup batch PR)   ── 1 PR ── 0.5 人天
+Tier 2 (该修但不紧急)       ── 6 条 ── ~5-5.5 人天   (含 #11 rules-of-hooks 拾遗)
+Tier 3 (cleanup batch PR)   ── 1 PR ── 0.5 人天 ⚠️ 实际 2.5-3d 详 §Errata
                                        ─────────
-                                       ~12 人天
+                                       ~12 人天 (修订后 ~14-15d 含 lint/hooks 拾遗)
 ```
 
 一个人 2-3 周收尾，项目从"能跑但有 RCE"到"小开源工具水准"。
@@ -512,7 +530,14 @@ Phase E — 结构性重构（吃掉 Phase D 的红利） 4d
 
 Phase F — 文档收尾（最后做，反映最终状态） 2d
    #5  CLAUDE/AGENTS 拆 + 历史 plan archive  2d
+
+post-v0.11.0 patch（串行优先，详 §Errata） ~1.5d
+   ~~chore/knip-config-and-cleanup~~  ≈ 0.5d   (in-flight, knip session 进行中)
+   ~~chore/lint-fix-batch~~           ≈ 0.5d   ✅ PR #65 合 main + v0.11.6
+   ~~fix/react-hooks-rules-of-hooks~~ ≈ 0.5d   ✅ PR #67 合 main + v0.11.6
 ```
+
+> **2026-05-?? 更新**：lint baseline 实测 27 problems 后（详 §E4），原计划的 `chore/lint-fix-batch` 拆成两个 PR——纯 lint cleanup（22 处）+ 真 bug 修复（5 处 rules-of-hooks）。**已落地状态**：PR #67 (rules-of-hooks) + PR #65 (lint-fix-batch + react19-hydration convention doc + CI lint enforce fail-on-warning) 都合 main，v0.11.6 tag 已打。剩 `chore/knip-config-and-cleanup` 一项 in-flight；合后 Phase E execution gate 完全开放。Phase E gate 现在 = "**knip 合 main**"。
 
 **理由**：
 - 安全 blocker 不能等 → A 必须最先
@@ -531,6 +556,181 @@ Phase F — 文档收尾（最后做，反映最终状态） 2d
 - **<1d 的项**（#3 / #6 / #8 / Tier 3 batch）直接动手，不写 plan
 - **每项一个 PR**，branch 命名按 AGENTS.md 约定（`fix/auth-gate-rce` / `refactor/copilot-boundary` / ...）；保持 git history 可追溯、可单点 revert
 - 跨 Phase 严格按顺序；同 Phase 内可独立 commit
+
+---
+
+## Errata（2026-05-10 更新）
+
+执行 Phase C Tier 3 cleanup（PR #60）时发现 3 处 audit drift / measurement noise。原文不动，此处统一修订。**不影响 Top 5 / Tier 1+2 的整体顺序**，但 Tier 3 工作量从 0.5d 修订到 2.5-3d，并产出 2 个 v0.11.0 后的 patch PR。
+
+### E1 · `extractImageRefsFromOutput` 实际 5 params 不是 9
+
+`src/lib/copilot/image-attach.ts:53` 实际签名：
+
+```ts
+export function extractImageRefsFromOutput(
+  output: Record<string, unknown>,
+  schema: TaskSchema,
+  expId: string,
+  ctx_tag?: number,
+  task_id?: string,
+): ImageRef[]
+```
+
+5 个 params。审视报告 §7 / Tier 3 引用 lizard `9 PARAM` 是 noise（疑似把 nested 闭包参数算进去）。CCN 35 仍属实但不需要"拆参数对象"。**Tier 3 batch 撤销此项，无工作量**。
+
+### E2 · knip 未实际配置（§17 数字不可信）
+
+审视报告 §17 给出"16 unused exports + 38 unused exported types"——这些数字源于 `npm exec knip` 的**默认行为**。事实：
+
+- `knip` 在 devDependencies ✅
+- 无 `knip.json` / `knip.config.ts` / `package.json#knip` ❌
+- 无 `npm run knip` script ❌
+
+意味着 §17 数字未排除 worktrees / `.next` / 测试代码等噪音，实际不可靠。**真要量化必须先把 knip 正式配上**——这是新增工作，记入 `chore/knip-config-and-cleanup`（~0.5d）：
+
+1. 加 `knip.json`：`ignore: ['.claude/**', '.next/**', 'src/**/__tests__/**']`
+2. 加 `npm run knip` script
+3. 跑 + 重新量化"长尾 unused"
+4. 删确认死掉的（PR #60 已删 22 项最高确信的：types.ts 11 + manifest.ts 11）
+
+### E3 · ESLint scope bug（同样未排 worktrees）
+
+审视报告 §17 / §12 只点了 knip 没排 worktrees，**漏了 ESLint 同样问题**。`eslint.config.mjs` 没 ignore `.claude/worktrees/agent-*/.next/`，跑出 62k+ warnings——掩盖了真实信号。
+
+PR #60 中已修（加 `**/.next/**` + `.claude/**` ignore）。修后 src/ 真实 lint 状态：
+
+| 类别 | 数量 | 性质 |
+|---|---|---|
+| `react-hooks/set-state-in-effect` errors | 23 | per-occurrence judgment（每个 setState in useEffect 要个案审，不是 mechanical fix）|
+| `react-hooks/rules-of-hooks` 等其他 errors | ~few | 合并到上面的 batch |
+| `react-hooks/exhaustive-deps` warnings | 3 | judgment call |
+| 其他 mechanical warnings | ~22 | PR #60 已清 |
+
+**审视报告 Tier 3 列表里 "lint continue-on-error 改 fail 0.5 人天" 严重低估**——23 个 setState-in-effect 是 eslint 9 + react 19 的新规则，per-occurrence review 工作量 ~1-1.5d。defer 到 `chore/lint-fix-batch`（含翻 CI lint fail）。
+
+### Tier 3 实际拆分（替换原 §Tier 3 列表）
+
+| 已合（PR #60 · `chore/audit-cleanup` · ~1d） | 延后（v0.11.0 后的 patch · ~1.5-2d） |
+|---|---|
+| `.claude/worktrees/` 进 `.gitignore` | **`chore/lint-fix-batch`** ≈ 1-1.5d |
+| Dockerfile `USER node` + `npm prune --omit=dev` | · 23 errors（setState-in-effect / rules-of-hooks / no-use-before-define） |
+| `src/lib/types.ts:5` 删 11 unused re-export | · 3 exhaustive-deps warnings |
+| `src/lib/copilot/manifest.ts` 删 11 unused interface | · 翻 CI lint `continue-on-error: true` → `false` |
+| `display-form-modes` ⇄ `display-form-page` 循环依赖修 | |
+| ESLint ignore `**/.next/**` + `.claude/**`（E3 新增） | **`chore/knip-config-and-cleanup`** ≈ 0.5d |
+| ~14 unused imports + underscore convention 修 | · 加 knip.json + script |
+| README 加 `.next` 缓存清理注 | · 重量化长尾 + 删确认死掉的 |
+| ~~`extractImageRefsFromOutput` 9→5 拆参数~~（E1 撤销） | |
+| ~~"清理其余 16 + 38 unused"~~（E2 数字不可信，转 follow-up） | |
+
+**总工作量修订**：原估 0.5d → 实际 ~3d（PR #60 `1d` + 两个 follow-up `~2d`）
+
+### 时机：串行优先，knip 那条可与 D 并行
+
+两个 follow-up 都不阻塞 Phase D / E / F 主线，但**推荐串行**而非全并行——理由是 `chore/lint-fix-batch` 与 Phase D 在 `use-chat-stream.ts` 等文件高度重叠（D 的 noUncheckedIndexedAccess 47 errors + lint-fix-batch 的 setState-in-effect 几个）会互相 rebase。
+
+**推荐顺序**：
+
+```
+v0.11.0 tag (A+B+C 全合)
+   ↓
+chore/knip-config-and-cleanup (v0.11.1, ~0.5d)   ← 与 Phase D PR-1 可并行（不冲突）
+   ↓
+Phase D PR-1 (noUnchecked + noImplicitReturns)
+   ↓
+Phase D PR-2 (eopt)
+   ↓
+chore/lint-fix-batch (v0.11.2, ~1-1.5d)          ← 必须放 D 后，避开 use-chat-stream rebase
+   ↓
+Phase E (Copilot 切边)
+```
+
+**约束**：
+- **Phase D plan §5 验收要改**：原本"`npm run lint` 0 warning"前提是 Tier 3 翻 fail；实际没翻。改成"≤ 合 #60 后 baseline（约 26 warnings 全在 deferred batch 范围），不新增 warning"。绝对零阈值前置依赖 `chore/lint-fix-batch` 先合
+- **`chore/knip-config-and-cleanup`** 安全可与 D PR-1 并行——它只改 `knip.json` + 删确认死掉的 unused exports，触不到 D 的 strict 战场
+- **`chore/lint-fix-batch`** **不要**与 D 并行——`use-chat-stream.ts` 是双方重灾区，并行只会互相 rebase
+- D / E 重构 Copilot 时部分 setState-in-effect 可能自然消失，等 D / E 完了 `chore/lint-fix-batch` 量化更准
+
+### Lint reality 的实际影响（系统 / 用户视角）
+
+部分修复 deferred 不是大问题——**这是项目"自我代谢能力"指标，不是用户能看到的功能**。
+
+| 维度 | 影响 | 严重度 |
+|---|---|---|
+| 安全 | 0 | 不影响 |
+| 数据正确性 | 0 | 不影响 |
+| 用户感知 | 极少数情况 Copilot 流式可能多渲染几次，本地评测工具几乎测不出 | 不影响 |
+| 运行时风险 | `rules-of-hooks`（少数）真触发会随机崩，但不在生产路径上；`exhaustive-deps`（3 个）可能造成"刷新就好了"的偶发 bug | 低-中 |
+| 开发者卫生 / 技术债 | CI lint `continue-on-error` + knip 未配 = 项目失去代码健康度实时信号；新增坏味道无人拦 | 中-高 |
+
+23 errors 拆开看：
+- `react-hooks/set-state-in-effect`（~80%）：项目能跑说明多半是 false positive 或循环被 guard 截断
+- `rules-of-hooks`（少数）：定时炸弹但没在生产路径
+- `exhaustive-deps`（3 warnings）：可能用户偶发遇到但归因为"刷新就好"
+- `no-use-before-define`（5）：0 运行时风险，仅阅读混乱
+- knip 62k+ 噪音：纯**警报疲劳**问题——不影响运行，影响"开发者每次跑 lint 看到这么多警告会麻木"
+
+修它解锁的是**长期开发者体验**，不是即时用户价值。所以放在 v0.11.x patch 而非 v0.11.0 主 tag 内是对的。
+
+### E4 · Lint baseline 实测后拆 `chore/lint-fix-batch` 为 2 个 PR（2026-05-?? 更新）
+
+`chore/lint-fix-batch` session 跑 baseline，实际数字与 §E3 估计有出入：
+
+| Rule | 实测 | §E3 估计 | 性质 |
+|---|---|---|---|
+| `react-hooks/set-state-in-effect` | **16** errors | 23 errors | per-occurrence judgment（多数是 localStorage hydrate）|
+| `react-hooks/rules-of-hooks` | **5** errors | "少数" | **真 bug**（hooks 在 early return 后调用，hook 顺序违例） |
+| `react-hooks/exhaustive-deps` | 3 warnings | 3 warnings | judgment call，多数 suppress + 注释 |
+| `react-hooks/preserve-manual-memoization` | 1 error | — | React Compiler hint |
+| `react-hooks/immutability` | 1 error | — | React Compiler hint |
+| unused `eslint-disable` directive | 1 warning | — | 一行删 |
+| `no-use-before-define` | **0** | 5 | 已在 PR #60 修完或 §E3 估计错 |
+
+**总计 27 problems（23 errors + 4 warnings）**——落在 audit §修复决策树"1–30 直接干"区间，但 5 处 `rules-of-hooks` 是**真 bug 不是 lint cosmetic**。
+
+#### 拆分决策
+
+按 audit "警告里有任何'行为可疑'的 rule，停下问我——这不是 lint 修复是 bug 修复，应该独立 PR" 红线，5 处 `rules-of-hooks` **从 `chore/lint-fix-batch` 拆出**，新增 PR `fix/react-hooks-rules-of-hooks`（见 Tier 2 #11）：
+
+| PR | 范围 | 性质 | 工作量 |
+|---|---|---|---|
+| `chore/lint-fix-batch`（v0.11.2） | 16 处 set-state-in-effect 逐处 suppress + 链 doc / 3 exhaustive-deps suppress / 3 cosmetic / 翻 `continue-on-error: false` | lint cleanup | ≈ 0.5d |
+| `fix/react-hooks-rules-of-hooks`（v0.11.3） | `triple-grid-results.tsx:37-39` + `dual-list-results.tsx:37-38` 共 5 处 useMemo 移到 early return 之前 | 真 bug 修复，组件结构调整 | ≈ 0.5-1d |
+
+#### `set-state-in-effect` 16 处的处理路径
+
+3 选 1：
+
+- **A. 逐处 `// eslint-disable-next-line` + 链 doc** ✅（选这个）
+- B. 改 `useSyncExternalStore`——架构升级，4-8x 工作量，与 lint cleanup 失焦
+- C. eslint config 把这条 rule 降为 `warn`——越界（audit 禁区："不引入新 lint rule / 不改 eslint config 严苛度"）
+
+选 A 的理由：localStorage hydrate 是历史成熟 pattern；React 19 + React Compiler 这条 rule 还在调试期；本项目 88/96 是 client component，SSR mismatch 风险面有限；改 `useSyncExternalStore` 应作为独立 React 19 优化 PR 不混进 lint cleanup。
+
+#### 配套：写一份 convention doc
+
+`docs/conventions/react19-hydration.md`（≤ 30 行）解释：
+1. localStorage hydration 为何要在 useEffect 里 setState
+2. 为何**不**改 `useSyncExternalStore`（client-component 居多 / 风险面小 / ROI 不划算）
+3. 未来若改时怎么改的备忘录
+4. 16 处 disable 注释链向此 doc
+
+避免每处写一长段注释（视觉债）。统一一份 doc 解释一次。
+
+#### `chore/lint-fix-batch` 工作量从 §E3 的 1-1.5d 修订到 0.5d
+
+原估包含 5 处 rules-of-hooks 修复 + per-occurrence review；现在 rules-of-hooks 拆出 + set-state-in-effect 走 mechanical suppress + 链 doc，工作量降到 0.5d。
+
+#### Phase E execution gate 更新
+
+原 gate："Phase D 全合 main 后启动 Phase E execution"。
+
+新 gate：**"Phase D + chore/lint-fix-batch + fix/react-hooks-rules-of-hooks 全合 main 后启动 Phase E execution"**。
+
+理由：E 的 `git mv` 会把所有 Copilot 文件搬到新路径；如果 lint-fix 或 rules-of-hooks 还没合，文件搬完后还得在新路径下再修一遍。让两个 follow-up 先合，E 看到的是干净基线。
+
+
 
 ---
 

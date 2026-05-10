@@ -177,6 +177,24 @@ Phase F: #5
 - CHANGELOG `[Unreleased]` 段每完成一项追加草稿，合 tag 时整合
 - 跨 Phase 严格顺序；Phase 内可并行
 
+### Plan-外 scope 偏离规则（standing rule）
+
+PR 内任何 **未在 master spec 或对应 plan 声明** 的额外测试 / 文档 / 重构 / 文件改动，必须在 PR description 顶部 `## Plan deviation` 段显式声明并给出理由。Reviewer 默认拒绝隐式 scope 扩张。
+
+**合理偏离判据**（任一即可，PR description 必须指明命中哪一条）：
+
+a. 防一类已识别风险的回归——典型：审视报告 §7/§15 列的 blocker
+b. 量化 plan 声明却未具象化的契约——典型：API response shape、UI state machine 边界
+c. 修复 plan 写完后才发现的 plan 自身错漏——必须同时更新 plan/spec
+
+**不合理偏离判据**（reviewer 应要求拆 follow-up PR）：
+
+a. "顺手清一下 unused 代码"——应入 Tier 3 batch
+b. "多测一些总是好的"——无具体回归类指向
+c. 改动公共 API 形态、引入新抽象、加新依赖
+
+**正面案例**（参考）：`fix/cartesian-cap` PR（commit `0a6cec4`）追加 `e2e/cartesian-cap.spec.ts` 231 LOC，5 case；理由 case 3 防 §15 OOM 回归 + case 5 用 `Object.keys(body).sort()` 固化 estimate API 契约（命中判据 a + b）。PR description 显式声明偏离 + 标注未来 e2e 重复出现时把 helpers 抽到 `e2e/_helpers.ts`（早抽象 deferral）。**该案例确立模板，后续 session 偏离 plan 时按此格式写 deviation 段。**
+
 ## Tag 建议
 
 - A→C 完成后 tag `v0.11.0 — security blocker fixes + cartesian cap`（用户可见行为提升）

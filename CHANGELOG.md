@@ -48,6 +48,8 @@ v0.11.5 release notes `### Tuning (rules-of-hooks 衍生修)` 子段声称包含
 
 ## [0.11.5] — 2026-05-10 · tsconfig strict baseline + 顺手 hooks fix (Phase D, PR #62 #63)
 
+> **Errata (2026-05-10)**：本段 `### Tuning (rules-of-hooks 衍生修)` 子段引用的 commits `ca5dfcb` / `60a833a` 位于 `fix/react-hooks-rules-of-hooks` branch，**未直接合入 main**——通过 PR #67 retrofit 到 main 时 commit hash 变为 `9e625ca` (triple-grid) / `413f1cf` (dual-list)。tag v0.11.5 指向的 merge commit `52f4217` 不含此修复；首个完整版本是 **v0.11.6**（post-PR #67）。下次衍生修复务必先 rebase / merge 再 promote CHANGELOG，避免 release notes 与实际 main 状态出现 commit hash gap。
+
 收掉 audit-cleanup-2026-05-09 §Phase D：tsc 三档 strict 全开（`noUncheckedIndexedAccess` + `noImplicitReturns` + `exactOptionalPropertyTypes`），把项目 ~570 处隐式 undefined 全显式化。零用户可见行为变化——这是 internal-quality 提升 / Phase E（Copilot 物理切边）的前置防护网（spec §Phase D Stop condition：strict 必须先于 Copilot 重构合，否则切边后再开 strict 会让搬走的文件二次改类型）。patch 级版本号刻意——Phase D 是 zero-user-perceived 改动，留 v0.12.0 给 Phase E 真正的 minor bump。
 
 ### 类型严格化 (PR #62 `refactor/tsconfig-strict` — Phase D PR-1)
