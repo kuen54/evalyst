@@ -26,17 +26,27 @@ export function TripleGridResults({ results, schema }: ResultViewProps) {
   const dims = dimensionsOf(schema)
   const outputFields = useMemo(() => getOutputFields(schema.output_schema), [schema.output_schema])
 
-  if (dims.length < 3) {
+  // Hoist hooks above the early return to satisfy react-hooks/rules-of-hooks;
+  // useMemo bodies short-circuit when their dim is undefined.
+  const primaryDim = dims[0]
+  const rowDim = dims[1]
+  const colDim = dims[2]
+  const groups = useMemo(
+    () => (primaryDim ? groupByDimension(results, primaryDim) : null),
+    [results, primaryDim],
+  )
+  const rowValues: Array<string | number> = useMemo(
+    () => (rowDim ? collectDimensionValues(results, rowDim) : []),
+    [results, rowDim],
+  )
+  const colValues: Array<string | number> = useMemo(
+    () => (colDim ? collectDimensionValues(results, colDim) : []),
+    [results, colDim],
+  )
+
+  if (!primaryDim || !rowDim || !colDim || !groups) {
     return <div className="text-xs text-muted-foreground py-4">{t("results.need_3_dims")}</div>
   }
-
-  // dims.length >= 3 by guard above; positional access is safe.
-  const primaryDim = dims[0]!
-  const rowDim = dims[1]!
-  const colDim = dims[2]!
-  const groups = useMemo(() => groupByDimension(results, primaryDim), [results, primaryDim])
-  const rowValues = useMemo(() => collectDimensionValues(results, rowDim), [results, rowDim])
-  const colValues = useMemo(() => collectDimensionValues(results, colDim), [results, colDim])
 
   return (
     <div className="space-y-3">
