@@ -21,7 +21,7 @@ export interface FormOutputField {
   enum_values: string[]                   // 空数组 = 无约束；非空则值必须在列表里
 }
 
-export interface FormInput {
+interface FormInput {
   alias: string
   dataset_id: string
   dedupe_by: string[]
@@ -30,14 +30,14 @@ export interface FormInput {
   filters: FilterDef[]
 }
 
-export interface FormVariable {
+interface FormVariable {
   name: string
   source: string
   transform: TransformStep[]
   fallback: string
 }
 
-export interface FormDimension {
+interface FormDimension {
   field: string
   label: string
   value_labels: Record<string, string>
@@ -93,7 +93,7 @@ export function emptyDimension(): FormDimension {
 
 // --- 序列化表单 → TaskSchema ---
 
-export interface BuildResult {
+interface BuildResult {
   schema?: TaskSchema
   errors: Array<{ field: string; message: string }>
 }

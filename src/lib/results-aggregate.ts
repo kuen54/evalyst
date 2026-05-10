@@ -3,7 +3,7 @@
 
 import type { GenericResultRecord } from './schema/types'
 
-export interface ResultsAggregate {
+interface ResultsAggregate {
   total_input_tokens: number
   total_output_tokens: number
   total_cost_by_currency: Record<string, number>

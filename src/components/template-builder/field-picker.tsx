@@ -8,7 +8,7 @@ import type { TFn } from "@/lib/i18n/provider"
 import type { DatasetDef } from "@/lib/schema/types"
 import type { TemplateFormState } from "./form-state"
 
-export type FieldPickerScope = "all" | "inputs_only" | "preview_only"
+type FieldPickerScope = "all" | "inputs_only" | "preview_only"
 
 interface Option {
   value: string

@@ -76,7 +76,7 @@ export function imageBlockForAnthropic(url: string): Record<string, unknown> {
 }
 
 /** 已构造好的 HTTP 请求（URL / headers / body 对 OpenAI / Anthropic 已就地适配） */
-export interface ApiRequestSpec {
+interface ApiRequestSpec {
   url: string
   headers: Record<string, string>
   body: Record<string, unknown>

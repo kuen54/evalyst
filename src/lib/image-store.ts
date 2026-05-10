@@ -3,12 +3,12 @@ import path from 'path'
 import type { JsonSchemaDef } from './schema/types'
 import { ensureDir } from './fs-utils'
 
-export interface ImagePayload {
+interface ImagePayload {
   url: string                 // 'data:image/png;base64,...' OR 'https://...'
   mime_type?: string
 }
 
-export interface SaveImagesArgs {
+interface SaveImagesArgs {
   experimentId: string
   taskId: string
   images: ImagePayload[]

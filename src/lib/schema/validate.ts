@@ -6,7 +6,7 @@
 
 import type { JsonSchemaDef, JsonPropDef } from './types'
 
-export interface ValidateResult {
+interface ValidateResult {
   ok: boolean
   error?: string
 }

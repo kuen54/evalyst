@@ -45,7 +45,7 @@ import {
   type TemplateFormState,
 } from "@/components/template-builder/form-state"
 
-export type TemplateFormMode = "create" | "edit"
+type TemplateFormMode = "create" | "edit"
 
 interface Props {
   mode: TemplateFormMode
