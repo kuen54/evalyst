@@ -27,15 +27,22 @@ export function DualListResults({ results, schema }: ResultViewProps) {
   const dims = dimensionsOf(schema)
   const outputFields = useMemo(() => getOutputFields(schema.output_schema), [schema.output_schema])
 
-  if (dims.length < 2) {
+  // Hoist hooks above the early return to satisfy react-hooks/rules-of-hooks;
+  // useMemo bodies short-circuit when their dim is undefined.
+  const primaryDim = dims[0]
+  const secondaryDim = dims[1]
+  const groups = useMemo(
+    () => (primaryDim ? groupByDimension(results, primaryDim) : null),
+    [results, primaryDim],
+  )
+  const secondaryValues: Array<string | number> = useMemo(
+    () => (secondaryDim ? collectDimensionValues(results, secondaryDim) : []),
+    [results, secondaryDim],
+  )
+
+  if (!primaryDim || !secondaryDim || !groups) {
     return <div className="text-xs text-muted-foreground py-4">{t("results.need_2_dims")}</div>
   }
-
-  // dims.length >= 2 by guard above; positional access is safe.
-  const primaryDim = dims[0]!
-  const secondaryDim = dims[1]!
-  const groups = useMemo(() => groupByDimension(results, primaryDim), [results, primaryDim])
-  const secondaryValues = useMemo(() => collectDimensionValues(results, secondaryDim), [results, secondaryDim])
 
   return (
     <div className="space-y-3">
