@@ -23,6 +23,7 @@ export function Sidebar() {
   // cycle 过程中的 cleanup timeout；连点时抢旧 timeout 避免残留 delay
   const cascadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- mount flag; see docs/conventions/react19-hydration.md
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {

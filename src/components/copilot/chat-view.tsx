@@ -53,6 +53,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   // 每次 contexts 变动，向服务端 resolve 拿 per-ref status（chip 状态显示用）。
   // v2 起 LLM 不再消费这段 system_message，前端也不再展示 preview 面板。
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
     if (contexts.length === 0) { setCtxStatus({}); return }
     const refs = contexts.map(c => ({
       tag: c.tag,

@@ -41,6 +41,7 @@ export function CopilotPanel() {
   }, [activeSessionId, setActiveSessionId, t])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
     if (!activeSessionId) { setModelId(undefined); return }
     const s = sessions.find(x => x.id === activeSessionId)
     if (s?.model_id) setModelId(s.model_id)
