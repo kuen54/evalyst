@@ -26,7 +26,7 @@ import { buildLlmMessages } from './build-llm-messages'
 import { toOpenaiTools, toAnthropicTools } from './tool-adapters'
 import type { AnyToolDescriptor } from './tools/registry'
 import type { CopilotMessage, PageContext, StreamEvent } from './types'
-import type { ModelConfig } from '../llm-config'
+import type { ModelConfig } from '@/lib/llm-config'
 import {
   appendCacheStat,
 } from './cache-stats-store'

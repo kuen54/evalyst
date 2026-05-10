@@ -13,7 +13,7 @@
 // provider 序列化阶段统一处理，此处不交织。
 
 import type { CopilotMessage, CopilotContextRef, ImageRef } from './types'
-import type { LlmMessage } from '../llm-client'
+import type { LlmMessage } from '@/lib/llm-client'
 import { normalizeToolResult, appendCompactBoundary } from './session-store'
 import { buildSystemHeader } from './system-header'
 import { microCompact } from './micro-compact'

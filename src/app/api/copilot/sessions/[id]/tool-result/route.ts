@@ -3,16 +3,16 @@ import {
   getSession,
   appendMessage,
   getActiveBranch,
-} from '@/lib/copilot/session-store'
-import { TOOLS, toolByName } from '@/lib/copilot/tools/registry'
-import { visibleToolsForRoute } from '@/lib/copilot/tools/route-gating'
-import { runTool } from '@/lib/copilot/tool-runtime'
+} from '@/copilot/lib/session-store'
+import { TOOLS, toolByName } from '@/copilot/lib/tools/registry'
+import { visibleToolsForRoute } from '@/copilot/lib/tools/route-gating'
+import { runTool } from '@/copilot/lib/tool-runtime'
 import { getLlmConfig } from '@/lib/llm-config'
-import type { ClientSnapshot } from '@/lib/copilot/types'
-import { setSnapshot } from '@/lib/copilot/snapshot-cache'
-import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
-import { streamSseResponse } from '@/lib/copilot/sse-response'
-import { analyzeToolLoop, type ToolLoopDecision } from '@/lib/copilot/tool-loop-detector'
+import type { ClientSnapshot } from '@/copilot/lib/types'
+import { setSnapshot } from '@/copilot/lib/snapshot-cache'
+import { runToolAwareLlmStream } from '@/copilot/lib/stream-response'
+import { streamSseResponse } from '@/copilot/lib/sse-response'
+import { analyzeToolLoop, type ToolLoopDecision } from '@/copilot/lib/tool-loop-detector'
 
 /**
  * POST body：

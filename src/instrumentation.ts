@@ -8,7 +8,7 @@ export async function register() {
 
   // v2.5 P1b §3.2: cache-stats jsonl retention
   try {
-    const { pruneCacheStats } = await import('@/lib/copilot/cache-stats-store')
+    const { pruneCacheStats } = await import('@/copilot/lib/cache-stats-store')
     const result = pruneCacheStats()
     if (result.pruned_by_age + result.pruned_by_size > 0) {
       console.log(

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { __testOnly } from '@/lib/copilot/llm-stream'
+import { __testOnly } from '@/copilot/lib/llm-stream'
 import type { LlmMessage } from '@/lib/llm-client'
 import type { ApiConfig } from '@/lib/types'
 

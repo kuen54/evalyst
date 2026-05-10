@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import type { CopilotContextRef, PageContext } from "@/lib/copilot/types"
+import type { CopilotContextRef, PageContext } from "@/copilot/lib/types"
 import { applyRevealCascade, clearRevealCascade } from "./material-reveal-cascade"
 
 // ---------- 全局面板状态 ----------

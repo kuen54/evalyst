@@ -3,7 +3,7 @@
 import { useT } from "@/lib/i18n/provider"
 import { RelationDiagram } from "@/components/settings/relation-diagram"
 import { AgentHintBanner } from "@/components/settings/agent-hint-banner"
-import { GlassRegular } from "@/components/copilot/shell"
+import { GlassRegular } from "@/copilot/components/shell"
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const t = useT()

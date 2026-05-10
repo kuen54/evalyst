@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useConfirm } from "@/components/ui/confirm-dialog"
 import { useT, useLocale } from "@/lib/i18n/provider"
-import { GlassRegular } from "@/components/copilot/shell"
+import { GlassRegular } from "@/copilot/components/shell"
 import { formatDate } from "@/lib/i18n/format"
-import { useRegisterPageContext } from "@/components/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import type { DatasetDef, TaskSchema } from "@/lib/schema/types"
 
 interface DatasetDetail {

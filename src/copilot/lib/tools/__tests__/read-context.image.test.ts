@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import fs from "node:fs/promises"
 import path from "node:path"
 import os from "node:os"
-import type { ImageRef } from "@/lib/copilot/types"
+import type { ImageRef } from "@/copilot/lib/types"
 
 const mockTag = vi.fn<(sessionId: string, tag: number) => unknown>()
 vi.mock("../../session-store", async () => {

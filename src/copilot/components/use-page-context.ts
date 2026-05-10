@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect } from "react"
-import { useCopilotStore } from "@/components/copilot/store"
-import type { PageContext } from "@/lib/copilot/types"
+import { useCopilotStore } from "@/copilot/components/store"
+import type { PageContext } from "@/copilot/lib/types"
 
 /**
  * 每个页面在顶部调用，把当前页面摘要注册到 copilot store。

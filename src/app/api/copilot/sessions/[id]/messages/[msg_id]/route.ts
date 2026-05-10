@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { pruneMessageAndDescendants } from '@/lib/copilot/session-store'
+import { pruneMessageAndDescendants } from '@/copilot/lib/session-store'
 
 /**
  * DELETE /api/copilot/sessions/{id}/messages/{msg_id}

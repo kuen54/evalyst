@@ -11,7 +11,7 @@ import { CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useT } from "@/lib/i18n/provider"
-import { GlassCard } from "@/components/copilot/shell"
+import { GlassCard } from "@/copilot/components/shell"
 import type { ModelConfig, ApiFormat, ModelPricing } from "@/lib/llm-config"
 import { buildApiRequest } from "@/lib/llm-client"
 

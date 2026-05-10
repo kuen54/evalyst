@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useT } from "@/lib/i18n/provider"
 import { segmentedItem } from "@/lib/segmented"
-import type { CopilotSessionMeta } from "@/lib/copilot/types"
+import type { CopilotSessionMeta } from "@/copilot/lib/types"
 
 interface Props {
   sessions: CopilotSessionMeta[]

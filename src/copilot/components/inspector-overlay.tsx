@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useT } from "@/lib/i18n/provider"
 import { useCopilotStore, type CapturedContext } from "./store"
-import { captureFromElement, KNOWN_CONTEXT_TYPES, collectAncestorChain } from "@/lib/copilot/context-registry"
+import { captureFromElement, KNOWN_CONTEXT_TYPES, collectAncestorChain } from "@/copilot/lib/context-registry"
 
 // Chrome DevTools 风格的 element inspect。
 // 捕获成功时播放 burst 动效（外环扩散 + 内核飞向右上角 panel），独立于 GlowOverlay 的 click spawn。

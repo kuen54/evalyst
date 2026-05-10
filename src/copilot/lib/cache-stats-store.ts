@@ -6,7 +6,7 @@
 
 import fs from 'fs'
 import path from 'path'
-import { ensureDir, writeAtomic } from '../fs-utils'
+import { ensureDir, writeAtomic } from '@/lib/fs-utils'
 
 export interface CacheUsageStat {
   session_id: string

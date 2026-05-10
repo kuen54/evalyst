@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import type { CopilotContextRef } from '@/lib/copilot/types'
+import type { CopilotContextRef } from '@/copilot/lib/types'
 import type { ModelConfig } from '@/lib/llm-config'
 import type { TaskSchema, GenericResultRecord } from '@/lib/schema/types'
 import type { ExperimentConfig } from '@/lib/types'
@@ -13,7 +13,7 @@ vi.mock('@/lib/schema', () => ({
   getSchema: vi.fn(),
 }))
 
-import { validateVisionGate } from '@/lib/copilot/vision-gate'
+import { validateVisionGate } from '@/copilot/lib/vision-gate'
 import { readResults, getExperiment } from '@/lib/store'
 import { getSchema } from '@/lib/schema'
 

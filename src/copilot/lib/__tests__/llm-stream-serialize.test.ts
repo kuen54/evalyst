@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { serializeMessagesForProvider, __testOnly } from '../llm-stream'
-import type { LlmMessage } from '../../llm-client'
+import type { LlmMessage } from '@/lib/llm-client'
 
 describe('serializeMessagesForProvider — OpenAI', () => {
   it('serializes a lone tool_use into a composite assistant (content: null + tool_calls)', () => {

@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import type { CopilotMessage, ImageRef } from "../types"
-import type { LlmMessage } from "../../llm-client"
+import type { LlmMessage } from "@/lib/llm-client"
 
 type TextStyleMessage = Extract<LlmMessage, { role: "system" | "user" | "assistant" }>
 
-vi.mock("@/lib/copilot/image-attach", () => ({
+vi.mock("@/copilot/lib/image-attach", () => ({
   MAX_IMAGES_PER_TURN: 5,
   collectImageRefs: vi.fn(),
   readImageBytes: vi.fn(),
 }))
 
 import { buildLlmMessages } from "../build-llm-messages"
-import { collectImageRefs, readImageBytes } from "@/lib/copilot/image-attach"
+import { collectImageRefs, readImageBytes } from "@/copilot/lib/image-attach"
 
 function userMsg(content: string, contexts?: CopilotMessage["contexts"]): CopilotMessage {
   return { id: "m_u", session_id: "s", role: "user", content, contexts: contexts ?? [], timestamp: "t" }

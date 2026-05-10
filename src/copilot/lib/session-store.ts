@@ -10,7 +10,7 @@
 import fs from 'fs'
 import path from 'path'
 import { customAlphabet } from 'nanoid'
-import { ensureDir, writeAtomic } from '../fs-utils'
+import { ensureDir, writeAtomic } from '@/lib/fs-utils'
 import type {
   CopilotMessage,
   CopilotSessionMeta,

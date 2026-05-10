@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useT } from "@/lib/i18n/provider"
 import { useCopilotStore, type CapturedContext } from "./store"
 import { customAlphabet } from "nanoid"
-import { collectAncestorChain } from "@/lib/copilot/context-registry"
+import { collectAncestorChain } from "@/copilot/lib/context-registry"
 
 // 划线选中文本 → 贴选区底部浮按钮 → 点击加入 Copilot 作为 text_selection 类型 context。
 //

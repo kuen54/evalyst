@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useT } from "@/lib/i18n/provider"
-import type { CopilotMessage } from "@/lib/copilot/types"
-import { findClientToolMetadata, needsConfirm } from "@/lib/copilot/tools/metadata-client"
+import type { CopilotMessage } from "@/copilot/lib/types"
+import { findClientToolMetadata, needsConfirm } from "@/copilot/lib/tools/metadata-client"
 import { colorForTag } from "./context-mask"
 
 interface Props {

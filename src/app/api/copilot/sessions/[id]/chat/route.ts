@@ -5,15 +5,15 @@ import {
   getActiveBranch,
   autoTitleSessionIfNeeded,
   updateSession,
-} from '@/lib/copilot/session-store'
-import { TOOLS } from '@/lib/copilot/tools/registry'
-import { visibleToolsForRoute } from '@/lib/copilot/tools/route-gating'
-import type { CopilotContextRef, ClientSnapshot } from '@/lib/copilot/types'
+} from '@/copilot/lib/session-store'
+import { TOOLS } from '@/copilot/lib/tools/registry'
+import { visibleToolsForRoute } from '@/copilot/lib/tools/route-gating'
+import type { CopilotContextRef, ClientSnapshot } from '@/copilot/lib/types'
 import { getLlmConfig } from '@/lib/llm-config'
-import { setSnapshot } from '@/lib/copilot/snapshot-cache'
-import { runToolAwareLlmStream } from '@/lib/copilot/stream-response'
-import { streamSseResponse } from '@/lib/copilot/sse-response'
-import { validateVisionGate } from '@/lib/copilot/vision-gate'
+import { setSnapshot } from '@/copilot/lib/snapshot-cache'
+import { runToolAwareLlmStream } from '@/copilot/lib/stream-response'
+import { streamSseResponse } from '@/copilot/lib/sse-response'
+import { validateVisionGate } from '@/copilot/lib/vision-gate'
 
 /**
  * POST body：
@@ -32,7 +32,7 @@ import { validateVisionGate } from '@/lib/copilot/vision-gate'
  * tool_use 消息，parent_id 链式串起来），前端收到 tool_use_end 后会调 /tool-result。
  *
  * 流式段（调 LLM + 累 text/tool_use + 后置顺序 append）已抽到
- * `@/lib/copilot/stream-response.ts` 的 `runToolAwareLlmStream`，与 /tool-result 共享。
+ * `@/copilot/lib/stream-response.ts` 的 `runToolAwareLlmStream`，与 /tool-result 共享。
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: sessionId } = await params

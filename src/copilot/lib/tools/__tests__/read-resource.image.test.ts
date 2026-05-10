@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
-import type { ImageRef } from "@/lib/copilot/types"
+import type { ImageRef } from "@/copilot/lib/types"
 
 vi.mock("@/lib/store", () => ({
   getExperiment: (id: string) => {

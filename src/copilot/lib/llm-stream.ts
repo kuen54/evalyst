@@ -6,9 +6,9 @@
 // 消息序列化。Task 6 进一步在 serializeMessagesForProvider 里合并连续的
 // assistant text + tool_use，以满足 Anthropic 的 user/assistant 严格交替约束。
 
-import type { ApiConfig } from '../types'
-import type { LlmMessage } from '../llm-client'
-import { isTextMessage, buildApiRequest } from '../llm-client'
+import type { ApiConfig } from '@/lib/types'
+import type { LlmMessage } from '@/lib/llm-client'
+import { isTextMessage, buildApiRequest } from '@/lib/llm-client'
 import type { StreamEvent } from './types'
 import { applyAnthropicCacheControl, type AnthropicBody } from './anthropic-cache-control'
 

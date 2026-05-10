@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { useCopilotStore } from "./store"
-import { queryContextElement } from "@/lib/copilot/context-registry"
+import { queryContextElement } from "@/copilot/lib/context-registry"
 import { colorForTag } from "./context-mask"
 
 // 把已捕获的 text_selection 持久高亮在页面上。

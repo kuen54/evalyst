@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { useT } from "@/lib/i18n/provider"
-import type { CopilotContextRef } from "@/lib/copilot/types"
+import type { CopilotContextRef } from "@/copilot/lib/types"
 
 /**
  * 聊天视图内部的消息形态。PR-3 扩成 discriminated union，覆盖 tool_use / tool_result：

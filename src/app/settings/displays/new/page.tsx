@@ -6,7 +6,7 @@ import { MetaPromptPane } from "@/components/settings/meta-prompt-pane"
 import { JsonPastePane } from "@/components/settings/json-paste-pane"
 import { DisplayFormPage } from "@/components/settings/display-form-page"
 import { useT } from "@/lib/i18n/provider"
-import { useRegisterPageContext } from "@/components/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 
 function makeValidate(t: (k: string, v?: Record<string, string | number>) => string) {
   return (parsed: unknown): { ok: boolean; errors: Array<{ field: string; message: string }> } => {

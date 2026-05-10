@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import type { CopilotMessage, CopilotContextRef, PageContext } from "@/lib/copilot/types"
-import { needsConfirm } from "@/lib/copilot/tools/metadata-client"
-import { isSessionAllowed, getSessionAllowList, addSessionAllow, isSessionDenied, getSessionDenyList, addSessionDeny } from "@/lib/copilot/session-allow"
-import { collectClientSnapshot } from "@/lib/copilot/collect-snapshot"
+import type { CopilotMessage, CopilotContextRef, PageContext } from "@/copilot/lib/types"
+import { needsConfirm } from "@/copilot/lib/tools/metadata-client"
+import { isSessionAllowed, getSessionAllowList, addSessionAllow, isSessionDenied, getSessionDenyList, addSessionDeny } from "@/copilot/lib/session-allow"
+import { collectClientSnapshot } from "@/copilot/lib/collect-snapshot"
 import { useCopilotStore } from "./store"
 import type { UiMessage } from "./chat-view-parts"
 

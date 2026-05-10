@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { TemplateFormPage } from "@/components/template-builder/template-form-page"
 import { useT } from "@/lib/i18n/provider"
-import { useRegisterPageContext } from "@/components/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import type { TaskSchema } from "@/lib/schema/types"
 
 function NewTemplateInner() {

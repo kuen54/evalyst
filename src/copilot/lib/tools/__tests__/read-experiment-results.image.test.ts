@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import type { TaskSchema } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
-import type { ImageRef } from "@/lib/copilot/types"
+import type { ImageRef } from "@/copilot/lib/types"
 
 const schema: TaskSchema = {
   id: "sch_img",

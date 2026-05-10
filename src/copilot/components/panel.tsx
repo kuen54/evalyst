@@ -7,7 +7,7 @@ import { useCopilotStore } from "./store"
 import { SessionList } from "./session-list"
 import { ChatView } from "./chat-view"
 import { RouteChangeObserver } from "./route-change-observer"
-import type { CopilotSessionMeta } from "@/lib/copilot/types"
+import type { CopilotSessionMeta } from "@/copilot/lib/types"
 
 export function CopilotPanel() {
   const t = useT()

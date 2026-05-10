@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useT } from "@/lib/i18n/provider"
-import { GlassCard } from "@/components/copilot/shell"
-import { useRegisterPageContext } from "@/components/copilot/use-page-context"
+import { GlassCard } from "@/copilot/components/shell"
+import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import type { Rubric } from "@/lib/schema/types"
 
 const TYPE_LABELS: Record<string, string> = {

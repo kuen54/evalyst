@@ -9,7 +9,7 @@ import { StickySaveBar } from "@/components/ui/sticky-save-bar"
 import { ModelCard } from "@/components/settings/model-card"
 import { useT, useLocale } from "@/lib/i18n/provider"
 import { LOCALE_BCP47 } from "@/lib/i18n/types"
-import { useRegisterPageContext } from "@/components/copilot/use-page-context"
+import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 
 function randomId(): string {
   return Math.random().toString(36).slice(2, 8)

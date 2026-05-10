@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useCopilotStore } from "./store"
-import { queryContextElement } from "@/lib/copilot/context-registry"
+import { queryContextElement } from "@/copilot/lib/context-registry"
 import { usePathname } from "next/navigation"
 import { useT } from "@/lib/i18n/provider"
 

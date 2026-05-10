@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { listSessions, createSession } from '@/lib/copilot/session-store'
+import { listSessions, createSession } from '@/copilot/lib/session-store'
 
 export async function GET() {
   return NextResponse.json({ sessions: listSessions() })

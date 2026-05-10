@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
-import { readImageBytes, resolveImageDiskPath } from '@/lib/copilot/image-attach'
+import { readImageBytes, resolveImageDiskPath } from '@/copilot/lib/image-attach'
 
 let tmp = ''
 let origCwd = ''
