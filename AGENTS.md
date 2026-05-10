@@ -147,7 +147,7 @@ JSON 粘贴入口仍保留给 "AI agent 整份产出" 这一种场景（new 页�
 - vitest 配置在 `vitest.config.ts`（path alias `@` 复用 tsconfig）
 - `npm test` 本地跑；`npm run test:watch` 开发时
 - **E2E smoke**：`e2e/*.spec.ts`，Playwright chromium，覆盖每条路由 no-crash + 侧栏渲染 + `/api/skills` 下载。`npm run test:e2e` 本地跑（首次需 `npx playwright install chromium`）
-- CI 两步：`verify` job（`tsc → lint (continue-on-error) → test → build`）+ `e2e` job（跑 Playwright，失败时上传 HTML report）
+- CI 两步：`verify` job（`tsc → lint (fail-on-warning) → test → build`）+ `e2e` job（跑 Playwright，失败时上传 HTML report）
 - 涉及 fs 的模块（`llm-config` / `annotation-store`）要**惰性解析** `process.cwd()`，不要在模块顶层 `const PATH = path.join(cwd, ...)`——否则测试里 chdir 无效。写成函数：
   ```ts
   function configDir() { return path.join(process.cwd(), 'data') }
