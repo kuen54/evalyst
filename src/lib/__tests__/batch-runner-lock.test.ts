@@ -181,4 +181,21 @@ describe("batch-runner-lock", () => {
     // Lock survives production cleanup.
     expect(fs.existsSync(lockPathFor("exp_f"))).toBe(true)
   })
+
+  it("Promise.all([acquireLock, acquireLock]) yields exactly one true (R2 #C race)", async () => {
+    // Regression for round-2 §14 TOCTOU: read-check-write let two concurrent
+    // acquires both win. O_EXCL on openSync ensures exactly one creator
+    // succeeds; the loser falls into EEXIST → readLock sees live holder →
+    // returns false. Loop 5x to expose any flakiness.
+    for (let i = 0; i < 5; i++) {
+      const id = `exp_race_${i}`
+      const [a, b] = await Promise.all([
+        Promise.resolve().then(() => acquireLock(id)),
+        Promise.resolve().then(() => acquireLock(id)),
+      ])
+      expect([a, b].filter(Boolean)).toHaveLength(1)
+      expect([a, b].filter(v => v === false)).toHaveLength(1)
+      releaseLock(id)
+    }
+  })
 })
