@@ -14,7 +14,7 @@
 | 文件存储 + 原子写 + concurrent 锁 | `data/{experiments,results,datasets,schemas,displays,rubrics}/*` + `data/llm-config.json`；写都走 `src/lib/fs-utils.ts` `writeAtomic`（tmp + rename）；批处理并发避冲突走 `src/lib/batch-runner-lock.ts`（per-experiment 文件锁，Phase E #9） |
 | Copilot 子系统 | `src/copilot/{lib,components}/` 子树 + api routes 在 `src/app/api/copilot/`；详细见 [`docs/copilot.md`](docs/copilot.md) |
 | Copilot 工具（**9 个**） | `src/copilot/lib/tools/` 一文件一工具（`*.metadata.ts` client-safe + `*.server.ts` server-only）；注册表 `client-registry.ts` / `server-registry.ts`；当前：`list-experiments` / `read-experiment-results` / `restart-experiment` / `read-page` / `read-context` / `read-resource` / `read-tool-result` / `read-dataset-records` / `edit-template` |
-| Glass UI 9 档 | `docs/conventions/glass-ui.md` `## 9 档梯度` 段；6 primitive (`thin` / `regular` / `thick` / `tinted` / `chrome-up` / `chrome-down`) + 3 semantic (`success` / `warning` / `danger`)；典型：`thin`=数据密集行级卡 / `regular`=页面主外壳默认 / `thick`=浮层；组件实现 `src/copilot/components/shell.tsx` |
+| Glass UI 7 档 | `docs/conventions/glass-ui.md` `## 7 档梯度` 段；4 primitive (`thin` / `regular` / `thick` / `tinted`) + 3 semantic (`success` / `warning` / `danger`)；典型：`thin`=数据密集行级卡 / `regular`=页面主外壳默认 / `thick`=浮层；组件实现 `src/copilot/components/shell.tsx`。Sticky 顶/底结构条已 inline 到 `sticky-chrome.tsx`，不算 9 档玻璃成员，用 `<GlassStickyHeader>` / `<GlassStickyFooter>` |
 | 加新 i18n 文案 | `src/lib/i18n/zh.ts` + `en.ts` **必须成对加 key**（`en.ts` 用 `Record<keyof typeof zh, string>` 强制完整性）；组件用 `useT()` 消费；插值 `t("k", { var })`；日期走 `formatDate(value, locale, opts)` |
 | 测试 / E2E | 单测 `src/**/__tests__/*.test.ts`（vitest）；E2E `e2e/*.spec.ts`（Playwright chromium）；CI `.github/workflows/ci.yml`（verify + e2e 两 job）；只测纯函数 |
 | 历史 audit cleanup / Copilot v1-v2-v25 / Glass UI 等 plan / spec | `docs/superpowers/archive/2026-Q2/{plans,specs,findings}/`；按主题分类索引 [`docs/superpowers/plans/_index.md`](docs/superpowers/plans/_index.md) |
@@ -29,7 +29,7 @@
 |---|---|
 | 项目架构 / 技术栈 / 数据流 / 资源 CRUD / 测试 / i18n / 目录结构 / skill 集成 / 运行 | [`docs/architecture.md`](docs/architecture.md) |
 | Copilot 子系统（v2 工具协议、关键文件、加新工具流程、context 抽取、交互） | [`docs/copilot.md`](docs/copilot.md) |
-| Glass UI 视觉系统（9 档梯度 + tinted 名额 + 玻璃作用域 + 轻量 alpha 配方 + a11y 降级） | [`docs/conventions/glass-ui.md`](docs/conventions/glass-ui.md) |
+| Glass UI 视觉系统（7 档梯度 + tinted 名额 + 玻璃作用域 + 轻量 alpha 配方 + a11y 降级） | [`docs/conventions/glass-ui.md`](docs/conventions/glass-ui.md) |
 | 开发流程（branch / PR / commit / tag / CHANGELOG / Plan-外偏离 / AI 协议） | [`AGENTS.md`](AGENTS.md) |
 | 历史 plan / spec | [`docs/superpowers/archive/2026-Q2/`](docs/superpowers/archive/2026-Q2/)（索引：[`plans/_index.md`](docs/superpowers/plans/_index.md)） |
 

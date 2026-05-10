@@ -3,8 +3,11 @@ import { getGlassStyleForVariant } from "../shell"
 
 /**
  * Test the pure glass style generator function.
- * Copilot glass system 9 variants: thin / regular / thick / tinted / chrome-up / chrome-down
- * + semantic: success / warning / danger
+ * Copilot glass system 7 variants: thin / regular / thick / tinted
+ * + semantic: success / warning / danger.
+ *
+ * (上下方向 sticky-chrome 阴影之前是 9 档玻璃中的两档，R2 #T3 已 inline 到 sticky-chrome.tsx；
+ *  Sticky 组件内部的方向阴影测试如有需求加在 sticky-chrome.test.ts。)
  */
 describe("getGlassStyleForVariant", () => {
   it("returns transparent transition-only style when copilot closed", () => {
@@ -46,26 +49,6 @@ describe("getGlassStyleForVariant", () => {
     expect(result.borderColor).toContain("55%")
     // accent ambient 外光（40% accent）
     expect(result.boxShadow).toMatch(/0 3px 10px -2px color-mix\(in oklab, var\(--copilot-accent\) 40%/)
-  })
-
-  it("chrome-up variant: regular material + top edge highlight + downward shadow", () => {
-    const result = getGlassStyleForVariant("chrome-up", true)
-    expect(result.backdropFilter).toContain("blur(28px)")
-    expect(result.backgroundColor).toContain("var(--card) 35%")
-    // 顶部切边高光（第一条 inset shadow，y = +1px）
-    expect(result.boxShadow).toMatch(/inset 0 1px 0 oklch\(1 0 0 \/ 0\.6\)/)
-    // 向下投影（正 y 偏移）
-    expect(result.boxShadow).toMatch(/0 8px 24px -12px/)
-  })
-
-  it("chrome-down variant: regular material + bottom edge highlight + upward shadow", () => {
-    const result = getGlassStyleForVariant("chrome-down", true)
-    expect(result.backdropFilter).toContain("blur(28px)")
-    expect(result.backgroundColor).toContain("var(--card) 35%")
-    // 底部切边高光（第一条 inset shadow，y = -1px）
-    expect(result.boxShadow).toMatch(/inset 0 -1px 0 oklch\(1 0 0 \/ 0\.6\)/)
-    // 向上投影（负 y 偏移）
-    expect(result.boxShadow).toMatch(/0 -8px 24px -12px/)
   })
 
   it("success variant: regular material + emerald border + emerald ambient shadow", () => {

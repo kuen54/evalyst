@@ -1,10 +1,10 @@
-# Glass UI 系统（6 primitive + 3 semantic）
+# Glass UI 系统（4 primitive + 3 semantic）
 
-> 本 doc 解释 Copilot 打开态下的 9 档玻璃约定（6 primitive + 3 semantic）+ tinted 名额规则 + 轻量 alpha 配方 + 可访问性降级。Copilot 子系统的工具协议 / 交互见 [`../copilot.md`](../copilot.md)；项目整体架构见 [`../architecture.md`](../architecture.md)。Spec 全文：`docs/superpowers/archive/2026-Q2/specs/2026-04-28-copilot-glass-system-design.md`；实施计划：`docs/superpowers/archive/2026-Q2/plans/2026-04-28-copilot-glass-system.md`。
+> 本 doc 解释 Copilot 打开态下的 7 档玻璃约定（4 primitive + 3 semantic）+ tinted 名额规则 + 轻量 alpha 配方 + 可访问性降级。Copilot 子系统的工具协议 / 交互见 [`../copilot.md`](../copilot.md)；项目整体架构见 [`../architecture.md`](../architecture.md)。Spec 全文：`docs/superpowers/archive/2026-Q2/specs/2026-04-28-copilot-glass-system-design.md`；实施计划：`docs/superpowers/archive/2026-Q2/plans/2026-04-28-copilot-glass-system.md`。
 
 Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（关闭时恢复 shadcn 扁平）。设计参考 Apple HIG Materials + Liquid Glass + MD3 elevation。
 
-## 9 档梯度（6 primitive + 3 semantic）
+## 7 档梯度（4 primitive + 3 semantic）
 
 **Primitive（材质 + 高度 + 基础配色）**：
 
@@ -14,8 +14,8 @@ Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（
 | **regular** | 28px | 35% | 页面主外壳 + 内容卡（默认档） |
 | **thick** | 40px | 55% | 浮层（Dialog / Select content / 自建 popover） |
 | **tinted** | 28px | 35% + accent 22% | primary CTA / segmented selected / active tab |
-| **chrome-up** | 28px | 35% + 顶部切边高光 + **向下**投影 | sticky 顶部结构条（compare header 等） |
-| **chrome-down** | 28px | 35% + 底部切边高光 + **向上**投影 | sticky 底部结构条（StickySaveBar 等） |
+
+> Sticky 顶/底结构条（compare header / StickySaveBar 等）之前是 9 档玻璃的 chrome-up / chrome-down 两档，R2 #T3 因各只 1 个调用点 inline 进 `src/copilot/components/sticky-chrome.tsx` —— 用 `<GlassStickyHeader>` / `<GlassStickyFooter>` 而非 `useGlassStyle("...")`。
 
 **Semantic（Regular 材质 + 语义 border + 语义 ambient shadow）**：
 
@@ -117,7 +117,7 @@ React.createElement('div', {
 
 ## 轻量 tinted 表面（badge / inline 状态行 / 错误小格 / 软提示）
 
-不占据 9 档玻璃档位，但仍需要在 dark mode 表现正常。**统一走 alpha 配方**，不要写 `bg-{color}-50` / `border-{color}-200`：
+不占据 7 档玻璃档位，但仍需要在 dark mode 表现正常。**统一走 alpha 配方**，不要写 `bg-{color}-50` / `border-{color}-200`：
 
 ```
 ✅ bg-{color}-500/10  border-{color}-500/30–40  text-{color}-700 dark:text-{color}-300

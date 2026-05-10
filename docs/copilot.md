@@ -60,7 +60,7 @@ src/copilot/components/
 ├── chat-view.tsx              # markdown 渲染 + 流式 token + chip rail + expand textarea
 ├── context-chip-rail.tsx      # 圈选按钮 + chip 行（v2: chip 可展开看详情，懒加载 /contexts/resolve）
 ├── tool-call-card.tsx         # v2: variant 路由（context/resource/retrieval/write/default）
-├── shell.tsx                  # 9 档玻璃系统 + useGlassStyle hook（见 conventions/glass-ui.md）
+├── shell.tsx                  # 7 档玻璃系统 + useGlassStyle hook（见 conventions/glass-ui.md）
 ├── store.tsx                  # React Context 全局状态 + localStorage/sessionStorage 持久化
 ├── inspector-overlay.tsx      # DevTools 风格元素圈选
 ├── context-mask.tsx           # 彩色蒙层 + 数字徽章 + × 移除按钮
