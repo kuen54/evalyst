@@ -103,6 +103,7 @@ export function microCompact(
   const replayableIdx: number[] = []
   for (let i = 0; i < messages.length; i++) {
     const m = messages[i]
+    if (!m) continue
     if (m.role !== "tool_result") continue
     if (!isReplayableTool(m.tool_name)) continue
     replayableIdx.push(i)
@@ -116,9 +117,9 @@ export function microCompact(
   for (let pos = replayableIdx.length - 1; pos >= 0; pos--) {
     const reverseRank = replayableIdx.length - 1 - pos // 0 = 最近
     if (reverseRank >= keep) break
-    const i = replayableIdx[pos]
+    const i = replayableIdx[pos]!
     if (tokenCap !== undefined) {
-      const tokens = approxTokens(messages[i].content)
+      const tokens = approxTokens(messages[i]!.content)
       if (acc + tokens > tokenCap) break
       acc += tokens
     }

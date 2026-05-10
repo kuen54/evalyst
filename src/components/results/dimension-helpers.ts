@@ -14,7 +14,7 @@ export function readDimensionValue(result: GenericResultRecord, dim: DisplayDime
 /** 把 dimension 的原始值映射成展示 label */
 export function labelFor(dim: DisplayDimension, value: string | number | null): string {
   if (value == null) return "-"
-  if (dim.value_labels && dim.value_labels[String(value)]) return dim.value_labels[String(value)]
+  if (dim.value_labels && dim.value_labels[String(value)]) return dim.value_labels[String(value)]!
   return String(value)
 }
 

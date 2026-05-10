@@ -408,7 +408,7 @@ export function TemplateFormPage({ mode, initialSchema, readOnly = false, fromId
                 const next = !!v
                 set("raw_text_output", next)
                 if (next && form.output_fields.length > 0) {
-                  const first = { ...form.output_fields[0], type: "string" as const }
+                  const first = { ...form.output_fields[0]!, type: "string" as const }
                   set("output_fields", [first])
                 } else if (next && form.output_fields.length === 0) {
                   set("output_fields", [{ name: "copy", type: "string", required: true, enum_values: [] }])

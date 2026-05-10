@@ -70,7 +70,7 @@ describe('read_page tool', () => {
       matches: Array<{ key: string }>
     }
     expect(r.matches.length).toBe(1)
-    expect(r.matches[0].key).toBe('task_result:t1')
+    expect(r.matches[0]!.key).toBe('task_result:t1')
   })
 
   it('scores multi-token queries higher for entries with more hits', async () => {
@@ -82,7 +82,7 @@ describe('read_page tool', () => {
     const r = (await readPage.call({ query: 'failed timeout' }, ctx)) as {
       matches: Array<{ key: string }>
     }
-    expect(r.matches[0].key).toBe('a') // 2 hits beats 1
+    expect(r.matches[0]!.key).toBe('a') // 2 hits beats 1
   })
 
   it('caps at top 5 matches', async () => {
@@ -103,8 +103,8 @@ describe('read_page tool', () => {
     const r = (await readPage.call({ query: 'failed' }, ctx)) as {
       matches: Array<{ content_tree: unknown }>
     }
-    expect(r.matches[0].content_tree).toBeTruthy()
-    expect((r.matches[0].content_tree as { stub: boolean }).stub).toBe(true)
+    expect(r.matches[0]!.content_tree).toBeTruthy()
+    expect((r.matches[0]!.content_tree as { stub: boolean }).stub).toBe(true)
   })
 
   it('falls back to whole-query match when all tokens are too short', async () => {
@@ -116,7 +116,7 @@ describe('read_page tool', () => {
       matches: Array<{ key: string }>; total_scanned: number
     }
     expect(r.matches.length).toBe(1)
-    expect(r.matches[0].key).toBe('task_result:t1')
+    expect(r.matches[0]!.key).toBe('task_result:t1')
   })
 
   it('returns partial result with error message when resolveContexts throws', async () => {
@@ -131,7 +131,7 @@ describe('read_page tool', () => {
       matches: Array<{ key: string; content_tree: unknown }>; message?: string
     }
     expect(r.matches.length).toBe(1)
-    expect(r.matches[0].content_tree).toBeNull()
+    expect(r.matches[0]!.content_tree).toBeNull()
     expect(r.message).toContain('fs boom')
   })
 })

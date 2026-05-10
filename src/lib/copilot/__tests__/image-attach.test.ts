@@ -79,9 +79,9 @@ describe('collectImageRefs — schema-aware extraction', () => {
     const branch = [makeUserMsg([ctx(1, 'task_result', 't1', { experiment_id: 'exp_1' })])]
     const out = collectImageRefs({ branch, schemaCache: new Map(), modelVisionCapable: true })
     expect(out.user_image_refs).toHaveLength(1)
-    expect(out.user_image_refs[0].url).toBe('/api/results/exp_1/images/cat.png')
-    expect(out.user_image_refs[0].source_label).toContain('field=image_url')
-    expect(out.user_image_refs[0].ctx_tag).toBe(1)
+    expect(out.user_image_refs[0]!.url).toBe('/api/results/exp_1/images/cat.png')
+    expect(out.user_image_refs[0]!.source_label).toContain('field=image_url')
+    expect(out.user_image_refs[0]!.ctx_tag).toBe(1)
     expect(out.dropped_count).toBe(0)
   })
 
@@ -113,8 +113,8 @@ describe('collectImageRefs — schema-aware extraction', () => {
     const branch = [makeUserMsg([ctx(1, 'task_result', 't1', { experiment_id: 'exp_1' })])]
     const out = collectImageRefs({ branch, schemaCache: new Map(), modelVisionCapable: true })
     expect(out.user_image_refs).toHaveLength(1)
-    expect(out.user_image_refs[0].url).toBe('/api/results/exp_1/images/foo.png')
-    expect(out.user_image_refs[0].source_label).toContain('(inferred)')
+    expect(out.user_image_refs[0]!.url).toBe('/api/results/exp_1/images/foo.png')
+    expect(out.user_image_refs[0]!.source_label).toContain('(inferred)')
   })
 
   it('heuristic skips when name matches but value does NOT match path prefix', () => {
@@ -161,7 +161,7 @@ describe('collectImageRefs — schema-aware extraction', () => {
     ])
     const branch = [makeUserMsg([ctx(1, 'task_result', 't1', { experiment_id: 'exp_1' })])]
     const out = collectImageRefs({ branch, schemaCache: new Map(), modelVisionCapable: true })
-    expect(out.user_image_refs[0].url).toBe('/api/results/exp_1/images/foo.png')
+    expect(out.user_image_refs[0]!.url).toBe('/api/results/exp_1/images/foo.png')
   })
 
   it('task_field with extra.field_type === image_url collects exactly 1 image', () => {
@@ -174,7 +174,7 @@ describe('collectImageRefs — schema-aware extraction', () => {
     ])]
     const out = collectImageRefs({ branch, schemaCache: new Map(), modelVisionCapable: true })
     expect(out.user_image_refs).toHaveLength(1)
-    expect(out.user_image_refs[0].source_label).toContain('field=image_url')
+    expect(out.user_image_refs[0]!.source_label).toContain('field=image_url')
   })
 
   it('non-vision-capable model short-circuits to empty result without reading store', () => {
@@ -273,7 +273,7 @@ describe('extractImageRefsFromOutput — direct helper coverage', () => {
       '/api/results/exp_1/images/b.png',
       '/api/results/exp_1/images/c.png',
     ])
-    expect(refs[0].ctx_tag).toBeUndefined()  // tool path doesn't pass ctx_tag
+    expect(refs[0]!.ctx_tag).toBeUndefined()  // tool path doesn't pass ctx_tag
   })
 
   it('heuristic catches "photo_url" with /api/results/... value (marked inferred)', async () => {
@@ -287,7 +287,7 @@ describe('extractImageRefsFromOutput — direct helper coverage', () => {
       't_abc',
     )
     expect(refs).toHaveLength(1)
-    expect(refs[0].source_label).toBe('task_result#t_abc · field=photo_url (inferred)')
+    expect(refs[0]!.source_label).toBe('task_result#t_abc · field=photo_url (inferred)')
   })
 
   it('heuristic skips when name matches but value is empty string', async () => {

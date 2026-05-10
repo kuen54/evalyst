@@ -344,8 +344,8 @@ describe('appendCacheStat with digests round-trip', () => {
     appendCacheStat(s)
     const read = readCacheStats({ session_id: 'roundtrip' })
     expect(read).toHaveLength(1)
-    expect(read[0].system_prompt_digest).toBe('abc123def4567890')
-    expect(read[0].tool_digest).toBe('1234567890abcdef')
+    expect(read[0]!.system_prompt_digest).toBe('abc123def4567890')
+    expect(read[0]!.tool_digest).toBe('1234567890abcdef')
   })
 })
 
@@ -513,8 +513,8 @@ describe('appendCacheStat with previews round-trip (v2.5 P2)', () => {
     appendCacheStat(s)
     const read = readCacheStats({ session_id: 'roundtrip-p2' })
     expect(read).toHaveLength(1)
-    expect(read[0].system_prompt_preview).toBe('abc...end of prompt')
-    expect(read[0].tool_preview).toBe('edit_template,read_context')
+    expect(read[0]!.system_prompt_preview).toBe('abc...end of prompt')
+    expect(read[0]!.tool_preview).toBe('edit_template,read_context')
   })
 
   it('旧 jsonl（无 preview 字段）兼容：读出 undefined', () => {
@@ -526,7 +526,7 @@ describe('appendCacheStat with previews round-trip (v2.5 P2)', () => {
     })
     appendCacheStat(old)
     const read = readCacheStats({ session_id: 'legacy' })
-    expect(read[0].system_prompt_preview).toBeUndefined()
-    expect(read[0].tool_preview).toBeUndefined()
+    expect(read[0]!.system_prompt_preview).toBeUndefined()
+    expect(read[0]!.tool_preview).toBeUndefined()
   })
 })

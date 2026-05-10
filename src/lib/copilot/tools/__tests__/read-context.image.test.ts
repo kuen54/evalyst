@@ -132,7 +132,7 @@ describe("read_context · image attachments", () => {
     expect(r.ok).toBe(true)
     expect(r.value._attachments).toBeDefined()
     expect(r.value._attachments).toHaveLength(1)
-    expect(r.value._attachments![0].url).toBe("/api/results/exp_img/images/cat.png")
+    expect(r.value._attachments![0]!.url).toBe("/api/results/exp_img/images/cat.png")
   })
 
   it("task_field with extra.field_type='image_url' → _attachments has 1 entry", async () => {
@@ -152,8 +152,8 @@ describe("read_context · image attachments", () => {
       value: { _attachments?: ImageRef[] } & Record<string, unknown>
     }
     expect(r.value._attachments).toHaveLength(1)
-    expect(r.value._attachments![0].url).toBe("/api/results/exp_img/images/cat.png")
-    expect(r.value._attachments![0].source_label).toContain("field=image_url")
+    expect(r.value._attachments![0]!.url).toBe("/api/results/exp_img/images/cat.png")
+    expect(r.value._attachments![0]!.source_label).toContain("field=image_url")
   })
 
   it("experiment ref → no _attachments key on output", async () => {

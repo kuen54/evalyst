@@ -97,7 +97,7 @@ export function tryParseRecords(text: string, t: TFn): { records: Record<string,
   const records: Record<string, unknown>[] = []
   for (let i = 0; i < lines.length; i++) {
     try {
-      const obj = JSON.parse(lines[i])
+      const obj = JSON.parse(lines[i]!)
       if (typeof obj !== "object" || obj === null) {
         return { records: [], error: t("settings.datasets.form.records_line_not_object", { line: i + 1 }) }
       }

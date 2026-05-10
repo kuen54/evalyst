@@ -413,13 +413,13 @@ describe('buildStreamingRequestBody · 4-breakpoint cache_control (v2.5 P1a)', (
     // system 被转成 array + cache_control
     expect(Array.isArray(body.system)).toBe(true)
     const sys = body.system as Array<Record<string, unknown>>
-    expect(sys[sys.length - 1].cache_control).toEqual({ type: 'ephemeral' })
+    expect(sys[sys.length - 1]!.cache_control).toEqual({ type: 'ephemeral' })
     // 最后 3 条 messages 各带 cache_control
     const messages = body.messages as Array<Record<string, unknown>>
     expect(messages).toHaveLength(3)
     for (const m of messages) {
       const content = m.content as Array<Record<string, unknown>>
-      expect(content[content.length - 1].cache_control).toEqual({ type: 'ephemeral' })
+      expect(content[content.length - 1]!.cache_control).toEqual({ type: 'ephemeral' })
     }
   })
 

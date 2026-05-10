@@ -86,7 +86,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
     const j = i + dir
     if (j < 0 || j >= form.fields.length) return
     const next = [...form.fields]
-    ;[next[i], next[j]] = [next[j], next[i]]
+    ;[next[i], next[j]] = [next[j]!, next[i]!]
     set("fields", next)
   }
 
@@ -100,7 +100,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
         dynamicTyping: false,
       })
       if (parsed.errors.length > 0) {
-        const first = parsed.errors[0]
+        const first = parsed.errors[0]!
         toast.error(t("settings.datasets.form.csv_parse_error", { row: (first.row ?? 0) + 1, message: first.message }))
         return
       }
@@ -109,7 +109,7 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
         toast.error(t("settings.datasets.form.csv_empty"))
         return
       }
-      const headers = parsed.meta.fields ?? Object.keys(rows[0])
+      const headers = parsed.meta.fields ?? Object.keys(rows[0]!)
       const records = rows.map(r => coerceCsvRow(r, headers))
       const jsonl = records.map(r => JSON.stringify(r)).join("\n")
 

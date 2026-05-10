@@ -59,7 +59,7 @@ export const readPageTool: ToolDescriptor<Input, unknown> = {
     const refs: CopilotContextRef[] = scored.map((x, i) => {
       const [type, ...rest] = x.entry.key.split(":")
       const id = rest.join(":")
-      return { tag: i + 1, type, id }
+      return { tag: i + 1, type: type!, id }
     })
     try {
       // resolveContexts(refs).data 走 manifest 形态（v2.5 Task 2 后），等同于 spec §3.6 的

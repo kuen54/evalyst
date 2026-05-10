@@ -28,7 +28,7 @@ const COLORS = [
 ]
 
 function colorForTag(tag: number): string {
-  return COLORS[(tag - 1) % COLORS.length]
+  return COLORS[(tag - 1) % COLORS.length]!
 }
 
 export function ContextMask() {

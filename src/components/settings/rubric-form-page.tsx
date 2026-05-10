@@ -53,7 +53,7 @@ export function RubricFormPage({ mode, initial }: Props) {
     const j = i + dir
     if (j < 0 || j >= criteria.length) return
     const next = criteria.slice()
-    ;[next[i], next[j]] = [next[j], next[i]]
+    ;[next[i], next[j]] = [next[j]!, next[i]!]
     setCriteria(next)
   }
   const remove = (i: number) => setCriteria(cs => cs.filter((_, j) => j !== i))

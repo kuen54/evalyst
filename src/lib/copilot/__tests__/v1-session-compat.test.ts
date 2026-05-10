@@ -43,7 +43,7 @@ async function seedV1Session(sessionId: string, messages: Array<Record<string, u
           title: "v1 test",
           created_at: "2026-04-28T00:00:00.000Z",
           updated_at: "2026-04-28T00:00:00.000Z",
-          head_message_id: messages[messages.length - 1].id,
+          head_message_id: messages[messages.length - 1]!.id,
         },
       ],
     }),
@@ -98,7 +98,7 @@ describe("v1 session backward compat", () => {
     // Read via session-store; should recover all 3 messages
     const branch = getActiveBranch(sessionId)
     expect(branch).toHaveLength(3)
-    expect(branch[2].role).toBe("tool_result")
+    expect(branch[2]!.role).toBe("tool_result")
 
     // Build LLM messages — v1 tool_result should be rendered as inline (no ref, no compacted)
     const llm = await buildLlmMessages(branch, null)
@@ -197,10 +197,10 @@ describe("v1 session backward compat", () => {
     // v1 tool_result → inline (after microCompact, old read-only ones may be compacted;
     // we only have 2 tool_results and keepRecent=3, so both survive raw)
     // First tool_result (v1) → inline value
-    expect(trs[0].content).toMatch(/experiments|archived/)
+    expect(trs[0]!.content).toMatch(/experiments|archived/)
     // Second tool_result (v2 ref) → ref preview + hint
-    expect(trs[1].content).toContain("read_tool_result")
-    expect(trs[1].content).toContain("ref://tool-result/tr_v2")
+    expect(trs[1]!.content).toContain("read_tool_result")
+    expect(trs[1]!.content).toContain("ref://tool-result/tr_v2")
   })
 
   it("v1 tool_result with extremely old data (no call_id in result) still loads without crash", async () => {

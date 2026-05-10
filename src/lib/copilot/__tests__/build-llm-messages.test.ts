@@ -91,8 +91,8 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
     ]
     const msgs = await buildLlmMessages(branch)
-    expect(msgs[0].role).toBe("system")
-    if (msgs[0].role === "system") expect(msgs[0].content).toBe(COPILOT_SYSTEM_PROMPT)
+    expect(msgs[0]!.role).toBe("system")
+    if (msgs[0]!.role === "system") expect(msgs[0]!.content).toBe(COPILOT_SYSTEM_PROMPT)
   })
 
   it("SystemHeader system message is added when page context is present", async () => {
@@ -108,9 +108,9 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
     // first is COPILOT_SYSTEM_PROMPT; second is SystemHeader JSON
     expect(systemMsgs.length).toBeGreaterThanOrEqual(2)
-    expect(systemMsgs[1].content).toContain("Session context")
-    expect(systemMsgs[1].content).toContain("route_type")
-    expect(systemMsgs[1].content).toContain("compare")
+    expect(systemMsgs[1]!.content).toContain("Session context")
+    expect(systemMsgs[1]!.content).toContain("route_type")
+    expect(systemMsgs[1]!.content).toContain("compare")
   })
 
   it("SystemHeader includes ctx_N for each user-circled context", async () => {
@@ -168,13 +168,13 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     expect(toolResults).toHaveLength(5)
 
     // First 2 → compacted summary text ("archived tool result")
-    expect(toolResults[0].content).toContain("archived tool result")
-    expect(toolResults[1].content).toContain("archived tool result")
+    expect(toolResults[0]!.content).toContain("archived tool result")
+    expect(toolResults[1]!.content).toContain("archived tool result")
 
     // Newest 3 → preview + read_tool_result hint (ref kind rendering)
     for (let i = 2; i < 5; i++) {
-      expect(toolResults[i].content).toContain(`preview_${i + 1}`)
-      expect(toolResults[i].content).toContain("read_tool_result")
+      expect(toolResults[i]!.content).toContain(`preview_${i + 1}`)
+      expect(toolResults[i]!.content).toContain("read_tool_result")
     }
   })
 })

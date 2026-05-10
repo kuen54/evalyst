@@ -92,6 +92,7 @@ function collectTrailingPairs(branch: CopilotMessage[]): PairSummary[] {
   //    遇到 user/assistant text → 末端就在策略变更后，直接返空。
   while (i >= 0) {
     const m = branch[i]
+    if (!m) break
     if (m.role === 'tool_result') break
     if (m.role === 'tool_use' || m.role === 'system') {
       i--
@@ -104,14 +105,14 @@ function collectTrailingPairs(branch: CopilotMessage[]): PairSummary[] {
   // 2. 反向扫 (tool_result, tool_use) 对，hopping over 中间的 system 消息。
   while (i >= 1) {
     const result = branch[i]
-    if (result.role !== 'tool_result') break
+    if (!result || result.role !== 'tool_result') break
 
     let j = i - 1
-    while (j >= 0 && branch[j].role === 'system') j--
+    while (j >= 0 && branch[j]?.role === 'system') j--
     if (j < 0) break
 
     const use = branch[j]
-    if (use.role !== 'tool_use') break
+    if (!use || use.role !== 'tool_use') break
     if (!use.tool_name || !use.call_id || result.call_id !== use.call_id) break
 
     pairs.unshift({
@@ -123,7 +124,7 @@ function collectTrailingPairs(branch: CopilotMessage[]): PairSummary[] {
 
     // 跳到下一个 tool_result：跨过 system 消息。
     i = j - 1
-    while (i >= 0 && branch[i].role === 'system') i--
+    while (i >= 0 && branch[i]?.role === 'system') i--
   }
   return pairs
 }
@@ -144,6 +145,7 @@ export function analyzeToolLoop(
   let exactFailCount = 0
   for (let i = pairs.length - 1; i >= 0; i--) {
     const p = pairs[i]
+    if (!p) break
     if (p.toolName === nextToolName && p.argsHash === nextHash && p.failed) {
       exactFailCount++
     } else break
@@ -159,6 +161,7 @@ export function analyzeToolLoop(
   let sameToolFailCount = 0
   for (let i = pairs.length - 1; i >= 0; i--) {
     const p = pairs[i]
+    if (!p) break
     if (p.toolName === nextToolName && p.failed) {
       sameToolFailCount++
     } else break
@@ -175,6 +178,7 @@ export function analyzeToolLoop(
   let firstOutput: string | undefined
   for (let i = pairs.length - 1; i >= 0; i--) {
     const p = pairs[i]
+    if (!p) break
     if (p.toolName !== nextToolName || p.argsHash !== nextHash || p.failed) break
     if (firstOutput === undefined) firstOutput = p.outputContent
     if (p.outputContent !== firstOutput) break

@@ -99,7 +99,7 @@ export function collectRecentBreakReasons(
     system_prompt: 0, tools: 0, unknown: 0,
   }
   for (let i = 1; i < stats.length; i++) {
-    const info = detectCacheBreakWithReasons(stats[i - 1], stats[i])
+    const info = detectCacheBreakWithReasons(stats[i - 1]!, stats[i]!)
     if (!info.broken) continue
     for (const r of info.reasons) counts[r]++
   }
@@ -140,9 +140,9 @@ export interface BreakPair {
 
 export function findLatestBreakPair(stats: CacheUsageStat[]): BreakPair | null {
   for (let i = stats.length - 1; i >= 1; i--) {
-    const info = detectCacheBreakWithReasons(stats[i - 1], stats[i])
+    const info = detectCacheBreakWithReasons(stats[i - 1]!, stats[i]!)
     if (info.broken) {
-      return { prev: stats[i - 1], curr: stats[i], reasons: info.reasons }
+      return { prev: stats[i - 1]!, curr: stats[i]!, reasons: info.reasons }
     }
   }
   return null

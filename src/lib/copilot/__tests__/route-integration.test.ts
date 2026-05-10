@@ -383,10 +383,10 @@ describe("tool-result route integration", () => {
     expect(toolResults).toHaveLength(5)
 
     // microCompact (keepRecent=3) → first 2 become "archived tool result", last 3 keep ref preview
-    expect(toolResults[0].content).toContain("archived tool result")
-    expect(toolResults[1].content).toContain("archived tool result")
-    expect(toolResults[2].content).toContain("read_tool_result")
-    expect(toolResults[3].content).toContain("read_tool_result")
-    expect(toolResults[4].content).toContain("read_tool_result")
+    expect(toolResults[0]!.content).toContain("archived tool result")
+    expect(toolResults[1]!.content).toContain("archived tool result")
+    expect(toolResults[2]!.content).toContain("read_tool_result")
+    expect(toolResults[3]!.content).toContain("read_tool_result")
+    expect(toolResults[4]!.content).toContain("read_tool_result")
   })
 })

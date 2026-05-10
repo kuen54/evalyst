@@ -27,7 +27,7 @@ describe('readPageTool returns manifest content_tree, not full schema', () => {
       matches: Array<{ key: string; content_tree: Record<string, unknown> | null }>
     }
     expect(r.matches.length).toBe(1)
-    const tree = r.matches[0].content_tree!
+    const tree = r.matches[0]!.content_tree!
     expect(tree.id).toBe('sch_1')
     expect(tree).toHaveProperty('prompt_template_excerpt')
     expect((tree.prompt_template_excerpt as string).length).toBe(300)

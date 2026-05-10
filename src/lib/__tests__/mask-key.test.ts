@@ -59,8 +59,8 @@ describe("maskKey", () => {
       })
 
       const after = getLlmConfig()
-      expect(after.models[0].api_key).toBe("sk-real-secret-1234")
-      expect(after.models[0].name).toBe("Test (renamed)")
+      expect(after.models[0]!.api_key).toBe("sk-real-secret-1234")
+      expect(after.models[0]!.name).toBe("Test (renamed)")
     } finally {
       process.chdir(oldCwd)
       fs.rmSync(tmp, { recursive: true, force: true })
@@ -84,7 +84,7 @@ describe("maskKey", () => {
         ],
         active_model_id: "m1",
       })
-      expect(getLlmConfig().models[0].api_key).toBe("sk-new-explicit")
+      expect(getLlmConfig().models[0]!.api_key).toBe("sk-new-explicit")
     } finally {
       process.chdir(oldCwd)
       fs.rmSync(tmp, { recursive: true, force: true })
@@ -108,7 +108,7 @@ describe("maskKey", () => {
         ],
         active_model_id: "m1",
       })
-      expect(getLlmConfig().models[0].api_key).toBe("")
+      expect(getLlmConfig().models[0]!.api_key).toBe("")
     } finally {
       process.chdir(oldCwd)
       fs.rmSync(tmp, { recursive: true, force: true })

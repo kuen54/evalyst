@@ -23,7 +23,7 @@ export function OrderListEditor({
     const j = i + dir
     if (j < 0 || j >= value.length) return
     const next = [...value]
-    ;[next[i], next[j]] = [next[j], next[i]]
+    ;[next[i], next[j]] = [next[j]!, next[i]!]
     onChange(next)
   }
   const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i))

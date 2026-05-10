@@ -75,6 +75,14 @@ function applyOne(v: unknown, step: TransformStep, _ctx: Ctx): unknown {
         .map(s => `${s.spu_name}: ${s.description!.slice(0, maxCharsPerSpu)}`)
         .join('\n')
     }
+
+    default: {
+      // Defensive exhaustive check — TS currently satisfied by TransformStep
+      // union, but guards against future case additions silently returning
+      // undefined. Per Phase D plan §4.
+      const _exhaustive: never = step
+      throw new Error(`unknown TransformStep.op: ${JSON.stringify(_exhaustive)}`)
+    }
   }
 }
 
@@ -93,11 +101,11 @@ export function readPath(
 ): unknown {
   if (source.startsWith('literal:')) return source.slice('literal:'.length)
   const parts = source.split('.')
-  const alias = parts[0]
+  const alias = parts[0]!
   let cur: unknown = inputs[alias]
   for (let i = 1; i < parts.length; i++) {
     if (cur == null) return undefined
-    cur = (cur as Record<string, unknown>)[parts[i]]
+    cur = (cur as Record<string, unknown>)[parts[i]!]
   }
   return cur
 }

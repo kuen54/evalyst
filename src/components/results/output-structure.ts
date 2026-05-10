@@ -75,7 +75,7 @@ export function findBubbleTextField(bubbleField: OutputField): { text?: string; 
   const names = Object.keys(items.properties)
   const text = names.find(n => /text|label|name|title|word/i.test(n)) ?? names.find(n => {
     const p = items.properties![n]
-    return p.type === "string"
+    return p?.type === "string"
   })
   const emoji = names.find(n => /emoji|icon/i.test(n))
   return { text, emoji }

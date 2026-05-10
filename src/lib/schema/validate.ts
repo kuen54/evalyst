@@ -119,5 +119,13 @@ function validateProp(data: unknown, prop: JsonPropDef, path: string): ValidateR
         if ((data[i] as string).length === 0) return { ok: false, error: `${path}[${i}]: must be non-empty` }
       }
       return { ok: true }
+
+    default: {
+      // Defensive exhaustive check — TS currently satisfied by JsonFieldType
+      // union, but guards against future case additions silently returning
+      // undefined. Per Phase D plan §4.
+      const _exhaustive: never = prop.type
+      throw new Error(`unknown JsonFieldType: ${String(_exhaustive)}`)
+    }
   }
 }

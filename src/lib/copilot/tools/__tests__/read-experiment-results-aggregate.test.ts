@@ -194,7 +194,7 @@ describe("read_experiment_results · group_by + aggregate", () => {
     }
     expect(r.value.total).toBe(2)
     expect(r.value.groups).toHaveLength(1)
-    expect(r.value.groups[0].metrics.count).toBe(2)
+    expect(r.value.groups[0]!.metrics.count).toBe(2)
   })
 
   it("filter.score_gte narrows before grouping", async () => {

@@ -84,7 +84,7 @@ export function updateSession(id: string, patch: Partial<Pick<CopilotSessionMeta
   const idx = readIndex()
   const i = idx.sessions.findIndex(s => s.id === id)
   if (i < 0) return undefined
-  idx.sessions[i] = { ...idx.sessions[i], ...patch, updated_at: nowIso() }
+  idx.sessions[i] = { ...idx.sessions[i]!, ...patch, updated_at: nowIso() }
   writeIndex(idx)
   return idx.sessions[i]
 }
@@ -136,7 +136,7 @@ export function getActiveBranch(sessionId: string, headId?: string): CopilotMess
     // 挑最后写入的叶子（没有任何消息以它为 parent 的）
     const parents = new Set(all.map(m => m.parent_id).filter((x): x is string => !!x))
     const leaves = all.filter(m => !parents.has(m.id))
-    head = leaves[leaves.length - 1]?.id ?? all[all.length - 1].id
+    head = leaves[leaves.length - 1]?.id ?? all[all.length - 1]!.id
   }
 
   const chain: CopilotMessage[] = []

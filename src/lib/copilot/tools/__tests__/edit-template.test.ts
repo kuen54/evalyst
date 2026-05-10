@@ -63,7 +63,7 @@ describe("edit_template · behavior", () => {
     expect(r.value.schema_id).toBe("sch_X")
 
     expect(createMock).toHaveBeenCalledTimes(1)
-    const written = createMock.mock.calls[0][0]
+    const written = createMock.mock.calls[0]![0]
     expect(written.id).toBe("sch_X") // id preserved
     expect(written.default_prompt).toBe("new prompt") // patch applied
     expect(written.label).toBe("original") // unpatched field preserved
@@ -115,7 +115,7 @@ describe("edit_template · behavior", () => {
       { schema_id: "sch_X", patch: { id: "evil_rename" } as any },
       ctx,
     )
-    const written = createMock.mock.calls[0][0]
+    const written = createMock.mock.calls[0]![0]
     expect(written.id).toBe("sch_X")
   })
 

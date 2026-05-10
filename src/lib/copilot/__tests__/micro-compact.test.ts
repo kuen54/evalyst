@@ -77,10 +77,10 @@ describe("microCompact", () => {
       }),
     ]
     const { messages: out } = microCompact(messages, { keepRecentReadResults: 2 })
-    expect(normalizeToolResult(out[0].content).kind).toBe("compacted")
-    expect(normalizeToolResult(out[1].content).kind).toBe("compacted")
-    expect(normalizeToolResult(out[2].content).kind).toBe("ref")
-    expect(normalizeToolResult(out[3].content).kind).toBe("ref")
+    expect(normalizeToolResult(out[0]!.content).kind).toBe("compacted")
+    expect(normalizeToolResult(out[1]!.content).kind).toBe("compacted")
+    expect(normalizeToolResult(out[2]!.content).kind).toBe("ref")
+    expect(normalizeToolResult(out[3]!.content).kind).toBe("ref")
   })
 
   it("preserves non-tool messages verbatim", () => {
@@ -99,7 +99,7 @@ describe("microCompact", () => {
     expect(out[1]).toBe(messages[1]) // tool_use untouched
     expect(out[3]).toBe(messages[3]) // assistant untouched
     // Only index 2 should be compacted
-    expect(normalizeToolResult(out[2].content).kind).toBe("compacted")
+    expect(normalizeToolResult(out[2]!.content).kind).toBe("compacted")
   })
 
   it("does NOT compact write tool results (restart_experiment)", () => {
@@ -158,13 +158,13 @@ describe("microCompact", () => {
       }),
     ]
     const { messages: out } = microCompact(messages, { keepRecentReadResults: 1 })
-    const first = normalizeToolResult(out[0].content)
+    const first = normalizeToolResult(out[0]!.content)
     expect(first.kind).toBe("compacted")
     if (first.kind === "compacted") {
       expect(first.ref).toBeUndefined()
       expect(first.summary).toContain("not persisted")
     }
-    expect(normalizeToolResult(out[1].content).kind).toBe("inline")
+    expect(normalizeToolResult(out[1]!.content).kind).toBe("inline")
   })
 
   it("ref case: summary includes read_tool_result hint with the exact ref", () => {
@@ -181,7 +181,7 @@ describe("microCompact", () => {
       }),
     ]
     const { messages: out } = microCompact(messages, { keepRecentReadResults: 1 })
-    const first = normalizeToolResult(out[0].content)
+    const first = normalizeToolResult(out[0]!.content)
     expect(first.kind).toBe("compacted")
     if (first.kind === "compacted") {
       expect(first.ref).toBe("ref://tool-result/tr_xyz")
@@ -245,10 +245,10 @@ describe("microCompact", () => {
     ]
     // keep 1 read → older reads compact, write untouched
     const { messages: out } = microCompact(messages, { keepRecentReadResults: 1 })
-    expect(normalizeToolResult(out[0].content).kind).toBe("compacted") // read #1 compacted
-    expect(normalizeToolResult(out[1].content).kind).toBe("inline") // write untouched
-    expect(normalizeToolResult(out[2].content).kind).toBe("compacted") // read #2 compacted
-    expect(normalizeToolResult(out[3].content).kind).toBe("ref") // last read kept
+    expect(normalizeToolResult(out[0]!.content).kind).toBe("compacted") // read #1 compacted
+    expect(normalizeToolResult(out[1]!.content).kind).toBe("inline") // write untouched
+    expect(normalizeToolResult(out[2]!.content).kind).toBe("compacted") // read #2 compacted
+    expect(normalizeToolResult(out[3]!.content).kind).toBe("ref") // last read kept
   })
 })
 

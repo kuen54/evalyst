@@ -291,7 +291,7 @@ describe("BatchRunner.run — case 3: 中途 stop", () => {
     expect(finalProgress.status).toBe("paused")
 
     const log = mocks.store.updateExperimentLog
-    const lastUpdate = log[log.length - 1]
+    const lastUpdate = log[log.length - 1]!
     expect(lastUpdate.updates.status).toBe("paused")
   })
 })

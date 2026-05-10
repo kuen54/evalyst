@@ -55,5 +55,5 @@ export function pickView(schema: TaskSchema | undefined, display: Display | unde
     if (componentKey && BUILTIN_COMPONENTS[componentKey]) return BUILTIN_COMPONENTS[componentKey]
   }
 
-  return BUILTIN_COMPONENTS.json_default
+  return BUILTIN_COMPONENTS.json_default!
 }

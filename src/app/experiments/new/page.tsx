@@ -62,7 +62,7 @@ export default function NewExperiment() {
   useEffect(() => {
     fetch("/api/schemas").then(r => r.json()).then((s: TaskSchema[]) => {
       setSchemas(s)
-      if (s.length && !schemaId) setSchemaId(s[0].id)
+      if (s.length && !schemaId) setSchemaId(s[0]!.id)
     })
     fetch("/api/datasets").then(r => r.json()).then(setDatasets)
     fetch("/api/rubrics").then(r => r.json()).then(setRubrics).catch(() => {})

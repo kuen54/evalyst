@@ -45,8 +45,8 @@ export function BubbleAutoResults({ results, schema }: ResultViewProps) {
       if (search) {
         // 搜索第一个 dimension 的值
         if (dims.length > 0) {
-          const v = String(readDimensionValue(r, dims[0]) ?? "")
-          const label = labelFor(dims[0], readDimensionValue(r, dims[0]))
+          const v = String(readDimensionValue(r, dims[0]!) ?? "")
+          const label = labelFor(dims[0]!, readDimensionValue(r, dims[0]!))
           if (!v.includes(search) && !label.includes(search)) return false
         }
       }

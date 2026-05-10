@@ -104,8 +104,8 @@ describe("buildLlmMessages · last user message multimodal rewrite", () => {
     const msgs = await buildLlmMessages(branch, null, { modelVisionCapable: true })
     const userMsgs = msgs.filter((m) => m.role === "user") as Array<TextStyleMessage>
     expect(userMsgs).toHaveLength(2)
-    expect(userMsgs[0].content).toBe("old question")
-    expect(Array.isArray(userMsgs[1].content)).toBe(true)
+    expect(userMsgs[0]!.content).toBe("old question")
+    expect(Array.isArray(userMsgs[1]!.content)).toBe(true)
   })
 })
 

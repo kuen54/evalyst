@@ -102,7 +102,7 @@ export function generateTasks(
 
   return combos.map(combo => ({
     task_id: perAlias
-      .map(p => `${p.alias}:${combo[p.alias][p.idField]}`)
+      .map(p => `${p.alias}:${(combo[p.alias] as Record<string, unknown>)[p.idField]}`)
       .join('|'),
     inputs: combo,
   }))
@@ -317,7 +317,8 @@ export function buildInputRefs(
     const dsId = datasetBindings[input.alias] ?? input.dataset_id
     const { def } = getDataset(dsId)
     const rec = combo[input.alias]
-    const id = rec[def.id_field]
+    if (!rec) continue
+    const id = (rec as Record<string, unknown>)[def.id_field]
     if (typeof id === 'string' || typeof id === 'number') {
       refs[input.alias] = id
     }
