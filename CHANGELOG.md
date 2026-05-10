@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed (#R2-C)
+
+- `src/lib/batch-runner-lock.ts` `acquireLock`: 用 `fs.openSync(p, 'wx')` (O_EXCL) 替换 read-check-write，关闭 round-2 §14 的 TOCTOU 窗口（两个 worker 同时见到 stale lock 双双 overwrite 都返 true 的真伤）。stale 检测路径行为等价；lock schema 不变。新增 race test (`Promise.all([acquireLock, acquireLock])` × 5 次循环，恰好 1 true / 1 false)。
+
 ## [0.13.1] — 2026-05-10 · Round 2 audit Phase 1 · domain coverage 补完 (PR #75–#78)
 
 第二轮 audit ([`docs/code-review-round-2.md`](docs/code-review-round-2.md)) 锁定 5 项 fix；Phase 1 把"4 个 0% 模块"的债先还清——**纯增量、零行为变更**。
