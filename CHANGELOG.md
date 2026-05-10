@@ -12,9 +12,14 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### 测试 (#R2-D)
 
-- `src/lib/rubric-store.ts` 0% → 97.29% statements（5 个 export 函数全覆盖 + sorted/source-default 行为锁）。Round 2 #D Phase 1 模块 1。
-- `src/lib/result-parser.ts` 0% → 97.5% statements（4 条 JSON 提取路径 + `<think>` 剥离 + `raw_text_output` 主+边界 3 case 全覆盖）。Round 2 #D Phase 1 模块 2；中间 checkpoint 通过（lib/ 整体 56.86%→64.65%，外推剩 2 模块到 80% 时 lib/ ≥ 82%，spec 75% 验收不调降）。
-- `src/lib/displays.ts` 4.47% → **100%** statements（5 builtin + user CRUD + `validateDisplay` CCN-22 三 mode × 缺/空/合法 全分支）。Round 2 #D Phase 1 模块 3；lib/ 整体 64.65%→71.3%，距 spec 75% 验收线还差 ~3.7pp，由模块 4 datasets 兜底。
+Round 2 audit Phase 1 全收完。**域 `src/lib/` 4 个 0% 模块**单测落地，**实现签名零变更**。
+
+- `src/lib/rubric-store.ts` 0% → 97.29% statements（5 个 export 函数全覆盖 + sorted/source-default 行为锁）。模块 1。
+- `src/lib/result-parser.ts` 0% → 97.5% statements（4 条 JSON 提取路径 + `<think>` 剥离 + `raw_text_output` 主+边界 3 case）。模块 2；中间 checkpoint 通过。
+- `src/lib/displays.ts` 4.47% → 100% statements（5 builtin + user CRUD + `validateDisplay` CCN-22 三 mode × 缺/空/合法 全分支）。模块 3。
+- `src/lib/datasets.ts` 0% → 98.47% statements（CRUD 5 函数 + `validateDatasetJson` 6 类错误 + `updateCustomDataset` 用 `it.each` 平铺 4 error path + `inferFieldsFromJsonl` 6 类型推断 + 边界）。模块 4。
+
+**整体覆盖**：lib/ 56.86% → **84.71%** (+27.85pp，远超 spec §2 75% 验收线 9.71pp)。All files 68.14% → 75.77%。Total tests 772 → 807（+35）。
 
 ## [0.13.0] — 2026-05-10 · Audit Cleanup 收尾 + R1 robust pass (PR #73 + #74)
 
