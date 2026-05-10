@@ -10,6 +10,14 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Cleanup (#R2-T3)
+
+Round 2 audit Phase 2 Tier 3 cleanup batch（3 子项；Dockerfile USER node 子项已在 R1 commit 98be5f1 完成，per Errata E7 omit）。
+
+- **deps audit**：`npm audit fix`（不带 `--force`） 解 4/6 advisories（hono / ip-address / express-rate-limit / 1 个 postcss transitive）。剩 2 个 moderate 是 next 16 内嵌的 postcss + next 自身——`--force` 会降到 next 9（破坏性 3 major），等 next 16.x point release 内含新版 postcss。
+- **Glass UI 9 档 → 7 档**：`chrome-up` / `chrome-down` 两档 inline 进 `src/copilot/components/sticky-chrome.tsx`（各只 1 调用点，per round-2 DHH "证据说话——不是 9 档系统"）；`GlassVariant` union 从 9 → 7（4 primitive + 3 semantic）；同步更新 `docs/conventions/glass-ui.md` / `CLAUDE.md` FAQ + 索引 / `docs/copilot.md` 注释。
+- **deps patch upgrade**：`npm install` 12/13 plan 列出的 patch / minor 升级（`@babel/standalone` 7.29.4 / `@base-ui/react` 1.4.1 / `lucide-react` 1.14 / `nanoid` 5.1.11 / `jsdom` 29.1.1 / `@types/node` 20.19.40 / `tailwind-merge` 3.6.0 / `tailwindcss` + `@tailwindcss/postcss` 4.3.0 / `shadcn` 4.7.0 / `next` + `eslint-config-next` 16.2.6）。**knip 6.12.2 跳过**：upstream transitive `@oxc-project/types@^0.128.0` 还未 published（npm ETARGET）—— 留 6.7.0 跟。**跨 major 不动**：typescript 6 / eslint 10 / @types/node 25。
+
 ### Security (#R2-B)
 
 - `src/middleware.ts` 顶部 doc 真名化：`Auth gate` → **CSRF gate (NOT auth)**；删除误导性 "could exfiltrate keys / run arbitrary server-side JS / trigger writes" 措辞（这些 R1 已在域代码层修了），明示 LAN curl 绕过这条限制。

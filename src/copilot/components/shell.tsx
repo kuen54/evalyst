@@ -8,8 +8,6 @@ type GlassVariant =
   | "regular"
   | "thick"
   | "tinted"
-  | "chrome-up"
-  | "chrome-down"
   | "success"
   | "warning"
   | "danger"
@@ -20,20 +18,21 @@ const baseTransition =
 /**
  * Pure function to compute glass style for a given variant and open state.
  *
- * Copilot 玻璃梯度系统 9 档（6 primitive + 3 semantic）：
+ * Copilot 玻璃梯度系统 7 档（4 primitive + 3 semantic）：
  *
  * Primitive:
  * - thin        — chrome / sticky / 数据单元格（blur 16, bg transparent）
  * - regular     — 页面主外壳 + 内容卡（blur 28, bg 35% card）
  * - thick       — 浮层 / copilot panel / dialog（blur 40, bg 55% card, 更重阴影）
  * - tinted      — primary CTA / active tab（blur 28, bg 35% card + accent 染色）
- * - chrome-up   — sticky 顶部结构条（Regular 材质 + 顶部切边高光 + 向下投影）
- * - chrome-down — sticky 底部结构条（Regular 材质 + 底部切边高光 + 向上投影）
  *
  * Semantic（Regular 材质 + 语义 border + 弱 ambient 色光）：
  * - success — 正向状态卡（emerald 边）
  * - warning — 提示 / 引导 banner（amber 边）
  * - danger  — 错误 / 警告卡（red 边）
+ *
+ * Sticky 顶/底结构条 (上下方向阴影) 之前作为 9 档玻璃中的两档存在，因为各自只有 1 个调用点，
+ * R2 #T3 已 inline 进 `sticky-chrome.tsx` —— 不再是公共 variant。
  *
  * copilot 关闭时返回 transition-only style，让外部 className 的 bg-card/bg-background 原样工作。
  */
@@ -79,32 +78,6 @@ export function getGlassStyleForVariant(
       borderColor: "color-mix(in oklab, var(--copilot-accent) 55%, transparent)",
       boxShadow:
         "inset 0 1px 0 oklch(1 0 0 / 0.7), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 25%, transparent), 0 3px 10px -2px color-mix(in oklab, var(--copilot-accent) 40%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
-      transition: baseTransition,
-    }
-  }
-
-  if (variant === "chrome-up") {
-    // Sticky 顶部结构条：Regular 材质 + 方向性阴影（顶部切边高光 + 向下投影悬浮感）
-    return {
-      backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
-      backdropFilter: "blur(28px) saturate(1.25)",
-      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
-      borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
-      boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 8px 24px -12px oklch(0 0 0 / 0.22), 0 2px 6px -2px oklch(0 0 0 / 0.08)",
-      transition: baseTransition,
-    }
-  }
-
-  if (variant === "chrome-down") {
-    // Sticky 底部结构条：Regular 材质 + 方向性阴影（底部切边高光 + 向上投影悬浮感）
-    return {
-      backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
-      backdropFilter: "blur(28px) saturate(1.25)",
-      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
-      borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
-      boxShadow:
-        "inset 0 -1px 0 oklch(1 0 0 / 0.6), inset 0 1px 0 oklch(1 0 0 / 0.08), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 -8px 24px -12px oklch(0 0 0 / 0.22), 0 -2px 6px -2px oklch(0 0 0 / 0.08)",
       transition: baseTransition,
     }
   }
