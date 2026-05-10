@@ -10,9 +10,41 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-- fix(results): hoist hooks before early return in triple-grid + dual-list (Tier 2 #11)
-- chore(lint): zero warnings + enforce fail-on-warning in CI (Tier 3 R1 follow-up)
-- docs(conventions): add react19-hydration.md (localStorage hydrate pattern)
+## [0.11.6] — 2026-05-10 · lint hygiene 零警告 + CI fail-on-warning + post-tag hooks fix 真合入 (PR #65 #67)
+
+收掉 audit-cleanup-2026-05-09 §Phase C Tier 3 R1（lint warning 清零 + CI fail-fast）+ Tier 2 #11 后续（rules-of-hooks 修复通过 PR #67 真正合入 main —— v0.11.5 tag commit 实际不含此修复，详见 v0.11.5 errata note）。零行为变化：全 inline disable 注释 + CI workflow flag flip + 一份 convention doc + hooks 顺序结构调整。
+
+### Lint cleanup (PR #65 `chore/lint-fix-batch`)
+
+React 19 ESLint plugin v6 引入 27 处 noise（23 errors + 4 warnings）—— 多数是 React Team 推荐的合法 pattern（localStorage hydrate / mount flag / sync from prop / reset on dep change），rewrite 到 `useSyncExternalStore` 没价值。一次性 disable + 文档化 + CI 翻 fail-fast 防回归。
+
+- **22 处 disable + 链 doc**：16 处 `react-hooks/set-state-in-effect`（13 文件，4 类 pattern 标签）；3 处 `exhaustive-deps`（intentional missing-dep，每处单行理由：interval 内部读不入 deps / load-once gate / 稳定 derived Set）；1 处 `react-hooks/immutability`（panel.tsx useCallback 在 useEffect 之后声明，闭包 stable）；1 处 `preserve-manual-memoization`（template-form-parts mock preview，cheap cache 非 correctness）；删 1 处 e2e 文件 stale `no-console` disable
+- **`docs/conventions/react19-hydration.md`**：≤ 30 行，解释为何不迁 `useSyncExternalStore`（一次性 hydrate vs 持续订阅 model，rewrite 没价值），4 类 pattern 各举例 + revisit 触发条件（cross-tab sync 等真有 live 源时）
+- **CI fail-fast**：`.github/workflows/ci.yml` verify job lint step 移除 `continue-on-error: true`；AGENTS.md + CLAUDE.md 同步从 "continue-on-error" 改成 "fail-on-warning"
+- **未来**：`useSyncExternalStore` 迁移 16 callsites 留 backlog——现 suppress 文档充分，没阻塞优先级
+
+### Rules-of-hooks 修复落地 (PR #67 `fix/react-hooks-rules-of-hooks`)
+
+v0.11.5 release notes `### Tuning (rules-of-hooks 衍生修)` 子段声称包含 `ca5dfcb` / `60a833a`，但 tag commit `52f4217` 实际不含此修复——v0.11.6 是首个真正含修复的 tag（详见 v0.11.5 entry 顶部 errata note）。
+
+- `triple-grid-results.tsx`：3 个 `useMemo`（groups / rowValues / colValues）hoist 到 `if (dims.length < 3) return` 之前；early-return 谓词改成 `!primaryDim || !rowDim || !colDim || !groups`——在 `noUncheckedIndexedAccess` 下天然 narrow，subsumes 原 length check，顺便删 3 个 `dims[N]!`
+- `dual-list-results.tsx`：同形式，2 个 useMemo + 删 2 个 `dims[N]!`
+- 行为零变化：empty-dims 仍返回 fallback `<div>`，full-dims 仍消费同样 memoized values
+
+### 验收
+
+- `npx tsc --noEmit` 0 errors（main HEAD = `a7f5576`）
+- `npm test` 765 / 765 passing
+- `npm run build` Compiled successfully
+- `npm run lint` 0 problems ✓（pre-baseline 27 → 0）
+- CI verify job 现在 fail-fast 跑 lint，未来违例 PR 立刻挂；e2e job 链路不受影响
+- Playwright MCP smoke 17 user flow 全 PASS（lint suppressions 不破坏任何 effect 行为）
+
+### 用户感知
+
+零。
+
+- Spec: docs/superpowers/specs/2026-05-09-audit-cleanup-design.md §Phase C Tier 3 + Tier 2 #11
 
 ## [0.11.5] — 2026-05-10 · tsconfig strict baseline + 顺手 hooks fix (Phase D, PR #62 #63)
 
