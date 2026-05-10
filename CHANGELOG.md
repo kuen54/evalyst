@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### 测试 (#R2-D)
+
+- `src/lib/rubric-store.ts` 0% → 97.29% statements（5 个 export 函数全覆盖 + sorted/source-default 行为锁）。Round 2 #D Phase 1 模块 1。
+
 ## [0.13.0] — 2026-05-10 · Audit Cleanup 收尾 + R1 robust pass (PR #73 + #74)
 
 audit-cleanup 全套 (Phase A-F) 闭环。文档分裂 + R1 cold-start 兼容性硬验收。14-15 人天工程纪律落地为长期可维护的项目结构。
