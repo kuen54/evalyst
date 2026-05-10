@@ -98,8 +98,8 @@ function toUiMessage(m: CopilotMessage): UiMessage {
 }
 
 export interface UseChatStreamParams {
-  sessionId?: string
-  modelId?: string
+  sessionId?: string | undefined
+  modelId?: string | undefined
   pageContext: PageContext | null
   onError: (message: string) => void
   tI18nReplyFailed: string
