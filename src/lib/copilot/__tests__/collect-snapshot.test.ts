@@ -50,16 +50,16 @@ describe('collectClientSnapshot', () => {
     `
     const snap = collectClientSnapshot('sess', pc)
     expect(snap.viewport_index.length).toBe(2)
-    expect(snap.viewport_index[0].type).toBe('experiment')
-    expect(snap.viewport_index[1].type).toBe('task_result')
+    expect(snap.viewport_index[0]!.type).toBe('experiment')
+    expect(snap.viewport_index[1]!.type).toBe('task_result')
   })
 
   it('truncates long preview_text', () => {
     const long = 'x'.repeat(300)
     document.body.innerHTML = `<div data-copilot-context="experiment" data-copilot-context-id="exp_1">${long}</div>`
     const snap = collectClientSnapshot('sess', pc)
-    expect(snap.viewport_index[0].preview_text.length).toBeLessThanOrEqual(200)
-    expect(snap.viewport_index[0].preview_text.endsWith('…')).toBe(true)
+    expect(snap.viewport_index[0]!.preview_text.length).toBeLessThanOrEqual(200)
+    expect(snap.viewport_index[0]!.preview_text.endsWith('…')).toBe(true)
   })
 
   it('skips invalid elements (missing id or type)', () => {

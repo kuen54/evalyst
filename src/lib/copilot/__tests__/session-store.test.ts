@@ -42,8 +42,8 @@ describe('session CRUD', () => {
     expect(s.id).toMatch(/^[a-z0-9]{10}$/)
     const list = listSessions()
     expect(list).toHaveLength(1)
-    expect(list[0].title).toBe('hello')
-    expect(list[0].model_id).toBe('m1')
+    expect(list[0]!.title).toBe('hello')
+    expect(list[0]!.model_id).toBe('m1')
     expect(getSession(s.id)?.id).toBe(s.id)
   })
 
@@ -70,8 +70,8 @@ describe('session CRUD', () => {
     const b = createSession({ title: 'b' })
     vi.useRealTimers()
     const list = listSessions()
-    expect(list[0].id).toBe(b.id)
-    expect(list[1].id).toBe(a.id)
+    expect(list[0]!.id).toBe(b.id)
+    expect(list[1]!.id).toBe(a.id)
   })
 })
 
@@ -82,8 +82,8 @@ describe('messages append + read', () => {
     const _m2 = appendMessage({ session_id: s.id, role: 'assistant', content: 'a1', parent_id: m1.id })
     const all = readAllMessages(s.id)
     expect(all).toHaveLength(2)
-    expect(all[0].id).toBe(m1.id)
-    expect(all[1].parent_id).toBe(m1.id)
+    expect(all[0]!.id).toBe(m1.id)
+    expect(all[1]!.parent_id).toBe(m1.id)
   })
 
   it('appendMessage updates session head_message_id', () => {

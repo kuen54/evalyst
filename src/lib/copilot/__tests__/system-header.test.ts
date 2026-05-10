@@ -44,9 +44,9 @@ describe("buildSystemHeader", () => {
     expect(header.route_type).toBe("compare")
     expect(header.path).toBe("/compare?a=exp_A")
     expect(header.active_contexts).toHaveLength(1)
-    expect(header.active_contexts[0].id).toBe("ctx_1")
-    expect(header.active_contexts[0].type).toBe("experiment")
-    expect(header.active_contexts[0].ref).toBe("exp_A")
+    expect(header.active_contexts[0]!.id).toBe("ctx_1")
+    expect(header.active_contexts[0]!.type).toBe("experiment")
+    expect(header.active_contexts[0]!.ref).toBe("exp_A")
   })
 
   it("drops inline when no resolver", () => {
@@ -55,7 +55,7 @@ describe("buildSystemHeader", () => {
       path: "/p",
       contexts: [expRef],
     })
-    expect(header.active_contexts[0].inline).toBeUndefined()
+    expect(header.active_contexts[0]!.inline).toBeUndefined()
   })
 
   it("surfaces ctx.extra as within for task_field", () => {
@@ -64,7 +64,7 @@ describe("buildSystemHeader", () => {
       path: "/p",
       contexts: [taskFieldRef],
     })
-    expect(header.active_contexts[0].within).toEqual({
+    expect(header.active_contexts[0]!.within).toEqual({
       experiment_id: "exp_A",
       task_id: "task_A1",
     })
@@ -77,7 +77,7 @@ describe("buildSystemHeader", () => {
       contexts: [expRef],
       resolveInline: () => ({ id: "exp_A", name: "Exp A" }),
     })
-    expect(header.active_contexts[0].inline).toEqual({ id: "exp_A", name: "Exp A" })
+    expect(header.active_contexts[0]!.inline).toEqual({ id: "exp_A", name: "Exp A" })
   })
 
   it("falls back to ref-only when single ctx exceeds per-context limit", () => {
@@ -88,7 +88,7 @@ describe("buildSystemHeader", () => {
       contexts: [expRef],
       resolveInline: () => huge,
     })
-    expect(header.active_contexts[0].inline).toBeUndefined()
+    expect(header.active_contexts[0]!.inline).toBeUndefined()
   })
 
   it("all-ref-only when count > maxContexts", () => {
