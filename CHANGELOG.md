@@ -10,16 +10,46 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.13.1] — 2026-05-10 · Round 2 audit Phase 1 · domain coverage 补完 (PR #75–#78)
+
+第二轮 audit ([`docs/code-review-round-2.md`](docs/code-review-round-2.md)) 锁定 5 项 fix；Phase 1 把"4 个 0% 模块"的债先还清——**纯增量、零行为变更**。
+
 ### 测试 (#R2-D)
 
 Round 2 audit Phase 1 全收完。**域 `src/lib/` 4 个 0% 模块**单测落地，**实现签名零变更**。
 
-- `src/lib/rubric-store.ts` 0% → 97.29% statements（5 个 export 函数全覆盖 + sorted/source-default 行为锁）。模块 1。
-- `src/lib/result-parser.ts` 0% → 97.5% statements（4 条 JSON 提取路径 + `<think>` 剥离 + `raw_text_output` 主+边界 3 case）。模块 2；中间 checkpoint 通过。
-- `src/lib/displays.ts` 4.47% → 100% statements（5 builtin + user CRUD + `validateDisplay` CCN-22 三 mode × 缺/空/合法 全分支）。模块 3。
-- `src/lib/datasets.ts` 0% → 98.47% statements（CRUD 5 函数 + `validateDatasetJson` 6 类错误 + `updateCustomDataset` 用 `it.each` 平铺 4 error path + `inferFieldsFromJsonl` 6 类型推断 + 边界）。模块 4。
+- `src/lib/rubric-store.ts` 0% → 97.29% statements（5 个 export 函数全覆盖 + sorted/source-default 行为锁）。模块 1 (PR #75)。
+- `src/lib/result-parser.ts` 0% → 97.5% statements（4 条 JSON 提取路径 + `<think>` 剥离 + `raw_text_output` 主+边界 3 case）。模块 2 (PR #76)；中间 checkpoint 通过。
+- `src/lib/displays.ts` 4.47% → 100% statements（5 builtin + user CRUD + `validateDisplay` CCN-22 三 mode × 缺/空/合法 全分支）。模块 3 (PR #77)。
+- `src/lib/datasets.ts` 0% → 98.47% statements（CRUD 5 函数 + `validateDatasetJson` 6 类错误 + `updateCustomDataset` 用 `it.each` 平铺 4 error path + `inferFieldsFromJsonl` 6 类型推断 + 边界）。模块 4 (PR #78)。
 
 **整体覆盖**：lib/ 56.86% → **84.71%** (+27.85pp，远超 spec §2 75% 验收线 9.71pp)。All files 68.14% → 75.77%。Total tests 772 → 807（+35）。
+
+### Audit r2 docs scaffolding (PR #75 同 PR 内一并落)
+
+- [`docs/code-review-round-2.md`](docs/code-review-round-2.md) — 第二轮独立审视报告（基于 b26c6a9 / v0.13.0 baseline）
+- [`docs/superpowers/specs/2026-05-10-audit-r2-design.md`](docs/superpowers/specs/2026-05-10-audit-r2-design.md) — master spec（123 行）：5 项 fix 拆 3 phase + **决策日志** 10 项不修
+- [`docs/superpowers/plans/2026-05-10-audit-r2-domain-tests.md`](docs/superpowers/plans/2026-05-10-audit-r2-domain-tests.md) — Phase 1 plan（107 行）：fixture 复用 + 中间 checkpoint + 模块顺序
+
+### 多角度验证（v0.13.1 ship 前）
+
+- Source 零变更核验：`git diff` 在 src/ 排除 tests 后**空**
+- Mutation testing 4/4：手工破坏 4 模块关键路径 → 对应测试**全部 fail**（证明 coverage 非 vacuous）
+- 单测 807/807 pass / tsc 0 错 / knip 仅预存噪音
+- CI：4 PR verify + e2e 全 pass
+- Full e2e：42/45 pass，3 fail 与 main 同源（环境差异 / Copilot panel flaky / experiment-seed pre-existing），**零 Phase 1 引入回归**
+- 浏览器实测：rubrics 创建落盘 `source: "user"` 自动注入 / datasets 列表 record_count 正确 / `validateDatasetJson` 拒绝逐字匹配单测断言
+
+### 工程纪律亮点
+
+- **决策日志** 把"看似该修但本轮不修"的 10 项理由写实——防下轮 audit 重新论证已结案问题
+- **中间 checkpoint** 在 Phase 1 模块 2 之后量化外推（plan §6），避免末尾才发现数字不达标
+- **mutation testing** 是测试质量的真实信号——比"行号被覆盖"严格一档
+
+### 下一步（Round 2 剩余）
+
+- Phase 2（1.5d，3 PR）：#B middleware 真名化 / #C file-lock O_EXCL / Tier 3 cleanup batch
+- Phase 3（2d，最大风险）：#A Glass UI primitive 物理切边到 `src/components/glass/`
 
 ## [0.13.0] — 2026-05-10 · Audit Cleanup 收尾 + R1 robust pass (PR #73 + #74)
 
