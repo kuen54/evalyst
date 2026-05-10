@@ -60,3 +60,8 @@ scripts/test-*.sh
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 根目录验收截图 / debug 转储（PR review 用完即扔，不进 git tree）
+/*.png
+/*-snapshot.md
+/pr*.png
