@@ -112,7 +112,7 @@ export function InspectorOverlay() {
       setHoverInfo({
         type,
         id: host.dataset.copilotContextId ?? "",
-        summary: host.dataset.copilotContextSummary,
+        ...(host.dataset.copilotContextSummary !== undefined ? { summary: host.dataset.copilotContextSummary } : {}),
       })
     }
 
@@ -173,7 +173,7 @@ export function InspectorOverlay() {
         type: captured.type,
         id: captured.id,
         extra: { ...(captured.extra ?? {}), ancestors },
-        summary: captured.summary,
+        ...(captured.summary !== undefined ? { summary: captured.summary } : {}),
         elementKey: captured.elementKey,
       }
       addContext(newCtx)

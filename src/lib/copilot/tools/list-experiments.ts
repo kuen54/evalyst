@@ -51,7 +51,7 @@ export const listExperimentsTool: ToolDescriptor<Input, Output> = {
         name: e.name,
         model: e.model,
         status: e.status,
-        schema_id: e.schema_id,
+        ...(e.schema_id !== undefined ? { schema_id: e.schema_id } : {}),
         completed_tasks: e.run_stats?.completed_tasks ?? 0,
         total_tasks: e.run_stats?.total_tasks ?? 0,
         failed_tasks: e.run_stats?.failed_tasks ?? 0,

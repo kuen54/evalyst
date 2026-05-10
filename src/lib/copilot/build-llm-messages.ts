@@ -141,9 +141,9 @@ export async function buildLlmMessages(
 
   const refs = (lastUser?.contexts ?? []) as CopilotContextRef[]
   const header = buildSystemHeader({
-    route_type: pageContext?.route_type,
-    path: pageContext?.path,
-    page_context: pageContext,
+    ...(pageContext?.route_type !== undefined ? { route_type: pageContext.route_type } : {}),
+    ...(pageContext?.path !== undefined ? { path: pageContext.path } : {}),
+    ...(pageContext !== null && pageContext !== undefined ? { page_context: pageContext } : {}),
     contexts: refs,
     // v1 → v2 转场：不做 inline 预解（异步 + fs 依赖），一律 ref-only。
     // LLM 看到 ctx_N 后按需 read_context 拉详情。后续可按遥测决定是否加

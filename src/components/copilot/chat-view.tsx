@@ -16,8 +16,8 @@ import { ContextChipRail } from "./context-chip-rail"
 import { useChatStream } from "./use-chat-stream"
 
 interface Props {
-  sessionId?: string
-  selectedModelId?: string
+  sessionId?: string | undefined
+  selectedModelId?: string | undefined
   onPickModel: (modelId: string) => void
 }
 

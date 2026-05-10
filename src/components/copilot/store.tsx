@@ -27,7 +27,7 @@ interface CopilotStore {
   toggleOpen: () => void
   width: number
   setWidth: (w: number) => void
-  activeSessionId?: string
+  activeSessionId?: string | undefined
   setActiveSessionId: (id?: string) => void
   mounted: boolean
   /** rising-edge 时间戳，供 MaterialRevealOverlay 订阅。0 = 从未开过或刚 mount。 */

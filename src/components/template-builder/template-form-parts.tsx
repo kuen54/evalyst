@@ -44,7 +44,12 @@ export function updateItem<K extends "inputs" | "variables" | "output_fields" | 
   patch: Partial<TemplateFormState[K][number]>,
 ) {
   const next = [...form[key]]
-  next[index] = { ...next[index], ...patch } as TemplateFormState[K][number]
+  const merged = { ...next[index], ...patch } as TemplateFormState[K][number] & Record<string, unknown>
+  // eopt: explicit `undefined` in patch means "clear the optional key" — strip it out
+  for (const [k, v] of Object.entries(patch as Record<string, unknown>)) {
+    if (v === undefined) delete merged[k]
+  }
+  next[index] = merged as TemplateFormState[K][number]
   set(key, next as TemplateFormState[K])
 }
 
@@ -287,7 +292,10 @@ export function OutputFieldRow({
                 <Input
                   type="number"
                   value={field.min_length ?? ""}
-                  onChange={e => onChange({ min_length: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  onChange={e => {
+                    const v = e.target.value === "" ? undefined : Number(e.target.value)
+                    onChange({ min_length: v } as Partial<FormOutputField>)
+                  }}
                   placeholder={t("settings.templates.tform.unlimited")}
                   className="h-7 text-[11px]"
                 />
@@ -297,7 +305,10 @@ export function OutputFieldRow({
                 <Input
                   type="number"
                   value={field.max_length ?? ""}
-                  onChange={e => onChange({ max_length: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  onChange={e => {
+                    const v = e.target.value === "" ? undefined : Number(e.target.value)
+                    onChange({ max_length: v } as Partial<FormOutputField>)
+                  }}
                   placeholder={t("settings.templates.tform.unlimited")}
                   className="h-7 text-[11px]"
                 />
@@ -310,7 +321,10 @@ export function OutputFieldRow({
               <Input
                 type="number"
                 value={field.tuple_len ?? ""}
-                onChange={e => onChange({ tuple_len: e.target.value === "" ? undefined : Number(e.target.value) })}
+                onChange={e => {
+                  const v = e.target.value === "" ? undefined : Number(e.target.value)
+                  onChange({ tuple_len: v } as Partial<FormOutputField>)
+                }}
                 placeholder={t("settings.templates.tform.tuple_len_placeholder")}
                 className="h-7 text-[11px]"
               />

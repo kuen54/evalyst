@@ -263,13 +263,20 @@ function buildPreviewInputs(form: FormState, t: TFn): {
       ),
       required: outputFieldNames.length > 0 ? outputFieldNames : ["copy"],
     },
-    display_dimensions:
-      form.mode === "grouped_grid"
-        ? [
-            { field: form.primary_group.field || "input_refs.qa", label: form.primary_group.label || t("settings.displays.form.primary_default_label") },
-            { field: form.secondary_group.field || "input_preview.qa.topic", label: form.secondary_group.label || t("settings.displays.form.secondary_default_label") },
-          ]
-        : undefined,
+    ...(form.mode === "grouped_grid"
+      ? {
+          display_dimensions: [
+            {
+              field: form.primary_group.field || "input_refs.qa",
+              label: form.primary_group.label || t("settings.displays.form.primary_default_label"),
+            },
+            {
+              field: form.secondary_group.field || "input_preview.qa.topic",
+              label: form.secondary_group.label || t("settings.displays.form.secondary_default_label"),
+            },
+          ],
+        }
+      : {}),
   }
 
   // 构造 Display
@@ -294,8 +301,8 @@ function buildPreviewInputs(form: FormState, t: TFn): {
         source: "user",
         mode: "grouped_grid",
         grouped_grid: {
-          primary_group: { field: form.primary_group.field, label: form.primary_group.label || undefined },
-          secondary_group: { field: form.secondary_group.field, label: form.secondary_group.label || undefined },
+          primary_group: { field: form.primary_group.field, ...(form.primary_group.label ? { label: form.primary_group.label } : {}) },
+          secondary_group: { field: form.secondary_group.field, ...(form.secondary_group.label ? { label: form.secondary_group.label } : {}) },
           cell_columns: cells,
         },
       }

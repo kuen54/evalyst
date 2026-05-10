@@ -23,8 +23,8 @@ async function loadBabel() {
 }
 
 /** 给 JSX 编译过后的函数调用，带 try/catch + ErrorBoundary */
-class JsxBoundary extends React.Component<{ children: React.ReactNode; fallback: React.ReactNode; errorLabel: string }, { hasError: boolean; err?: Error }> {
-  state = { hasError: false, err: undefined as Error | undefined }
+class JsxBoundary extends React.Component<{ children: React.ReactNode; fallback: React.ReactNode; errorLabel: string }, { hasError: boolean; err?: Error | undefined }> {
+  state: { hasError: boolean; err?: Error | undefined } = { hasError: false }
   static getDerivedStateFromError(err: Error) { return { hasError: true, err } }
   render() {
     if (this.state.hasError) {
