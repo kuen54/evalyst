@@ -10,6 +10,11 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Changed
+
+- **AGENTS.md §6 +2 standing rules**（r3 backlog #3 + #7 闭环）：(a) 标 pre-existing 测试 "已绿" 前必须 `--repeat-each` ≥ 5 stress-test——R2 follow-up `experiment-seed.spec.ts:106` 实例（30 次 CI 全绿但本机 retries=0 + `--repeat-each=3` 下 ~8 % flake）的元教训沉淀；(b) cleanup plan 写依赖升级 scope 时用 "patch + 兼容 minor" 而非 "patch-only"——npm `^x.y.z` resolution 在 minor 段也会动，"patch-only" 写死容易 `npm install` 后偷偷漂到 minor。两条都源自 R2 follow-up 实例。
+- **`.npmrc save-exact=true` 评估完成**（r3 backlog #4 闭环，决策方向 B：不加）：抽 4 个对照 TS 项目对照——`vercel/next.js` 用 save-exact，`shadcn-ui/ui` / `TanStack/query` / `vitejs/vite` 都不用。evalyst 跟工具/库级而非框架级，18 直接 dep + 单作者 review 通道足够拦截；caret 默认对 lucide-react / nanoid 等小 dep 的 patch 自动跟随有正向价值。决策记录见 [`docs/superpowers/plans/_index.md`](docs/superpowers/plans/_index.md) §r3 backlog candidates。
+
 ## [0.14.3] — 2026-05-11 · r3 backlog #1+#2 · e2e cold-compile flake closure (PR #89)
 
 R3 backlog 第一阶段收尾。本机 macOS retries=0 全 suite 跑时 4 spec ~8 % flake (`experiment-seed.spec.ts:106/126` + `audit-cleanup-coverage.spec.ts:41/160`) 闭环——3 root cause 联合修，**0 行 prod 代码改动**。

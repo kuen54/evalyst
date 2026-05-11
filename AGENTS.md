@@ -76,6 +76,8 @@ AI assistant 身份工作时：
 - 大改前先 brainstorming 找方向；改完前 verification-before-completion 跑 5 件套
 - plan 内可分配 task 给 subagent，但 review checkpoint 留给用户
 - 文件注释默认**最少**：单行 max，只在 WHY 非 obvious 时写
+- 标 pre-existing 测试 "已绿" 前必须 `--repeat-each` ≥ 5 stress-test。单跑 5/5 不能证明 stable——R2 follow-up `experiment-seed.spec.ts:106` 就栽在低频单跑误判（30 次 CI 全绿但本机 retries=0 + `--repeat-each=3` 下 ~8 % flake）。
+- cleanup plan 写依赖升级 scope 时用 "patch + 兼容 minor"，**不**写 "patch-only"。npm `^x.y.z` resolution 在 minor 段也会动；"patch-only" 写死容易在 `npm install` 后偷偷漂到 minor。或者拆 PR：纯 patch 单 PR，跨 minor dep 升级单 PR。
 
 ## 7. 回顾 / 审计
 
