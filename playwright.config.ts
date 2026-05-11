@@ -14,10 +14,15 @@ const BASE_URL = `http://localhost:${PORT}`
  */
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./playwright.global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  ...(process.env.CI ? { workers: 1 } : {}),
+  // workers: 1 always — local matches CI. macOS multi-worker browser
+  // contexts contend for CPU/IO during cold-route navigation; workers=2
+  // measured 33 % flake on the 4 cold-compile-prone specs, while workers=1
+  // is stable. CI was already workers=1; this aligns local behaviour.
+  workers: 1,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: BASE_URL,

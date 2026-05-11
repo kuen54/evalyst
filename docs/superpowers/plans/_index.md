@@ -73,11 +73,8 @@ Findings：
 
 下一轮 audit (r3) 需诊断/修复，**不**在 r2 follow-up scope 内。每条配出处链接，给下一轮起手即可看清来龙去脉。
 
-- [ ] **`experiment-seed.spec.ts:106` retries=0 下 ~8% 本机 flake**（诊断 + 修）
-      详见 [audit-r2-followup PR-1 Errata Supplement](../archive/2026-Q2/plans/2026-05-11-audit-r2-followup.md)。
-      `clickRun()` 后 `waitForURL(/\/experiments\/exp_seed_test/)` 5s timeout；
-      猜测：dev server cold-compile / waitForURL 阈值偏紧 / 真 race。需先诊断 root cause 再决定 fix 方向。
-- [ ] **e2e cold-compile flake 范围扩大**（统一诊断 + 修）—— PR-3 全 suite 实测下原 r3 #1 的 `experiment-seed:106` 一条扩到 `experiment-seed:126` + `audit-cleanup-coverage:41 (display form)` + `audit-cleanup-coverage:160 (template new form)` 共 4 条。共同特征：本机 retries=0 全 suite 跑时首次访问对应路由的 spec 概率超时（cold-compile race），单 spec 重跑 5/5 全过。CI Ubuntu workers=1 + 串行编译看不到。猜测：dev server next compile 触发条件 + 单 worker 全 suite 串行执行下，前一 spec 的副作用（state pollution / 持续编译）拖慢后一 spec 的首次路由 hit。统一 fix 方向：要么提高所有 cold-compile 路由的 wait-for-url timeout，要么 `playwright.config.ts` 加 `webServer.reuseExistingServer = false` 强制每 spec 独立 webserver，要么 `--workers=2` 让 spec 并发跑（绕过 cold-compile 长尾）。
+- [x] **`experiment-seed.spec.ts:106` retries=0 下 ~8% 本机 flake**（诊断 + 修） — 闭环于 PR #__ (`fix/r3-e2e-cold-compile-flake`)。
+- [x] **e2e cold-compile flake 范围扩大**（统一诊断 + 修）—— 同上 PR 闭环。诊断揭示**三 root cause**：(a) `/experiments/[id]` / `/settings/displays/new` / `/settings/templates/new` 并发 cold compile 4.999 s 贴 5 s spec timeout；(b) multi-worker browser context 在 macOS 抢 CPU/IO（实测 workers=2 反而 33% flake，workers=1 100%）；(c) **brief 没预期的第三层** — `experiment-seed.spec.ts:106/126` 的 `clickRun` 早于 `/api/schemas` (real backend ~292 ms) + `/api/llm-config` (mocked ~50 ms) mock fulfill，导致 handleSubmit 在 `schema`/`selectedModel` undefined 时 early-return（schema 是静默 return，model 是 alert + return），navigation 永不发生。修法：globalSetup prewarm + cap local workers=1 + 两条 spec click 前 `await Promise.all([waitForResponse(schemas), waitForResponse(llm-config)])`。详见 CHANGELOG `[Unreleased]` Fixed 段。
 - [ ] **方法论补丁**：standing rule 加一条"标 pre-existing test '已绿' 前必须 `--repeat-each` ≥ 5 stress-test"。
       r2 follow-up PR-1 Errata 漏验本机 flake 的元教训，落到 AGENTS.md §6 / §7 或单独写进 spec 撰写约定。
 - [ ] **npm save-prefix=^ 自动 caret 风险**（评估 + 决策）—— PR-3 sub a 给 `next` + `eslint-config-next` 改回 pinned `16.2.6`，但 npm 默认 save-prefix=^ 仍生效。未来显式 `npm install next` / `npm update next` 会重新加 caret，回到原状。考虑加 `.npmrc save-exact=true` 永久禁 caret（影响所有依赖；trade-off 是新增 dep 默认 pinned 不再"接受 minor"）；或继续靠 review 拦截。需先看其他用 `.npmrc save-exact=true` 的项目实践 + 评估对开发流的影响。
