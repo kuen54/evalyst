@@ -29,6 +29,10 @@ Phase 内单项 plan：
 - Phase E #9 [audit-batch-runner-file-lock](../archive/2026-Q2/plans/2026-05-09-audit-batch-runner-file-lock.md) · in-memory singleton → 文件锁
 - Phase F #5 audit-doc-split （**当前**） · `../plans/2026-05-09-audit-doc-split.md`
 
+**R2 follow-up (2026-05-11)** —— audit r2 主轮 ship 后 14-15 人天累计 13 项 plan-外问题的 patch 收尾：
+
+- [audit-r2-followup plan](../archive/2026-Q2/plans/2026-05-11-audit-r2-followup.md) · 三步走 (PR-1 CI 严化 / PR-2 ConfirmDialog Provider 嵌套 / PR-3 8-item cleanup batch)。Tag v0.14.1 + v0.14.2。详见 plan 顶 Status 表。
+
 Findings：
 
 - [hardcode-audit](../archive/2026-Q2/findings/2026-05-09-hardcode-audit.md) · cwd / model / 写死路径全审
@@ -62,7 +66,7 @@ Findings：
 下一轮 audit (r3) 需诊断/修复，**不**在 r2 follow-up scope 内。每条配出处链接，给下一轮起手即可看清来龙去脉。
 
 - [ ] **`experiment-seed.spec.ts:106` retries=0 下 ~8% 本机 flake**（诊断 + 修）
-      详见 [audit-r2-followup PR-1 Errata Supplement](2026-05-11-audit-r2-followup.md)。
+      详见 [audit-r2-followup PR-1 Errata Supplement](../archive/2026-Q2/plans/2026-05-11-audit-r2-followup.md)。
       `clickRun()` 后 `waitForURL(/\/experiments\/exp_seed_test/)` 5s timeout；
       猜测：dev server cold-compile / waitForURL 阈值偏紧 / 真 race。需先诊断 root cause 再决定 fix 方向。
 - [ ] **e2e cold-compile flake 范围扩大**（统一诊断 + 修）—— PR-3 全 suite 实测下原 r3 #1 的 `experiment-seed:106` 一条扩到 `experiment-seed:126` + `audit-cleanup-coverage:41 (display form)` + `audit-cleanup-coverage:160 (template new form)` 共 4 条。共同特征：本机 retries=0 全 suite 跑时首次访问对应路由的 spec 概率超时（cold-compile race），单 spec 重跑 5/5 全过。CI Ubuntu workers=1 + 串行编译看不到。猜测：dev server next compile 触发条件 + 单 worker 全 suite 串行执行下，前一 spec 的副作用（state pollution / 持续编译）拖慢后一 spec 的首次路由 hit。统一 fix 方向：要么提高所有 cold-compile 路由的 wait-for-url timeout，要么 `playwright.config.ts` 加 `webServer.reuseExistingServer = false` 强制每 spec 独立 webserver，要么 `--workers=2` 让 spec 并发跑（绕过 cold-compile 长尾）。

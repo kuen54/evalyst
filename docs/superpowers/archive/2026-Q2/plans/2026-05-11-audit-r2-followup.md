@@ -1,5 +1,17 @@
 # Audit R2 Follow-up Plan
 
+> **Status**: ✅ 完成 (2026-05-11)
+>
+> | Phase | PR | Tag | Merge commit |
+> |---|---|---|---|
+> | 1 (PR-1 Cmd+K hydration race + retries=0) | [#85](https://github.com/kuen54/evalyst/pull/85) | v0.14.1 | `9c449f5` |
+> | 2 (PR-2 ConfirmDialog Provider 嵌套) | [#86](https://github.com/kuen54/evalyst/pull/86) | — (合并到 v0.14.2) | `4dc222a` |
+> | 3 (PR-3 8-item cleanup batch + sub d session probe) | [#87](https://github.com/kuen54/evalyst/pull/87) | [v0.14.2](https://github.com/kuen54/evalyst/releases/tag/v0.14.2) | `0b88d20` |
+>
+> r3 backlog 4 条 candidate 已落 [`_index.md` §r3 backlog candidates](_index.md#r3-backlog-candidates)，下一轮 audit 起点。
+
+---
+
 > Trigger: Phase 1/2/3 execution 期间累计 13 项 plan-外问题
 > Baseline: v0.13.0 (`b26c6a9`)
 > Target: v0.13.x patch（3 PR / ~1.5 人天）
@@ -239,6 +251,14 @@ Pre-existing 但 Phase 3 切 Glass primitive 后才暴露——之前 NOOP_STORE
 C 类不进 follow-up 的原因统一：**它们是新工作不是 follow-up**。每条都需要独立判断和 spec，混进 cleanup PR 会模糊 scope，未来追溯不知道为什么改的。
 
 ## Tag 计划
+
+> **Errata (实际收尾, 2026-05-11)**：plan 写时 baseline 是 v0.13.0，预期下个 patch 走 v0.13.1。实际收尾在 v0.14.x 系列：
+>
+> - Phase 1 (PR #85) → 单独 tag **v0.14.1** (commit `9c449f5`)
+> - Phase 2 (PR #86) → 不单独 tag，并入下面 v0.14.2
+> - Phase 3 (PR #87) → tag **v0.14.2** (commit `0b88d20`)，覆盖 Phase 2 + Phase 3 合并收尾
+>
+> Phase 1 提前 tag 是 PR #85 收尾时的现场判断（CI 严化是显著 release boundary），未严格按本 plan 写的 "3 个 PR 全 merge 之后一起 tag"。原文保留追溯。
 
 3 个 PR 全 merge 之后：
 
