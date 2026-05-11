@@ -7,7 +7,9 @@ interface ParseResult {
   error?: string
 }
 
-export function parseResponse(raw: string, schema: TaskSchema): ParseResult {
+type ParserSchema = Pick<TaskSchema, 'raw_text_output' | 'output_schema'>
+
+export function parseResponse(raw: string, schema: ParserSchema): ParseResult {
   if (schema.raw_text_output) return parseAsRawText(raw, schema)
 
   const json = extractJson(raw)
@@ -19,7 +21,7 @@ export function parseResponse(raw: string, schema: TaskSchema): ParseResult {
   return { success: true, data: json }
 }
 
-function parseAsRawText(raw: string, schema: TaskSchema): ParseResult {
+function parseAsRawText(raw: string, schema: ParserSchema): ParseResult {
   const text = stripThinkingTags(raw)
   if (!text) return { success: false, error: 'Empty response' }
 

@@ -14,6 +14,7 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 - **AGENTS.md §6 +2 standing rules**（r3 backlog #3 + #7 闭环）：(a) 标 pre-existing 测试 "已绿" 前必须 `--repeat-each` ≥ 5 stress-test——R2 follow-up `experiment-seed.spec.ts:106` 实例（30 次 CI 全绿但本机 retries=0 + `--repeat-each=3` 下 ~8 % flake）的元教训沉淀；(b) cleanup plan 写依赖升级 scope 时用 "patch + 兼容 minor" 而非 "patch-only"——npm `^x.y.z` resolution 在 minor 段也会动，"patch-only" 写死容易 `npm install` 后偷偷漂到 minor。两条都源自 R2 follow-up 实例。
 - **`.npmrc save-exact=true` 评估完成**（r3 backlog #4 闭环，决策方向 B：不加）：抽 4 个对照 TS 项目对照——`vercel/next.js` 用 save-exact，`shadcn-ui/ui` / `TanStack/query` / `vitejs/vite` 都不用。evalyst 跟工具/库级而非框架级，18 直接 dep + 单作者 review 通道足够拦截；caret 默认对 lucide-react / nanoid 等小 dep 的 patch 自动跟随有正向价值。决策记录见 [`docs/superpowers/plans/_index.md`](docs/superpowers/plans/_index.md) §r3 backlog candidates。
+- **`parseResponse(raw, schema)` 签名收窄**（r3 backlog #5 闭环）：`src/lib/result-parser.ts:10` 的公开 `parseResponse` 签名从完整 `TaskSchema` 收窄到 `Pick<TaskSchema, 'raw_text_output' | 'output_schema'>`（实际只读这俩字段）；`parseAsRawText` 同步收窄为本地 `ParserSchema` 类型别名（type-system 必然，subtype propagation）。pure refactor / 0 行为变更，9/9 result-parser 单测背书 + tsc 全绿；唯一调用点 `batch-runner.ts:299` 传完整 `TaskSchema`，subtyping 自动满足 supertype，0 调用点改动。
 
 ## [0.14.3] — 2026-05-11 · r3 backlog #1+#2 · e2e cold-compile flake closure (PR #89)
 
