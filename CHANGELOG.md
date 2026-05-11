@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Changed
+
+- **`@types/node` major bump 20 → 25**（PR-1，dep major bumps batch 1/3）：type-only 升级，runtime 仍 Node 20 LTS。`npx tsc --noEmit` 0 错——证明项目 Node API 用法（`fs` / `path` / `process` / `Buffer`）全在 Node 18+ 已 stable 的子集，type-narrowing 无副作用。0 行 src 修改。`undici-types ~6.21.0 → ~7.19.0` 是 @types/node 自身 transitive cascade（`docs/superpowers/plans/2026-05-11-dep-major-bumps.md` §合理偏离 (b)）。五件套全绿 + e2e 46/46。
+
 ## [0.14.4] — 2026-05-11 · r3 backlog 全 8 项闭环 — methodology + domain cleanup (PR #90 + #91)
 
 R3 backlog 第二阶段（也是收尾阶段）。Phase 2 方法论沉淀 + Phase 3 域代码 cleanup 合计 6 个 sub，r3 backlog 至此 8/8 全部闭环（#1+#2 已在 v0.14.3）。
