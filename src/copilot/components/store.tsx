@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { CopilotContextRef, PageContext } from "@/copilot/lib/types"
+import { CopilotShellProvider } from "@/components/glass/copilot-context"
 import { applyRevealCascade, clearRevealCascade } from "./material-reveal-cascade"
 
 // ---------- 全局面板状态 ----------
@@ -304,7 +305,15 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     clearManualContexts,
   ])
 
-  return <CopilotCtx.Provider value={value}>{children}</CopilotCtx.Provider>
+  /** Glass primitive 通过 useCopilotOpen / useCopilotPanelWidth 消费的最小子集。
+   *  domain UI（shadcn primitive / sidebar / 各页 Glass 卡）不再依赖完整 CopilotStore shape。 */
+  const shellState = useMemo(() => ({ open, width }), [open, width])
+
+  return (
+    <CopilotCtx.Provider value={value}>
+      <CopilotShellProvider value={shellState}>{children}</CopilotShellProvider>
+    </CopilotCtx.Provider>
+  )
 }
 
 // Fallback store returned when useCopilotStore is called outside a provider.
