@@ -73,15 +73,15 @@ Findings：
 
 下一轮 audit (r3) 需诊断/修复，**不**在 r2 follow-up scope 内。每条配出处链接，给下一轮起手即可看清来龙去脉。
 
-- [x] **`experiment-seed.spec.ts:106` retries=0 下 ~8% 本机 flake**（诊断 + 修） — 闭环于 PR #__ (`fix/r3-e2e-cold-compile-flake`)。
+- [x] **`experiment-seed.spec.ts:106` retries=0 下 ~8% 本机 flake**（诊断 + 修） — 闭环于 PR #89 (`fix/r3-e2e-cold-compile-flake`)。
 - [x] **e2e cold-compile flake 范围扩大**（统一诊断 + 修）—— 同上 PR 闭环。诊断揭示**三 root cause**：(a) `/experiments/[id]` / `/settings/displays/new` / `/settings/templates/new` 并发 cold compile 4.999 s 贴 5 s spec timeout；(b) multi-worker browser context 在 macOS 抢 CPU/IO（实测 workers=2 反而 33% flake，workers=1 100%）；(c) **brief 没预期的第三层** — `experiment-seed.spec.ts:106/126` 的 `clickRun` 早于 `/api/schemas` (real backend ~292 ms) + `/api/llm-config` (mocked ~50 ms) mock fulfill，导致 handleSubmit 在 `schema`/`selectedModel` undefined 时 early-return（schema 是静默 return，model 是 alert + return），navigation 永不发生。修法：globalSetup prewarm + cap local workers=1 + 两条 spec click 前 `await Promise.all([waitForResponse(schemas), waitForResponse(llm-config)])`。详见 CHANGELOG `[Unreleased]` Fixed 段。
-- [x] **方法论补丁**：standing rule 加一条"标 pre-existing test '已绿' 前必须 `--repeat-each` ≥ 5 stress-test"——闭环于 PR #__ (`docs/r3-methodology-batch`)，落到 AGENTS.md §6。
-- [x] **npm save-prefix=^ 自动 caret 风险**（评估 + 决策）—— PR-3 sub a 给 `next` + `eslint-config-next` 改回 pinned `16.2.6`，但 npm 默认 save-prefix=^ 仍生效。考虑加 `.npmrc save-exact=true` 永久禁 caret（影响所有依赖；trade-off 是新增 dep 默认 pinned 不再"接受 minor"）；或继续靠 review 拦截。**决策（2026-05-11，闭环于 PR #__ `docs/r3-methodology-batch`）：方向 B · 不加 `.npmrc`。** 理由：
+- [x] **方法论补丁**：standing rule 加一条"标 pre-existing test '已绿' 前必须 `--repeat-each` ≥ 5 stress-test"——闭环于 PR #90 (`docs/r3-methodology-batch`)，落到 AGENTS.md §6。
+- [x] **npm save-prefix=^ 自动 caret 风险**（评估 + 决策）—— PR-3 sub a 给 `next` + `eslint-config-next` 改回 pinned `16.2.6`，但 npm 默认 save-prefix=^ 仍生效。考虑加 `.npmrc save-exact=true` 永久禁 caret（影响所有依赖；trade-off 是新增 dep 默认 pinned 不再"接受 minor"）；或继续靠 review 拦截。**决策（2026-05-11，闭环于 PR #90 `docs/r3-methodology-batch`）：方向 B · 不加 `.npmrc`。** 理由：
   1. **行业信号混合**：抽 4 个对照 TS 项目——`vercel/next.js` 用 `save-exact=true`（已发布框架，CI 可重现性极敏感）；`shadcn-ui/ui` `.npmrc` 仅 `auto-install-peers + link-workspace-packages` 无 save-exact；`TanStack/query` `.npmrc` 仅 `provenance=true`；`vitejs/vite` 根本无 `.npmrc`（默认 caret）。3/4 工具/库级项目跳过 save-exact；evalyst 跟它们而非 Next.js 框架级。
   2. **scale 适配**：evalyst 直接 dep 仅 18 个，单作者每 PR 都自审。review 通道高带宽、PR-3 实例已成功拦下 caret 漂移；无 process 缺口需 `.npmrc` 兜底。
   3. **caret 默认有正向价值**：`lucide-react` / `nanoid` / `@babel/standalone` 等小 dep 的 patch / minor 自动跟随是 npm 生态主流惯例。Save-exact 全局生效会把"所有新增 dep 默认接受 minor"这个上游标准也禁掉，over-correct。
   4. **Next.js 是个例外**：未来若再有 dep 出现 minor breaking（类似 Next.js 16.2 → 16.3），按 PR-3 同样模式逐 dep 在 `package.json` 显式 pin（不依赖 `.npmrc`）。
-- [x] **"patch + 兼容 minor" plan 撰写约定**（出处：r2-followup §C #3 / code-review-round-3 §第 4 步 #7）—— 闭环于 PR #__ (`docs/r3-methodology-batch`)，落到 AGENTS.md §6。cleanup plan 写 dep 升级 scope 时不再用 "patch-only"，改用 "patch + 兼容 minor" 或拆 PR。
+- [x] **"patch + 兼容 minor" plan 撰写约定**（出处：r2-followup §C #3 / code-review-round-3 §第 4 步 #7）—— 闭环于 PR #90 (`docs/r3-methodology-batch`)，落到 AGENTS.md §6。cleanup plan 写 dep 升级 scope 时不再用 "patch-only"，改用 "patch + 兼容 minor" 或拆 PR。
 
 ---
 
