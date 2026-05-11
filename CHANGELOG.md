@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-05-11 · Round 2 audit Phase 3 · #R2-A 收官 (PR #83 + #84)
+
+第二轮 audit 5 项全过——Phase 1 #D 域核心补测 (v0.13.1) + Phase 2 #B/#C/T3 速胜 (v0.13.2) + **Phase 3 #A Glass UI 切边 (本版)**。`src/copilot/` 子树物理边界与 conceptual 边界对齐：删 `src/copilot/components/{shell,sticky-chrome,glass-segmented}` 后 domain UI 仍编译通过（Linus rm -rf 测试），剩下的 `src/copilot/` 只剩真 Copilot 业务。
+
 ### Refactor (#R2-A · Phase 3 完成 · 2 PR 收官)
 
 - **Round 2 #A 切边收口**：完成 round-2 audit 最后一项（Phase 3 #A）。Glass UI 视觉 primitive 完整搬出 `src/copilot/` 子树到 `src/components/glass/`，**导入方向真切边**——Linus `rm -rf src/copilot/{shell,sticky-chrome,glass-segmented}` 后 domain UI 编译仍通过；`src/copilot/` 子树只剩真 Copilot 业务（panel / chat-view / tool-call-card / inspector / context / use-chat-stream / use-page-context / store / overlay）。
