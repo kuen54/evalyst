@@ -193,7 +193,7 @@ const MarkdownBody = memo(function MarkdownBody({ text }: { text: string }) {
  * - `kind: "loop_warn"` → amber 提示，server 仍继续执行
  * - `kind: "loop_block"` → red 提示，server 已返 429 拒绝该次工具调用
  *
- * 视觉遵循 copilot panel 约定：panel 内部不走玻璃 9 档，用轻量 alpha tinted 表面
+ * 视觉遵循 copilot panel 约定：panel 内部不走玻璃 7 档，用轻量 alpha tinted 表面
  * （spec §"轻量 tinted 表面"）。
  */
 export function SystemNoticeBubble({
