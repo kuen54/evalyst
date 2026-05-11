@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Refactor (#R2-A, PR 1/3)
+
+- **Phase 3 Glass primitive 切边 introduce-new**: 新建 `src/components/glass/{copilot-context,shell,sticky-chrome,glass-segmented}.tsx`，把视觉 primitive 从 Copilot 子树物理搬出。引入 minimal context API `CopilotShellProvider` + 两 hook 分拆 `useCopilotOpen()` / `useCopilotPanelWidth()`——Glass 视觉 primitive 不再触碰 `CopilotStore` 完整 shape，只读 `{ open, width }` 子集（Linus "no special cases"）。`src/copilot/components/store.tsx` `CopilotStoreProvider` 内层包 `CopilotShellProvider value={{ open, width }}`。老 `src/copilot/components/{shell,sticky-chrome,glass-segmented}.tsx` 改成 backwards-compatible re-export shim——**40+ 现有 import 路径不变仍工作**；PR 2 bulk migrate import 路径，PR 3 删除 shim 完成切边。`shell.test.ts` 跟搬到 `src/components/glass/__tests__/`。详见 [`docs/superpowers/plans/2026-05-11-audit-r2-phase3-glass-extraction.md`](docs/superpowers/plans/2026-05-11-audit-r2-phase3-glass-extraction.md)。
+
 ## [0.13.2] — 2026-05-10 · Round 2 audit Phase 2 · quick-wins 批 (PR #79–#82)
 
 第二轮 audit Phase 2 全收完：4 个独立 PR 串行 merge，Errata + #C file-lock O_EXCL + #B middleware csrf-rename + T3 cleanup batch。**audit 增量调优、零功能改动**。
