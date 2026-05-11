@@ -8,7 +8,7 @@
 > | 2 (PR-2 ConfirmDialog Provider 嵌套) | [#86](https://github.com/kuen54/evalyst/pull/86) | — (合并到 v0.14.2) | `4dc222a` |
 > | 3 (PR-3 8-item cleanup batch + sub d session probe) | [#87](https://github.com/kuen54/evalyst/pull/87) | [v0.14.2](https://github.com/kuen54/evalyst/releases/tag/v0.14.2) | `0b88d20` |
 >
-> r3 backlog 4 条 candidate 已落 [`_index.md` §r3 backlog candidates](_index.md#r3-backlog-candidates)，下一轮 audit 起点。
+> r3 backlog 4 条 candidate 已落 [`_index.md` §r3 backlog candidates](../../../plans/_index.md#r3-backlog-candidates)，下一轮 audit 起点。
 
 ---
 
@@ -16,7 +16,7 @@
 > Baseline: v0.13.0 (`b26c6a9`)
 > Target: v0.13.x patch（3 PR / ~1.5 人天）
 > Source: 三轮 phase 反馈记录（见 §plan-外原始反馈，本文档底）
-> Reference: [`docs/code-review-round-2.md`](../../code-review-round-2.md)
+> Reference: [`docs/code-review-round-2.md`](../../../code-review-round-2.md)
 
 ## Background
 
@@ -94,7 +94,7 @@ Phase 3 — Cleanup batch（最后） ──────── 0.5 人天
 > stress-test。30 次 CI 全绿 ≠ 无 flake——CI Ubuntu workers=1 + 单 spec 触发
 > 条件有限，慢路径低概率撞不到。
 >
-> **Action**：进 r3 backlog（见 [`docs/superpowers/plans/_index.md`](_index.md)
+> **Action**：进 r3 backlog（见 [`docs/superpowers/plans/_index.md`](../../../plans/_index.md)
 > §r3 backlog candidates）。**不在 PR-2 scope**——不能在"修 Provider 嵌套"PR
 > 里塞别 spec 的 timeout 调整或 cold-compile workaround，审计边界比 cargo-cult
 > raise timeout 更值得守。
@@ -193,7 +193,7 @@ Pre-existing 但 Phase 3 切 Glass primitive 后才暴露——之前 NOOP_STORE
 - **新 e2e (Step 4)** `e2e/confirm-glass.spec.ts`：跳到 `/settings/datasets`，hydration gate 等 toggle 按钮可见，A. copilot 关态点删除断 dialog 无 `data-glass-variant` 属性；B. `Meta+K` 开 panel 等 `aria-hidden="false"`，再点删除断 dialog `data-glass-variant="thick"`。
 - **稳定性**：retries=0 下 `--repeat-each=10` 全绿。
 - **关态 attribute 断言细节**（接受 plan 没写到的）：dialog.tsx:65 `data-glass-variant={copilotOpen ? "thick" : undefined}` 让 React 在关态下不渲染 attribute，因此关态断言必须 `not.toHaveAttribute("data-glass-variant", /.+/)` 而非 `toHaveAttribute(name, undefined)`（后者实际是"attribute 存在且任意值"，假阳性）。
-- **Step 5 副作用发现**：跑全 e2e 时 `experiment-seed.spec.ts:106` 在 retries=0 下 ~8% flake——pre-existing、与本 PR 改动无因果（experiment-new 走 `window.confirm`，不经 ConfirmProvider 路径）。已 supplement 到 §PR-1 Errata + 进 r3 backlog（[`_index.md` §r3 backlog candidates](_index.md)）。
+- **Step 5 副作用发现**：跑全 e2e 时 `experiment-seed.spec.ts:106` 在 retries=0 下 ~8% flake——pre-existing、与本 PR 改动无因果（experiment-new 走 `window.confirm`，不经 ConfirmProvider 路径）。已 supplement 到 §PR-1 Errata + 进 r3 backlog（[`_index.md` §r3 backlog candidates](../../../plans/_index.md)）。
 - **Step 6 五件套**：`tsc --noEmit` 0 错 / `npm test` 806/806 / `npm run knip` 干净。
 
 ## PR-3：chore/r2-followup-cleanup
@@ -236,7 +236,7 @@ Pre-existing 但 Phase 3 切 Glass primitive 后才暴露——之前 NOOP_STORE
   - `1f857fd chore(deps): sync package-lock.json after next pin revert` —— plan 写"lockfile 不动"是 stale 假设。`npm install` 会把 package-lock.json 顶部 mirror 段（package.json 的 range string 镜像）同步过来；resolved versions / integrity hashes 这些**真**的 dep tree 状态不变。需要 commit 这个 2-line cosmetic sync，否则下一个跑 `npm install` 的 dev 会看到 dirty working tree。
 - **Sub i 三层 grep 验收（2026-05-11 与用户落定）**：plan 字面写"`grep -rn "9 档" src docs --exclude-dir=archive` 0 命中"——实施时发现"非 archive 但仍是历史"的命中（review reports / CHANGELOG / specs / past-tense `之前作为...` 注释）很多。与用户对齐"history vs contract"边界，verifier 改为三层口径：(a) Layer 1 contract grep `src/components/glass + src/copilot/components + CLAUDE.md` 排除 `之前` = 0 hit；(b) Layer 2 archive grep 改前后一致 = 3；(c) Layer 3 history grep（review reports / CHANGELOG / specs / active plans / past-tense code）改前后基本一致（PR-3 entry 自身在 CHANGELOG.md 引用 "9 档" 触发 +2，可接受）。
 - **Sub d 三态 `SessionProbeResult` 设计选择**：plan 没写实现形态。propose 三态（exists | not_found | unknown）而非 boolean，避免 5xx/network transient 错误清掉 LS 把用户最近 session 指针抹掉。不算 plan deviation——属 AGENTS.md §5 (b) "量化 plan 声明却未具象化的契约"；commit body + CHANGELOG Implementation notes 段都说明了。
-- **新发现的 r3 candidate**：(1) **e2e cold-compile flake 扩大**——原 r3 #1 只 `experiment-seed:106` 一条，PR-3 全 suite 实测下扩到 4 条（`experiment-seed:106/:126` + `audit-cleanup-coverage:41/:160`）。共同特征：单 spec 重跑 5/5 全过、全 suite cold compile 时首次 hit 对应路由的 spec 超时。已加进 [`_index.md` §r3 backlog candidates](_index.md)。(2) **npm save-prefix=^ 风险**：sub a pin 后未来 `npm install next` 会重新加 caret，已加进 r3 candidate "考虑 .npmrc save-exact=true"。
+- **新发现的 r3 candidate**：(1) **e2e cold-compile flake 扩大**——原 r3 #1 只 `experiment-seed:106` 一条，PR-3 全 suite 实测下扩到 4 条（`experiment-seed:106/:126` + `audit-cleanup-coverage:41/:160`）。共同特征：单 spec 重跑 5/5 全过、全 suite cold compile 时首次 hit 对应路由的 spec 超时。已加进 [`_index.md` §r3 backlog candidates](../../../plans/_index.md)。(2) **npm save-prefix=^ 风险**：sub a pin 后未来 `npm install next` 会重新加 caret，已加进 r3 candidate "考虑 .npmrc save-exact=true"。
 
 ## 决策日志：r2 follow-up 不做的项 → r3 backlog
 

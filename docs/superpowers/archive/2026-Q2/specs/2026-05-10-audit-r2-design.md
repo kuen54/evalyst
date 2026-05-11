@@ -1,6 +1,6 @@
 # Round 2 Audit · Master Spec
 
-> **Source**: [`docs/code-review-round-2.md`](../../code-review-round-2.md) · baseline `b26c6a9` (v0.13.0).
+> **Source**: [`docs/code-review-round-2.md`](../../../code-review-round-2.md) · baseline `b26c6a9` (v0.13.0).
 > **Purpose**: 把 round 2 的 5 项 fix（Tier 1 #A + #D / Tier 2 #B + #C / Tier 3 cleanup）拆 Phase + 锁 scope，写明本轮**不修**的项 + 理由。
 > **同期 plan**：每个 ≥ 1d 的项配独立 lightweight plan（≤ 100 行）。
 
