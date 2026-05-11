@@ -12,7 +12,6 @@ function rubricsDir() { return path.join(process.cwd(), 'data', 'rubrics') }
 export function listRubrics(): Rubric[] {
   ensureSeeds()
   ensureDir(rubricsDir())
-  if (!fs.existsSync(rubricsDir())) return []
   const files = fs.readdirSync(rubricsDir()).filter(f => f.endsWith('.json'))
   const out: Rubric[] = []
   for (const f of files) {
