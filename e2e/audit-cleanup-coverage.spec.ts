@@ -310,6 +310,13 @@ test.describe("audit-cleanup: copilot panel keyboard toggle", () => {
     const togglePanel = page.locator("aside[data-copilot-panel]")
     await expect(togglePanel).toBeAttached({ timeout: 6_000 })
 
+    // Hydration gate — toggle button only renders after CopilotStoreProvider's
+    // mount useEffect fires, which is also what registers the global ⌘K listener.
+    // Pressing before this is a hydration race that fails ~1/3 on slow boxes.
+    await expect(
+      page.getByRole("button", { name: /打开 Copilot|Open Copilot/i })
+    ).toBeVisible({ timeout: 6_000 })
+
     // Press Meta+k (mac) and Control+k (everywhere else) — shortcut handler
     // accepts both. Use Meta first (Playwright headed defaults vary).
     await page.keyboard.press("Meta+k")
