@@ -10,12 +10,16 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-### 修复 (#R2-followup A2)
+## [0.14.2] — 2026-05-11 · R2 follow-up Phase 2 + Phase 3 — ConfirmDialog Provider nesting + 8-item cleanup batch (PR #86 + #87)
+
+R2 follow-up 三步走的 Phase 2 + Phase 3 合并收尾。Phase 2 单点修复 ConfirmDialog Provider 嵌套（Phase 3 切 Glass primitive 后才暴露的视觉 regression）；Phase 3 批量收 8 项零散 cleanup（dep pin 回滚 / dead code / doc drift / Copilot session probe）。R2 follow-up 至此全部 land——CI 严化（Phase 1）+ 视觉 regression 修复（Phase 2）+ cleanup batch（Phase 3）三步完成。
+
+### 修复 (#R2-followup A2, PR #86)
 
 - **ConfirmDialog Provider 嵌套换序**：`src/app/layout.tsx` `ConfirmProvider` 与 `CopilotStoreProvider` 嵌套顺序换——前者改成内层、后者改成外层。原嵌套下 `ConfirmProvider` 自渲染的 `<Dialog>` 处于 `CopilotStoreProvider` **外面**，`DialogContent.useCopilotOpen()` 读到 `createContext` 的默认 `{ open: false, width: 0 }`，copilot 开态下 ConfirmDialog 拿不到 `data-glass-variant="thick"`（视觉 regression，Phase 3 切 Glass primitive 后才暴露）。换序后 dialog 正确反映 copilot 开关。零行为变更——`{children}` 子树里 confirm caller 全是 ConfirmProvider 之孙，与嵌套顺序无关。详见 [`docs/superpowers/plans/2026-05-11-audit-r2-followup.md`](docs/superpowers/plans/2026-05-11-audit-r2-followup.md) §Plan-外原始反馈索引 "Phase 3 反馈"（ConfirmDialog Context scope 即该索引第 1 项）。
 - 新 e2e `e2e/confirm-glass.spec.ts`：copilot 关态断言 dialog 无 `data-glass-variant` 属性；开态断言 `data-glass-variant="thick"`。retries=0 下 `--repeat-each=10` 全绿。
 
-### Cleanup (#R2-followup PR-3 batch · 8 commits)
+### Cleanup (#R2-followup PR-3 batch · 8 commits, PR #87)
 
 8 项零散 follow-up 的批量收尾，commit 粒度独立可单点回滚。**唯一业务码改动**是 sub d (Copilot session probe)，其余是 dep pin / dead code / doc drift。
 
@@ -28,7 +32,7 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 - **i · "9 档" → "7 档" 当前 contract sweep**（`src/copilot/components/chat-view-parts.tsx:196` + `CLAUDE.md:17`）：剩余 2 处 current-tense contract 措辞。past-tense "之前作为 9 档..." 历史描述 + review reports / CHANGELOG 历史 entries 全部不动（不重写历史）。三层 grep 验收：layer 1 contract 0 hit / layer 2 archive 改前后一致 (3) / layer 3 history 改前后一致 (24)。
 - **B10 · 修 PR-2 CHANGELOG cross-ref**（本 entry 上方 A2 段尾）：原引用 `docs/code-review-round-2.md §评审视角四人组裁决摘要 Phase 3 反馈 #1` 是 stale——`code-review-round-2.md` 全文无 "Phase 3 反馈" 段。"Phase 3 反馈" 实际在 [`docs/superpowers/plans/2026-05-11-audit-r2-followup.md`](docs/superpowers/plans/2026-05-11-audit-r2-followup.md) §Plan-外原始反馈索引。改指 plan 文件。
 
-### Implementation notes (PR-3)
+### Implementation notes (PR-3, PR #87)
 
 - sub d 用三态 `SessionProbeResult = "exists" | "not_found" | "unknown"` 而非 boolean —— 404 = definitive evidence the session is gone → clear LS；5xx / network = ambiguous → leave LS alone, let next mount retry。Boolean 会把"definitively gone"和"transient blip"两个语义不同的失败混在一起，在 server 抖一下时误清 LS 把用户最近 session 指针抹掉。
 
