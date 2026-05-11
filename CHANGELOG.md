@@ -10,6 +10,15 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### 修复 (#R2-followup A1, PR pending)
+
+- **Cmd+K e2e hydration race**：`audit-cleanup-coverage.spec.ts:298` / `copilot-v2.spec.ts:45,54` / `copilot-v25.spec.ts:134` 三处按 ⌘K 之前只等 `<aside data-copilot-panel>` attached（SSR HTML 立即满足），但 ⌘K window keydown listener 在 `CopilotStoreProvider` mount useEffect 里注册（hydration 后才跑）——慢机 race 触发（本机 macOS 1/3 fail，CI Ubuntu 一直绿）。三处 press 之前加 `expect(getByRole("button", { name: /打开 Copilot|Open Copilot/i })).toBeVisible({ timeout: 6_000 })` —— 该按钮只在 `mounted=true` 时渲染（同一个 useEffect 既 set mounted 又 register listener），可见即代表 hydration 完成 + listener 已注册。本机 10× repeat 60/60 过。
+- **Playwright CI retries: 1 → 0**：retries=1 是给未诊断 flake 留逃生口，第二轮过了与一遍过结果不可分，CI 信号失真。Cmd+K race 修干净后立刻拆门——以后任何 flake 都会让 CI 红，逼真诊断而非 paper-over。
+
+### 文档 (#R2-followup A1)
+
+- `docs/superpowers/plans/2026-05-11-audit-r2-followup.md` §PR-1 加 Errata 段：plan 写时未实跑 / 未读 CI 日志，三个"长期红"e2e 中两条早已绿（`2c03636` + `f743810` 修过），CI workflow 已严无需改；只 Cmd+K 一条本机 flake。原文保留追溯（"plan 原写法"块），重新框定 PR-1 实际 scope。
+
 ## [0.14.0] — 2026-05-11 · Round 2 audit Phase 3 · #R2-A 收官 (PR #83 + #84)
 
 第二轮 audit 5 项全过——Phase 1 #D 域核心补测 (v0.13.1) + Phase 2 #B/#C/T3 速胜 (v0.13.2) + **Phase 3 #A Glass UI 切边 (本版)**。`src/copilot/` 子树物理边界与 conceptual 边界对齐：删 `src/copilot/components/{shell,sticky-chrome,glass-segmented}` 后 domain UI 仍编译通过（Linus rm -rf 测试），剩下的 `src/copilot/` 只剩真 Copilot 业务。

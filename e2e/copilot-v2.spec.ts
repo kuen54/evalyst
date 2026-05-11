@@ -41,6 +41,12 @@ test("root page loads and /api/copilot/sessions responds with sessions list", as
 
   // Cmd+K / Ctrl+K should toggle the copilot panel. Use the platform-appropriate
   // modifier — on linux / CI playwright runs, Control is correct.
+  // Wait for hydration (toggle button only renders after CopilotStoreProvider's
+  // mount effect, which is also where the ⌘K window listener is registered) —
+  // pressing before that is a race that fails on slow boxes.
+  await expect(
+    page.getByRole("button", { name: /打开 Copilot|Open Copilot/i })
+  ).toBeVisible({ timeout: 6_000 })
   const mod = process.platform === "darwin" ? "Meta" : "Control"
   await page.keyboard.press(`${mod}+k`)
   // Panel presence: the role='complementary'|aside with copilot title, or the

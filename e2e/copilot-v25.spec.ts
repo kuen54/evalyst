@@ -130,7 +130,11 @@ test.describe('Copilot v2.5 e2e', () => {
       }, newSid)
       await page.reload()
 
-      // 开 copilot
+      // 开 copilot — 先等 hydration 完（toggle 按钮在 CopilotStoreProvider 的
+      // mount useEffect 里出现，⌘K 监听器也在那个 useEffect 里注册），否则慢机 race。
+      await expect(
+        page.getByRole('button', { name: /打开 Copilot|Open Copilot/i })
+      ).toBeVisible({ timeout: 6_000 })
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+K' : 'Control+K')
       const panel = page.locator('[data-copilot-panel]')
       await expect(panel).toBeVisible({ timeout: 5000 })
