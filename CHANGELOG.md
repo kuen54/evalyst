@@ -10,7 +10,11 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-### 修复 (#R2-followup A1, PR pending)
+## [0.14.1] — 2026-05-11 · R2 follow-up Phase 1 · Cmd+K e2e hydration race + retries=0 (PR #85)
+
+R2 follow-up 三步走的第 1 步收尾。改动只 4 个文件 + 2 个文档（CHANGELOG / plan errata），**零 prod 代码变更**。Phase 2 (PR-2 ConfirmDialog Provider 嵌套) / Phase 3 (PR-3 cleanup batch 9 项) 留后续 session。
+
+### 修复 (#R2-followup A1, PR #85)
 
 - **Cmd+K e2e hydration race**：`audit-cleanup-coverage.spec.ts:298` / `copilot-v2.spec.ts:45,54` / `copilot-v25.spec.ts:134` 三处按 ⌘K 之前只等 `<aside data-copilot-panel>` attached（SSR HTML 立即满足），但 ⌘K window keydown listener 在 `CopilotStoreProvider` mount useEffect 里注册（hydration 后才跑）——慢机 race 触发（本机 macOS 1/3 fail，CI Ubuntu 一直绿）。三处 press 之前加 `expect(getByRole("button", { name: /打开 Copilot|Open Copilot/i })).toBeVisible({ timeout: 6_000 })` —— 该按钮只在 `mounted=true` 时渲染（同一个 useEffect 既 set mounted 又 register listener），可见即代表 hydration 完成 + listener 已注册。本机 10× repeat 60/60 过。
 - **Playwright CI retries: 1 → 0**：retries=1 是给未诊断 flake 留逃生口，第二轮过了与一遍过结果不可分，CI 信号失真。Cmd+K race 修干净后立刻拆门——以后任何 flake 都会让 CI 红，逼真诊断而非 paper-over。
@@ -18,6 +22,7 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 ### 文档 (#R2-followup A1)
 
 - `docs/superpowers/plans/2026-05-11-audit-r2-followup.md` §PR-1 加 Errata 段：plan 写时未实跑 / 未读 CI 日志，三个"长期红"e2e 中两条早已绿（`2c03636` + `f743810` 修过），CI workflow 已严无需改；只 Cmd+K 一条本机 flake。原文保留追溯（"plan 原写法"块），重新框定 PR-1 实际 scope。
+- **Plan deviation 记录**（per AGENTS.md §5）：原 plan §PR-1 框定为"3 e2e 红 + CI 撒谎 + branch fix/r2-e2e-real-failures + commit 'close 3 pre-existing failures + tighten CI fail-on-error'"。诊断阶段实测推翻前提：2/3 specs 已绿、CI workflow 已严。重新框定为"修 1 真 flake（grep 后扩到 3 处同隐患）+ retries 0"，branch / commit / scope 同步更新。Errata 详见 plan §PR-1。
 
 ## [0.14.0] — 2026-05-11 · Round 2 audit Phase 3 · #R2-A 收官 (PR #83 + #84)
 
