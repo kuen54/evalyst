@@ -10,6 +10,11 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### 修复 (#R2-followup A2)
+
+- **ConfirmDialog Provider 嵌套换序**：`src/app/layout.tsx` `ConfirmProvider` 与 `CopilotStoreProvider` 嵌套顺序换——前者改成内层、后者改成外层。原嵌套下 `ConfirmProvider` 自渲染的 `<Dialog>` 处于 `CopilotStoreProvider` **外面**，`DialogContent.useCopilotOpen()` 读到 `createContext` 的默认 `{ open: false, width: 0 }`，copilot 开态下 ConfirmDialog 拿不到 `data-glass-variant="thick"`（视觉 regression，Phase 3 切 Glass primitive 后才暴露）。换序后 dialog 正确反映 copilot 开关。零行为变更——`{children}` 子树里 confirm caller 全是 ConfirmProvider 之孙，与嵌套顺序无关。详见 [`docs/code-review-round-2.md`](docs/code-review-round-2.md) §评审视角四人组裁决摘要 Phase 3 反馈 #1。
+- 新 e2e `e2e/confirm-glass.spec.ts`：copilot 关态断言 dialog 无 `data-glass-variant` 属性；开态断言 `data-glass-variant="thick"`。retries=0 下 `--repeat-each=10` 全绿。
+
 ## [0.14.1] — 2026-05-11 · R2 follow-up Phase 1 · Cmd+K e2e hydration race + retries=0 (PR #85)
 
 R2 follow-up 三步走的第 1 步收尾。改动只 4 个文件 + 2 个文档（CHANGELOG / plan errata），**零 prod 代码变更**。Phase 2 (PR-2 ConfirmDialog Provider 嵌套) / Phase 3 (PR-3 cleanup batch 9 项) 留后续 session。
