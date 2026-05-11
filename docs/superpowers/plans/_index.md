@@ -82,6 +82,13 @@ Findings：
   3. **caret 默认有正向价值**：`lucide-react` / `nanoid` / `@babel/standalone` 等小 dep 的 patch / minor 自动跟随是 npm 生态主流惯例。Save-exact 全局生效会把"所有新增 dep 默认接受 minor"这个上游标准也禁掉，over-correct。
   4. **Next.js 是个例外**：未来若再有 dep 出现 minor breaking（类似 Next.js 16.2 → 16.3），按 PR-3 同样模式逐 dep 在 `package.json` 显式 pin（不依赖 `.npmrc`）。
 - [x] **"patch + 兼容 minor" plan 撰写约定**（出处：r2-followup §C #3 / code-review-round-3 §第 4 步 #7）—— 闭环于 PR #90 (`docs/r3-methodology-batch`)，落到 AGENTS.md §6。cleanup plan 写 dep 升级 scope 时不再用 "patch-only"，改用 "patch + 兼容 minor" 或拆 PR。
+- [x] **`parseResponse(raw, schema)` 签名收窄**（出处：r2-followup §C #1 / code-review-round-3 §第 4 步 #5）—— 闭环于 PR `refactor/r3-domain-cleanup`。`src/lib/result-parser.ts:10` 的 `parseResponse` 签名从完整 `TaskSchema` 收到 `Pick<TaskSchema, 'raw_text_output' | 'output_schema'>`（实际只读这俩字段）；`parseAsRawText` 同步收窄（type-system 必然，subtype propagation）。pure refactor / 0 行为变更，9/9 result-parser 单测背书 + tsc 全绿；唯一调用点 `batch-runner.ts:299` 传完整 `TaskSchema`，subtyping 自动满足 supertype 不需改。
+- [x] **API/lib 错误消息一致性调查**（出处：r2-followup §C #2 / code-review-round-3 §第 4 步 #6）—— 闭环于 PR `refactor/r3-domain-cleanup`，**调查结果方向 A · i18n 边界 by-design，0 行代码改动**。grep 三类 source 后判定：
+  1. `"Must be a non-empty string"` 活在 `src/lib/i18n/{en,zh}.ts` (key `new_res.must_be_nonempty_string`)，仅被**前端表单页**消费——`src/app/settings/datasets/new/page.tsx:22-23` + `src/app/settings/displays/new/page.tsx:21` 在客户端做表单预校验展示给**最终用户**看。
+  2. `"required string"` / `"required non-empty array"` 硬编在 `src/lib/datasets.ts:102-106` 的 `validateDatasetJson`（同样模式在 `src/lib/displays.ts:127-152` / `src/lib/schema/user-schema-store.ts:70-86` / `src/app/api/rubrics/{,[id]/}route.ts:12`）——服务端收到 raw POST body 时校验，错误经 `errors: v.errors` 数组返回给**绕过 UI 直接调 API 的 dev**。
+  3. `/api/datasets/route.ts` catch 块只透传 `(e as Error).message`、不重写——**不存在 API route 重写 lib 消息的耦合**，也**不存在两套 validate 路径**（API route 直接调 lib 的 `validateDatasetJson`）。
+
+  两条消息服务两层不同受众（end user UI vs dev API），**i18n 翻译层 / lib 错误层是 by-design 的边界分离**。强行对齐会破坏这条边界（要么把 dev message 推进 i18n、要么把 i18n 拉回 hardcode）——任一方向都引入新分歧。**不动**。
 
 ---
 
