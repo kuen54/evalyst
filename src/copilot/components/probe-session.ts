@@ -1,4 +1,4 @@
-export type SessionProbeResult = "exists" | "not_found" | "unknown"
+type SessionProbeResult = "exists" | "not_found" | "unknown"
 
 /**
  * Probe whether a session id is still resolvable on the server.
