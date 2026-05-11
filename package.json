@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "knip": "knip",
