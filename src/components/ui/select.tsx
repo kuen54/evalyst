@@ -5,8 +5,8 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
-import { useGlassStyle } from "@/copilot/components/shell"
-import { useCopilotStore } from "@/copilot/components/store"
+import { useGlassStyle } from "@/components/glass/shell"
+import { useCopilotOpen } from "@/components/glass/copilot-context"
 
 const Select = SelectPrimitive.Root
 
@@ -73,7 +73,7 @@ function SelectContent({
     SelectPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
   >) {
-  const { open: copilotOpen } = useCopilotStore()
+  const copilotOpen = useCopilotOpen()
   const glassStyle = useGlassStyle("thick")
   return (
     <SelectPrimitive.Portal>

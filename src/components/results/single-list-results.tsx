@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { GlassCardThin } from "@/copilot/components/shell"
+import { GlassCardThin } from "@/components/glass/shell"
 import { Badge } from "@/components/ui/badge"
 import type { ResultViewProps, CellViewProps } from "./types"
 import { dimensionsOf, readDimensionValue, labelFor } from "./dimension-helpers"

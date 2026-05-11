@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react"
 import { Download, Lightbulb } from "lucide-react"
-import { GlassWarning } from "@/copilot/components/shell"
+import { GlassWarning } from "@/components/glass/shell"
 import { useT } from "@/lib/i18n/provider"
 
 interface Props {

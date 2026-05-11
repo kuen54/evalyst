@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useT } from "@/lib/i18n/provider"
 import { LanguageToggle } from "@/components/language-toggle"
-import { useCopilotStore } from "@/copilot/components/store"
+import { useCopilotOpen, useCopilotPanelWidth } from "@/components/glass/copilot-context"
 import { segmentedItem } from "@/lib/segmented"
 import { applyThemeClass, type ResolvableTheme } from "@/lib/theme/apply"
 import { applyThemeCascade, clearThemeCascade } from "@/lib/theme/cascade"
@@ -17,7 +17,8 @@ export function Sidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const t = useT()
-  const { open: copilotOpen, width: copilotWidth } = useCopilotStore()
+  const copilotOpen = useCopilotOpen()
+  const copilotWidth = useCopilotPanelWidth()
   // 记住 copilot 打开前的 collapsed 状态；关闭后还原
   const prevCollapsedBeforeCopilot = useRef<boolean | null>(null)
   // cycle 过程中的 cleanup timeout；连点时抢旧 timeout 避免残留 delay

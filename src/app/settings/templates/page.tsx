@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useT } from "@/lib/i18n/provider"
-import { GlassCard } from "@/copilot/components/shell"
+import { GlassCard } from "@/components/glass/shell"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import type { TaskSchema } from "@/lib/schema/types"
 

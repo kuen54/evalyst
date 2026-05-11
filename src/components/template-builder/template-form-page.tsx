@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { RequiredMark } from "@/components/ui/field-label"
-import { GlassRegular } from "@/copilot/components/shell"
+import { GlassRegular } from "@/components/glass/shell"
 import { useT } from "@/lib/i18n/provider"
 import type { TFn } from "@/lib/i18n/provider"
 import type { DatasetDef, Display, TaskSchema } from "@/lib/schema/types"

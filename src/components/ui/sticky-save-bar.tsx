@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { useT } from "@/lib/i18n/provider"
-import { GlassStickyFooter } from "@/copilot/components/sticky-chrome"
+import { GlassStickyFooter } from "@/components/glass/sticky-chrome"
 
 /** 统一的底部操作条：保存 / 取消 / 右侧 dirty 提示 */
 export function StickySaveBar({
