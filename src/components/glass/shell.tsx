@@ -134,7 +134,7 @@ export function getGlassStyleForVariant(
 }
 
 /**
- * Copilot 玻璃梯度系统 9 档（6 primitive + 3 semantic）。详见 getGlassStyleForVariant 顶注释。
+ * Copilot 玻璃梯度系统 7 档（4 primitive + 3 semantic）。详见 getGlassStyleForVariant 顶注释。
  *
  * copilot 关闭时返回 transition-only style，让外部 className 的 bg-card/bg-background 原样工作。
  */

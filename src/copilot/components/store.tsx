@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { CopilotContextRef, PageContext } from "@/copilot/lib/types"
 import { CopilotShellProvider } from "@/components/glass/copilot-context"
 import { applyRevealCascade, clearRevealCascade } from "./material-reveal-cascade"
+import { probeSessionExists } from "./probe-session"
 
 // ---------- 全局面板状态 ----------
 // 持久化：localStorage 存 open/width/activeSessionId。
@@ -95,7 +96,20 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
         if (!Number.isNaN(n)) setWidthState(clampWidth(n))
       }
       const savedActive = localStorage.getItem(LS_ACTIVE)
-      if (savedActive) setActiveSessionIdState(savedActive)
+      if (savedActive) {
+        // Defer setting activeSessionId until probe confirms — a stale id (session
+        // deleted server-side, data dir reset, machine swap) would otherwise cause
+        // use-chat-stream.ts to GET /api/copilot/sessions/{stale} → 404 noise on every
+        // mount. panel.tsx open-handler also cleans up via /sessions list, but only
+        // runs after the panel opens; chat-view fires earlier.
+        void probeSessionExists(savedActive).then(result => {
+          if (result === "exists") setActiveSessionIdState(savedActive)
+          else if (result === "not_found") {
+            try { localStorage.removeItem(LS_ACTIVE) } catch {}
+          }
+          // unknown (5xx / network): leave LS, retry on next mount.
+        })
+      }
       // contexts 存 sessionStorage；刷新保留，关标签页清掉
       const savedCtx = sessionStorage.getItem(SS_CONTEXTS)
       if (savedCtx) {

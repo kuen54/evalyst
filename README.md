@@ -97,6 +97,7 @@ EVALYST_ALLOW_ORIGIN=https://your-tool.example.com,https://another.example.org
 - **SSH tunnel**：`ssh -L 3000:localhost:3000 user@host` 把远端 :3000 绑到本地 :3000
 - **VPN / Tailscale**：把机器拉进私网，evalyst 只对私网 IP 可见
 - **反代 + auth 前置**：Caddy / Nginx / Cloudflare Tunnel 在前面挂 basic-auth / OAuth / mTLS / IP allowlist；evalyst 仍绑 127.0.0.1，只让反代访问
+- **PaaS 部署（Kubernetes / Cloud Run / Fly.io / Render 等）**：服务仍绑 `localhost` / `127.0.0.1`，让 PaaS 的 ingress / router 做 auth 终结（IAP、Access Policy、basic-auth sidecar 等）；不要把 evalyst 进程直接监听 `0.0.0.0` 暴露给 PaaS 上面的"public" 路由
 
 **不要做**：直接 `EXPOSE` 到公网 / 把 :3000 写进 `0.0.0.0` / 在生产环境多用户共用一个实例。
 

@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test"
 
 /**
- * Auth gate regression suite — exercises the middleware introduced
- * in fix/auth-gate-rce. The middleware uses Sec-Fetch-Site to allow
- * first-party requests and rejects cross-site requests unless the
- * origin appears in EVALYST_ALLOW_ORIGIN.
+ * Auth gate regression suite — exercises the middleware CSRF gate.
+ * The middleware uses Sec-Fetch-Site to allow first-party requests
+ * and rejects cross-site requests unless the origin appears in
+ * EVALYST_ALLOW_ORIGIN.
  *
  * Notes:
  *   - Playwright's `request` fixture does NOT send Sec-Fetch-Site by

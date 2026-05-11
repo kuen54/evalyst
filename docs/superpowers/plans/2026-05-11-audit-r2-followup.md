@@ -215,6 +215,17 @@ Pre-existing 但 Phase 3 切 Glass primitive 后才暴露——之前 NOOP_STORE
 
 **优先级**：minor——一个 PR 收尾。
 
+---
+
+**Execution notes (2026-05-11)**：实施按 plan 走，无核心偏离。两点应该追溯：
+
+- **Commit 粒度从 8 → 10**：plan 写"8 commits"，实施落 10。两个新增 commit 都是 plan 没料到的副效应：
+  - `c71dde1 chore(copilot): de-export SessionProbeResult` —— sub d 完成后 knip 抓到 `SessionProbeResult` unused exported type；本来 export 是为了让 caller 类型化，但 store.tsx 用 string-literal narrow 不需要导入 type。de-export 即清。
+  - `1f857fd chore(deps): sync package-lock.json after next pin revert` —— plan 写"lockfile 不动"是 stale 假设。`npm install` 会把 package-lock.json 顶部 mirror 段（package.json 的 range string 镜像）同步过来；resolved versions / integrity hashes 这些**真**的 dep tree 状态不变。需要 commit 这个 2-line cosmetic sync，否则下一个跑 `npm install` 的 dev 会看到 dirty working tree。
+- **Sub i 三层 grep 验收（2026-05-11 与用户落定）**：plan 字面写"`grep -rn "9 档" src docs --exclude-dir=archive` 0 命中"——实施时发现"非 archive 但仍是历史"的命中（review reports / CHANGELOG / specs / past-tense `之前作为...` 注释）很多。与用户对齐"history vs contract"边界，verifier 改为三层口径：(a) Layer 1 contract grep `src/components/glass + src/copilot/components + CLAUDE.md` 排除 `之前` = 0 hit；(b) Layer 2 archive grep 改前后一致 = 3；(c) Layer 3 history grep（review reports / CHANGELOG / specs / active plans / past-tense code）改前后基本一致（PR-3 entry 自身在 CHANGELOG.md 引用 "9 档" 触发 +2，可接受）。
+- **Sub d 三态 `SessionProbeResult` 设计选择**：plan 没写实现形态。propose 三态（exists | not_found | unknown）而非 boolean，避免 5xx/network transient 错误清掉 LS 把用户最近 session 指针抹掉。不算 plan deviation——属 AGENTS.md §5 (b) "量化 plan 声明却未具象化的契约"；commit body + CHANGELOG Implementation notes 段都说明了。
+- **新发现的 r3 candidate**：(1) **e2e cold-compile flake 扩大**——原 r3 #1 只 `experiment-seed:106` 一条，PR-3 全 suite 实测下扩到 4 条（`experiment-seed:106/:126` + `audit-cleanup-coverage:41/:160`）。共同特征：单 spec 重跑 5/5 全过、全 suite cold compile 时首次 hit 对应路由的 spec 超时。已加进 [`_index.md` §r3 backlog candidates](_index.md)。(2) **npm save-prefix=^ 风险**：sub a pin 后未来 `npm install next` 会重新加 caret，已加进 r3 candidate "考虑 .npmrc save-exact=true"。
+
 ## 决策日志：r2 follow-up 不做的项 → r3 backlog
 
 | 项 | 出处 | 为什么不在本轮 |

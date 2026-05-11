@@ -11,10 +11,13 @@ import { NextResponse, type NextRequest } from 'next/server'
  *
  * It uses the browser-attested `Sec-Fetch-Site` header — set by the
  * browser itself, not by the page — to allow first-party requests
- * (same-origin / same-site / "none" = direct navigation, e.g. typing
- * the URL or running curl/agents) and reject third-party `cross-site`
- * requests unless explicitly allowlisted via EVALYST_ALLOW_ORIGIN
- * (comma-separated origin list).
+ * (`same-origin` / `same-site` / `none` = direct browser navigation,
+ * e.g. typing the URL into the address bar) and reject third-party
+ * `cross-site` requests unless explicitly allowlisted via
+ * EVALYST_ALLOW_ORIGIN (comma-separated origin list). Non-browser
+ * callers (curl, Playwright `request` fixture, agent scripts) send
+ * no `Sec-Fetch-Site` header at all — the gate also lets these through
+ * because the threat model is browser-attested CSRF only.
  *
  * What this is NOT: a token auth system. A LAN attacker running
  * `curl http://victim:3000/api/llm-config` sends no `Sec-Fetch-Site`
