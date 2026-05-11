@@ -57,6 +57,19 @@ Findings：
 
 ---
 
+## r3 backlog candidates
+
+下一轮 audit (r3) 需诊断/修复，**不**在 r2 follow-up scope 内。每条配出处链接，给下一轮起手即可看清来龙去脉。
+
+- [ ] **`experiment-seed.spec.ts:106` retries=0 下 ~8% 本机 flake**（诊断 + 修）
+      详见 [audit-r2-followup PR-1 Errata Supplement](2026-05-11-audit-r2-followup.md)。
+      `clickRun()` 后 `waitForURL(/\/experiments\/exp_seed_test/)` 5s timeout；
+      猜测：dev server cold-compile / waitForURL 阈值偏紧 / 真 race。需先诊断 root cause 再决定 fix 方向。
+- [ ] **方法论补丁**：standing rule 加一条"标 pre-existing test '已绿' 前必须 `--repeat-each` ≥ 5 stress-test"。
+      r2 follow-up PR-1 Errata 漏验本机 flake 的元教训，落到 AGENTS.md §6 / §7 或单独写进 spec 撰写约定。
+
+---
+
 ## 索引说明
 
 - 当前 active plan 在 `plans/` 根（与 _index.md 同级），完成后移到 `archive/<period>/plans/`
