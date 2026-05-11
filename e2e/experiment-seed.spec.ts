@@ -108,8 +108,18 @@ test.describe("experiment seed UI gate (#8)", () => {
     await mockBackend(page, {
       onCreate: (body) => { captured = body as Record<string, unknown> },
     })
+    // Arm response listeners BEFORE goto so they match the first responses.
+    // The form's handleSubmit silently returns when `schema` is undefined and
+    // alerts when `selectedModel` is undefined — neither triggers navigation —
+    // so under multi-worker / busy dev-server load these races surface as
+    // waitForURL timeouts. /api/schemas hits the real backend (~300 ms) so
+    // it lands later than the mocked /api/llm-config (~50 ms); both must be
+    // settled before the save click. See fix/r3-e2e-cold-compile-flake.
+    const schemasReady = page.waitForResponse("**/api/schemas")
+    const llmConfigReady = page.waitForResponse("**/api/llm-config")
     await page.goto("/experiments/new", { waitUntil: "domcontentloaded" })
     await expect(page.getByPlaceholder(/留空 = 随机|Leave blank/)).toBeVisible({ timeout: 8_000 })
+    await Promise.all([schemasReady, llmConfigReady])
 
     await fillName(page, "seed-flow")
     // Find the seed input by its placeholder
@@ -128,8 +138,12 @@ test.describe("experiment seed UI gate (#8)", () => {
     await mockBackend(page, {
       onCreate: (body) => { captured = body as Record<string, unknown> },
     })
+    // See test :106 above for the rationale on these waits.
+    const schemasReady = page.waitForResponse("**/api/schemas")
+    const llmConfigReady = page.waitForResponse("**/api/llm-config")
     await page.goto("/experiments/new", { waitUntil: "domcontentloaded" })
     await expect(page.getByPlaceholder(/留空 = 随机|Leave blank/)).toBeVisible({ timeout: 8_000 })
+    await Promise.all([schemasReady, llmConfigReady])
 
     await fillName(page, "no-seed-flow")
     // Do NOT touch the seed input — leave it empty
