@@ -98,3 +98,11 @@ grep -rln "@/copilot/components" src/components src/app | wc -l   # ≤ 5
 ## 工作流
 
 3 PR **严格串行**，上一个 merge 才开下一个。每 PR 跑 5 件套（`tsc --noEmit && npm test && npm run knip && npm run test:e2e`）+ 手动 ⌘K 视觉。PR description 4 段（改了什么 / 为什么 / 怎么验证 / 兼容风险）。**作者不自合**——3 PR 全 merge + 实测稳定后由用户打 v0.14 收官 tag。
+
+## Plan-外偏离记录
+
+**2026-05-11 · PR 2 合并 PR 3**：原 3-PR 拆法在 PR 2 完成 migrate 后 shim 立刻变 dead code，knip red。删 shim 与 migrate 是同一 unit-of-work（共同 revert / 共同 load-bearing），分 PR 无 review 价值。PR 2 包含 shim 删除 + 验收 grep + 全量 e2e；原 PR 3 work 全部并入 PR 2 description。3-step refactor pattern (introduce / migrate / delete) 保留在 commit 层级——PR 1 = introduce，PR 2 = migrate + delete。
+
+**2026-05-11 · PR 3 验收硬指标修正**：原 `@/copilot/components 总数 ≤ 5` 算错——未计入 `useRegisterPageContext` 在 16 settings/experiment 页 + `layout.tsx` 的扩散。修正为 **== 17**（全部为 `useRegisterPageContext` / `panel.tsx` / `store.tsx` / `inspector-overlay.tsx` 等真触点）。**真硬指标**：`useCopilotStore` in domain UI == 0 + Glass primitive (`shell` / `sticky-chrome` / `glass-segmented`) import in domain == 0。
+
+按 AGENTS.md §5 规范，Plan-外偏离需要文档化——这两点都是正向修正（删冗余 + 修错算），不是 scope 扩张。

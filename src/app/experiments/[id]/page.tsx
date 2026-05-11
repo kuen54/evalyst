@@ -16,7 +16,7 @@ import type { RubricAggregate } from "@/lib/annotation-store"
 import { useT } from "@/lib/i18n/provider"
 import { formatCostMap, formatTokens } from "@/lib/format"
 import { aggregateResults } from "@/lib/results-aggregate"
-import { GlassRegular, GlassCard, GlassSuccess, GlassDanger } from "@/copilot/components/shell"
+import { GlassRegular, GlassCard, GlassSuccess, GlassDanger } from "@/components/glass/shell"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 
 export default function ExperimentDetail({ params }: { params: Promise<{ id: string }> }) {

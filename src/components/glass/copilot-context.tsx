@@ -25,13 +25,7 @@ export function useCopilotOpen(): boolean {
   return useContext(CopilotShellContext).open
 }
 
-/**
- * Sidebar 的 theme cascade 起点公式需要当前 panel 宽度。在 PR 1 引入完整 API，
- * 在 PR 2 由 `src/components/sidebar.tsx` 消费——同 PR 完成 sidebar 切换 +
- * 31 站点 import 路径迁移，避免分两次动 sidebar。
- *
- * @public
- */
+/** Sidebar theme cascade 起点公式需要当前 panel 宽度。 */
 export function useCopilotPanelWidth(): number {
   return useContext(CopilotShellContext).width
 }

@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useMemo } from "react"
-import { GlassCardThin, useGlassStyle } from "@/copilot/components/shell"
-import { useCopilotStore } from "@/copilot/components/store"
+import { GlassCardThin, useGlassStyle } from "@/components/glass/shell"
+import { useCopilotOpen } from "@/components/glass/copilot-context"
 import { useT } from "@/lib/i18n/provider"
 import type { Display, GenericResultRecord, TaskSchema } from "@/lib/schema/types"
 import type { ResultViewProps, CellViewProps } from "./types"
@@ -80,7 +80,7 @@ export function DisplayJsx({ results, schema, display }: JsxProps) {
   const t = useT()
   const source = display.jsx?.source ?? ""
   const compiled = useCompiledJsx(source, t("results.compiler_loading"), t("results.compile_error_prefix"))
-  const { open: copilotOpen } = useCopilotStore()
+  const copilotOpen = useCopilotOpen()
   const thinStyle = useGlassStyle("thin")
   const regularStyle = useGlassStyle("regular")
   const thickStyle = useGlassStyle("thick")
@@ -140,7 +140,7 @@ export function DisplayJsxCell({ result, schema, display }: CellViewProps & { di
   const t = useT()
   const source = display.jsx?.source ?? ""
   const compiled = useCompiledJsx(source, t("results.compiler_loading"), t("results.compile_error_prefix"))
-  const { open: copilotOpen } = useCopilotStore()
+  const copilotOpen = useCopilotOpen()
   const thinStyle = useGlassStyle("thin")
   const regularStyle = useGlassStyle("regular")
   const thickStyle = useGlassStyle("thick")

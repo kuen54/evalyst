@@ -6,8 +6,8 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
-import { useGlassStyle } from "@/copilot/components/shell"
-import { useCopilotStore } from "@/copilot/components/store"
+import { useGlassStyle } from "@/components/glass/shell"
+import { useCopilotOpen } from "@/components/glass/copilot-context"
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
@@ -50,7 +50,7 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
 }) {
-  const { open: copilotOpen } = useCopilotStore()
+  const copilotOpen = useCopilotOpen()
   const glassStyle = useGlassStyle("thick")
   return (
     <DialogPortal>

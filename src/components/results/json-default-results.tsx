@@ -1,7 +1,7 @@
 "use client"
 
 import { CardContent, CardHeader } from "@/components/ui/card"
-import { GlassCardThin } from "@/copilot/components/shell"
+import { GlassCardThin } from "@/components/glass/shell"
 import { Badge } from "@/components/ui/badge"
 import type { ResultViewProps, CellViewProps } from "./types"
 

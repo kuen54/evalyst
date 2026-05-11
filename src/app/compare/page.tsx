@@ -10,10 +10,10 @@ import { formatCost, formatCostMap, formatTokens } from "@/lib/format"
 import type { ExperimentConfig } from "@/lib/types"
 import type { GenericResultRecord, TaskSchema, Display } from "@/lib/schema/types"
 import { pickView } from "@/components/results/registry"
-import { GlassRegular, GlassThin } from "@/copilot/components/shell"
-import { GlassStickyHeader } from "@/copilot/components/sticky-chrome"
-import { useGlassStyle } from "@/copilot/components/shell"
-import { useCopilotStore } from "@/copilot/components/store"
+import { GlassRegular, GlassThin } from "@/components/glass/shell"
+import { GlassStickyHeader } from "@/components/glass/sticky-chrome"
+import { useGlassStyle } from "@/components/glass/shell"
+import { useCopilotOpen } from "@/components/glass/copilot-context"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import { PreviewCard } from "@base-ui/react/preview-card"
 
@@ -55,7 +55,7 @@ function rowLabel(refs: Record<string, string | number>, preview: Record<string,
 
 export default function ComparePage() {
   const t = useT()
-  const { open: copilotOpen } = useCopilotStore()
+  const copilotOpen = useCopilotOpen()
   const [experiments, setExperiments] = useState<ExperimentConfig[]>([])
   const [schemas, setSchemas] = useState<TaskSchema[]>([])
   const [displays, setDisplays] = useState<Display[]>([])
@@ -251,7 +251,7 @@ export default function ComparePage() {
 }
 
 function PromptInfoIcon({ prompt, t }: { prompt: string; t: (k: string, v?: Record<string, string | number>) => string }) {
-  const { open: copilotOpen } = useCopilotStore()
+  const copilotOpen = useCopilotOpen()
   const glassStyle = useGlassStyle("thick")
   return (
     <PreviewCard.Root>
