@@ -67,6 +67,26 @@ Phase 3 — Cleanup batch（最后） ──────── 0.5 人天
 >
 > Branch / commit / 受影响文件按重新框定的更新（见下文，原条目仅作历史参照）。
 
+> **Supplement (诊断后续, 2026-05-11 by Phase 2 session)**：PR-1 Errata 写
+> "experiment-seed.spec.ts:106 本机 + CI 全绿" 判断基于低频单跑（workers=1，不带
+> `--repeat-each`）。Phase 2 在 retries=0 + `--repeat-each=3` 下复现 ~8% flake
+> （12 次跑 1 次 fail，模式：`clickRun()` 后 `waitForURL(/\/experiments\/exp_seed_test/)`
+> 5s timeout）。
+>
+> 根因未诊断；猜测 dev server Next.js standalone `/experiments/new` 首次访问编译
+> 可能 >5s + waitForURL 阈值偏紧。**与 PR-2 (`fix/r2-confirm-context-nesting`)
+> 改动无因果关系**——experiments-new 走 `window.confirm`，不经 React `useConfirm` /
+> ConfirmProvider 嵌套路径，物理上证伪。
+>
+> **Methodology lesson**：任何 pre-existing 测试标"已绿"前必须 `--repeat-each` ≥ 5
+> stress-test。30 次 CI 全绿 ≠ 无 flake——CI Ubuntu workers=1 + 单 spec 触发
+> 条件有限，慢路径低概率撞不到。
+>
+> **Action**：进 r3 backlog（见 [`docs/superpowers/plans/_index.md`](_index.md)
+> §r3 backlog candidates）。**不在 PR-2 scope**——不能在"修 Provider 嵌套"PR
+> 里塞别 spec 的 timeout 调整或 cold-compile workaround，审计边界比 cargo-cult
+> raise timeout 更值得守。
+
 ---
 
 **当前状态（plan 原写法，已被上方 Errata 推翻，保留追溯）**：3 个 e2e spec 在 `main` 上长期红，但 CI 的 verify + e2e job 都报绿——CI 配置 fail-on-error 松了。
@@ -151,6 +171,18 @@ Pre-existing 但 Phase 3 切 Glass primitive 后才暴露——之前 NOOP_STORE
 - PR description 引用 round-2 报告 §第 4 步 Phase 3 反馈 #1
 
 **优先级**：major——Phase 3 自身的 regression。
+
+---
+
+**Execution notes (2026-05-11)**：实施按 plan 走，无偏离。
+
+- **诊断 (Step 1)** 三项检查均干净：(a) ConfirmProvider 自渲染输出里仅 `<Dialog>` 一个 `useCopilotOpen` 消费者；(b) `useConfirm` 6 caller 全在 `{children}` 子树（5 settings 页 + confirm-dialog 自身），CopilotStoreProvider 自渲染部分不调；(c) layout.tsx 没有别的 Provider 同模式 bug——ConfirmProvider 是唯一一个 render 内挂 Copilot consumer 的 Provider，ImageLightboxProvider / Toaster 等都已在 CopilotStoreProvider 内层。
+- **改动 (Step 3)** `src/app/layout.tsx` 79-99：`CopilotStoreProvider` 包 `ConfirmProvider`，ImageLightboxProvider 保持在 ConfirmProvider 内（相对位置不动）。
+- **新 e2e (Step 4)** `e2e/confirm-glass.spec.ts`：跳到 `/settings/datasets`，hydration gate 等 toggle 按钮可见，A. copilot 关态点删除断 dialog 无 `data-glass-variant` 属性；B. `Meta+K` 开 panel 等 `aria-hidden="false"`，再点删除断 dialog `data-glass-variant="thick"`。
+- **稳定性**：retries=0 下 `--repeat-each=10` 全绿。
+- **关态 attribute 断言细节**（接受 plan 没写到的）：dialog.tsx:65 `data-glass-variant={copilotOpen ? "thick" : undefined}` 让 React 在关态下不渲染 attribute，因此关态断言必须 `not.toHaveAttribute("data-glass-variant", /.+/)` 而非 `toHaveAttribute(name, undefined)`（后者实际是"attribute 存在且任意值"，假阳性）。
+- **Step 5 副作用发现**：跑全 e2e 时 `experiment-seed.spec.ts:106` 在 retries=0 下 ~8% flake——pre-existing、与本 PR 改动无因果（experiment-new 走 `window.confirm`，不经 ConfirmProvider 路径）。已 supplement 到 §PR-1 Errata + 进 r3 backlog（[`_index.md` §r3 backlog candidates](_index.md)）。
+- **Step 6 五件套**：`tsc --noEmit` 0 错 / `npm test` 806/806 / `npm run knip` 干净。
 
 ## PR-3：chore/r2-followup-cleanup
 
