@@ -27,7 +27,15 @@ Phase 内单项 plan：
 - Phase E 结构性重构 #2 [audit-copilot-boundary](../archive/2026-Q2/plans/2026-05-09-audit-copilot-boundary.md) · src/copilot/ 子树物理边界
 - Phase E #10 [audit-tool-metadata-split](../archive/2026-Q2/plans/2026-05-09-audit-tool-metadata-split.md) · tool metadata 拆 client/server 镜像
 - Phase E #9 [audit-batch-runner-file-lock](../archive/2026-Q2/plans/2026-05-09-audit-batch-runner-file-lock.md) · in-memory singleton → 文件锁
-- Phase F #5 audit-doc-split （**当前**） · `../plans/2026-05-09-audit-doc-split.md`
+- Phase F #5 [audit-doc-split](../archive/2026-Q2/plans/2026-05-09-audit-doc-split.md) · CLAUDE/AGENTS 拆主题 doc + 历史 plan 归档（v0.13.0 收官）
+
+**R2 main (2026-05-10 ～ 2026-05-11 · master spec 一份多 phase)** —— round 2 审视报告 5 项 fix 的执行：
+
+- [Master spec](../archive/2026-Q2/specs/2026-05-10-audit-r2-design.md) · Phase 1/2/3 排序 + 决策日志（哪些不修 + 理由）
+- [code-review-round-2 report (audit input)](../../code-review-round-2.md) · round 2 起点的审视报告
+- Phase 1 #D [audit-r2-domain-tests](../archive/2026-Q2/plans/2026-05-10-audit-r2-domain-tests.md) · 域核心 4 个 0% 模块单测（datasets / displays / result-parser / rubric-store；ship 在 v0.13.1）
+- Phase 2 [audit-r2-phase2-quick-wins](../archive/2026-Q2/plans/2026-05-10-audit-r2-phase2-quick-wins.md) · #C + #B + Tier 3 三批速胜（ship 在 v0.13.2）
+- Phase 3 #A [audit-r2-phase3-glass-extraction](../archive/2026-Q2/plans/2026-05-11-audit-r2-phase3-glass-extraction.md) · Glass primitive 切边到 `src/components/glass/`（ship 在 v0.14.0）
 
 **R2 follow-up (2026-05-11)** —— audit r2 主轮 ship 后 14-15 人天累计 13 项 plan-外问题的 patch 收尾：
 
