@@ -10,14 +10,18 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.14.3] — 2026-05-11 · r3 backlog #1+#2 · e2e cold-compile flake closure (PR #89)
+
+R3 backlog 第一阶段收尾。本机 macOS retries=0 全 suite 跑时 4 spec ~8 % flake (`experiment-seed.spec.ts:106/126` + `audit-cleanup-coverage.spec.ts:41/160`) 闭环——3 root cause 联合修，**0 行 prod 代码改动**。
+
 ### Fixed
 
-- **e2e cold-compile flake — 三 root cause 联合修**（r3 backlog #1 + #2，PR #__）。本机 macOS retries=0 全 suite 跑时 `experiment-seed.spec.ts:106/126` + `audit-cleanup-coverage.spec.ts:41/160` 4 spec 共 ~8% flake。诊断揭示问题不止 cold compile，三层叠加：
+- **e2e cold-compile flake — 三 root cause 联合修**（r3 backlog #1 + #2，PR #89）。本机 macOS retries=0 全 suite 跑时 `experiment-seed.spec.ts:106/126` + `audit-cleanup-coverage.spec.ts:41/160` 4 spec 共 ~8% flake。诊断揭示问题不止 cold compile，三层叠加：
   - **(a) cold compile 边缘抖动**：`/experiments/[id]` / `/settings/displays/new` / `/settings/templates/new` 在 fullyParallel + multi-worker 并发下 server compile 4.999 s 贴 5 s spec timeout；新 `playwright.global-setup.ts` 用真浏览器 prewarm 4 个 cold 路由（`/experiments/__prewarm__` 触发 dynamic `[id]/page.tsx` 编译），suite 启动外一次性付 ~5 s 编译成本，subsequent spec 命中 <100 ms。
   - **(b) multi-worker browser context 资源竞争**：实测 `workers=2 + prewarm` 反而 33% flake、`workers=1 + prewarm` 100% 稳定——多 browser context 在 macOS 本机抢 CPU/IO 拖慢 navigation 处理。`playwright.config.ts` 把 `workers: 1` 从 CI-only 改为本机也常态生效（CI 早就是 workers=1，这条本质是「local 与 CI 行为对齐」）。
-  - **(c) test mock fulfill 导致 navigation race（brief 没预期的第三 root cause）**：`/experiments/new` 表单的 `handleSubmit` 在 `schema` undefined 时**静默 return**、`selectedModel` undefined 时 `alert + return`——两条路径都**不发 navigation**。test 之前只 `expect(seed-placeholder).toBeVisible()` 不能保证 `/api/schemas`（real backend ~292 ms）和 `/api/llm-config`（mocked ~50 ms）都已 fulfill，click 落在中间窗口 → handleSubmit early-return → waitForURL 5 s 超时。trace 实证两条 spec 失败时 `/api/experiments` POST 根本没发。`experiment-seed.spec.ts:106/126` 在 `goto` 前 arm `page.waitForResponse('**/api/schemas')` + `page.waitForResponse('**/api/llm-config')`，goto 后 `Promise.all` 等两个 mock 都 fulfill 再 click。
-- **验证**：4 spec `--repeat-each=10` 100% green（前 ~87/100）；`npm run test:e2e` 全 suite 一次过；五件套全绿（tsc / 810 vitest tests / lint / build / knip）。
-- **Plan deviation 记录**（per AGENTS.md §5）：诊断揭示第三 root cause #c (test mock race) 超出 brief 假设的「纯 infrastructure 层」，按 §5 (b) "量化 plan 声明却未具象化的契约" 处理——brief 框定 `诊断 + 修方向`，未限定 fix 必须只在 infra；测试代码改动严格在 brief 声明的 4 spec scope 内（仅 `experiment-seed.spec.ts:106/126` 各加 4 行 wait）。
+  - **(c) test mock fulfill 导致 navigation race（brief 没预期的第三 root cause）**：`/experiments/new` 表单的 `handleSubmit` 在 `schema` undefined 时**静默 return**、`selectedModel` undefined 时 `alert + return`——两条路径都**不发 navigation**。test 之前只 `expect(seed-placeholder).toBeVisible()` 不能保证 `/api/schemas`（real backend ~292 ms）和 `/api/llm-config`（mocked ~50 ms）都已 fulfill，click 落在中间窗口 → handleSubmit early-return → waitForURL 5 s 超时。trace 实证两条 spec 失败时 `/api/experiments` POST 根本没发。`experiment-seed.spec.ts:106/136` 在 `goto` 前 arm `page.waitForResponse('**/api/schemas')` + `page.waitForResponse('**/api/llm-config')`，goto 后 `Promise.all` 等两个 mock 都 fulfill 再 click。
+- **验证**：4 spec `--repeat-each=10` 两次连跑 200/200 green（前 ~87/100）；`npm run test:e2e` 全 suite 一次过 46/46；五件套全绿（tsc / 810 vitest tests / lint / build / knip）；Opus subagent 真浏览器手动验收 5 prod 路径全绿。
+- **Plan deviation 记录**（per AGENTS.md §5）：诊断揭示第三 root cause #c (test mock race) 超出 brief 假设的「纯 infrastructure 层」，按 §5 (b) "量化 plan 声明却未具象化的契约" 处理——brief 框定 `诊断 + 修方向`，未限定 fix 必须只在 infra；测试代码改动严格在 brief 声明的 4 spec scope 内（仅 `experiment-seed.spec.ts:106/136` 各加 4 行 wait）。
 
 ## [0.14.2] — 2026-05-11 · R2 follow-up Phase 2 + Phase 3 — ConfirmDialog Provider nesting + 8-item cleanup batch (PR #86 + #87)
 
