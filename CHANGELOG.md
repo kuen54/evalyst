@@ -12,8 +12,25 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### 修复 (#R2-followup A2)
 
-- **ConfirmDialog Provider 嵌套换序**：`src/app/layout.tsx` `ConfirmProvider` 与 `CopilotStoreProvider` 嵌套顺序换——前者改成内层、后者改成外层。原嵌套下 `ConfirmProvider` 自渲染的 `<Dialog>` 处于 `CopilotStoreProvider` **外面**，`DialogContent.useCopilotOpen()` 读到 `createContext` 的默认 `{ open: false, width: 0 }`，copilot 开态下 ConfirmDialog 拿不到 `data-glass-variant="thick"`（视觉 regression，Phase 3 切 Glass primitive 后才暴露）。换序后 dialog 正确反映 copilot 开关。零行为变更——`{children}` 子树里 confirm caller 全是 ConfirmProvider 之孙，与嵌套顺序无关。详见 [`docs/code-review-round-2.md`](docs/code-review-round-2.md) §评审视角四人组裁决摘要 Phase 3 反馈 #1。
+- **ConfirmDialog Provider 嵌套换序**：`src/app/layout.tsx` `ConfirmProvider` 与 `CopilotStoreProvider` 嵌套顺序换——前者改成内层、后者改成外层。原嵌套下 `ConfirmProvider` 自渲染的 `<Dialog>` 处于 `CopilotStoreProvider` **外面**，`DialogContent.useCopilotOpen()` 读到 `createContext` 的默认 `{ open: false, width: 0 }`，copilot 开态下 ConfirmDialog 拿不到 `data-glass-variant="thick"`（视觉 regression，Phase 3 切 Glass primitive 后才暴露）。换序后 dialog 正确反映 copilot 开关。零行为变更——`{children}` 子树里 confirm caller 全是 ConfirmProvider 之孙，与嵌套顺序无关。详见 [`docs/superpowers/plans/2026-05-11-audit-r2-followup.md`](docs/superpowers/plans/2026-05-11-audit-r2-followup.md) §Plan-外原始反馈索引 "Phase 3 反馈"（ConfirmDialog Context scope 即该索引第 1 项）。
 - 新 e2e `e2e/confirm-glass.spec.ts`：copilot 关态断言 dialog 无 `data-glass-variant` 属性；开态断言 `data-glass-variant="thick"`。retries=0 下 `--repeat-each=10` 全绿。
+
+### Cleanup (#R2-followup PR-3 batch · 8 commits)
+
+8 项零散 follow-up 的批量收尾，commit 粒度独立可单点回滚。**唯一业务码改动**是 sub d (Copilot session probe)，其余是 dep pin / dead code / doc drift。
+
+- **a · pin next + eslint-config-next**（`package.json`）：从 `^16.2.6` 改回 pinned `16.2.6`（lockfile 不动）。Phase 2 #1 npm install caret 副作用记录的回滚。npm 默认 save-prefix=^ 仍生效——未来显式 `npm install next` 会重新加 caret，记 r3 candidate "考虑 .npmrc save-exact=true"。
+- **b · rubric-store dead code**（`src/lib/rubric-store.ts:15`）：`listRubrics` 删 1 行不可达 `if (!fs.existsSync(rubricsDir())) return []`——上一行 `ensureDir` 已建 dir，existsSync 永远 true。
+- **c · test:coverage 双 reporter**（`package.json`）：新 `test:coverage` script 输出 `text-summary` (stdout 一行总览) + `json-summary` (`coverage/coverage-summary.json`)。默认 vitest text reporter 把 100% 文件折叠成 "All files ... 100" 一行，掩盖域核心 0% 模块拉低均值的真相。
+- **d · Copilot session stale-id probe**（`src/copilot/components/{store.tsx,probe-session.ts,__tests__/probe-session.test.ts}`）：`store.tsx` localStorage hydrate 时不再无条件 `setActiveSessionId(savedActive)`；改为先 `probeSessionExists(id)` 三态判断 (`exists` / `not_found` / `unknown`)。404 才清 LS；5xx / network 错误（`unknown`）保持 LS 不动，下次 mount 重试。原行为下 stale id 会导致 `use-chat-stream.ts:151` GET `/api/copilot/sessions/{stale}` 404 噪音（panel 的 `/sessions` list 清理逻辑只在 panel open 后跑，赶不上 chat-view mount race）。新加 4 个单测覆盖 200/404/500/throw 全路径。
+- **e + f + h · 三处 JSDoc**（`e2e/auth-gate.spec.ts` / `src/middleware.ts` / `src/components/glass/shell.tsx:137`）：删 "introduced in fix/auth-gate-rce" 旧 branch 引用；middleware doc 改准确（curl/agents 不发 `Sec-Fetch-Site` header，不是发 `'none'`——`'none'` 是浏览器直接地址栏导航才会发的值）；`useGlassStyle` JSDoc 9 档 → 7 档（v0.13.2 PR #82 inline 后 stale）。
+- **g · README PaaS 部署一句**（`README.md` §部署须知）：远程访问列表加第 4 条 PaaS（K8s / Cloud Run / Fly.io / Render 等）"服务仍绑 localhost，让 PaaS router 做 auth 终结"。
+- **i · "9 档" → "7 档" 当前 contract sweep**（`src/copilot/components/chat-view-parts.tsx:196` + `CLAUDE.md:17`）：剩余 2 处 current-tense contract 措辞。past-tense "之前作为 9 档..." 历史描述 + review reports / CHANGELOG 历史 entries 全部不动（不重写历史）。三层 grep 验收：layer 1 contract 0 hit / layer 2 archive 改前后一致 (3) / layer 3 history 改前后一致 (24)。
+- **B10 · 修 PR-2 CHANGELOG cross-ref**（本 entry 上方 A2 段尾）：原引用 `docs/code-review-round-2.md §评审视角四人组裁决摘要 Phase 3 反馈 #1` 是 stale——`code-review-round-2.md` 全文无 "Phase 3 反馈" 段。"Phase 3 反馈" 实际在 [`docs/superpowers/plans/2026-05-11-audit-r2-followup.md`](docs/superpowers/plans/2026-05-11-audit-r2-followup.md) §Plan-外原始反馈索引。改指 plan 文件。
+
+### Implementation notes (PR-3)
+
+- sub d 用三态 `SessionProbeResult = "exists" | "not_found" | "unknown"` 而非 boolean —— 404 = definitive evidence the session is gone → clear LS；5xx / network = ambiguous → leave LS alone, let next mount retry。Boolean 会把"definitively gone"和"transient blip"两个语义不同的失败混在一起，在 server 抖一下时误清 LS 把用户最近 session 指针抹掉。
 
 ## [0.14.1] — 2026-05-11 · R2 follow-up Phase 1 · Cmd+K e2e hydration race + retries=0 (PR #85)
 
