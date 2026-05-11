@@ -89,6 +89,7 @@ Findings：
   3. `/api/datasets/route.ts` catch 块只透传 `(e as Error).message`、不重写——**不存在 API route 重写 lib 消息的耦合**，也**不存在两套 validate 路径**（API route 直接调 lib 的 `validateDatasetJson`）。
 
   两条消息服务两层不同受众（end user UI vs dev API），**i18n 翻译层 / lib 错误层是 by-design 的边界分离**。强行对齐会破坏这条边界（要么把 dev message 推进 i18n、要么把 i18n 拉回 hardcode）——任一方向都引入新分歧。**不动**。
+- [x] **`view-helpers.tsx` 独立 `GlassVariant` 4 变体副本**（出处：r2-followup §C #4 / code-review-round-3 §第 4 步 #8）—— 闭环于 PR `refactor/r3-domain-cleanup`，**by-design decoupling，0 行代码改动**。`src/components/results/view-helpers.tsx:8` 的 `type GlassVariant = "thin" | "regular" | "thick" | "tinted"` 是给浏览器端 `@babel/standalone` 编译的 **JSX display helpers** 用的——专门暴露 4 档 primitive 变体（`thin/regular/thick/tinted`），刻意**不**与 `src/components/glass/*` 的 7 档 GlassVariant（含 3 档 semantic colors `success/warning/danger`）共享类型。理由：JSX display 是用户自定义渲染层，应该**只**能选 primitive 玻璃档，**不**应被语义色耦合（用户写 `helpers.glassStyle('success')` 没有清晰语义——成功 / 警告 / 危险是页面壳子级语义判断，不是单卡片渲染层职责）。强行合并 type 反而引入"为什么 helpers 暴露 success 但实际没意义"的认知摩擦。决策日志原文："Plan 明确不动——给 JSX display helpers 用，不应耦合 semantic colors。强行修反引入新分歧。"
 
 ---
 
