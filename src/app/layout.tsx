@@ -77,8 +77,8 @@ export default function RootLayout({
       <body className="min-h-full flex" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <LocaleProvider>
-            <ConfirmProvider>
-              <CopilotStoreProvider>
+            <CopilotStoreProvider>
+              <ConfirmProvider>
                 <ImageLightboxProvider>
                   <Sidebar />
                   <main className="flex-1 h-screen flex flex-col overflow-hidden relative">
@@ -93,8 +93,8 @@ export default function RootLayout({
                   <TextSelectionMask />
                   <Toaster />
                 </ImageLightboxProvider>
-              </CopilotStoreProvider>
-            </ConfirmProvider>
+              </ConfirmProvider>
+            </CopilotStoreProvider>
           </LocaleProvider>
         </ThemeProvider>
       </body>
