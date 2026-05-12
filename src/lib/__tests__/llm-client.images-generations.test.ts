@@ -40,4 +40,39 @@ describe('callLlm with endpoint_kind=images_generations', () => {
     expect(body).not.toHaveProperty('messages')
     expect(body).not.toHaveProperty('max_tokens')
   })
+
+  it('parses b64_json response into data:image URL', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ data: [{ b64_json: 'iVBORw0KGgo=' }] }),
+        { status: 200 },
+      ),
+    )
+    const res = await callLlm({
+      messages: [{ role: 'user', content: 'cat' }],
+      config: { api_format: 'openai', base_url: 'https://x.test/v1', api_key: 'k', endpoint_kind: 'images_generations' },
+      model: 'gpt-image-2',
+      temperature: 1,
+      max_tokens: 0,
+    })
+    expect(res.images).toEqual([{ url: 'data:image/png;base64,iVBORw0KGgo=', mime_type: 'image/png' }])
+    expect(res.content).toBe('')
+  })
+
+  it('parses bare url response when b64_json absent', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ data: [{ url: 'https://cdn.example.com/img/abc.png' }] }),
+        { status: 200 },
+      ),
+    )
+    const res = await callLlm({
+      messages: [{ role: 'user', content: 'cat' }],
+      config: { api_format: 'openai', base_url: 'https://x.test/v1', api_key: 'k', endpoint_kind: 'images_generations' },
+      model: 'gpt-image-2',
+      temperature: 1,
+      max_tokens: 0,
+    })
+    expect(res.images).toEqual([{ url: 'https://cdn.example.com/img/abc.png' }])
+  })
 })
