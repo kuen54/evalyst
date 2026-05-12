@@ -10,10 +10,14 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.14.6] — 2026-05-12 · R3 bug-security audit closes (PR #94)
+
+R3 audit Tier B 第 4 轮——专项扫严重 bug + 安全风险（不重做 R1/R2/R3 的"21 雷达 / 量化基线"角度），找到 **1 major + 1 minor finding** 并立即闭环。Playwright 浏览器回归全过（A 6 settings 页 + B 3 experiment 详情页 25/104/140 条 results + C 编辑保存往返 + D 恶意 PATCH 400 守住 llm-config）。审视报告：[`docs/code-review-r3-bug-security.md`](docs/code-review-r3-bug-security.md)。
+
 ### Fixed
 
-- **`PATCH /api/experiments/[id]` 写入逃逸闭环**（R3 bug-security audit finding #1）：`src/app/api/experiments/[id]/route.ts` PATCH handler 加 `body.id !== id` 早返 400，对齐 `schemas/displays/rubrics/datasets` 4 路由的同款 gate。pre-fix 行为：`updateExperiment` `{...config, ...body}` 让 `body.id` 顶掉 `config.id`，`writeExperiment` 用 `${updated.id}.json` 拼 path → `body.id="../llm-config"` 即可顶掉 `data/llm-config.json`（所有模型 api_key 丢）；逃出 `data/` 还能顶项目根 `package.json` / `tsconfig.json`。新增 5 case 单测 `src/app/api/experiments/[id]/__tests__/patch-id-mismatch.test.ts` 守底（含核心回归断言：mismatch 后**没**有文件落到 `data/llm-config.json`、原始 experiment file 不动）。审视报告：[`docs/code-review-r3-bug-security.md`](docs/code-review-r3-bug-security.md) §1。
-- **`readResults` 单条坏行整篇崩闭环**（R3 bug-security audit finding #2）：`src/lib/store.ts:131` 把 `lines.map(line => migrateResultInMemory(JSON.parse(line)))` 改为 per-line `try/catch + console.warn` 跳过坏行，对齐 `src/copilot/lib/session-store.ts:127-132` 早就做过的同款 append-only JSONL 防御。pre-fix 行为：进程崩 / 断电 / 磁盘满让 `appendFileSync` 写半行，下次 `readResults` 在 `JSON.parse` 抛异常 → 整 experiment 不可读（详情页 / resume / compare 全崩，恢复需手编 jsonl）。新增 5 case 单测 `src/lib/__tests__/store.read-results.test.ts` 守底（含 missing file / valid / 中间坏行 / 全 garbage / 坏行 + dedup 互动）。审视报告：[`docs/code-review-r3-bug-security.md`](docs/code-review-r3-bug-security.md) §2。
+- **`PATCH /api/experiments/[id]` 写入逃逸闭环**（R3 bug-security audit finding #1）：`src/app/api/experiments/[id]/route.ts` PATCH handler 加 `body.id !== id` 早返 400，对齐 `schemas/displays/rubrics/datasets` 4 路由的同款 gate。pre-fix 行为：`updateExperiment` `{...config, ...body}` 让 `body.id` 顶掉 `config.id`，`writeExperiment` 用 `${updated.id}.json` 拼 path → `body.id="../llm-config"` 即可顶掉 `data/llm-config.json`（所有模型 api_key 丢）；逃出 `data/` 还能顶项目根 `package.json` / `tsconfig.json`。新增 5 case 单测 `src/app/api/experiments/[id]/__tests__/patch-id-mismatch.test.ts` 守底（含核心回归断言：mismatch 后**没**有文件落到 `data/llm-config.json`、原始 experiment file 不动）。
+- **`readResults` 单条坏行整篇崩闭环**（R3 bug-security audit finding #2）：`src/lib/store.ts:131` 把 `lines.map(line => migrateResultInMemory(JSON.parse(line)))` 改为 per-line `try/catch + console.warn` 跳过坏行，对齐 `src/copilot/lib/session-store.ts:127-132` 早就做过的同款 append-only JSONL 防御。pre-fix 行为：进程崩 / 断电 / 磁盘满让 `appendFileSync` 写半行，下次 `readResults` 在 `JSON.parse` 抛异常 → 整 experiment 不可读（详情页 / resume / compare 全崩，恢复需手编 jsonl）。新增 5 case 单测 `src/lib/__tests__/store.read-results.test.ts` 守底（含 missing file / valid / 中间坏行 / 全 garbage / 坏行 + dedup 互动）。
 
 ### Docs
 
