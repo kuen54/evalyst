@@ -10,6 +10,17 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+> Sample data redesign（4 PR 联动）—— 当前进度：PR 1 ✅ merged。等 PR 2-4 全部 merge 后整体 tag promote。Plan：[`2026-05-12-sample-data-redesign.md`](docs/superpowers/plans/2026-05-12-sample-data-redesign.md)；spec：[`2026-05-12-sample-data-redesign-design.md`](docs/superpowers/specs/2026-05-12-sample-data-redesign-design.md)。
+
+### Added
+
+- **llm-client OpenAI Images API 端点支持**（sample-data-redesign PR 1 / PR #95）：`ApiConfig` + `ModelConfig` 新增可选字段 `endpoint_kind: 'chat' | 'images_generations'`（默认 `'chat'`，向后兼容）。`callLlm` 入口按 endpoint_kind 分发；`callImagesGenerations()` helper 构造 OpenAI Images API body（model/prompt/size/quality），POST 到 `${base}/images/generations`，解析 `data[0].b64_json` → `LlmResponse.images[0]`（与 chat 端点 image 输出 shape 对齐，下游 image-store / display 完全复用）。`/settings/llm` UI 加"端点类型"下拉。i18n key（zh/en 成对加 4 个）。5 个新单测覆盖请求 body shape / b64_json 解析 / bare url 解析 / HTTP 4xx / 429 retry。
+- **副产物 fix**（PR #95 期间）：`callImagesGenerations` 取最后一条 user 消息时 `LlmMessage` discriminated union 需要 narrow 才能读 content（`tool_use`/`tool_result` 没有 content 字段），避免 type-error。
+
+### Why
+
+为 sample data redesign 做前置。GPT-Image-2 走 OpenAI Images API 端点（不是 chat completions），现有 llm-client 只支持 chat 协议，需要扩端点路由。等 Phase 3（主体 PR）跑 PartiPrompts T2I 生图 sample experiment 时此端点正式被消费。
+
 ## [0.14.6] — 2026-05-12 · R3 bug-security audit closes (PR #94)
 
 R3 audit Tier B 第 4 轮——专项扫严重 bug + 安全风险（不重做 R1/R2/R3 的"21 雷达 / 量化基线"角度），找到 **1 major + 1 minor finding** 并立即闭环。Playwright 浏览器回归全过（A 6 settings 页 + B 3 experiment 详情页 25/104/140 条 results + C 编辑保存往返 + D 恶意 PATCH 400 守住 llm-config）。审视报告：[`docs/code-review-r3-bug-security.md`](docs/code-review-r3-bug-security.md)。
