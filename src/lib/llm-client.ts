@@ -332,7 +332,8 @@ async function executeWithRetry(req: ApiRequestSpec, externalSignal?: AbortSigna
 async function callImagesGenerations(p: CallLlmParams): Promise<LlmResponse> {
   const start = Date.now()
   // 取最后一条 user 消息的 content 作为 prompt（生图 API 不接 messages 数组）
-  const lastUser = [...p.messages].reverse().find(m => m.role === 'user')
+  const textMessages = p.messages.filter(isTextMessage)
+  const lastUser = [...textMessages].reverse().find(m => m.role === 'user')
   const prompt = !lastUser
     ? ''
     : typeof lastUser.content === 'string'
