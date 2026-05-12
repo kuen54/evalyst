@@ -132,6 +132,10 @@ export async function callLlm(
     throw new Error('LLM not configured / LLM 未配置：base_url + api_key needed (see /settings/llm)')
   }
 
+  if ((p.config.endpoint_kind ?? 'chat') === 'images_generations') {
+    return callImagesGenerations(p)
+  }
+
   const start = Date.now()
   const req = buildApiRequest(p.config, buildRequestBody(p))
   const data = await executeWithRetry(req, p.signal)
@@ -321,4 +325,62 @@ async function executeWithRetry(req: ApiRequestSpec, externalSignal?: AbortSigna
   }
 
   throw lastError ?? new Error('Unknown error')
+}
+
+// ---------- OpenAI Images API 端点支持（生图模型） ----------
+
+async function callImagesGenerations(p: CallLlmParams): Promise<LlmResponse> {
+  const start = Date.now()
+  // 取最后一条 user 消息的 content 作为 prompt（生图 API 不接 messages 数组）
+  const textMessages = p.messages.filter(isTextMessage)
+  const lastUser = [...textMessages].reverse().find(m => m.role === 'user')
+  const prompt = !lastUser
+    ? ''
+    : typeof lastUser.content === 'string'
+      ? lastUser.content
+      : lastUser.content.map(b => ('text' in b ? b.text : '')).join('')
+
+  const base = p.config.base_url.replace(/\/$/, '')
+  const body: Record<string, unknown> = {
+    model: p.model,
+    prompt,
+    size: '1024x1024',
+    quality: 'low',
+    ...(p.config.extra_body ?? {}),
+  }
+  const req: ApiRequestSpec = {
+    url: `${base}/images/generations`,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: p.config.api_key.startsWith('Bearer ')
+        ? p.config.api_key
+        : `Bearer ${p.config.api_key}`,
+    },
+    body,
+  }
+
+  const data = await executeWithRetry(req, p.signal)
+  const images = parseImagesGenerationsResponse(data)
+  return {
+    content: '',
+    ...(images !== undefined ? { images } : {}),
+    latency_ms: Date.now() - start,
+  }
+}
+
+function parseImagesGenerationsResponse(data: unknown): LlmResponse['images'] | undefined {
+  const d = data as { data?: Array<Record<string, unknown>> }
+  if (!Array.isArray(d.data)) return undefined
+  const out = d.data
+    .map((entry): { url: string; mime_type?: string } | null => {
+      const b64 = entry.b64_json
+      if (typeof b64 === 'string' && b64.length > 0) {
+        return { url: `data:image/png;base64,${b64}`, mime_type: 'image/png' }
+      }
+      const url = entry.url
+      if (typeof url === 'string' && url.length > 0) return { url }
+      return null
+    })
+    .filter((x): x is { url: string; mime_type?: string } => x !== null)
+  return out.length > 0 ? out : undefined
 }

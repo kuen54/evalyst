@@ -140,6 +140,27 @@ export function ModelCard({ entry, isDefault, onChange, onSetDefault, onDelete }
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>{t("settings.llm.endpoint_kind_label")}</Label>
+            <Select
+              value={entry.endpoint_kind ?? 'chat'}
+              onValueChange={v => { if (v) set("endpoint_kind", v as 'chat' | 'images_generations') }}
+            >
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="chat">{t("settings.llm.endpoint_kind_chat")}</SelectItem>
+                <SelectItem value="images_generations">{t("settings.llm.endpoint_kind_images_generations")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5 flex items-end">
+            <p className="text-xs text-muted-foreground leading-snug">
+              {t("settings.llm.endpoint_kind_hint")}
+            </p>
+          </div>
+        </div>
+
         <div className="space-y-1.5">
           <Label>{t("settings.llm.base_url_label")} <span className="text-red-500">*</span></Label>
           <Input

@@ -31,6 +31,7 @@ export interface ModelConfig {
   pricing?: ModelPricing         // 该模型的定价（单条）
   copilot_enabled?: boolean      // 是否允许 Evalyst Copilot 使用该模型（默认 false）
   vision_capable?: boolean       // 该模型支持图像输入；仅影响 Copilot 多模态注入路径，不影响 batch-runner（默认 false）
+  endpoint_kind?: 'chat' | 'images_generations'  // 默认 'chat'；UI 配置生图模型时选 'images_generations'
 }
 
 export interface LlmConfig {

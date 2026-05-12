@@ -5,6 +5,12 @@ export interface ApiConfig {
   base_url: string
   api_key: string
   extra_body?: Record<string, unknown>
+  /**
+   * 路由 LLM 调用走哪个端点。默认 'chat' = `/chat/completions`（OpenAI 兼容）
+   * 或 `/messages`（Anthropic）。'images_generations' = OpenAI Images API
+   * `/images/generations`，仅 OpenAI 兼容下生效（api_format='openai' 时）。
+   */
+  endpoint_kind?: 'chat' | 'images_generations'
 }
 
 export interface RunStats {
