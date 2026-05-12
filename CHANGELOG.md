@@ -13,6 +13,7 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 ### Changed
 
 - **`@types/node` major bump 20 → 25**（PR-1，dep major bumps batch 1/3）：type-only 升级，runtime 仍 Node 20 LTS。`npx tsc --noEmit` 0 错——证明项目 Node API 用法（`fs` / `path` / `process` / `Buffer`）全在 Node 18+ 已 stable 的子集，type-narrowing 无副作用。0 行 src 修改。`undici-types ~6.21.0 → ~7.19.0` 是 @types/node 自身 transitive cascade（`docs/superpowers/plans/2026-05-11-dep-major-bumps.md` §合理偏离 (b)）。五件套全绿 + e2e 46/46。
+- **`typescript` major bump 5.9 → 6.0**（PR-2，dep major bumps batch 2/3）：`npx tsc --noEmit` 0 错——typescript 6.0.3 inference 引擎升级**未翻出任何新 strict / inference 风格警告**。0 行 src 修改、`tsconfig.json` 不动（三严格全开不变）。类型债务计数 baseline 不变：`as unknown as` 8 / `as any` 0 / `@ts-ignore` 0 / `@ts-expect-error` 0。Next.js 16 + ts 6 build 兼容性确认。typescript 是 leaf dep，0 transitive cascade。五件套全绿 + e2e 46/46。
 
 ## [0.14.4] — 2026-05-11 · r3 backlog 全 8 项闭环 — methodology + domain cleanup (PR #90 + #91)
 
