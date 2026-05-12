@@ -10,16 +10,22 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-> Sample data redesign（4 PR 联动）—— 当前进度：PR 1 ✅ merged。等 PR 2-4 全部 merge 后整体 tag promote。Plan：[`2026-05-12-sample-data-redesign.md`](docs/superpowers/plans/2026-05-12-sample-data-redesign.md)；spec：[`2026-05-12-sample-data-redesign-design.md`](docs/superpowers/specs/2026-05-12-sample-data-redesign-design.md)。
+> Sample data redesign（4 PR 联动）—— 当前进度：PR 1 ✅ + PR 2 ✅ merged。等 PR 3-4 全部 merge 后整体 tag promote。Plan：[`2026-05-12-sample-data-redesign.md`](docs/superpowers/plans/2026-05-12-sample-data-redesign.md)；spec：[`2026-05-12-sample-data-redesign-design.md`](docs/superpowers/specs/2026-05-12-sample-data-redesign-design.md)。
 
 ### Added
 
 - **llm-client OpenAI Images API 端点支持**（sample-data-redesign PR 1 / PR #95）：`ApiConfig` + `ModelConfig` 新增可选字段 `endpoint_kind: 'chat' | 'images_generations'`（默认 `'chat'`，向后兼容）。`callLlm` 入口按 endpoint_kind 分发；`callImagesGenerations()` helper 构造 OpenAI Images API body（model/prompt/size/quality），POST 到 `${base}/images/generations`，解析 `data[0].b64_json` → `LlmResponse.images[0]`（与 chat 端点 image 输出 shape 对齐，下游 image-store / display 完全复用）。`/settings/llm` UI 加"端点类型"下拉。i18n key（zh/en 成对加 4 个）。5 个新单测覆盖请求 body shape / b64_json 解析 / bare url 解析 / HTTP 4xx / 429 retry。
 - **副产物 fix**（PR #95 期间）：`callImagesGenerations` 取最后一条 user 消息时 `LlmMessage` discriminated union 需要 narrow 才能读 content（`tool_use`/`tool_result` 没有 content 字段），避免 type-error。
 
+### Changed
+
+- **`src/lib/seed.ts` 从硬编 id 列表改为扫子目录**（sample-data-redesign PR 2 / PR #96）：8 个老 seed 文件 git mv 到 `src/lib/seeds/{datasets,schemas,rubrics}/` 子目录（schema/rubric 文件名同时去掉 `.schema`/`.rubric` 中缀，统一为 `<id>.json`）。`ensureSeeds()` 用新 `seedFromDir(srcSubdir, dstDir, allowedExts)` helper 扫 7 个 kind 子目录（datasets/schemas/rubrics/displays/experiments/results/annotations）+ 新增 `seedSampleImages()` 拷 `src/lib/seeds/images/` 到 `public/sample-images/`。幂等性保留（existsSync 跳过 / 用户删除后下次访问恢复）。5 个新单测覆盖：empty-tree seed / existing-file skip / deleted-file restore / .gitkeep filter / public/sample-images copy。**老 sample 数据语义不变**——文件物理位置变了但内容 / id / 数据 shape 完全不动；PR 3 才 ship 新 sample。
+
 ### Why
 
-为 sample data redesign 做前置。GPT-Image-2 走 OpenAI Images API 端点（不是 chat completions），现有 llm-client 只支持 chat 协议，需要扩端点路由。等 Phase 3（主体 PR）跑 PartiPrompts T2I 生图 sample experiment 时此端点正式被消费。
+为 sample data redesign 主体（PR 3）做前置：
+- PR 1 让 evalyst 能调 OpenAI Images API（GPT-Image-2 等纯生图模型）。Phase 3 跑 PartiPrompts T2I sample experiment 时正式消费此端点。
+- PR 2 把 seed 机制从硬编 id 改成扫子目录后，PR 3 可以一次 ship 大量新 sample 资源（datasets / schemas / rubrics / displays / experiments / results / annotations / images）而不需要再改 seed.ts。
 
 ## [0.14.6] — 2026-05-12 · R3 bug-security audit closes (PR #94)
 
