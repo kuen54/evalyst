@@ -368,4 +368,49 @@ per AGENTS.md §5：
 
 > 此段在 PR-3 完成时填——ship 路径填"shipped"+ 简短摘要；defer 路径填触发 plan A 的具体 incompatibility + retry 条件。
 
+**outcome**: defer（fallback A 命中）—— 2026-05-12
+
+### 触发原因
+
+`npm install --save-dev eslint@^10.3.0` 后第一次 `npm run lint` 抛：
+
+```
+ESLint: 10.3.0
+TypeError: Error while loading rule 'react/display-name':
+  contextOrFilename.getFilename is not a function
+    at resolveBasedir (eslint-config-next/node_modules/eslint-plugin-react/lib/util/version.js:31:100)
+    at detectReactVersion (.../version.js:85:19)
+    at getReactVersionFromContext (.../version.js:116:25)
+    ...
+```
+
+### 根因
+
+`eslint-config-next 16.2.6` transitively 拉 `eslint-plugin-react ^7.37.0`、`eslint-plugin-jsx-a11y ^6.10.0`、`eslint-plugin-import ^2.32.0`——三个 plugin 的 peer dep 都声明 `eslint @^...^9`（不含 `^10`）。`npm install` 仅 ERESOLVE override warn 不 throw（peer dep 写得开放），但 runtime 一跑 lint 立即挂——`eslint-plugin-react` 调用了 ESLint 9 时代 `context.getFilename()` API，ESLint 10 改了 context 形态（`contextOrFilename` 不再有 `getFilename` 方法）。
+
+完全契合 plan §PR-3 fallback A 第一条触发条件："`eslint-plugin-react` / `eslint-plugin-jsx-a11y` / `typescript-eslint` 抛 incompatible with eslint 10"。
+
+### 退步骤已执行
+
+```bash
+git restore package.json package-lock.json
+npm install   # 恢复 baseline (eslint 9.39.4)
+npm run lint  # 复绿确认
+```
+
+local branch `chore/dep-eslint-10` 已删，未 push。
+
+### Retry 条件
+
+等以下任一条件满足后再开 retry PR：
+
+1. **`eslint-config-next 18+` ship**——Next.js 17 大概率会一并升 transitive plugin 到 eslint 10 兼容版本（`eslint-plugin-react` v8+ 已支持 eslint 10 plugin context API；`eslint-config-next` 自身需要把 transitive dep 上限放开到 ^8）
+2. **手工 override transitive plugin 版本**——理论可行（`overrides` 字段强升 `eslint-plugin-react` 到 v8）但本质是 patch `eslint-config-next` 内部 dep 树，引入维护成本。**不推荐**——属于 plan §PR-3 "不动 eslint-config-next 版本" 守纪的边界
+
+retry 时顺带评估升级 `eslint-config-next` 自身（同一 PR 一起升或拆 PR）。
+
+### v0.14.5 tag 计划
+
+按 plan §Tag 计划行 3："PR-1 ✅ + PR-2 ✅ + PR-3 defer" → tag `v0.14.5` partial，message 写明 eslint 10 deferred + 引用本 outcome 记录。
+
 待执行后回填。
