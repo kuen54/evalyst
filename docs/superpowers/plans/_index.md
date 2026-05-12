@@ -41,6 +41,12 @@ Phase 内单项 plan：
 
 - [audit-r2-followup plan](../archive/2026-Q2/plans/2026-05-11-audit-r2-followup.md) · 三步走 (PR-1 CI 严化 / PR-2 ConfirmDialog Provider 嵌套 / PR-3 8-item cleanup batch)。Tag v0.14.1 + v0.14.2。详见 plan 顶 Status 表。
 
+**R3 (2026-05-11 ～ 2026-05-12)** —— round 3 审视 + r3 backlog 8 项闭环 + Tier B 维护层：
+
+- [code-review-round-3 report](../../code-review-round-3.md) · R3 baseline v0.14.2，结论 **0 真新 finding**（R1/R2 易抓的事已清光）；只剩 backlog 推进 + Tier B 维护
+- R3 backlog 8 项：见本文件下方 §r3 backlog candidates，状态 8/8 `[x]` 闭环。Phase 1 (#1+#2) 收在 v0.14.3，Phase 2/3 (#3-#8) 收在 v0.14.4
+- [dep-major-bumps plan (archived)](../archive/2026-Q2/plans/2026-05-11-dep-major-bumps.md) · R3 §Tier B 维护层。3 PR / 2 ship + 1 defer：`@types/node` 25 + `typescript` 6 ship；`eslint` 10 因 transitive plugin API 不兼容 fallback A 退到 baseline。Tag v0.14.5 partial。
+
 Findings：
 
 - [hardcode-audit](../archive/2026-Q2/findings/2026-05-09-hardcode-audit.md) · cwd / model / 写死路径全审
