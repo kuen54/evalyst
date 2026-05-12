@@ -133,10 +133,20 @@ export function readResults(experimentId: string): GenericResultRecord[] {
   if (!fs.existsSync(filePath)) return []
   const content = fs.readFileSync(filePath, 'utf-8').trim()
   if (!content) return []
-  const all = content
-    .split('\n')
-    .filter(Boolean)
-    .map(line => migrateResultInMemory(JSON.parse(line)))
+  // Skip corrupt lines instead of throwing — a single half-written entry
+  // (process crash / power loss mid-appendFileSync) would otherwise make
+  // the entire experiment unreadable. Matches the per-line tolerance in
+  // copilot session-store.ts:readAllMessages for the same append-only
+  // jsonl pattern.
+  const all: GenericResultRecord[] = []
+  for (const line of content.split('\n')) {
+    if (!line) continue
+    try {
+      all.push(migrateResultInMemory(JSON.parse(line)))
+    } catch (e) {
+      console.warn(`[store] readResults: skipping corrupt line in ${filePath}: ${(e as Error).message}`)
+    }
+  }
   // Deduplicate: last entry per task_id wins (retries replace old failures)
   const map = new Map<string, GenericResultRecord>()
   for (const r of all) map.set(r.task_id, r)
