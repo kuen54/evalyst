@@ -75,4 +75,35 @@ describe('callLlm with endpoint_kind=images_generations', () => {
     })
     expect(res.images).toEqual([{ url: 'https://cdn.example.com/img/abc.png' }])
   })
+
+  it('throws on HTTP 4xx response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('{"error":"invalid prompt"}', { status: 400 }),
+    )
+    await expect(callLlm({
+      messages: [{ role: 'user', content: 'x' }],
+      config: { api_format: 'openai', base_url: 'https://x.test/v1', api_key: 'k', endpoint_kind: 'images_generations' },
+      model: 'gpt-image-2',
+      temperature: 1,
+      max_tokens: 0,
+    })).rejects.toThrow(/HTTP 400/)
+  }, 15_000)  // 4xx 走 catch 路径，与 retryable 一样累计 ~6s backoff
+
+  it('retries on 429 / 5xx (existing executeWithRetry path)', async () => {
+    let calls = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls++
+      if (calls < 3) return new Response('rate limited', { status: 429 })
+      return new Response(JSON.stringify({ data: [{ b64_json: 'OK' }] }), { status: 200 })
+    })
+    const res = await callLlm({
+      messages: [{ role: 'user', content: 'x' }],
+      config: { api_format: 'openai', base_url: 'https://x.test/v1', api_key: 'k', endpoint_kind: 'images_generations' },
+      model: 'gpt-image-2',
+      temperature: 1,
+      max_tokens: 0,
+    })
+    expect(calls).toBe(3)
+    expect(res.images).toBeDefined()
+  }, 15_000)  // backoff sleep 累计 ~6s
 })
