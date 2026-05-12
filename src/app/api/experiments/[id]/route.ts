@@ -16,6 +16,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (config.status === 'running') {
     return NextResponse.json({ error: 'cannot update a running experiment' }, { status: 409 })
   }
+  // Reject body.id mismatch — without this gate, body.id overrides the URL id
+  // and writeExperiment writes to `experimentsDir/${body.id}.json`, which
+  // path.join interprets as `..`-traversal (e.g. body.id="../llm-config" →
+  // overwrite `data/llm-config.json`). Aligns with schemas/displays/rubrics/
+  // datasets PATCH which all enforce this.
+  if (body && typeof body === 'object' && (body as { id?: unknown }).id != null
+      && (body as { id?: unknown }).id !== id) {
+    return NextResponse.json({ error: 'id mismatch' }, { status: 400 })
+  }
   const updated = updateExperiment(id, body)
   return NextResponse.json(updated)
 }

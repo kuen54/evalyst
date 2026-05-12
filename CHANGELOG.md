@@ -10,6 +10,15 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **`PATCH /api/experiments/[id]` 写入逃逸闭环**（R3 bug-security audit finding #1）：`src/app/api/experiments/[id]/route.ts` PATCH handler 加 `body.id !== id` 早返 400，对齐 `schemas/displays/rubrics/datasets` 4 路由的同款 gate。pre-fix 行为：`updateExperiment` `{...config, ...body}` 让 `body.id` 顶掉 `config.id`，`writeExperiment` 用 `${updated.id}.json` 拼 path → `body.id="../llm-config"` 即可顶掉 `data/llm-config.json`（所有模型 api_key 丢）；逃出 `data/` 还能顶项目根 `package.json` / `tsconfig.json`。新增 5 case 单测 `src/app/api/experiments/[id]/__tests__/patch-id-mismatch.test.ts` 守底（含核心回归断言：mismatch 后**没**有文件落到 `data/llm-config.json`、原始 experiment file 不动）。审视报告：[`docs/code-review-r3-bug-security.md`](docs/code-review-r3-bug-security.md) §1。
+- **`readResults` 单条坏行整篇崩闭环**（R3 bug-security audit finding #2）：`src/lib/store.ts:131` 把 `lines.map(line => migrateResultInMemory(JSON.parse(line)))` 改为 per-line `try/catch + console.warn` 跳过坏行，对齐 `src/copilot/lib/session-store.ts:127-132` 早就做过的同款 append-only JSONL 防御。pre-fix 行为：进程崩 / 断电 / 磁盘满让 `appendFileSync` 写半行，下次 `readResults` 在 `JSON.parse` 抛异常 → 整 experiment 不可读（详情页 / resume / compare 全崩，恢复需手编 jsonl）。新增 5 case 单测 `src/lib/__tests__/store.read-results.test.ts` 守底（含 missing file / valid / 中间坏行 / 全 garbage / 坏行 + dedup 互动）。审视报告：[`docs/code-review-r3-bug-security.md`](docs/code-review-r3-bug-security.md) §2。
+
+### Docs
+
+- **R3 bug-security 专项审视报告 land**（`docs/code-review-r3-bug-security.md`）：v0.14.5 baseline 上做"严重 bug + 安全风险"专项扫，**1 major + 1 minor finding**，附两条 fix diff + 10 个干净 surface 的清单（abort/resume race / writeAtomic / LLM 注入 parser / Cartesian 边界 / image filename traversal / 4 资源 id 写正则 / JSX 沙箱 / api_key 日志 / abort 信号 / SSE 半路断）。
+
 ## [0.14.5] — 2026-05-12 · dep major bumps (partial) · @types/node 25 + typescript 6 (eslint 10 deferred)
 
 R3 audit Tier B 维护层。3 PR / 2 ship + 1 defer（eslint 10 因 transitive plugin API 不兼容退到 baseline）。Plan: [`2026-05-11-dep-major-bumps.md`](docs/superpowers/plans/2026-05-11-dep-major-bumps.md)。
