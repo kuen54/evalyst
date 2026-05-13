@@ -10,22 +10,37 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
-> Sample data redesign（4 PR 联动）—— 当前进度：PR 1 ✅ + PR 2 ✅ merged。等 PR 3-4 全部 merge 后整体 tag promote。Plan：[`2026-05-12-sample-data-redesign.md`](docs/superpowers/plans/2026-05-12-sample-data-redesign.md)；spec：[`2026-05-12-sample-data-redesign-design.md`](docs/superpowers/specs/2026-05-12-sample-data-redesign-design.md)。
+## [0.15.0] — 2026-05-13 · compare entry + sample-data-redesign post-mortem (PR #95 + #96 + #97)
+
+3 PR ship + 1 大 PR 失败回滚的复合 stream。原计划是 4 PR 联动的 sample data redesign（GSM8K / BELLE / PartiPrompts / RefCOCO 三象限 + 7 display 全覆盖），前 2 PR 基建顺利合上，主体 PR 3 跑出 580/616 records ~¥100 真钱后被用户全数 reject + 全部回滚到 main。教训沉淀到 [`docs/superpowers/findings/2026-05-13-sample-data-redesign-lessons.md`](docs/superpowers/findings/2026-05-13-sample-data-redesign-lessons.md)（250 行，4 条批评解剖 + 共同根因 + sankuai gateway 实测表 + evalyst 组件限制清单 + 给下一轮 planner 的 §6.1 4 个 product 问题）。
+
+转向修最 root 的痛点：lessons §3.C 揭示 evalyst UI 当前不擅长"对比"故事——用户从详情页找不到 `/compare` 入口。PR #97 加了详情页「对比 (vs N)」按钮闭环这条。Sample data 自身重做留待下一轮（要先答 §6.1 4 个 product 问题）。
 
 ### Added
 
-- **llm-client OpenAI Images API 端点支持**（sample-data-redesign PR 1 / PR #95）：`ApiConfig` + `ModelConfig` 新增可选字段 `endpoint_kind: 'chat' | 'images_generations'`（默认 `'chat'`，向后兼容）。`callLlm` 入口按 endpoint_kind 分发；`callImagesGenerations()` helper 构造 OpenAI Images API body（model/prompt/size/quality），POST 到 `${base}/images/generations`，解析 `data[0].b64_json` → `LlmResponse.images[0]`（与 chat 端点 image 输出 shape 对齐，下游 image-store / display 完全复用）。`/settings/llm` UI 加"端点类型"下拉。i18n key（zh/en 成对加 4 个）。5 个新单测覆盖请求 body shape / b64_json 解析 / bare url 解析 / HTTP 4xx / 429 retry。
-- **副产物 fix**（PR #95 期间）：`callImagesGenerations` 取最后一条 user 消息时 `LlmMessage` discriminated union 需要 narrow 才能读 content（`tool_use`/`tool_result` 没有 content 字段），避免 type-error。
+- **llm-client OpenAI Images API 端点支持**（PR #95）：`ApiConfig` + `ModelConfig` 新增可选字段 `endpoint_kind: 'chat' | 'images_generations'`（默认 `'chat'`，向后兼容）。`callLlm` 入口按 endpoint_kind 分发；`callImagesGenerations()` helper 构造 OpenAI Images API body（model/prompt/size/quality），POST 到 `${base}/images/generations`，解析 `data[0].b64_json` → `LlmResponse.images[0]`（与 chat 端点 image 输出 shape 对齐，下游 image-store / display 完全复用）。`/settings/llm` UI 加"端点类型"下拉。i18n key（zh/en 成对加 4 个）。5 个新单测覆盖请求 body shape / b64_json 解析 / bare url 解析 / HTTP 4xx / 429 retry。副产物 fix：`callImagesGenerations` 取最后一条 user 消息时 `LlmMessage` discriminated union 需要 narrow 才能读 content。
+- **`/experiments/{id}` 详情页「对比」按钮**（PR #97）：toolbar 加按钮，文案动态 `对比 (vs N)`（N = 同 compare_group 但 ≠ current 的 completed/paused experiments 数量），N=0 时 disabled + tooltip。点击跳 `/compare?ids=<currentId>,<other1>,<other2>...` 默认全部预选。`/compare` 页用 `useSearchParams` 接 `?ids=...` 自动初始化 `selectedIds`（首次 experiments 拉到后一次性 hydration，autoSelectedFromQuery flag 防重复触发）；Suspense wrap 满足 Next.js 16 prerender 要求。新增 `src/lib/compare-helpers.ts` 提供 3 个 pure helper（`compareGroupOf` / `findComparableExperiments` / `buildCompareHref`），12 个新单测覆盖各场景（自身排除 / 显式 group / fallback 到 schema id / 跨 schema 同 group / unknown schema）。i18n 加 3 个 key（zh/en 成对）。Opus subagent Playwright 实测 4 路径 3 Pass + 1 skip（数据无 running/draft fixture），console 0 error。
 
 ### Changed
 
-- **`src/lib/seed.ts` 从硬编 id 列表改为扫子目录**（sample-data-redesign PR 2 / PR #96）：8 个老 seed 文件 git mv 到 `src/lib/seeds/{datasets,schemas,rubrics}/` 子目录（schema/rubric 文件名同时去掉 `.schema`/`.rubric` 中缀，统一为 `<id>.json`）。`ensureSeeds()` 用新 `seedFromDir(srcSubdir, dstDir, allowedExts)` helper 扫 7 个 kind 子目录（datasets/schemas/rubrics/displays/experiments/results/annotations）+ 新增 `seedSampleImages()` 拷 `src/lib/seeds/images/` 到 `public/sample-images/`。幂等性保留（existsSync 跳过 / 用户删除后下次访问恢复）。5 个新单测覆盖：empty-tree seed / existing-file skip / deleted-file restore / .gitkeep filter / public/sample-images copy。**老 sample 数据语义不变**——文件物理位置变了但内容 / id / 数据 shape 完全不动；PR 3 才 ship 新 sample。
+- **`src/lib/seed.ts` 从硬编 id 列表改为扫子目录**（PR #96）：8 个老 seed 文件 git mv 到 `src/lib/seeds/{datasets,schemas,rubrics}/` 子目录（schema/rubric 文件名同时去掉 `.schema`/`.rubric` 中缀，统一为 `<id>.json`）。`ensureSeeds()` 用新 `seedFromDir(srcSubdir, dstDir, allowedExts)` helper 扫 7 个 kind 子目录（datasets/schemas/rubrics/displays/experiments/results/annotations）+ 新增 `seedSampleImages()` 拷 `src/lib/seeds/images/` 到 `public/sample-images/`。幂等性保留（existsSync 跳过 / 用户删除后下次访问恢复）。5 个新单测覆盖：empty-tree seed / existing-file skip / deleted-file restore / .gitkeep filter / public/sample-images copy。**老 sample 数据语义不变**——文件物理位置变了但内容 / id / 数据 shape 完全不动。
+
+### Reverted
+
+- **Sample data redesign 主体 PR（branch `feat/sample-data-redesign`）全部回滚**：原计划 ship 4 套 dataset (GSM8K / BELLE / PartiPrompts / RefCOCO) + 7 schema + 4 rubric + 3 user display + 4 sample experiment（含 580 records 预跑结果 + 580 LLM-judge annotations，~¥100 真钱跑完）。**用户 reject** 4 条原因（lessons §1）：(1) 大量任务没跑完/失败；(2) 没有控制变量的感觉，对比页面看不出来；(3) 看不到题目，只有结果；(4) 测试集挺扯，大部分用户看不懂。本地 + origin branch 已删除，runtime data 清干净，llm-config 还原到原始 2 个模型。**PR #95 + #96 仍保留在 main**（用户对前置基建无意见）。
+
+### Docs
+
+- **失败教训沉淀**（`docs/superpowers/findings/2026-05-13-sample-data-redesign-lessons.md`，250 行）：4 条批评的细节解剖 + 设计层共同根因（spec 太技术先行 / 选错数据集 / UI 不擅长讲"对比" / header_fields 没列硬约束）+ sankuai gateway 实测状态表（哪些 model 能用、kimi 30% timeout、Gemini image 网关 bug 等）+ evalyst 组件限制清单（bubble_overlay shape / triple_grid cellMap last-wins / JSX SVG camelCase / 网关 fetch 不到 localhost+sankuai S3）+ 跑实验的工程教训（timeout / abort / skip-if-exists / image inline）+ §6.1 给下一轮 planner 的 4 个 product 问题（演示给谁看 / 主信息 / 进入问题 / 离开动作）+ §6.3 推荐 5 个非学术 benchmark 场景方向。
+- **Sample data redesign spec + plan 历史保留**（`docs/superpowers/specs/2026-05-12-sample-data-redesign-design.md` 873 行 + `docs/superpowers/plans/2026-05-12-sample-data-redesign.md` 2742 行）：作为失败案例对照参考留 main。
 
 ### Why
 
-为 sample data redesign 主体（PR 3）做前置：
-- PR 1 让 evalyst 能调 OpenAI Images API（GPT-Image-2 等纯生图模型）。Phase 3 跑 PartiPrompts T2I sample experiment 时正式消费此端点。
-- PR 2 把 seed 机制从硬编 id 改成扫子目录后，PR 3 可以一次 ship 大量新 sample 资源（datasets / schemas / rubrics / displays / experiments / results / annotations / images）而不需要再改 seed.ts。
+这次 stream 的故事结构：(a) 前置基建（llm-client image 端点 + seed 子目录扫描）独立有价值，留下；(b) 主体 sample data redesign 暴露 evalyst 在"对比"叙事上的根本性弱点，回滚；(c) 转向修根因（详情页对比入口），让未来 sample data 重做时有自然的演示路径。
+
+### Lessons stream forward
+
+下一轮 sample data redesign **不要继续走老 spec**——上版"三象限 7 display 全覆盖"是功能矩阵思维，正好踩中用户 4 条批评。下一轮 planner 第一步是回答 lessons §6.1 的 4 个 product 问题，再据 §6.2 硬约束（纯文本 / input ≤ 200 字 / output schema ≤ 5 字段 / 评分 ≤ 5 维 / 跨场景内聚 / 数据 30-60 条 / 可手工编）+ §6.3 业务场景方向（客服总结 / 商品文案改写 / 邮件互译 / 发票抽取 / 反馈分类）选 2-3 套写新 spec。预算参考：纯文本 60-180 records ~¥5-15 / wall < 30 分钟，比上一轮便宜 5-10 倍且质量上限更高。
 
 ## [0.14.6] — 2026-05-12 · R3 bug-security audit closes (PR #94)
 
