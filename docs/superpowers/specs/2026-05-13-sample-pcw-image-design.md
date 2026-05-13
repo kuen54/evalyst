@@ -222,7 +222,7 @@
 
 ## 5. Sample experiments
 
-3 个，全部用 `gpt-image-1` 单 model。
+3 个，全部用 `gemini-2.5-flash-image` 单 model（sankuai gateway google native imageGenerate 端点）。
 
 | Experiment id | Schema | Records | Rubric | Annotations |
 |---|---|---|---|---|
@@ -235,22 +235,22 @@
 ```json
 {
   "id": "pcw_xhs_image_baseline",
-  "name": "商品配图 · 小红书风 · gpt-image-1 baseline",
+  "name": "商品配图 · 小红书风 · gemini-2.5-flash-image baseline",
   "created_at": "2026-05-13T00:00:00Z",
   "updated_at": "2026-05-13T00:00:00Z",
   "schema_id": "pcw_xhs_image_v1",
   "filter_values": { "categories": ["美妆","数码","食品饮料","家居","服饰","母婴"], "limit": 20 },
-  "model": "gpt-image-1",
+  "model": "gemini-2.5-flash-image",
   "temperature": 1,
   "max_tokens": 1,
   "api_config": { "base_url": "", "api_key": "" },
   "prompt_template": "(uses schema default_prompt)",
   "status": "completed",
-  "notes": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），xhs 插画风 prompt × gpt-image-1 跑 20 张配图。配套 douyin / friends baseline 共同对比 3 风格。不带 judge / 不带 annotations，留给用户进 evalyst annotation UI 自打分。"
+  "notes": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），xhs 插画风 prompt × gemini-2.5-flash-image 跑 20 张配图。配套 douyin / friends baseline 共同对比 3 风格。不带 judge / 不带 annotations，留给用户进 evalyst annotation UI 自打分。"
 }
 ```
 
-`api_config` 留空字符串运行时从 `data/llm-config.json` 用 `model="gpt-image-1"` 查（v2 同 pattern）；`temperature=1, max_tokens=1` 是 image gen 占位值（OpenAI Images API 不读这俩字段，但 `ExperimentConfig` 类型要求非空）；`rubric_id` 字段省略（schema 类型 optional，无 judge 即省）。
+`api_config` 留空字符串：runner standalone 不走 evalyst llm-client，evalyst UI 上 "重跑" 按钮也跑不通（google native 端点未集成进 evalyst）—— 这是 PR #2 的 known limitation，未来 sub-PR 扩 evalyst google_native_image_generate 端点支持后即解。`temperature=1, max_tokens=1` 是占位值（image gen 不读，但 type 要求非空）；`rubric_id` 字段省略（无 judge）。
 
 **关键 demo 路径（验收）**:
 
@@ -262,31 +262,33 @@
 
 ## 6. Runner script
 
-`scripts/run-pcw-image-samples.ts`（~150-200 行，zero-dep）。**模式镜像 v2 的 `scripts/run-pcw-samples.ts`**（已在 main 上）：复用 `getLlmConfig` / `pickModel` / 读 dataset jsonl / 写嵌套 results.jsonl 的 boilerplate。差异只在两处：
+`scripts/run-pcw-image-samples.ts`（~250 行 standalone tsx，zero-dep + macOS sips）。**不走 evalyst llm-client**——sankuai gateway 的 `gemini-2.5-flash-image` 走 google native 端点（异步 submit + poll），evalyst 现在的 `endpoint_kind=images_generations` 只支持 OpenAI Images API。runner 直接 fetch sankuai gateway。
 
-- callLlm 走 **endpoint_kind=images_generations**（不是 chat），返回 base64 image
-- **不跑 judge / 不写 annotations**（v2 script 后半段 judge 全删）
+**API surface**:
+- `POST https://aigc.sankuai.com/v1/google/models/gemini-2.5-flash-image:imageGenerate` — body `{ "contents": [{ "parts": [{ "text": "..." }] }] }`，header `Authorization: <raw-key>`（不带 Bearer 前缀），返回**纯字符串 task_id**（不是 JSON）
+- `GET https://aigc.sankuai.com/v1/google/models/{taskId}:imageGenerateQuery` — 同 auth，返回 `{ status: 1=done, data: { candidates: [{ content: { parts: [{ inlineData: { mimeType, data } }] }, finishReason }], usageMetadata: { promptTokenCount, candidatesTokenCount, totalTokenCount } } }`
+- 图返回**公开 https URL**（`https://s3plus.vip.sankuai.com/aigc-public-resources/gemini-image-generate/{taskId}.png`），不是 base64 inline
 
 **逻辑**:
 
-1. 读 `data/llm-config.json` 拿 `gpt-image-1` 配置（缺则提示用户去 `/settings/llm` 加，exit 1，不 fallback）
-2. 读 `src/lib/seeds/datasets/product_copywriting_v1.jsonl`（60 条），按行号顺序每品类前 3-4 条 → 20 条
-3. 对 3 schemas × 20 records 跑 `callLlm`（images_generations 端点 → base64 image）
-4. 每条结果走 `saveImagesForTask()`（lessons §4.1 #7 已存在的 helper）：base64 → 落盘 + resize → 返回相对路径
-5. 写 `data/results/{exp_id}/results.jsonl`，image_url 字段填本地路径（`/api/images/{exp_id}/{task_id}.png` 或相对 store path，跟 image-store 现有约定一致）
-6. **strip status≠success**（lessons §6.4 #4）
-7. 拷贝到 `src/lib/seeds/results/{exp_id}/results.jsonl` ship 进 git
-8. 不写 annotations（不 judge）
+1. 读 `process.env.SANKUAI_KEY`（缺则 exit 1，不 fallback）
+2. 读 `src/lib/seeds/datasets/product_copywriting_v1.jsonl`（60 条），按品类配额抽 20 条（美妆/数码/食品饮料/家居 × 4 + 服饰/母婴 × 2）
+3. 对 3 schemas × 20 records，每条：submit imageGen → poll until `status=1` → 下载 https URL → `sips -Z 768` resize 到长边 768px → 写盘
+4. 写 `data/results/{exp_id}/results.jsonl`（`output.image_url` 字段填 `/api/results/{exp_id}/images/{pid}.png`）+ `data/results/{exp_id}/images/{pid}.png`
+5. **strip status≠success**（lessons §6.4 #4）—— Task 12 单独 step
+6. 拷贝到 `src/lib/seeds/results/{exp_id}/{results.jsonl, images/}` ship 进 git —— Task 12
 
 **关键约定**:
-- Image binary **进 git**（seeds/ 下）：60 张 × ~150KB ≈ 9 MB，可接受。git 中 `results.jsonl` 存 `/api/results/{exp_id}/images/X.png` 路径，配套的 PNG 进 `src/lib/seeds/results/{exp_id}/images/`。第一次启动 evalyst 时 PR #96 `seedResultsTree()` 递归 copy 到 runtime `data/results/{exp_id}/images/`，UI `<img>` 路径解析正确
-- runner 可重入（skip-if-exists）：同 task_id 的 results 行已存在则跳过（lessons §4.1 #4 已识别 pattern）
-- 60s 单 call timeout（lessons §4.1 #2 + #3：image gen 单次 30-90s 正常，120s 给 1 次 retry 足够）
+- **Rate limit**: sankuai gateway 给 `gemini-2.5-flash-image` 的 RPM = 5。runner 内置 sliding-window submit limiter（60s 窗口最多 5 个 submit），query polling 5s 间隔（observed empirically 不算入 RPM）
+- **Resize**: 原图 1024×1024 PNG ~2 MB × 60 = ~120 MB 进 git 太重；用 macOS `sips -Z 768` resize 到长边 768px → ~250-400 KB/张 × 60 = ~20 MB seeds 增量。可接受
+- **Image binary 进 git**（seeds/ 下）：约 20 MB。git 中 `results.jsonl` 存 `/api/results/{exp_id}/images/{pid}.png` 路径，配套 PNG 进 `src/lib/seeds/results/{exp_id}/images/`。第一次启动 evalyst 时 PR #96 `seedResultsTree()` 递归 copy 到 runtime
+- **runner 可重入（skip-if-exists）**：同 task_id 的 results 行已存在则跳过
+- **240s poll timeout / task**（image gen 单次实测 9-30s 完成；240s 给重试空间）
+- **Auth via env var** `SANKUAI_KEY`，不进 git
 
 **预算追踪**:
-- runner 跑前 print 估算（"60 calls × ~$0.04 = ~$2.4 / ¥17"）
-- 跑后 print 实付（从 callLlm metadata 累加）
-- target wall < 10 分钟，预算 ¥3-5
+- 60 records / 5 RPM ≈ 12 分钟 submit + poll 等图 5-10s/张 → wall ≈ 15-25 min（取决于 polling latency）
+- usageMetadata 有 promptTokenCount / candidatesTokenCount，记录到 results.jsonl 但 PR #2 不算具体钱（gemini image 内部 quota，无明确每条价格表）
 
 **npm script**:
 - `package.json` 加 `"run:pcw-image-samples": "tsx scripts/run-pcw-image-samples.ts"`，平行 v2 `run:pcw-samples`
@@ -308,33 +310,24 @@
 
 注：不在 PR #2 scope 内提供 rubric。如果用户想用 v2 ship 的 `pcw_quality` rubric 标这些 image，evalyst UI 已支持（rubric 与 schema 通过 `rubric_id` 字段松耦合，annotation UI 不强制 schema/rubric 1:1）。
 
-## 8. LLM config 用户操作步骤（spec 写明 / runner 校验）
+## 8. Runner auth setup（用户操作 / runner 校验）
 
-PR #2 跑前需要 user 手工在 evalyst 加一条 LLM config（首次）。spec 必须写清，runner 必须校验。
+PR #2 runner 通过 `SANKUAI_KEY` env var 读取 sankuai gateway raw token（不带 Bearer 前缀，因为 google native 端点直接收 raw key）。**不写进 evalyst `data/llm-config.json`**——evalyst 的 LLM config 给 chat / OpenAI Images 用，google native imageGenerate 路径未集成。
 
-**用户步骤**:
-1. 启动 dev server `npm run dev`
-2. 浏览器 `/settings/llm` → "+ 新增"
-3. 填表：
-   - Model name: `gpt-image-1`
-   - Endpoint kind: `images_generations`（dropdown）
-   - Base URL: `https://aigc.sankuai.com/v1/openai/native`
-   - API format: `openai`
-   - API key: `Bearer 1983731511187542037`（粘贴含 Bearer 前缀完整字符串——sankuai gateway openai-native 端点用 Bearer 而非 raw API key，详见 lessons §4.1）
-   - Pricing 可填可不填（PR #2 runner 不依赖）
-4. 保存
+**用户操作**:
 
-**Runner 启动时校验**: 读 `data/llm-config.json`，若没有 model_id=`gpt-image-1` 的 config，print:
+```bash
+SANKUAI_KEY=1983731511187542037 npm run run:pcw-image-samples
 ```
-[runner] missing LLM config: gpt-image-1
-[runner] please add at /settings/llm with these fields:
-  endpoint_kind=images_generations
-  base_url=https://aigc.sankuai.com/v1/openai/native
-  api_format=openai
-  api_key=Bearer ...
-[runner] then re-run.
+
+**Runner 启动时校验**: 读 `process.env.SANKUAI_KEY`，缺则 print:
+```
+[runner] missing SANKUAI_KEY env var
+[runner] usage: SANKUAI_KEY=xxxxx npm run run:pcw-image-samples
 exit 1
 ```
+
+> Future improvement（不在 PR #2 scope）：扩 evalyst 加 `endpoint_kind = 'google_native_image_generate'` 到 llm-client.ts，sample experiment meta 走标准 callLlm 路径，evalyst UI 上"重跑"按钮也能跑。独立 sub-PR。
 
 ## 9. 验收（lessons §6.4 闭环）
 
@@ -366,7 +359,8 @@ exit 1
 
 ## 10. 不在 scope（backlog）
 
-- 跨模型对比（gpt-image-1 vs gemini-2.5-flash-image）—— 需扩 google native imageGenerate 端点，独立 sub-PR
+- 跨模型对比（gpt-image-1 vs gemini-2.5-flash-image）—— PR #2 单 model gemini，跨模型对比单独 sub-PR
+- **扩 evalyst 加 `endpoint_kind=google_native_image_generate` 端点支持** —— 独立 sub-PR；解后 PR #2 sample experiment 在 evalyst UI 上"重跑"按钮可用
 - vision judge / 文本 judge —— lessons-respecting 决策不做
 - 多 display 形态（table / triple_grid / jsx 等）—— **PR #3 of stream**
 - Brand consistency demo（dataset 加 brand 字段）—— 不在本 PR
@@ -386,9 +380,9 @@ exit 1
 | Output 字段 | title / body / hashtags / cta | image_url / caption |
 | Rubric | pcw_quality（5 维）| **不 ship** |
 | Judge | gpt-4o-mini 文本 | **不 judge** |
-| Model | claude-opus-4-6 | gpt-image-1 |
-| 预算 | ~¥13 | ~¥3-5 |
-| Wall | ~30 分钟 | ~10 分钟 |
+| Model | claude-opus-4-6 | gemini-2.5-flash-image (sankuai google native) |
+| 预算 | ~¥13 | sankuai gateway gemini quota（无具体每条价格表）|
+| Wall | ~30 分钟 | ~15-25 分钟（RPM=5 制约）|
 | Annotations | 全 ship | **不 ship**（user 自打）|
 | Display | builtin_single_list + header_fields | 同 + image_url 渲染 |
 
