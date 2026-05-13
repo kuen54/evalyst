@@ -347,37 +347,51 @@ cat src/lib/seeds/experiments/pcw_xhs_baseline.json
 # 用作字段顺序 + timestamp 风格参考
 ```
 
-- [ ] **Step 5.2: Write `pcw_xhs_image_baseline.json`**
+- [ ] **Step 5.2: Write `pcw_xhs_image_baseline.json`** — shape must match `ExperimentConfig` type (`src/lib/types.ts:28-55`); cross-check field names against v2 `pcw_xhs_baseline.json`
 
 ```json
 {
   "id": "pcw_xhs_image_baseline",
+  "name": "商品配图 · 小红书风 · gpt-image-1 baseline",
+  "created_at": "2026-05-13T00:00:00Z",
+  "updated_at": "2026-05-13T00:00:00Z",
   "schema_id": "pcw_xhs_image_v1",
-  "label": "商品配图 · 小红书风 · gpt-image-1 baseline",
-  "description": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），用 xhs 插画风 prompt × gpt-image-1 跑出 20 张配图。配套实验 pcw_douyin_image_baseline / pcw_friends_image_baseline 共同对比 3 风格 prompt 在同商品上的差异。不带 judge 标注，留给用户进 evalyst annotation UI 自打分。",
-  "model_id": "gpt-image-1",
   "filter_values": { "categories": ["美妆","数码","食品饮料","家居","服饰","母婴"], "limit": 20 },
-  "system_prompt_id": null,
-  "rubric_id": null,
-  "created_at": "2026-05-13T00:00:00.000Z",
-  "updated_at": "2026-05-13T00:00:00.000Z"
+  "model": "gpt-image-1",
+  "temperature": 1,
+  "max_tokens": 1,
+  "api_config": { "base_url": "", "api_key": "" },
+  "prompt_template": "(uses schema default_prompt)",
+  "status": "completed",
+  "notes": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），xhs 插画风 prompt × gpt-image-1 跑 20 张配图。配套 douyin / friends baseline 共同对比 3 风格。不带 judge / 不带 annotations，留给用户进 evalyst annotation UI 自打分。"
 }
 ```
 
-- [ ] **Step 5.3: Write `pcw_douyin_image_baseline.json`**（同上结构，仅改 id / schema_id / label）
+注意（坑）：
+- `name` not `label`；`notes` not `description`；不要加 `system_prompt_id`（不存在的字段会被 schema validator 拒）
+- `temperature=1, max_tokens=1` 是 image gen 占位值（API 不读，但 type 要求非空）
+- `api_config` 留空字符串，运行时从 `data/llm-config.json` 用 `model="gpt-image-1"` 查
+- 时间戳 ISO **不带** millis（`Z` 结尾，跟 v2 一致）
+- 省略 `rubric_id`（不 ship rubric）
+- `status: "completed"` 表示已跑完，runner ship 后用户能看到完成态实验
+
+- [ ] **Step 5.3: Write `pcw_douyin_image_baseline.json`**（同上结构，仅改 id / name / schema_id / notes）
 
 ```json
 {
   "id": "pcw_douyin_image_baseline",
+  "name": "商品配图 · 抖音封面风 · gpt-image-1 baseline",
+  "created_at": "2026-05-13T00:00:00Z",
+  "updated_at": "2026-05-13T00:00:00Z",
   "schema_id": "pcw_douyin_image_v1",
-  "label": "商品配图 · 抖音封面风 · gpt-image-1 baseline",
-  "description": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），用 douyin 封面风 prompt × gpt-image-1 跑出 20 张配图。配套实验 pcw_xhs_image_baseline / pcw_friends_image_baseline 共同对比 3 风格 prompt 在同商品上的差异。不带 judge 标注，留给用户进 evalyst annotation UI 自打分。",
-  "model_id": "gpt-image-1",
   "filter_values": { "categories": ["美妆","数码","食品饮料","家居","服饰","母婴"], "limit": 20 },
-  "system_prompt_id": null,
-  "rubric_id": null,
-  "created_at": "2026-05-13T00:00:00.000Z",
-  "updated_at": "2026-05-13T00:00:00.000Z"
+  "model": "gpt-image-1",
+  "temperature": 1,
+  "max_tokens": 1,
+  "api_config": { "base_url": "", "api_key": "" },
+  "prompt_template": "(uses schema default_prompt)",
+  "status": "completed",
+  "notes": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），douyin 封面风 prompt × gpt-image-1 跑 20 张配图。配套 xhs / friends baseline 共同对比 3 风格。不带 judge / 不带 annotations，留给用户进 evalyst annotation UI 自打分。"
 }
 ```
 
@@ -386,15 +400,18 @@ cat src/lib/seeds/experiments/pcw_xhs_baseline.json
 ```json
 {
   "id": "pcw_friends_image_baseline",
+  "name": "商品配图 · 朋友圈生活感 · gpt-image-1 baseline",
+  "created_at": "2026-05-13T00:00:00Z",
+  "updated_at": "2026-05-13T00:00:00Z",
   "schema_id": "pcw_friends_image_v1",
-  "label": "商品配图 · 朋友圈生活感 · gpt-image-1 baseline",
-  "description": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），用 friends 生活感 prompt × gpt-image-1 跑出 20 张配图。配套实验 pcw_xhs_image_baseline / pcw_douyin_image_baseline 共同对比 3 风格 prompt 在同商品上的差异。不带 judge 标注，留给用户进 evalyst annotation UI 自打分。",
-  "model_id": "gpt-image-1",
   "filter_values": { "categories": ["美妆","数码","食品饮料","家居","服饰","母婴"], "limit": 20 },
-  "system_prompt_id": null,
-  "rubric_id": null,
-  "created_at": "2026-05-13T00:00:00.000Z",
-  "updated_at": "2026-05-13T00:00:00.000Z"
+  "model": "gpt-image-1",
+  "temperature": 1,
+  "max_tokens": 1,
+  "api_config": { "base_url": "", "api_key": "" },
+  "prompt_template": "(uses schema default_prompt)",
+  "status": "completed",
+  "notes": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），friends 生活感 prompt × gpt-image-1 跑 20 张配图。配套 xhs / douyin baseline 共同对比 3 风格。不带 judge / 不带 annotations，留给用户进 evalyst annotation UI 自打分。"
 }
 ```
 
