@@ -10,6 +10,54 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-05-13 · sample-pcw-copywriting + header_fields renderer fix (PR #98)
+
+V1 sample data 全废 + lessons 沉淀（v0.15.0）后第一个**ship 成功**的 sample suite。1 PR / 6 commits / 4 角色（spec / fix / data / runner）/ 2 轮 opus QA 浏览器实测（第 1 轮发现 lessons §6.4 #3 红线复刻 → 修 → 第 2 轮全绿）。Lessons §6.4 全部硬约束闭环。
+
+### Added
+
+- **Sample suite "商品文案改写"**（PR #98）：
+  - **Dataset** `product_copywriting_v1` — 60 条手编商品（6 品类 × 10 条平衡：美妆/数码/食品饮料/家居/服饰/母婴），input ≤ 200 字，业务评测员一眼能代入"自家产品也能用 evalyst 测"。**手编** vs v1 走开源 ML benchmark（lessons §1.4 批评 #4 闭环——业务评测员不是 ML researcher）。
+  - **3 Schemas（同 `compare_group="product_copywriting_v1"`）**：`pcw_xhs_v1`（小红书风：emoji + "姐妹们" + 3-5 hashtags）、`pcw_douyin_v1`（抖音脚本风：钩子开头 + 分段 5-10s 口播 + CTA）、`pcw_friends_v1`（朋友圈风：≤ 80 字 + 口语 + 无 hashtag）。配合 [`/experiments/{id}` 详情页"对比"按钮（v0.15.0 PR #97）](https://github.com/kuen54/evalyst/pull/97)，user 一键看 3 列横排。
+  - **Rubric** `pcw_quality` 5 维（pass_fail × 1 + likert × 3 + score 0-100）+ judge prompt `pcw_quality.judge.md`（含 `{{platform_style}}` 注入）。
+  - **3 Sample experiments 预跑结果 ship 进 git**（claude-opus-4-6 主跑 + gemini-3.1-pro-preview 当 judge fallback）：pcw_xhs_baseline 59 records (1 prod_055 截断已 strip) / pcw_douyin_baseline 60 / pcw_friends_baseline 60。共 **179 records / 179 annotations 全 status=success**（lessons §6.4 #4 strip 闭环）。Overall_score avg 92-94（opus 太强 + gemini judge 偏宽，76% TIE on overall）→ demo 主信息是"voice 控制能力"而非分差排名。
+- **`scripts/run-pcw-samples.ts`** — zero-dep ~290 行 sample runner，含 skip-if-exists / strip status=error / model candidate fallback（`claude-opus-4-6` → `aws.claude-opus-4.6`；`gpt-4o-mini` → `gemini-3.1-pro-preview`）/ 嵌套写 `data/results/<exp_id>/{results,annotations}.jsonl`。`npm run run:pcw-samples` 入口。
+- **`src/lib/compare-helpers.ts` 新增 `rowLabel()`** — 优先读 `schema.display_dimensions[].header_fields` 显式声明（支持 `input_preview.p.name` / 裸 `p.name` 两种路径，array 字段用 `、` 拼接，长值截 60 字符 + …），fallback 时跳过值等于 ref id 的 pid/qid/vid 字段。8 个新单测覆盖各场景。
+
+### Fixed
+
+- **`src/components/results/single-list-results.tsx` 渲染 `display_dimensions[].header_fields`**（PR #98 / commit a045bac）：闭环 lessons §6.4 #3 红线"看不到题目，只有结果"——schema 配齐了 header_fields 但 `single_list` renderer 之前不读，每行只看到 `prod_001` + output。修后每条 row card 顶部显示"商品: 轻氧空气感蓬蓬粉 · 目标用户: 25-35 岁通勤女性 · 价: ¥158"，与 `dual_list` / `triple_grid` 对齐。多 dim 的 header_fields 自动去重合并。
+- **`/compare` 页 `rowLabel` 从 first-non-id 改为读 schema header_fields**（PR #98 / commit a045bac）：之前 fallback 取 `p.pid` 当 label 显示成 `p#prod_001 · prod_001`（id-equal 退化）。现在优先 schema 显式声明，fallback 时也跳过值等于 ref id 的字段。新 rowLabel 抽到 `compare-helpers.ts` 便于单测。
+- **`src/lib/seed.ts` `seedResultsTree()` 替换 flat `KINDS` 中 'results'/'annotations' 项**（PR #98 / commit 3873e0c）：闭环 lessons §4.6 已识别 PR #96 bug——KINDS flat 'results'/'annotations' 子目录与 evalyst runtime 期望嵌套结构 `data/results/<exp_id>/{results,annotations}.jsonl`（`src/lib/store.ts:132` + `src/lib/annotation-store.ts:14`）不一致。新 `seedResultsTree()` 递归镜像 `<exp_id>/` 子目录，顶层散文件不收（强制 sample 走嵌套约定）。3 个新单测。
+- **`scripts/run-pcw-samples.ts` judge max_tokens 1024 → 4096**（commit 919c753）：跑数据时发现 gemini-3.1-pro 把 thinking 也算 tokens，1024 经常 `finish_reason=length` 截断 JSON → annotation.scores 写空 `{}`。第一轮跑出来 179 annotations 全 empty，bump 后清空重跑全 valid。
+
+### Tests
+
+新增 28 个单测（vitest 853 / 84 全绿）：
+- compare-helpers: 12 旧 + 8 新（rowLabel header_fields 优先 / 数组拼 / 长值截 / 路径形态 / 空值跳 / fallback 跳 ref-id-equal / multi-alias）
+- seed: 5 旧 + 3 新（seedResultsTree 嵌套镜像 / 顶层散文件跳过 / 嵌套幂等）
+
+### Why
+
+闭环 v0.15.0 lessons doc 立的 §6.4 全部硬约束 + §6.1 4 个 product 问题（业务评测员 / 跨 prompt 对比 / 探索期 / 动手建第一个 evaluation）：
+
+| 维度 | v1 (failed v0.14.x stream) | v2 (this v0.16.0) |
+|---|---|---|
+| 数据源 | 4 套 ML benchmark | 1 套手编业务场景 |
+| Records | 616（580 success / 36 fail） | 179（179 success） |
+| 模型 | 7 个含 kimi（30% timeout 率） | opus + gemini judge |
+| 多模态 | 是（生图 + VQA） | 否（纯文本） |
+| 预算 | ~¥100 | ~¥14 |
+| Wall time | ~6 小时 | ~60 分钟（含一次 judge bump 后重跑） |
+| QA 实测 | 全绿但 user 仍 reject | 2 轮（第 1 轮发现 gap → 修 → 第 2 轮全绿） |
+| 用户验收 | 4 条批评全废 | sample data 本 PR ship + lessons §6.4 #3 渲染 gap 一并修 |
+
+### Backlog（不在 v0.16.0 scope）
+
+- PR #2 of stream：生图场景 sample（独立 sample suite，待写新 spec）
+- PR #3 of stream：多 display 形态覆盖（table / grouped_grid / jsx / triple_grid / bubble_overlay）
+- 加 weaker baseline schema 拉开 score spread（如有需要 user 决定）
+
 ## [0.15.0] — 2026-05-13 · compare entry + sample-data-redesign post-mortem (PR #95 + #96 + #97)
 
 3 PR ship + 1 大 PR 失败回滚的复合 stream。原计划是 4 PR 联动的 sample data redesign（GSM8K / BELLE / PartiPrompts / RefCOCO 三象限 + 7 display 全覆盖），前 2 PR 基建顺利合上，主体 PR 3 跑出 580/616 records ~¥100 真钱后被用户全数 reject + 全部回滚到 main。教训沉淀到 [`docs/superpowers/findings/2026-05-13-sample-data-redesign-lessons.md`](docs/superpowers/findings/2026-05-13-sample-data-redesign-lessons.md)（250 行，4 条批评解剖 + 共同根因 + sankuai gateway 实测表 + evalyst 组件限制清单 + 给下一轮 planner 的 §6.1 4 个 product 问题）。
