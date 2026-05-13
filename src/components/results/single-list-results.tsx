@@ -12,6 +12,20 @@ import { formatCost, formatTokens } from "@/lib/format"
 /** 1 维（或 0 维）展示：每条 result 一行；维度值作为 header */
 export function SingleListResults({ results, schema }: ResultViewProps) {
   const dims = dimensionsOf(schema)
+  // 收集**所有** dim 的 header_fields（去重），让每条 row card 顶部显示 input 上下文
+  // —— 闭环 lessons §6.4 #3"看不到题目，只有结果"，与 dual_list/triple_grid 对齐
+  const headerFields = useMemo(() => {
+    const seen = new Set<string>()
+    const out: Array<{ field: string; label?: string }> = []
+    for (const d of dims) {
+      for (const hf of d.header_fields ?? []) {
+        if (seen.has(hf.field)) continue
+        seen.add(hf.field)
+        out.push(hf)
+      }
+    }
+    return out
+  }, [dims])
   const outputFields = useMemo(() => getOutputFields(schema.output_schema), [schema.output_schema])
 
   return (
@@ -50,6 +64,24 @@ export function SingleListResults({ results, schema }: ResultViewProps) {
                 )}
               </div>
             </div>
+
+            {/* Header fields: schema.display_dimensions[].header_fields 把 input 字段
+                  （如商品名 / 目标用户 / 价 / 题目）带入 row 顶部，闭环 lessons §6.4 #3 */}
+            {headerFields.length > 0 && (
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {headerFields.map(hf => {
+                  const v = readField(r, hf.field)
+                  if (v == null || v === "") return null
+                  const display = Array.isArray(v) ? v.join("、") : String(v)
+                  return (
+                    <span key={hf.field}>
+                      {hf.label ? `${hf.label}: ` : ""}
+                      <span className="text-foreground">{display.length > 80 ? display.slice(0, 80) + "…" : display}</span>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Output fields */}
             {r.status === "success" && r.output ? (

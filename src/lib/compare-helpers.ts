@@ -50,3 +50,65 @@ export function buildCompareHref(
   const ids = [current.id, ...comparable.map(e => e.id)].join(',')
   return `/compare?ids=${ids}`
 }
+
+/**
+ * /compare 页 row label：优先读 schema.display_dimensions[].header_fields
+ * 显式声明（闭环 lessons §6.4 #3 "看不到题目，只有结果"），fallback 到第一个
+ * 非 ID 类字段。
+ *
+ * 当 schema 配置 header_fields 时，每个 field 用 "label: value" 格式拼接，
+ * 避免显示 "p#prod_001 · prod_001" 这种 id 字段值等于 ref id 的退化。
+ */
+export function rowLabel(
+  refs: Record<string, string | number>,
+  preview: Record<string, unknown>,
+  schema?: Pick<TaskSchema, 'display_dimensions'>,
+): string {
+  const headerFields = (schema?.display_dimensions ?? []).flatMap(d => d.header_fields ?? [])
+  if (headerFields.length > 0) {
+    const parts: string[] = []
+    for (const hf of headerFields) {
+      const v = readHeaderFieldValue(preview, hf.field)
+      if (v == null || v === '') continue
+      const display = Array.isArray(v) ? v.join('、') : String(v)
+      const trimmed = display.length > 60 ? display.slice(0, 60) + '…' : display
+      parts.push(hf.label ? `${hf.label}: ${trimmed}` : trimmed)
+    }
+    if (parts.length > 0) return parts.join('  ·  ')
+  }
+
+  // Fallback: 找 input_preview 里第一个非空字符串字段。
+  // 跳过值与 ref id 相等的字段（避免 pid/qid/vid 这种"id-like"字段被取出导致
+  // 退化成 "p#prod_001 · prod_001"）。
+  const parts: string[] = []
+  for (const alias of Object.keys(refs).sort()) {
+    const id = refs[alias]
+    const labelEntry = Object.entries(preview).find(([k, v]) =>
+      k.startsWith(`${alias}.`) &&
+      String(v) !== String(id) &&
+      (typeof v === 'string' || typeof v === 'number') &&
+      String(v).length > 0 &&
+      String(v).length < 60,
+    )
+    const label = labelEntry ? String(labelEntry[1]) : ''
+    parts.push(label ? `${alias}#${id} · ${label}` : `${alias}#${id}`)
+  }
+  return parts.join('  /  ')
+}
+
+/**
+ * 读 header_field 路径的值。schema 写 "input_preview.p.name" 也接受裸 "p.name"。
+ * input_preview 是扁平字典，key 形如 "p.name"——直接 lookup；不存在时回退到嵌套
+ * 解析（兼容偶发的 nested object preview）。
+ */
+function readHeaderFieldValue(preview: Record<string, unknown>, field: string): unknown {
+  const path = field.startsWith('input_preview.') ? field.slice('input_preview.'.length) : field
+  if (path in preview) return preview[path]
+  const parts = path.split('.')
+  let cur: unknown = preview
+  for (const p of parts) {
+    if (cur == null || typeof cur !== 'object') return undefined
+    cur = (cur as Record<string, unknown>)[p]
+  }
+  return cur
+}
