@@ -99,6 +99,32 @@ Findings：
 
 ---
 
+## sample-data-redesign stream（2026-05-12 ～ 2026-05-13 · v1 fail → v2 ship）
+
+业务评测 sample 数据重做：v1 全废 + lessons 沉淀 → v2 lessons-respecting 路线 ship 第一套 sample suite。两 stream 共合并 4 个 PR（#95 / #96 / #97 / #98），跨两个 release（v0.15.0 + v0.16.0）。
+
+**V1（FAILED / SUPERSEDED）** —— "三象限 7 display 全覆盖"功能矩阵思维路线：
+
+- ❌ [Master spec](../specs/2026-05-12-sample-data-redesign-design.md) · 三象限（GSM8K/BELLE/PartiPrompts/RefCOCO）+ 7 display 形态全覆盖。**用户 reject 全部回滚**未开 PR。
+- ❌ [Master plan](2026-05-12-sample-data-redesign.md) · 4 PR / 34 task 实施 plan，Phase 1 (PR #95) + Phase 2 (PR #96) 合上后 Phase 3 主体被 reject。
+- ✅ [PR #95 · llm-client images_generations 端点支持](https://github.com/kuen54/evalyst/pull/95) · 仍保留 main（前置基建用户无意见）
+- ✅ [PR #96 · seed.ts 扫子目录改造](https://github.com/kuen54/evalyst/pull/96) · 仍保留 main（同前置）；§4.6 lessons 标的 results/annotations 嵌套 vs flat bug 在 v0.16.0 PR #98 修复
+
+**Lessons doc**（v1 失败 → v2 重启的桥梁）：
+- 📓 [`2026-05-13-sample-data-redesign-lessons.md`](../findings/2026-05-13-sample-data-redesign-lessons.md) · 250 行：4 条用户原批评解剖 + 共同根因 + sankuai gateway 实测表 + evalyst 组件限制清单 + §6.1 4 个 product 问题 + §6.3 5 个非学术 benchmark 场景方向 + §6.4 硬约束 checklist
+
+**V2（SHIPPED v0.16.0）** —— "1 场景 × 3 prompts × 1 model" lessons-respecting 路线：
+
+- ✅ [Spec · 商品文案改写](../specs/2026-05-13-sample-pcw-copywriting-design.md) · 1 dataset (60 条手编) × 3 schemas (小红书/抖音/朋友圈) × 1 model = 3 sample experiments。**SHIPPED**。
+- ✅ [PR #97 · /experiments/{id} 详情页"对比"按钮](https://github.com/kuen54/evalyst/pull/97) · ship 在 v0.15.0；闭环 lessons §3.C 揭示的 evalyst UI 不擅长"对比"故事的根本性弱点
+- ✅ [PR #98 · sample-pcw + header_fields renderer fix](https://github.com/kuen54/evalyst/pull/98) · ship 在 v0.16.0；闭环 lessons §6.4 #3 红线（schema header_fields 配齐了但 single_list / compare rowLabel 不读）+ lessons §4.6 PR #96 results 嵌套 bug
+
+**Backlog（lessons §7 待做，下一波 PR 接力时开新 spec/plan）**：
+- ⏳ **PR #2 of stream**：生图场景 sample suite（独立 spec，待 user 给方向）
+- ⏳ **PR #3 of stream**：多 display 形态覆盖（table / grouped_grid / jsx / triple_grid / bubble_overlay）
+
+---
+
 ## 索引说明
 
 - 当前 active plan 在 `plans/` 根（与 _index.md 同级），完成后移到 `archive/<period>/plans/`

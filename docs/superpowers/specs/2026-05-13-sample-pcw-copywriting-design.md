@@ -1,7 +1,7 @@
 # Sample Data v2 · 商品文案改写 · Design Spec
 
 - **Date**: 2026-05-13
-- **Status**: Draft（pending implementation）
+- **Status**: ✅ **SHIPPED v0.16.0** — PR #98 合入 main commit `c19597f`，含 6 commits / 28 新单测 / 179 records 预跑数据。release notes [v0.16.0](https://github.com/kuen54/evalyst/releases/tag/v0.16.0)。
 - **Author**: Claude（with kuen54）
 - **Predecessor**: [`docs/superpowers/findings/2026-05-13-sample-data-redesign-lessons.md`](../findings/2026-05-13-sample-data-redesign-lessons.md)（v1 失败教训）
 

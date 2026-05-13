@@ -1,9 +1,9 @@
 # Sample Data Redesign · Design Spec
 
 - **Date**: 2026-05-12
-- **Status**: Draft（pending user review）
+- **Status**: ❌ **FAILED / SUPERSEDED** — 用户 reject 全部回滚到 main，未开 PR。失败教训沉淀于 [`docs/superpowers/findings/2026-05-13-sample-data-redesign-lessons.md`](../findings/2026-05-13-sample-data-redesign-lessons.md)；接续 spec 见 [`2026-05-13-sample-pcw-copywriting-design.md`](2026-05-13-sample-pcw-copywriting-design.md)（已 ship v0.16.0）。**历史保留作为失败案例对照**，不要按本 spec 实施。
 - **Author**: Claude（with kuen54）
-- **Related plan**: TBD（生成于 spec 批准后）
+- **Related plan**: [`docs/superpowers/plans/2026-05-12-sample-data-redesign.md`](../plans/2026-05-12-sample-data-redesign.md)（同样 FAILED / SUPERSEDED）
 
 ## 0. 背景与目标
 

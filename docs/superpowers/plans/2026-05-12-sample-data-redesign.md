@@ -1,5 +1,7 @@
 # Sample Data Redesign Implementation Plan
 
+> **❌ STATUS: FAILED / SUPERSEDED** — Phase 1 (PR #95) + Phase 2 (PR #96) 合上后 Phase 3 主体被用户 reject 全部回滚（branch `feat/sample-data-redesign` 本地 + origin 已删）。教训沉淀 [`docs/superpowers/findings/2026-05-13-sample-data-redesign-lessons.md`](../findings/2026-05-13-sample-data-redesign-lessons.md)；接续 spec [`docs/superpowers/specs/2026-05-13-sample-pcw-copywriting-design.md`](../specs/2026-05-13-sample-pcw-copywriting-design.md)（已 ship v0.16.0）。**历史保留作为失败案例对照**，不要按本 plan 继续实施 Phase 3/4。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 全删现有 trivia/image seeds，落 3 套真 benchmark suite（GSM8K + BELLE-eval + PartiPrompts + RefCOCO），覆盖 7 种 display 形态、4 套 sample experiment 预跑结果开箱即体验。

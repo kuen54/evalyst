@@ -4,6 +4,7 @@
 - **Failed branch**: `feat/sample-data-redesign` (24 commits, ~6 hours impl + ~¥100 真钱跑实验)
 - **Status**: 用户 reject + 全部回滚到 main，未开 PR
 - **Audience**: 下一轮 sample data 设计的 planner session
+- **✅ Follow-up STATUS**: V2 已 ship v0.16.0（[`spec`](../specs/2026-05-13-sample-pcw-copywriting-design.md) + [PR #98](https://github.com/kuen54/evalyst/pull/98) + [release](https://github.com/kuen54/evalyst/releases/tag/v0.16.0)）。本 doc §6.1 4 个 product 问题已答（业务评测员 / 跨 prompt 对比 / 探索期 / 动手建第一个 evaluation）+ §6.4 全部硬约束闭环 + §6.3 选了"商品文案改写"场景。**§7 backlog 待做：生图 sample（PR #2 of stream）+ 多 display 形态（PR #3 of stream）**。
 
 > 这不是技术失败——5 件套全绿、7 个 display 浏览器实测全过、4 套 experiment 跑出 580/616 success records。**是产品判断 + 设计判断失败。** 用户拒绝得对。
 
