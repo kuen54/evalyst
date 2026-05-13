@@ -1,31 +1,44 @@
 #!/usr/bin/env -S npx tsx
-/* eslint-disable @typescript-eslint/no-explicit-any -- script-only file; tolerate any for jsonl record shapes from external LLM responses */
+/* eslint-disable @typescript-eslint/no-explicit-any -- script-only file; tolerate any for jsonl record shapes from external API responses */
 /**
  * scripts/run-pcw-image-samples.ts
  *
  * 跑 3 套生图 sample experiment (pcw_xhs_image_baseline / pcw_douyin_image_baseline /
- * pcw_friends_image_baseline) × gpt-image-1 → 输出到嵌套约定
+ * pcw_friends_image_baseline) × gemini-2.5-flash-image → 输出到嵌套约定
  * data/results/<exp_id>/{results.jsonl, images/}。
+ *
+ * Standalone：直接 fetch sankuai gateway 的 google native imageGenerate
+ * 端点（异步 submit + poll），**不走 evalyst llm-client**——因为 evalyst
+ * 现在只支持 OpenAI Images API endpoint_kind，google native 路径未集成。
  *
  * Skip-if-exists：单条 result 已落盘则跳过（避免重复烧钱）。
  * Strip：跑完后从 ship 文件里去掉 status!=success（lessons §6.4 #4 硬约束）。
  * 不带 judge / 不写 annotations（lessons §6.4 #6 红线 buffer，业务评测员手打）。
- * 用法：npm run run:pcw-image-samples
  *
- * Zero-dep（仅 Node 18+ 内置 fetch / fs / path）。
+ * 用法：
+ *   SANKUAI_KEY=xxxxx npm run run:pcw-image-samples
+ *
+ * Zero-dep（仅 Node 18+ 内置 fetch / fs / path + macOS sips for resize）。
+ *
+ * Rate limit：sankuai gateway gemini-2.5-flash-image RPM=5。submit 走 sliding-window
+ * 限流；query polling 间隔 5s 不算 submit RPM（observed empirically）。
  */
 import fs from 'fs/promises'
 import fsSync from 'fs'
 import path from 'path'
-import { callLlm } from '../src/lib/llm-client'
-import { getLlmConfig, type LlmConfig, type ModelConfig } from '../src/lib/llm-config'
-import { saveImagesForTask, assignImagePathsToOutput } from '../src/lib/image-store'
+import { spawn } from 'child_process'
 
 const SEEDS = path.join(process.cwd(), 'src', 'lib', 'seeds')
 const DATA = path.join(process.cwd(), 'data')
 
-// gpt-image-1 候选 model name（按顺序找第一个匹配）
-const IMAGE_MODEL_CANDIDATES = ['gpt-image-1']
+const ENDPOINT_BASE = 'https://aigc.sankuai.com/v1/google/models'
+const MODEL = 'gemini-2.5-flash-image'
+const SUBMIT_URL = `${ENDPOINT_BASE}/${MODEL}:imageGenerate`
+
+const RPM_LIMIT = 5
+const POLL_INTERVAL_MS = 5_000
+const POLL_TIMEOUT_MS = 240_000  // 4 min per task max
+const RESIZE_TARGET_PX = 768  // longest dimension; 768x768 PNG ~250-400 KB
 
 const EXPERIMENTS: Array<{ id: string; schemaId: string; promptKey: 'xhs' | 'douyin' | 'friends' }> = [
   { id: 'pcw_xhs_image_baseline', schemaId: 'pcw_xhs_image_v1', promptKey: 'xhs' },
@@ -47,12 +60,36 @@ interface Product {
   target_user: string
 }
 
-function pickModel(cfg: LlmConfig, candidates: string[]): ModelConfig | null {
-  for (const c of candidates) {
-    const found = cfg.models.find((m) => m.model === c)
-    if (found) return found
+interface QueryResponse {
+  status: number  // 1 = done observed; assume 0/2 = pending/error
+  data?: {
+    candidates?: Array<{
+      content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string } }> }
+      finishReason?: string
+    }>
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
   }
-  return null
+}
+
+class SubmitRateLimiter {
+  private timestamps: number[] = []
+  async wait(): Promise<void> {
+    while (true) {
+      const now = Date.now()
+      this.timestamps = this.timestamps.filter((t) => now - t < 60_000)
+      if (this.timestamps.length < RPM_LIMIT) {
+        this.timestamps.push(now)
+        return
+      }
+      const oldest = this.timestamps[0]!
+      const waitMs = 60_000 - (now - oldest) + 200
+      await sleep(waitMs)
+    }
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms))
 }
 
 function readDataset(): Product[] {
@@ -61,10 +98,6 @@ function readDataset(): Product[] {
   return text.split('\n').filter(Boolean).map((line) => JSON.parse(line) as Product)
 }
 
-/**
- * 按 CATEGORY_PICK 配额从 dataset 中抽取 20 条。每品类按 dataset 行号顺序前 N 条。
- * 确定性：同一 dataset 多次调用返回完全相同 20 条（顺序也一致）。
- */
 function pickSamples(dataset: Product[]): Product[] {
   const byCategory: Record<string, Product[]> = {}
   for (const p of dataset) {
@@ -79,21 +112,79 @@ function pickSamples(dataset: Product[]): Product[] {
   return out
 }
 
-async function main() {
-  const cfg = getLlmConfig()
-  const imageModel = pickModel(cfg, IMAGE_MODEL_CANDIDATES)
-  if (!imageModel) {
-    console.error('[runner] missing LLM config: gpt-image-1')
-    console.error('[runner] please add at /settings/llm with these fields:')
-    console.error('  endpoint_kind=images_generations')
-    console.error('  base_url=https://aigc.sankuai.com/v1/openai/native')
-    console.error('  api_format=openai')
-    console.error('  api_key=Bearer ...')
-    console.error('[runner] then re-run.')
-    process.exit(1)
+async function submitImageGen(prompt: string, key: string, limiter: SubmitRateLimiter): Promise<string> {
+  await limiter.wait()
+  const resp = await fetch(SUBMIT_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: key,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+    }),
+  })
+  if (!resp.ok) {
+    const body = await resp.text()
+    throw new Error(`submit HTTP ${resp.status}: ${body.slice(0, 300)}`)
   }
-  if (imageModel.endpoint_kind !== 'images_generations') {
-    console.error(`[runner] gpt-image-1 found but endpoint_kind="${imageModel.endpoint_kind}", expected "images_generations". Update /settings/llm.`)
+  const taskId = (await resp.text()).trim()
+  if (!taskId || taskId.length < 8) throw new Error(`submit returned unexpected body: ${taskId.slice(0, 100)}`)
+  return taskId
+}
+
+async function queryImageGen(taskId: string, key: string): Promise<QueryResponse> {
+  const url = `${ENDPOINT_BASE}/${taskId}:imageGenerateQuery`
+  const resp = await fetch(url, {
+    method: 'GET',
+    headers: { Authorization: key, Accept: '*/*' },
+  })
+  if (!resp.ok) throw new Error(`query HTTP ${resp.status}`)
+  return (await resp.json()) as QueryResponse
+}
+
+async function pollUntilDone(taskId: string, key: string): Promise<QueryResponse> {
+  const startedAt = Date.now()
+  while (Date.now() - startedAt < POLL_TIMEOUT_MS) {
+    await sleep(POLL_INTERVAL_MS)
+    const r = await queryImageGen(taskId, key)
+    if (r.status === 1) return r  // done
+    // status === 0 means still pending; loop continues
+  }
+  throw new Error(`poll timeout after ${POLL_TIMEOUT_MS / 1000}s for taskId=${taskId}`)
+}
+
+function extractImageUrl(qr: QueryResponse): string | null {
+  const parts = qr.data?.candidates?.[0]?.content?.parts
+  if (!parts) return null
+  for (const p of parts) {
+    if (p.inlineData?.data && p.inlineData.data.startsWith('http')) return p.inlineData.data
+  }
+  return null
+}
+
+async function downloadAndResize(srcUrl: string, dstPath: string): Promise<void> {
+  const tmpPath = dstPath + '.tmp'
+  const resp = await fetch(srcUrl)
+  if (!resp.ok) throw new Error(`download HTTP ${resp.status} fetching ${srcUrl}`)
+  const buf = Buffer.from(await resp.arrayBuffer())
+  await fs.writeFile(tmpPath, buf)
+  // sips --resampleHeightWidthMax keeps aspect ratio, scales longest dim to N
+  await new Promise<void>((resolve, reject) => {
+    const proc = spawn('sips', ['-Z', String(RESIZE_TARGET_PX), tmpPath, '--out', dstPath], {
+      stdio: 'ignore',
+    })
+    proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`sips exit ${code}`))))
+    proc.on('error', reject)
+  })
+  await fs.unlink(tmpPath).catch(() => {})
+}
+
+async function main() {
+  const key = process.env.SANKUAI_KEY
+  if (!key) {
+    console.error('[runner] missing SANKUAI_KEY env var')
+    console.error('[runner] usage: SANKUAI_KEY=xxxxx npm run run:pcw-image-samples')
     process.exit(1)
   }
 
@@ -103,11 +194,11 @@ async function main() {
     console.error(`[runner] expected 20 samples, got ${samples.length}. Check dataset / CATEGORY_PICK.`)
     process.exit(1)
   }
-  console.log(`[runner] image_model=${imageModel.model} (${imageModel.api_format} / ${imageModel.endpoint_kind})`)
+  console.log(`[runner] model=${MODEL} (sankuai google native imageGenerate, RPM=${RPM_LIMIT})`)
   console.log(`[runner] picked ${samples.length} products: ${samples.map((s) => s.pid).join(', ')}`)
-  console.log(`[runner] estimated cost: 60 calls × ~$0.04 = ~$2.4 / ¥17`)
+  console.log(`[runner] estimated wall: 60 records / ${RPM_LIMIT} RPM ≈ 12-15 min (submit) + poll latency`)
 
-  // T8: per-experiment loop
+  const limiter = new SubmitRateLimiter()
   let totalSuccess = 0
   let totalFailed = 0
   let totalSkipped = 0
@@ -120,10 +211,10 @@ async function main() {
     const promptTemplate = schema.default_prompt as string
 
     const resultsDir = path.join(DATA, 'results', exp.id)
-    await fs.mkdir(resultsDir, { recursive: true })
+    const imagesDir = path.join(resultsDir, 'images')
+    await fs.mkdir(imagesDir, { recursive: true })
     const resultsPath = path.join(resultsDir, 'results.jsonl')
 
-    // Skip-if-exists：read existing task_ids
     const existingTaskIds = new Set<string>()
     if (fsSync.existsSync(resultsPath)) {
       const lines = fsSync.readFileSync(resultsPath, 'utf8').split('\n').filter(Boolean)
@@ -140,7 +231,6 @@ async function main() {
         continue
       }
 
-      // Render prompt with sample values
       const features = sample.core_features.join('、')
       const renderedPrompt = promptTemplate
         .replace(/\{\{name\}\}/g, sample.name)
@@ -158,57 +248,40 @@ async function main() {
         input_preview: { p: sample },
         prompt_excerpt: renderedPrompt.slice(0, 200),
         timestamp: new Date().toISOString(),
-        model: imageModel.model,
+        model: MODEL,
       }
 
       const tStart = Date.now()
       try {
-        const ac = new AbortController()
-        const timer = setTimeout(() => ac.abort(), 120_000)
-        const resp = await callLlm({
-          messages: [{ role: 'user', content: renderedPrompt }],
-          config: imageModel,
-          model: imageModel.model,
-          temperature: 1,
-          max_tokens: 1,
-          signal: ac.signal,
-        })
-        clearTimeout(timer)
-        const latency_ms = Date.now() - tStart
-
-        if (!resp.images || resp.images.length === 0) {
-          const rec = { ...baseRecord, status: 'error' as const, error: 'no images returned', latency_ms }
+        const submittedTaskId = await submitImageGen(renderedPrompt, key, limiter)
+        const qr = await pollUntilDone(submittedTaskId, key)
+        const srcUrl = extractImageUrl(qr)
+        if (!srcUrl) {
+          const rec = { ...baseRecord, status: 'error' as const, error: 'no image url in response', latency_ms: Date.now() - tStart }
           await fs.appendFile(resultsPath, JSON.stringify(rec) + '\n')
           totalFailed++
           process.stdout.write('F')
           continue
         }
-
-        const savedPaths = await saveImagesForTask({
-          experimentId: exp.id,
-          taskId,
-          images: resp.images,
-        })
-        const output = assignImagePathsToOutput({}, schema.output_schema, savedPaths)
-        if (resp.content && typeof resp.content === 'string' && resp.content.trim()) {
-          (output as any).caption = resp.content.slice(0, 200)
-        }
+        const localFilename = `${sample.pid}.png`
+        const localPath = path.join(imagesDir, localFilename)
+        await downloadAndResize(srcUrl, localPath)
+        const apiUrl = `/api/results/${exp.id}/images/${localFilename}`
 
         const rec = {
           ...baseRecord,
           status: 'success' as const,
-          output,
-          latency_ms,
-          input_tokens: resp.usage?.prompt_tokens ?? 0,
-          output_tokens: resp.usage?.completion_tokens ?? 0,
+          output: { image_url: apiUrl },
+          latency_ms: Date.now() - tStart,
+          input_tokens: qr.data?.usageMetadata?.promptTokenCount ?? 0,
+          output_tokens: qr.data?.usageMetadata?.candidatesTokenCount ?? 0,
         }
         await fs.appendFile(resultsPath, JSON.stringify(rec) + '\n')
         totalSuccess++
         process.stdout.write('.')
       } catch (e) {
-        const latency_ms = Date.now() - tStart
         const error = e instanceof Error ? e.message : String(e)
-        const rec = { ...baseRecord, status: 'error' as const, error, latency_ms }
+        const rec = { ...baseRecord, status: 'error' as const, error, latency_ms: Date.now() - tStart }
         await fs.appendFile(resultsPath, JSON.stringify(rec) + '\n')
         totalFailed++
         process.stdout.write('F')
