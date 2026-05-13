@@ -742,8 +742,8 @@ After the `console.log(...)` of estimated cost, add:
           status: 'success' as const,
           output,
           latency_ms,
-          input_tokens: resp.usage?.input_tokens ?? 0,
-          output_tokens: resp.usage?.output_tokens ?? 0,
+          input_tokens: resp.usage?.prompt_tokens ?? 0,
+          output_tokens: resp.usage?.completion_tokens ?? 0,
         }
         await fs.appendFile(resultsPath, JSON.stringify(rec) + '\n')
         totalSuccess++
