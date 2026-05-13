@@ -17,8 +17,6 @@ const KINDS: Array<{ subdir: string; dst: string; exts: string[] }> = [
   { subdir: 'rubrics', dst: 'rubrics', exts: ['.json'] },
   { subdir: 'displays', dst: 'displays', exts: ['.json'] },
   { subdir: 'experiments', dst: 'experiments', exts: ['.json'] },
-  { subdir: 'results', dst: 'results', exts: ['.jsonl'] },
-  { subdir: 'annotations', dst: 'annotations', exts: ['.jsonl'] },
 ]
 
 export function ensureSeeds() {
@@ -26,6 +24,7 @@ export function ensureSeeds() {
     for (const k of KINDS) {
       seedFromDir(path.join(seedsRoot(), k.subdir), path.join(dataRoot(), k.dst), k.exts)
     }
+    seedResultsTree()
     seedSampleImages()
   } catch (e) {
     console.error('[ensureSeeds] failed:', e)
@@ -46,6 +45,37 @@ function seedFromDir(srcDir: string, dstDir: string, allowedExts: string[]) {
 
 function matchesExt(name: string, allowedExts: string[]): boolean {
   return allowedExts.some(ext => name.endsWith(ext))
+}
+
+/**
+ * `src/lib/seeds/results/<exp_id>/{results,annotations}.jsonl` 镜像到
+ * `data/results/<exp_id>/{results,annotations}.jsonl`。
+ *
+ * Evalyst runtime 期望 results 嵌套结构（`src/lib/store.ts:132` /
+ * `src/lib/annotation-store.ts:14`）：每个 experiment 一个目录，目录内放
+ * results.jsonl + annotations.jsonl。Sample experiments ship 时按这个
+ * 约定组织 seed，seed 时整树拷贝。
+ *
+ * 幂等：existsSync 跳过单文件；用户整树删除后下次访问从 seed 树恢复。
+ */
+function seedResultsTree() {
+  const src = path.join(seedsRoot(), 'results')
+  const dst = path.join(dataRoot(), 'results')
+  if (!fs.existsSync(src)) return
+  ensureDir(dst)
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue   // 仅扫 <exp_id>/ 子目录，不收顶层散文件
+    const expDirSrc = path.join(src, entry.name)
+    const expDirDst = path.join(dst, entry.name)
+    ensureDir(expDirDst)
+    for (const f of fs.readdirSync(expDirSrc)) {
+      if (!f.endsWith('.jsonl')) continue
+      const s = path.join(expDirSrc, f)
+      const d = path.join(expDirDst, f)
+      if (fs.existsSync(d)) continue
+      fs.copyFileSync(s, d)
+    }
+  }
 }
 
 function seedSampleImages() {
