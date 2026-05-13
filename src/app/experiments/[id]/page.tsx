@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, use, useMemo, memo, startTransition } from "react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -16,6 +16,7 @@ import type { RubricAggregate } from "@/lib/annotation-store"
 import { useT } from "@/lib/i18n/provider"
 import { formatCostMap, formatTokens } from "@/lib/format"
 import { aggregateResults } from "@/lib/results-aggregate"
+import { findComparableExperiments, buildCompareHref } from "@/lib/compare-helpers"
 import { GlassRegular, GlassCard, GlassSuccess, GlassDanger } from "@/components/glass/shell"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 
@@ -27,6 +28,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
   const [results, setResults] = useState<GenericResultRecord[]>([])
   const [schemas, setSchemas] = useState<TaskSchema[]>([])
   const [displays, setDisplays] = useState<Display[]>([])
+  const [allExperiments, setAllExperiments] = useState<ExperimentConfig[]>([])
   const [configOpen, setConfigOpen] = useState(false)
   const [rubric, setRubric] = useState<Rubric | null>(null)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
@@ -67,6 +69,10 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     fetchResults()
     fetch("/api/schemas").then(r => r.json()).then(setSchemas)
     fetch("/api/displays").then(r => r.json()).then(setDisplays)
+    // 拉所有 completed/paused experiments，用于"对比"按钮 same-compare-group 计数 + 跳转
+    fetch("/api/compare").then(r => r.json()).then((list: ExperimentConfig[]) => {
+      if (Array.isArray(list)) setAllExperiments(list)
+    }).catch(() => { /* ignore */ })
   }, [fetchExperiment, fetchProgress, fetchResults])
 
   // 有 rubric_id 时拉 rubric + annotations
@@ -141,6 +147,17 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     }
     return aggregateResults(results)
   }, [experiment?.run_stats, progress, results])
+
+  /** 同 compare_group 的其他 completed/paused experiments，用于"对比"按钮预选。 */
+  const comparableExperiments = useMemo(() => {
+    if (!experiment) return []
+    return findComparableExperiments(experiment, schemas, allExperiments)
+  }, [experiment, schemas, allExperiments])
+
+  const compareHref = useMemo(() => {
+    if (!experiment) return null
+    return buildCompareHref(experiment, comparableExperiments)
+  }, [experiment, comparableExperiments])
 
   useRegisterPageContext(() => ({
     route_type: 'experiment_detail',
@@ -253,6 +270,20 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
             )}
             {experiment.status === "completed" && stats && stats.failed_tasks > 0 && (
               <Button size="sm" variant="outline" onClick={() => handleRun(true)}>{t("experiment.retry_btn")}</Button>
+            )}
+            {compareHref ? (
+              <Link href={compareHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                {t("experiment.compare_btn", { n: comparableExperiments.length })}
+              </Link>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled
+                title={t("experiment.compare_btn_empty_tooltip")}
+              >
+                {t("experiment.compare_btn_label_empty")}
+              </Button>
             )}
           </div>
         </div>

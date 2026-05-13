@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { Suspense, useEffect, useState, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -54,14 +55,25 @@ function rowLabel(refs: Record<string, string | number>, preview: Record<string,
 }
 
 export default function ComparePage() {
+  return (
+    <Suspense fallback={<div className="px-6 py-4 text-sm text-muted-foreground">…</div>}>
+      <ComparePageInner />
+    </Suspense>
+  )
+}
+
+function ComparePageInner() {
   const t = useT()
   const copilotOpen = useCopilotOpen()
+  const searchParams = useSearchParams()
   const [experiments, setExperiments] = useState<ExperimentConfig[]>([])
   const [schemas, setSchemas] = useState<TaskSchema[]>([])
   const [displays, setDisplays] = useState<Display[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [schemaFilter, setSchemaFilter] = useState<string | undefined>(undefined)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
+  /** 已经按 query string 自动选过一次了——避免后续 experiments fetch 触发重置。 */
+  const [autoSelectedFromQuery, setAutoSelectedFromQuery] = useState(false)
   const [compareData, setCompareData] = useState<Record<string, {
     experiment_id: string
     experiment_name: string
@@ -75,6 +87,25 @@ export default function ComparePage() {
     fetch("/api/schemas").then(r => r.json()).then(setSchemas)
     fetch("/api/displays").then(r => r.json()).then(setDisplays)
   }, [])
+
+  // 从 query string 自动预选 ids（首次 experiments 拉到后执行一次，之后不重复）。
+  useEffect(() => {
+    if (autoSelectedFromQuery) return
+    if (experiments.length === 0) return
+    const idsParam = searchParams.get("ids")
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from query; see docs/conventions/react19-hydration.md */
+    if (!idsParam) {
+      setAutoSelectedFromQuery(true)
+      return
+    }
+    const requestedIds = idsParam.split(",").filter(Boolean)
+    const validIds = requestedIds.filter(id => experiments.some(e => e.id === id))
+    if (validIds.length > 0) {
+      setSelectedIds(validIds)
+    }
+    setAutoSelectedFromQuery(true)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [experiments, searchParams, autoSelectedFromQuery])
 
   const schemaById = useMemo(() => Object.fromEntries(schemas.map(s => [s.id, s])), [schemas])
 
