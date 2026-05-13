@@ -22,10 +22,11 @@ import { getLlmConfig, type LlmConfig, type ModelConfig } from '../src/lib/llm-c
 const SEEDS = path.join(process.cwd(), 'src', 'lib', 'seeds')
 const DATA = path.join(process.cwd(), 'data')
 
-// 主跑模型：claude-opus-4-6（避开 kimi，lessons §6.4）
-const PRIMARY_MODEL_NAME = 'claude-opus-4-6'
-// Judge 模型：gpt-4o-mini（便宜稳）
-const JUDGE_MODEL_NAME = 'gpt-4o-mini'
+// 主跑模型候选（按顺序尝试，第一个匹配的 ModelConfig.model 字段就用）
+// 避开 kimi（lessons §6.4）
+const PRIMARY_MODEL_CANDIDATES = ['claude-opus-4-6', 'aws.claude-opus-4.6', 'aws.claude-opus-4-6']
+// Judge 模型候选（4o-mini 最经济稳；fallback 到 gemini 3.1 pro）
+const JUDGE_MODEL_CANDIDATES = ['gpt-4o-mini', 'gpt-4o-mini-2024-07-18', 'gemini-3.1-pro-preview', 'gemini-3.1-pro']
 
 const EXPERIMENTS: Array<{ id: string; schemaId: string; platformStyle: string; max_tokens: number }> = [
   { id: 'pcw_xhs_baseline', schemaId: 'pcw_xhs_v1', platformStyle: '小红书', max_tokens: 2048 },
@@ -35,17 +36,17 @@ const EXPERIMENTS: Array<{ id: string; schemaId: string; platformStyle: string; 
 
 async function main() {
   const cfg = getLlmConfig()
-  const opus = pickModel(cfg, PRIMARY_MODEL_NAME)
-  const judge = pickModel(cfg, JUDGE_MODEL_NAME)
+  const opus = pickModel(cfg, PRIMARY_MODEL_CANDIDATES)
+  const judge = pickModel(cfg, JUDGE_MODEL_CANDIDATES)
   if (!opus) {
-    console.error(`[run-pcw] ${PRIMARY_MODEL_NAME} 没在 llm-config.json，先去 /settings/llm 配上`)
+    console.error(`[run-pcw] no primary model found in llm-config.json. Tried: ${PRIMARY_MODEL_CANDIDATES.join(', ')}`)
     process.exit(1)
   }
   if (!judge) {
-    console.error(`[run-pcw] ${JUDGE_MODEL_NAME} 没在 llm-config.json，先去 /settings/llm 配上（judge 用）`)
+    console.error(`[run-pcw] no judge model found in llm-config.json. Tried: ${JUDGE_MODEL_CANDIDATES.join(', ')}`)
     process.exit(1)
   }
-  console.log(`[run-pcw] primary=${opus.model} (${opus.api_format}) · judge=${judge.model}`)
+  console.log(`[run-pcw] primary=${opus.model} (${opus.api_format}) · judge=${judge.model} (${judge.api_format})`)
 
   // 读 dataset
   const records = await loadJsonl(path.join(SEEDS, 'datasets', 'product_copywriting_v1.jsonl'))
@@ -230,8 +231,12 @@ async function stripErrorsAndCopyToSeeds(expId: string) {
 
 // ---------- helpers ----------
 
-function pickModel(cfg: LlmConfig, modelName: string): ModelConfig | undefined {
-  return cfg.models.find(m => m.model === modelName)
+function pickModel(cfg: LlmConfig, candidates: string[]): ModelConfig | undefined {
+  for (const name of candidates) {
+    const found = cfg.models.find(m => m.model === name)
+    if (found) return found
+  }
+  return undefined
 }
 
 function renderPrompt(template: string, rec: Record<string, any>): string {
