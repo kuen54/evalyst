@@ -1,0 +1,60 @@
+{"pid":"prod_001","name":"轻氧空气感蓬蓬粉","category":"美妆","price":"¥158","core_features":["微米级粉体","保湿不卡纹","持妆8小时"],"target_user":"25-35 岁通勤女性，油性肌"}
+{"pid":"prod_002","name":"哑光丝绒口红 #枫叶棕","category":"美妆","price":"¥89","core_features":["不沾杯","不拔干","显白裸妆色"],"target_user":"学生党 / 职场新人，预算 100 内"}
+{"pid":"prod_003","name":"烟酰胺抗皱面霜","category":"美妆","price":"¥289","core_features":["5% 烟酰胺","玻色因抗皱","面包酵母温和"],"target_user":"30-40 岁初老人群，抗皱保养第一支"}
+{"pid":"prod_004","name":"星际银河十色眼影盘","category":"美妆","price":"¥168","core_features":["哑光珠光2合1","零飞粉","显色度高"],"target_user":"喜欢欧美彩妆的 22-30 岁女生"}
+{"pid":"prod_005","name":"白茶森林淡香水 50ml","category":"美妆","price":"¥468","core_features":["前调白茶","中调茉莉","留香8小时"],"target_user":"喜欢清新调的 25+ 都市女性"}
+{"pid":"prod_006","name":"积雪草修复面膜 5 片","category":"美妆","price":"¥99","core_features":["敏感肌可用","泛红镇定","熬夜急救"],"target_user":"敏感肌 / 经常熬夜的 25-35 岁人群"}
+{"pid":"prod_007","name":"VC 抗氧精华原液 30ml","category":"美妆","price":"¥359","core_features":["20% 高浓度 VC","抗氧化","提亮肤色"],"target_user":"暗沉肌 / 想抗初老的 28-38 岁女性"}
+{"pid":"prod_008","name":"持妆隔离防晒霜 SPF50","category":"美妆","price":"¥138","core_features":["三合一","清爽不假白","防水抗汗"],"target_user":"夏季通勤 / 户外工作的 25-40 岁女性"}
+{"pid":"prod_009","name":"氨基酸温和洗面奶 150ml","category":"美妆","price":"¥69","core_features":["弱酸性","不紧绷","泡沫细腻"],"target_user":"敏感肌 / 学生党 / 平价护肤入门"}
+{"pid":"prod_010","name":"玻尿酸保湿乳液 100ml","category":"美妆","price":"¥119","core_features":["三重玻尿酸","清爽不油腻","春夏可叠加"],"target_user":"混油皮 / 平价稳定基础保湿"}
+{"pid":"prod_011","name":"主动降噪蓝牙耳机 Pro","category":"数码","price":"¥1399","core_features":["40dB 主动降噪","30 小时续航","空间音频"],"target_user":"通勤族 / 程序员 / 学生党，预算 1500"}
+{"pid":"prod_012","name":"20000mAh 双向快充充电宝","category":"数码","price":"¥229","core_features":["PD 65W 快充","笔记本可用","三口同充"],"target_user":"商旅人士 / 多设备党"}
+{"pid":"prod_013","name":"血氧心率智能手表","category":"数码","price":"¥899","core_features":["ECG 心电图","14 天续航","百种运动模式"],"target_user":"30-50 岁健康党 / 运动爱好者"}
+{"pid":"prod_014","name":"机械键盘 75% 配列","category":"数码","price":"¥499","core_features":["热插拔轴体","RGB 背光","三模连接"],"target_user":"机械键盘玩家 / 程序员 / 设计师"}
+{"pid":"prod_015","name":"轻量人体工学鼠标","category":"数码","price":"¥329","core_features":["63g 超轻","8K 回报率","26000 DPI"],"target_user":"FPS 游戏玩家 / 长时间使用人群"}
+{"pid":"prod_016","name":"4K 32 寸专业显示器","category":"数码","price":"¥3299","core_features":["100% sRGB","Type-C 一线连","升降旋转底座"],"target_user":"设计师 / 视频剪辑 / 程序员双屏党"}
+{"pid":"prod_017","name":"11 寸轻办公平板","category":"数码","price":"¥2199","core_features":["120Hz OLED 屏","M2 芯片","支持手写笔"],"target_user":"学生党 / 笔记爱好者 / 轻办公人群"}
+{"pid":"prod_018","name":"护眼智能台灯 Pro","category":"数码","price":"¥459","core_features":["国 AA 级照度","自动调光","记忆护眼"],"target_user":"K12 学生家长 / 居家办公人群"}
+{"pid":"prod_019","name":"4K 行车记录仪 64G","category":"数码","price":"¥899","core_features":["前后双录","H.265 压缩","事故自动锁定"],"target_user":"私家车主 / 网约车司机"}
+{"pid":"prod_020","name":"激光导航扫地机器人","category":"数码","price":"¥2599","core_features":["LDS 激光建图","自动集尘","拖扫一体"],"target_user":"双职工家庭 / 养宠人群"}
+{"pid":"prod_021","name":"埃塞俄比亚耶加雪菲咖啡豆 200g","category":"食品饮料","price":"¥98","core_features":["柑橘花香","水洗 G1","新鲜烘焙"],"target_user":"手冲咖啡爱好者 / 精品咖啡入门"}
+{"pid":"prod_022","name":"A2 β酪蛋白纯牛奶 250ml×24","category":"食品饮料","price":"¥168","core_features":["A2 蛋白","原生高钙","澳洲奶源"],"target_user":"乳糖敏感家庭 / 学龄儿童家长"}
+{"pid":"prod_023","name":"NFC 100% 苹果汁 1L","category":"食品饮料","price":"¥39","core_features":["非浓缩还原","无添加糖","低温巴氏杀菌"],"target_user":"健康饮食家庭 / 儿童早餐党"}
+{"pid":"prod_024","name":"75% 黑巧克力 100g","category":"食品饮料","price":"¥45","core_features":["低糖","可可豆直采","无植物油"],"target_user":"减脂人群 / 黑巧爱好者"}
+{"pid":"prod_025","name":"乳清蛋白棒 12 支装","category":"食品饮料","price":"¥119","core_features":["20g 蛋白","低糖","代餐饱腹"],"target_user":"健身党 / 减脂代餐 / 上班族下午茶"}
+{"pid":"prod_026","name":"福鼎白茶饼 357g","category":"食品饮料","price":"¥288","core_features":["三年陈","原产地直采","干仓存放"],"target_user":"30+ 茶饮爱好者 / 送礼"}
+{"pid":"prod_027","name":"无糖燕麦麦片 750g","category":"食品饮料","price":"¥59","core_features":["0 蔗糖","高纤维","澳洲燕麦"],"target_user":"控糖人群 / 早餐党 / 减脂"}
+{"pid":"prod_028","name":"原味坚果每日组合 30 包","category":"食品饮料","price":"¥99","core_features":["7 种坚果","小包装","新鲜烘焙"],"target_user":"全家共享 / 办公室零食"}
+{"pid":"prod_029","name":"零添加生抽酱油 500ml","category":"食品饮料","price":"¥35","core_features":["180 天酿造","非转基因","0 添加防腐剂"],"target_user":"注重食品安全的家庭主妇"}
+{"pid":"prod_030","name":"咸蛋黄夹心曲奇 12 块","category":"食品饮料","price":"¥69","core_features":["现烤现卖","流心咸蛋黄","酥松口感"],"target_user":"年轻女性下午茶 / 礼盒送礼"}
+{"pid":"prod_031","name":"7 区独立袋装床垫 1.8m","category":"家居","price":"¥3899","core_features":["独袋弹簧","睡感软硬两面","透气面料"],"target_user":"30+ 重视睡眠的中产家庭"}
+{"pid":"prod_032","name":"乳胶记忆枕","category":"家居","price":"¥329","core_features":["天然乳胶","颈椎曲线","透气孔设计"],"target_user":"颈椎不适 / 久坐办公人群"}
+{"pid":"prod_033","name":"无火藤条香薰 200ml","category":"家居","price":"¥168","core_features":["雪松檀香","无烟无明火","持香 60 天"],"target_user":"喜欢氛围感的 25-35 岁租房 / 宝妈"}
+{"pid":"prod_034","name":"客厅地毯 1.6×2.3m","category":"家居","price":"¥899","core_features":["防滑底","可机洗","低甲醛环保"],"target_user":"养娃 / 养宠的家庭客厅升级"}
+{"pid":"prod_035","name":"折叠收纳箱 3 件套","category":"家居","price":"¥89","core_features":["可折叠","承重 30kg","侧开取物"],"target_user":"出租屋 / 换季收纳 / 宿舍党"}
+{"pid":"prod_036","name":"羽绒抱枕 50×50cm","category":"家居","price":"¥219","core_features":["90% 白鸭绒","蓬松回弹","可拆洗内胆"],"target_user":"沙发氛围党 / 居家办公人群"}
+{"pid":"prod_037","name":"除甲醛空气净化器","category":"家居","price":"¥1599","core_features":["CADR 600","HEPA 滤芯","静音夜眠模式"],"target_user":"新房 / 母婴家庭 / 哮喘鼻炎人群"}
+{"pid":"prod_038","name":"无雾静音加湿器 4L","category":"家居","price":"¥259","core_features":["UV 杀菌","顶部加水","60 小时续航"],"target_user":"北方冬季 / 鼻炎敏感人群 / 宝宝房"}
+{"pid":"prod_039","name":"无线手持吸尘器","category":"家居","price":"¥799","core_features":["55 分钟续航","旋风过滤","多吸头配件"],"target_user":"养宠家庭 / 居家清洁党"}
+{"pid":"prod_040","name":"316 不锈钢真空保温杯 480ml","category":"家居","price":"¥139","core_features":["12 小时保温","食品级 316","防漏一键开"],"target_user":"通勤党 / 学生 / 户外人群"}
+{"pid":"prod_041","name":"竹节纱免烫白衬衫","category":"服饰","price":"¥299","core_features":["免烫面料","显瘦剪裁","商务休闲两穿"],"target_user":"25-40 岁职场男性"}
+{"pid":"prod_042","name":"重磅纯棉卫衣 400g","category":"服饰","price":"¥259","core_features":["400g 重磅","落肩版型","抗起球"],"target_user":"20-30 岁喜欢复古风男女通用"}
+{"pid":"prod_043","name":"雪纺碎花连衣裙","category":"服饰","price":"¥359","core_features":["收腰显瘦","真丝触感","春夏可穿"],"target_user":"25-35 岁度假风女生"}
+{"pid":"prod_044","name":"高弹直筒牛仔裤","category":"服饰","price":"¥199","core_features":["高弹力","显腿长","水洗工艺"],"target_user":"通勤党 / 微胖友好"}
+{"pid":"prod_045","name":"轻薄羽绒服 800 蓬","category":"服饰","price":"¥899","core_features":["800 蓬鸭绒","防泼水","可机洗"],"target_user":"南方冬季 / 出差党"}
+{"pid":"prod_046","name":"复古棒球帽 小标版","category":"服饰","price":"¥129","core_features":["弯檐设计","可调节","纯棉透气"],"target_user":"18-30 岁街头风男女"}
+{"pid":"prod_047","name":"减震透气跑鞋 男","category":"服饰","price":"¥459","core_features":["缓震中底","轻量 280g","透气网面"],"target_user":"5-10km 慢跑 / 通勤族"}
+{"pid":"prod_048","name":"商务真皮系带皮鞋","category":"服饰","price":"¥899","core_features":["头层牛皮","内里真皮","橡胶防滑底"],"target_user":"商务正装场景男士"}
+{"pid":"prod_049","name":"羊绒围巾 200×60cm","category":"服饰","price":"¥499","core_features":["100% 羊绒","柔软不扎","送礼包装"],"target_user":"送礼 / 30+ 注重质感人群"}
+{"pid":"prod_050","name":"无痕莫代尔内裤 3 条装","category":"服饰","price":"¥99","core_features":["A 类亲肤","无痕剪裁","透气抗菌"],"target_user":"日常通勤女性 / 学生党"}
+{"pid":"prod_051","name":"超薄弱酸性纸尿裤 NB 96 片","category":"母婴","price":"¥129","core_features":["弱酸亲肤","3D 透气","干爽 12 小时"],"target_user":"0-3 月新生儿家庭"}
+{"pid":"prod_052","name":"PPSU 防胀气宽口奶瓶 240ml","category":"母婴","price":"¥119","core_features":["耐高温 PPSU","防胀气导管","宽口好清洗"],"target_user":"新生儿 / 4-12 月混合喂养家庭"}
+{"pid":"prod_053","name":"高景观双向婴儿推车","category":"母婴","price":"¥1899","core_features":["可坐可躺","双向推","一键折叠"],"target_user":"0-3 岁城市出行家庭"}
+{"pid":"prod_054","name":"i-Size 儿童安全座椅 0-12 岁","category":"母婴","price":"¥2399","core_features":["ISOFIX 接口","侧撞防护","可旋转 360°"],"target_user":"有车家庭，长期使用 0-12 岁"}
+{"pid":"prod_055","name":"亲子共读绘本 60 册","category":"母婴","price":"¥199","core_features":["3-6 岁认知启蒙","环保油墨","送音频"],"target_user":"3-6 岁亲子共读家庭"}
+{"pid":"prod_056","name":"摇铃牙胶玩具 5 件套","category":"母婴","price":"¥89","core_features":["食品级硅胶","可消毒","锻炼抓握"],"target_user":"3-12 月婴儿"}
+{"pid":"prod_057","name":"有机米粉 225g","category":"母婴","price":"¥79","core_features":["有机认证","高铁配方","6 个月+辅食"],"target_user":"6-12 月辅食初期家庭"}
+{"pid":"prod_058","name":"婴儿无泪洗发沐浴二合一 500ml","category":"母婴","price":"¥69","core_features":["无泪配方","氨基酸温和","椰油基"],"target_user":"0-3 岁婴幼儿"}
+{"pid":"prod_059","name":"XPE 双面爬行垫 200×180cm","category":"母婴","price":"¥329","core_features":["A 类无甲醛","可水洗","2cm 厚加大"],"target_user":"6-24 月学爬学走家庭"}
+{"pid":"prod_060","name":"3 段奶粉 800g","category":"母婴","price":"¥329","core_features":["进口奶源","OPO 结构脂","低聚糖益生元"],"target_user":"1-3 岁需要换段奶粉家庭"}

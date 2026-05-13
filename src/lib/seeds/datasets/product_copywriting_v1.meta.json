@@ -1,0 +1,15 @@
+{
+  "id": "product_copywriting_v1",
+  "name": "商品文案改写",
+  "description": "60 条手工编的商品参数（6 品类 × 10 条），用来评测 LLM 写不同平台风（小红书 / 抖音 / 朋友圈）文案的能力。每条含商品名、价格、核心卖点、目标用户画像，让评测员一眼看懂自己业务场景能否复用。",
+  "source": "builtin",
+  "id_field": "pid",
+  "fields": [
+    { "key": "pid", "type": "string", "label": "商品 ID" },
+    { "key": "name", "type": "string", "label": "商品名" },
+    { "key": "category", "type": "string", "label": "品类" },
+    { "key": "price", "type": "string", "label": "价格" },
+    { "key": "core_features", "type": "array", "label": "核心卖点" },
+    { "key": "target_user", "type": "string", "label": "目标用户" }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "pcw_quality",
+  "name": "商品文案质量",
+  "description": "评估 LLM 生成的商品文案：核心卖点覆盖（程序化或 LLM-judge）+ 风格匹配 + 吸引力 + 长度合适 + 综合分。",
+  "source": "builtin",
+  "criteria": [
+    { "key": "key_features_covered", "label": "核心卖点覆盖", "type": "pass_fail", "required": true,
+      "description": "文案是否覆盖了至少 2 条以上 core_features（隐含表达也算）" },
+    { "key": "style_match", "label": "风格匹配", "type": "likert_1_5",
+      "description": "风格对路（小红书像小红书 / 抖音像抖音 / 朋友圈像朋友圈），不串味" },
+    { "key": "attractiveness", "label": "吸引力", "type": "likert_1_5",
+      "description": "站在目标用户视角，文案有没有吸引力 / 转化潜力" },
+    { "key": "length_appropriate", "label": "长度合适", "type": "likert_1_5",
+      "description": "长度合适（不啰嗦也不简陋），按平台合理范围" },
+    { "key": "overall_score", "label": "综合分", "type": "score_0_100",
+      "description": "综合考虑以上维度的整体分（0-100）" }
+  ]
+}

@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n/provider"
 import { formatCost, formatCostMap, formatTokens } from "@/lib/format"
 import type { ExperimentConfig } from "@/lib/types"
 import type { GenericResultRecord, TaskSchema, Display } from "@/lib/schema/types"
+import { rowLabel } from "@/lib/compare-helpers"
 import { pickView } from "@/components/results/registry"
 import { GlassRegular, GlassThin } from "@/components/glass/shell"
 import { GlassStickyHeader } from "@/components/glass/sticky-chrome"
@@ -33,25 +34,6 @@ function sameCompareGroup(a: TaskSchema | undefined, b: TaskSchema | undefined):
 /** 把 input_refs 拼成稳定 key（用于行对齐，不分 schema） */
 function stableRefKey(refs: Record<string, string | number>): string {
   return Object.keys(refs).sort().map(k => `${k}=${refs[k]}`).join("|")
-}
-
-/** 行 label：展示 input_refs 原值（每个 alias 取一个代表字段拼接） */
-function rowLabel(refs: Record<string, string | number>, preview: Record<string, unknown>): string {
-  const parts: string[] = []
-  for (const alias of Object.keys(refs).sort()) {
-    const id = refs[alias]
-    // 找 input_preview["<alias>.xxx"] 里第一个非空字符串字段作为辅助展示
-    const labelEntry = Object.entries(preview).find(([k, v]) =>
-      k.startsWith(`${alias}.`) &&
-      !k.endsWith(".id") &&
-      (typeof v === "string" || typeof v === "number") &&
-      String(v).length > 0 &&
-      String(v).length < 60
-    )
-    const label = labelEntry ? String(labelEntry[1]) : ""
-    parts.push(label ? `${alias}#${id} · ${label}` : `${alias}#${id}`)
-  }
-  return parts.join("  /  ")
 }
 
 export default function ComparePage() {
@@ -337,7 +319,7 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
         const key = stableRefKey(r.input_refs)
         if (!keyMap.has(key)) {
           keyMap.set(key, {
-            label: rowLabel(r.input_refs, r.input_preview),
+            label: rowLabel(r.input_refs, r.input_preview, schema),
             sortKey: key,
             cells: {},
           })
@@ -347,7 +329,7 @@ function CompareView({ experiments, selectedIds, compareData, schema, displays, 
     }
 
     return Array.from(keyMap.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-  }, [selectedIds, compareData])
+  }, [selectedIds, compareData, schema])
 
   const expHeaders = selectedIds.map(id => {
     const exp = experiments.find(e => e.id === id)

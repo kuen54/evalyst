@@ -60,6 +60,42 @@ describe('ensureSeeds (subdir-scan)', () => {
     ensureSeeds()
     expect(fs.existsSync(path.join(tmpRoot, 'public/sample-images/refcoco/fake.jpg'))).toBe(true)
   })
+
+  it('mirrors src/lib/seeds/results/<exp_id>/{results,annotations}.jsonl into data/results/<exp_id>/', () => {
+    // 模拟 sample experiment 嵌套 ship
+    const expDir = path.join(tmpRoot, 'src/lib/seeds/results/fake_baseline')
+    fs.mkdirSync(expDir, { recursive: true })
+    fs.writeFileSync(path.join(expDir, 'results.jsonl'), '{"task_id":"t1","status":"success"}\n')
+    fs.writeFileSync(path.join(expDir, 'annotations.jsonl'), '{"annotation_id":"a1","task_id":"t1"}\n')
+
+    ensureSeeds()
+
+    expect(fs.existsSync(path.join(tmpRoot, 'data/results/fake_baseline/results.jsonl'))).toBe(true)
+    expect(fs.existsSync(path.join(tmpRoot, 'data/results/fake_baseline/annotations.jsonl'))).toBe(true)
+  })
+
+  it('skips top-level .jsonl in seeds/results/ (only descends into <exp_id>/ subdirs)', () => {
+    // 顶层散文件不会被 seed —— 强制 sample 走嵌套约定
+    fs.mkdirSync(path.join(tmpRoot, 'src/lib/seeds/results'), { recursive: true })
+    fs.writeFileSync(path.join(tmpRoot, 'src/lib/seeds/results/orphan.jsonl'), 'should not seed')
+
+    ensureSeeds()
+
+    expect(fs.existsSync(path.join(tmpRoot, 'data/results/orphan.jsonl'))).toBe(false)
+  })
+
+  it('does not overwrite existing nested results files (idempotent)', () => {
+    const expDir = path.join(tmpRoot, 'src/lib/seeds/results/exp1')
+    fs.mkdirSync(expDir, { recursive: true })
+    fs.writeFileSync(path.join(expDir, 'results.jsonl'), 'SEED_VERSION\n')
+
+    fs.mkdirSync(path.join(tmpRoot, 'data/results/exp1'), { recursive: true })
+    fs.writeFileSync(path.join(tmpRoot, 'data/results/exp1/results.jsonl'), 'USER_EDITED\n')
+
+    ensureSeeds()
+
+    expect(fs.readFileSync(path.join(tmpRoot, 'data/results/exp1/results.jsonl'), 'utf-8')).toBe('USER_EDITED\n')
+  })
 })
 
 function cpRecursive(src: string, dst: string) {
