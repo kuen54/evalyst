@@ -180,7 +180,8 @@ async function runJudge(exp: { id: string; platformStyle: string }, judgeModel: 
         },
         model: judgeModel.model,
         temperature: 0,
-        max_tokens: 1024,
+        // 给足空间：gemini 3.1 pro 把 thinking 也算 tokens；4o-mini 不需要这么多但 over-budget OK
+        max_tokens: 4096,
       })
       const parsed = tryParseJSON(res.content)
       const ann = {
