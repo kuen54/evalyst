@@ -18,5 +18,13 @@
     // back later is friction; the vendor pattern is "import the whole file
     // verbatim". Treat the directory as a vendored library boundary.
     "src/components/ui/**"
+  ],
+
+  // Binaries used in npm scripts that aren't pinned to a devDependency.
+  // `tsx` is auto-fetched by `npx tsx` at run time for one-off sample-data
+  // scripts (scripts/run-pcw-samples.ts) — no need to bloat devDependencies
+  // for a tool that runs zero or once per release.
+  "ignoreBinaries": [
+    "tsx"
   ]
 }
