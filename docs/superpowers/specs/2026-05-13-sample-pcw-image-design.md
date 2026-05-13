@@ -272,7 +272,7 @@
 8. 不写 annotations（不 judge）
 
 **关键约定**:
-- Image binary **不进 git**——image 落 `data/images/{exp_id}/{task_id}.png`，git 里 `results.jsonl` 只存路径；seed.ts 现有机制让 user 第一次启动 evalyst 时自动 copy 到 runtime（保持 v2 同样 pattern）
+- Image binary **进 git**（seeds/ 下）：60 张 × ~150KB ≈ 9 MB，可接受。git 中 `results.jsonl` 存 `/api/results/{exp_id}/images/X.png` 路径，配套的 PNG 进 `src/lib/seeds/results/{exp_id}/images/`。第一次启动 evalyst 时 PR #96 `seedResultsTree()` 递归 copy 到 runtime `data/results/{exp_id}/images/`，UI `<img>` 路径解析正确
 - runner 可重入（skip-if-exists）：同 task_id 的 results 行已存在则跳过（lessons §4.1 #4 已识别 pattern）
 - 60s 单 call timeout（lessons §4.1 #2 + #3：image gen 单次 30-90s 正常，120s 给 1 次 retry 足够）
 
