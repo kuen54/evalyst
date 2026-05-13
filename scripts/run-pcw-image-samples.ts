@@ -107,7 +107,120 @@ async function main() {
   console.log(`[runner] picked ${samples.length} products: ${samples.map((s) => s.pid).join(', ')}`)
   console.log(`[runner] estimated cost: 60 calls × ~$0.04 = ~$2.4 / ¥17`)
 
-  // TODO Task 8: per-experiment loop
+  // T8: per-experiment loop
+  let totalSuccess = 0
+  let totalFailed = 0
+  let totalSkipped = 0
+  const t0 = Date.now()
+
+  for (const exp of EXPERIMENTS) {
+    console.log(`\n[runner] === ${exp.id} (schema=${exp.schemaId}) ===`)
+    const schemaPath = path.join(SEEDS, 'schemas', `${exp.schemaId}.json`)
+    const schema = JSON.parse(fsSync.readFileSync(schemaPath, 'utf8'))
+    const promptTemplate = schema.default_prompt as string
+
+    const resultsDir = path.join(DATA, 'results', exp.id)
+    await fs.mkdir(resultsDir, { recursive: true })
+    const resultsPath = path.join(resultsDir, 'results.jsonl')
+
+    // Skip-if-exists：read existing task_ids
+    const existingTaskIds = new Set<string>()
+    if (fsSync.existsSync(resultsPath)) {
+      const lines = fsSync.readFileSync(resultsPath, 'utf8').split('\n').filter(Boolean)
+      for (const line of lines) {
+        try { existingTaskIds.add((JSON.parse(line) as any).task_id) } catch {}
+      }
+    }
+
+    for (const sample of samples) {
+      const taskId = `${exp.id}:${sample.pid}`
+      if (existingTaskIds.has(taskId)) {
+        totalSkipped++
+        process.stdout.write('s')
+        continue
+      }
+
+      // Render prompt with sample values
+      const features = sample.core_features.join('、')
+      const renderedPrompt = promptTemplate
+        .replace(/\{\{name\}\}/g, sample.name)
+        .replace(/\{\{category\}\}/g, sample.category)
+        .replace(/\{\{price\}\}/g, sample.price)
+        .replace(/\{\{features\}\}/g, features)
+        .replace(/\{\{target_user\}\}/g, sample.target_user)
+
+      const baseRecord = {
+        task_id: taskId,
+        experiment_id: exp.id,
+        schema_id: exp.schemaId,
+        schema_version: 1,
+        input_refs: { p: sample.pid },
+        input_preview: { p: sample },
+        prompt_excerpt: renderedPrompt.slice(0, 200),
+        timestamp: new Date().toISOString(),
+        model: imageModel.model,
+      }
+
+      const tStart = Date.now()
+      try {
+        const ac = new AbortController()
+        const timer = setTimeout(() => ac.abort(), 120_000)
+        const resp = await callLlm({
+          messages: [{ role: 'user', content: renderedPrompt }],
+          config: imageModel,
+          model: imageModel.model,
+          temperature: 1,
+          max_tokens: 1,
+          signal: ac.signal,
+        })
+        clearTimeout(timer)
+        const latency_ms = Date.now() - tStart
+
+        if (!resp.images || resp.images.length === 0) {
+          const rec = { ...baseRecord, status: 'error' as const, error: 'no images returned', latency_ms }
+          await fs.appendFile(resultsPath, JSON.stringify(rec) + '\n')
+          totalFailed++
+          process.stdout.write('F')
+          continue
+        }
+
+        const savedPaths = await saveImagesForTask({
+          experimentId: exp.id,
+          taskId,
+          images: resp.images,
+        })
+        const output = assignImagePathsToOutput({}, schema.output_schema, savedPaths)
+        if (resp.content && typeof resp.content === 'string' && resp.content.trim()) {
+          (output as any).caption = resp.content.slice(0, 200)
+        }
+
+        const rec = {
+          ...baseRecord,
+          status: 'success' as const,
+          output,
+          latency_ms,
+          input_tokens: resp.usage?.prompt_tokens ?? 0,
+          output_tokens: resp.usage?.completion_tokens ?? 0,
+        }
+        await fs.appendFile(resultsPath, JSON.stringify(rec) + '\n')
+        totalSuccess++
+        process.stdout.write('.')
+      } catch (e) {
+        const latency_ms = Date.now() - tStart
+        const error = e instanceof Error ? e.message : String(e)
+        const rec = { ...baseRecord, status: 'error' as const, error, latency_ms }
+        await fs.appendFile(resultsPath, JSON.stringify(rec) + '\n')
+        totalFailed++
+        process.stdout.write('F')
+      }
+    }
+    process.stdout.write('\n')
+  }
+
+  const wallSec = ((Date.now() - t0) / 1000).toFixed(0)
+  console.log(`\n[runner] done. success=${totalSuccess} fail=${totalFailed} skipped=${totalSkipped} wall=${wallSec}s`)
+  console.log(`[runner] results in data/results/{pcw_xhs|douyin|friends}_image_baseline/`)
+  console.log(`[runner] next: run strip + copy to seeds (Task 12)`)
 }
 
 main().catch((e) => { console.error(e); process.exit(1) })
