@@ -49,11 +49,12 @@ function matchesExt(name: string, allowedExts: string[]): boolean {
 
 /**
  * `src/lib/seeds/results/<exp_id>/{results,annotations}.jsonl` 镜像到
- * `data/results/<exp_id>/{results,annotations}.jsonl`。
+ * `data/results/<exp_id>/{results,annotations}.jsonl`，且 `<exp_id>/images/` 下
+ * 二进制图片（PNG/JPG/...）一并递归 copy 到 runtime。
  *
  * Evalyst runtime 期望 results 嵌套结构（`src/lib/store.ts:132` /
  * `src/lib/annotation-store.ts:14`）：每个 experiment 一个目录，目录内放
- * results.jsonl + annotations.jsonl。Sample experiments ship 时按这个
+ * results.jsonl + annotations.jsonl + 可选 images/。Sample experiments ship 时按这个
  * 约定组织 seed，seed 时整树拷贝。
  *
  * 幂等：existsSync 跳过单文件；用户整树删除后下次访问从 seed 树恢复。
@@ -64,14 +65,23 @@ function seedResultsTree() {
   if (!fs.existsSync(src)) return
   ensureDir(dst)
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue   // 仅扫 <exp_id>/ 子目录，不收顶层散文件
-    const expDirSrc = path.join(src, entry.name)
-    const expDirDst = path.join(dst, entry.name)
-    ensureDir(expDirDst)
-    for (const f of fs.readdirSync(expDirSrc)) {
-      if (!f.endsWith('.jsonl')) continue
-      const s = path.join(expDirSrc, f)
-      const d = path.join(expDirDst, f)
+    if (!entry.isDirectory()) continue   // 顶层散文件强制 ignore，sample 必须走 <exp_id>/
+    copyTreeIdempotent(path.join(src, entry.name), path.join(dst, entry.name))
+  }
+}
+
+/**
+ * 递归 copy srcDir 下所有文件 + 子目录到 dstDir。已存在的目标文件跳过（幂等）。
+ * 用于 seedResultsTree 把 <exp_id>/ 整子树（含 images/ 等任意嵌套）镜像到 runtime。
+ */
+function copyTreeIdempotent(srcDir: string, dstDir: string) {
+  ensureDir(dstDir)
+  for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const s = path.join(srcDir, entry.name)
+    const d = path.join(dstDir, entry.name)
+    if (entry.isDirectory()) {
+      copyTreeIdempotent(s, d)
+    } else {
       if (fs.existsSync(d)) continue
       fs.copyFileSync(s, d)
     }

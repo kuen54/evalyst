@@ -10,6 +10,32 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Added
+
+- **Sample suite "商品配图"（生图）** —— sample-data-redesign stream **PR #2 of 3**。镜像 v0.16.0 商品文案 demo 的「跨 prompt 对比」叙事到生图场景：
+  - **3 Schemas（同 `compare_group="product_image_v1"`）**：`pcw_xhs_image_v1`（小红书插画 / 无字）、`pcw_douyin_image_v1`（抖音封面高对比 / 无字）、`pcw_friends_image_v1`（朋友圈生活感 / 无字）。**全部 1:1 方图统一比例**——sankuai gateway gemini imageGenerate 不接 aspect ratio param，所有图实际都是 1:1，display 与实际 output 显式对齐；3 prompt 全不带任何文字（gemini 中文字渲染不稳，v1 让 douyin 带中文钩子实测大部分错字 / 乱码已撤回）。**复用 v2 `product_copywriting_v1` dataset**（不重新写 dataset）—— 业务评测员看完文案 demo + 配图 demo → 理解 evalyst 「跨 prompt 对比」框架对任意 LLM 任务（文本 / 图像）通用。
+  - **3 Sample experiments × `gemini-2.5-flash-image` × 20 records / experiment = 60 records**（每品类抽 3-4 条）。`pcw_xhs_image_baseline` 20 success / `pcw_douyin_image_baseline` 20 success / `pcw_friends_image_baseline` 20 success = **60 success / 60 = 100%**（持续 retry 救回所有 fail，最后一个 prod_001 在 xhs 拒生成 4 次后第 5 次成功）。
+  - **不带 judge / 不带 annotations**（lessons §6.4 #6 红线 buffer）—— vision judge 是禁项；文本 judge "评 prompt 而非评图"叙事错位；**留给业务评测员进 evalyst annotation UI 自打分**最贴他们真实工作流，且凸显 evalyst 「人标注」能力。
+  - **60 张 768×768 PNG ship 进 git**（~50 MB seeds 增量；sips resize 自 1024×1024 原图 ~2 MB 压到 ~800 KB / 张）。注意：商品本身带标签 (果汁瓶 / 咖啡袋 / 化妆品罐) 的 ~4 张图 gemini 会渲染商品的实际 label，prompt "不要文字" 在这种情况下让位"商品如实呈现"——这是模型限制，不是 demo 缺陷。
+- **`scripts/run-pcw-image-samples.ts`** —— zero-dep ~280 行 standalone runner（**不走 evalyst llm-client**：sankuai gateway gemini google native imageGenerate 端点是异步 submit + poll，evalyst 现 `endpoint_kind=images_generations` 只支持 OpenAI Images API，未集成 google native）。含 RPM=5 sliding-window submit 限流 / 5s poll 间隔 / 240s/task timeout / sips resize 768px / skip-if-exists / 嵌套写 `data/results/<exp_id>/{results.jsonl, images/}` / 用 `buildInputPreview` 输出 canonical 扁平 input_preview shape。`SANKUAI_KEY=xxx npm run run:pcw-image-samples` 入口。
+- **`scripts/run-pcw-image-samples.ts` 启动时 eagerly load 所有 schemas 到内存** —— 防御性设计，跑长时（RPM=5 → ~12-15 min wall）期间 user 切 branch（schemas 文件消失）不会让后续 experiments 崩 ENOENT。
+
+### Fixed
+
+- **`src/lib/seed.ts:seedResultsTree()` 改递归 copy `<exp_id>/` 子目录**（含 `images/` 嵌套）—— 之前只 copy `.jsonl` 扩展名，PNG / 任意嵌套文件全部 silent drop。修法：用新加的 `copyTreeIdempotent()` helper 递归 walk + 幂等跳过已存在文件。8 老 + 1 新单测覆盖。这是 PR #2 demo "fresh boot 后图能渲染"的前置依赖。
+
+### Removed
+
+- **`image_prompts_v1` dataset + `image_gen_v1` schema**（PR #95 ship 的学术风格生图脚手架）—— user 反馈 sample data 不应包含这一项。删 seeds 下的 `image_gen_v1.json` + `image_prompts_v1.{meta.json,jsonl}` + 旧 runtime 数据 + 旧 `data/experiments/exp_e2e_img.json` + 旧 `data/results/exp_e2e_img/`。`e2e/vision-gate.spec.ts` 改为 `writeFixtures()` self-provisions minimal `image_gen_v1` schema 文件（仅 output_schema 含 image_url 字段足够 vision-gate 逻辑探测）+ `clearFixtures()` 清掉，4/4 cases 仍绿。Sample seeds 现在只剩 2 sample schemas (`pcw_text_v1` + `pcw_image_v1`) + evalyst 自带 `qa_answer_v1`。
+
+### Changed
+
+- **Sample schemas reorg: 6 → 2** —— 之前 v0.16.0 ship 了 3 个 text schemas (`pcw_xhs_v1` / `pcw_douyin_v1` / `pcw_friends_v1`) + PR #2 ship 了 3 个 image schemas (`pcw_xhs_image_v1` / `pcw_douyin_image_v1` / `pcw_friends_image_v1`)，每个 schema 各挂 1 个 baseline experiment。User 反馈："/compare 左侧选 schema 后只看到 1 个评测结果，没法对比"——schema-as-prompt-variant 的拆分错位 /compare 的核心交互（一个 schema 多个 experiments 横排）。
+  - 合并为 2 schemas: `pcw_text_v1` (label "商品文案改写") + `pcw_image_v1` (label "商品配图")
+  - 6 个 sample experiments 改 `schema_id` 指向新 parent schema；prompt_template 字段从原"(uses schema default_prompt)" 占位符填充为各自实际 prompt 文本（per-experiment override 是 `ExperimentConfig.prompt_template` 的设计意图）
+  - 236 row 全部就地改 schema_id 字段（17 + 20 + 20 image rows + 59 + 60 + 60 text rows），无 API 重跑
+  - **效果**：/compare 左侧选 schema = "商品配图" → 列出 3 个 baselines (xhs/douyin/friends image) → 多选对比。同 schema = "商品文案改写"。
+
 ## [0.16.1] — 2026-05-14 · Next.js 16 middleware → proxy rename (PR #99)
 
 跟进 Next.js 16.2 [`middleware` 文件约定弃用](https://nextjs.org/docs/messages/middleware-to-proxy)。**零行为变更**——仅约定层重命名。

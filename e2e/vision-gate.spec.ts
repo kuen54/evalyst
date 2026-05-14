@@ -67,8 +67,45 @@ function fixtureResultsFile() {
   return path.join(fixtureResultsDir(), "results.jsonl")
 }
 
+function fixtureSchemaPath() {
+  // Self-provision the schema file — sample suite no longer ships
+  // image_gen_v1 / image_prompts_v1 in seeds. We write a minimal schema
+  // at fixture setup just for this test (vision-gate logic reads
+  // output_schema's image_url-typed field) and remove it on cleanup.
+  return path.join(dataDir(), "schemas", "image_gen_v1.json")
+}
+
 function writeFixtures() {
-  // Fixture experiment pointing at seeded image_gen_v1 schema
+  // Fixture schema (just enough for vision-gate logic to find image_url field)
+  fs.mkdirSync(path.dirname(fixtureSchemaPath()), { recursive: true })
+  fs.writeFileSync(
+    fixtureSchemaPath(),
+    JSON.stringify(
+      {
+        id: "image_gen_v1",
+        label: "vision-gate smoke fixture (auto, safe to delete)",
+        version: 1,
+        inputs: [],
+        variables: [],
+        default_prompt: "",
+        message_builder: { user_template: "" },
+        output_schema: {
+          type: "object",
+          required: ["image_url"],
+          properties: {
+            image_url: { type: "image_url" },
+            caption: { type: "string", max_length: 500 },
+          },
+        },
+        display_dimensions: [],
+        raw_text_output: false,
+      },
+      null,
+      2,
+    ),
+  )
+
+  // Fixture experiment pointing at the just-written image_gen_v1 schema
   fs.mkdirSync(path.dirname(fixtureExperimentPath()), { recursive: true })
   fs.writeFileSync(
     fixtureExperimentPath(),
@@ -126,6 +163,7 @@ function clearFixtures() {
   if (fs.existsSync(fixtureResultsDir())) {
     fs.rmSync(fixtureResultsDir(), { recursive: true, force: true })
   }
+  if (fs.existsSync(fixtureSchemaPath())) fs.rmSync(fixtureSchemaPath())
 }
 
 test.describe("vision gate", () => {

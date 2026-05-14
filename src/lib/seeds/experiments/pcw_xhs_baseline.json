@@ -3,14 +3,26 @@
   "name": "商品文案 · 小红书风 · Opus 4.6 baseline",
   "created_at": "2026-05-13T00:00:00Z",
   "updated_at": "2026-05-13T00:00:00Z",
-  "schema_id": "pcw_xhs_v1",
-  "filter_values": { "categories": ["美妆", "数码", "食品饮料", "家居", "服饰", "母婴"] },
+  "schema_id": "pcw_text_v1",
+  "filter_values": {
+    "categories": [
+      "美妆",
+      "数码",
+      "食品饮料",
+      "家居",
+      "服饰",
+      "母婴"
+    ]
+  },
   "model": "claude-opus-4-6",
   "temperature": 0.7,
   "max_tokens": 2048,
   "rubric_id": "pcw_quality",
-  "api_config": { "base_url": "", "api_key": "" },
-  "prompt_template": "(uses schema default_prompt)",
+  "api_config": {
+    "base_url": "",
+    "api_key": ""
+  },
+  "prompt_template": "你是小红书种草达人。给定商品信息，输出一条小红书爆款风格的文案。\n\n要求：\n- title：≤ 30 字，吸引眼球，可用 emoji\n- body：第一人称\"我用了...\"的真实体验感，≤ 300 字\n- hashtags：3-5 个相关标签（不带 # 号，纯标签字符串）\n- cta：1 句话引导（\"姐妹们冲鸭\"风）\n\n输出 JSON：{\"title\": \"...\", \"body\": \"...\", \"hashtags\": [\"...\"], \"cta\": \"...\"}\n\n商品名：{{name}}\n品类：{{category}}\n价格：{{price}}\n核心卖点：{{features}}\n目标用户：{{target_user}}",
   "status": "completed",
   "notes": "Sample experiment shipped with seed; results at data/results/pcw_xhs_baseline/results.jsonl + judge annotations at data/annotations/pcw_xhs_baseline/annotations.jsonl"
 }

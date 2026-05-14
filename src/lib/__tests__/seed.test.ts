@@ -96,6 +96,21 @@ describe('ensureSeeds (subdir-scan)', () => {
 
     expect(fs.readFileSync(path.join(tmpRoot, 'data/results/exp1/results.jsonl'), 'utf-8')).toBe('USER_EDITED\n')
   })
+
+  it('recursively copies image binaries under <exp_id>/images/ subdir', () => {
+    const expDir = path.join(tmpRoot, 'src/lib/seeds/results/img_baseline')
+    const imagesDir = path.join(expDir, 'images')
+    fs.mkdirSync(imagesDir, { recursive: true })
+    fs.writeFileSync(path.join(expDir, 'results.jsonl'), '{"task_id":"t1","status":"success","output":{"image_url":"/api/results/img_baseline/images/t1.png"}}\n')
+    fs.writeFileSync(path.join(imagesDir, 't1.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    fs.writeFileSync(path.join(imagesDir, 't2.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+
+    ensureSeeds()
+
+    expect(fs.existsSync(path.join(tmpRoot, 'data/results/img_baseline/results.jsonl'))).toBe(true)
+    expect(fs.existsSync(path.join(tmpRoot, 'data/results/img_baseline/images/t1.png'))).toBe(true)
+    expect(fs.existsSync(path.join(tmpRoot, 'data/results/img_baseline/images/t2.png'))).toBe(true)
+  })
 })
 
 function cpRecursive(src: string, dst: string) {

@@ -29,9 +29,9 @@ const PRIMARY_MODEL_CANDIDATES = ['claude-opus-4-6', 'aws.claude-opus-4.6', 'aws
 const JUDGE_MODEL_CANDIDATES = ['gpt-4o-mini', 'gpt-4o-mini-2024-07-18', 'gemini-3.1-pro-preview', 'gemini-3.1-pro']
 
 const EXPERIMENTS: Array<{ id: string; schemaId: string; platformStyle: string; max_tokens: number }> = [
-  { id: 'pcw_xhs_baseline', schemaId: 'pcw_xhs_v1', platformStyle: '小红书', max_tokens: 2048 },
-  { id: 'pcw_douyin_baseline', schemaId: 'pcw_douyin_v1', platformStyle: '抖音', max_tokens: 2048 },
-  { id: 'pcw_friends_baseline', schemaId: 'pcw_friends_v1', platformStyle: '朋友圈', max_tokens: 1024 },
+  { id: 'pcw_xhs_baseline', schemaId: 'pcw_text_v1', platformStyle: '小红书', max_tokens: 2048 },
+  { id: 'pcw_douyin_baseline', schemaId: 'pcw_text_v1', platformStyle: '抖音', max_tokens: 2048 },
+  { id: 'pcw_friends_baseline', schemaId: 'pcw_text_v1', platformStyle: '朋友圈', max_tokens: 1024 },
 ]
 
 async function main() {
@@ -55,7 +55,11 @@ async function main() {
   for (const exp of EXPERIMENTS) {
     console.log(`\n[run-pcw] === ${exp.id} (${exp.platformStyle}) ===`)
     const schema = JSON.parse(await fs.readFile(path.join(SEEDS, 'schemas', `${exp.schemaId}.json`), 'utf-8'))
-    await runOneExperiment(exp, schema, records, opus)
+    // Post-reorg: 3 text experiments share pcw_text_v1 schema; per-prompt content
+    // lives in experiment.prompt_template. Read each experiment's own prompt.
+    const expMeta = JSON.parse(await fs.readFile(path.join(SEEDS, 'experiments', `${exp.id}.json`), 'utf-8'))
+    const promptTemplate = expMeta.prompt_template as string
+    await runOneExperiment(exp, schema, promptTemplate, records, opus)
     await runJudge(exp, judge)
     await stripErrorsAndCopyToSeeds(exp.id)
   }
@@ -66,6 +70,7 @@ async function main() {
 async function runOneExperiment(
   exp: { id: string; schemaId: string; max_tokens: number },
   schema: any,
+  promptTemplate: string,
   records: any[],
   model: ModelConfig,
 ) {
@@ -87,7 +92,7 @@ async function runOneExperiment(
       continue
     }
 
-    const prompt = renderPrompt(schema.default_prompt, rec)
+    const prompt = renderPrompt(promptTemplate, rec)
     const start = Date.now()
     try {
       const res = await callLlm({
