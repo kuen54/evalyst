@@ -46,7 +46,7 @@
 
 **Display 形态**: 隐式推断 → `builtin_single_list`。view-helpers.tsx:73-93 已支持 `image_url` 类型字段的 `<img>` 渲染，**不需要 user JSX display**。
 
-**与 PR #95 ship 的 `image_prompts_v1` / `image_gen_v1` 关系**：保留不动。grep 验证 `e2e/vision-gate.spec.ts:20,95,105` + `data/experiments/exp_e2e_img.json` + `data/results/exp_e2e_img/results.jsonl` 都依赖 `image_gen_v1` 作为 e2e fixture——它是 e2e 资产不是 user-facing sample，**不进 PR #2 清理 scope**。两者并存：`image_gen_v1` 服务 e2e（学术风格 prompt 在 fixture 上下文 OK），`pcw_*_image_v1` 服务 user demo（业务向）。
+**与 PR #95 ship 的 `image_prompts_v1` / `image_gen_v1` 关系**：**已删除**（user 反馈 sample data 不应包含这些）。`e2e/vision-gate.spec.ts` 改为 `writeFixtures()` self-provisions minimal `image_gen_v1` schema 文件 + `clearFixtures()` 清掉，不再依赖 seeds 提供。Sample seeds 现在只有 2 schemas: `pcw_text_v1` + `pcw_image_v1` (+ evalyst 自带的 `qa_answer_v1`)。
 
 ## 3. Dataset（复用 v2，不动文件）
 
@@ -366,7 +366,7 @@ exit 1
 - Brand consistency demo（dataset 加 brand 字段）—— 不在本 PR
 - LLM-as-judge UI 改动 —— 不在本 PR
 - /compare 行内 mini view（lessons §6.5 推荐方案 B）—— 不在本 PR
-- 删除 `image_prompts_v1` / `image_gen_v1` —— e2e fixture 依赖（vision-gate.spec.ts），保留
+- 删除 `image_prompts_v1` / `image_gen_v1` —— **已在 PR #2 后期完成**：seeds + runtime 全删，e2e/vision-gate.spec.ts 改为 self-provision schema fixture (writeFixtures + clearFixtures)，4/4 cases 仍绿
 
 ## 11. 与 v2 spec 镜像对照
 
@@ -400,7 +400,7 @@ exit 1
 - "顺手"重构 batch-runner 的 image handling 路径——独立 PR
 - 改 view-helpers.tsx 的 image 渲染样式（再大、再小、加 placeholder）—— 独立 PR
 - 加 brand 字段到 dataset —— PR #3 配套或独立
-- **删除 `image_prompts_v1` / `image_gen_v1`（已从 spec scope 移除）—— e2e 依赖，不动**
+- **删除 `image_prompts_v1` / `image_gen_v1`（已在 PR #2 后期完成，user 后期 ask）—— e2e/vision-gate.spec.ts 改为 self-provision fixture (write+clear)，4/4 仍绿**
 
 ---
 

@@ -24,6 +24,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 - **`src/lib/seed.ts:seedResultsTree()` 改递归 copy `<exp_id>/` 子目录**（含 `images/` 嵌套）—— 之前只 copy `.jsonl` 扩展名，PNG / 任意嵌套文件全部 silent drop。修法：用新加的 `copyTreeIdempotent()` helper 递归 walk + 幂等跳过已存在文件。8 老 + 1 新单测覆盖。这是 PR #2 demo "fresh boot 后图能渲染"的前置依赖。
 
+### Removed
+
+- **`image_prompts_v1` dataset + `image_gen_v1` schema**（PR #95 ship 的学术风格生图脚手架）—— user 反馈 sample data 不应包含这一项。删 seeds 下的 `image_gen_v1.json` + `image_prompts_v1.{meta.json,jsonl}` + 旧 runtime 数据 + 旧 `data/experiments/exp_e2e_img.json` + 旧 `data/results/exp_e2e_img/`。`e2e/vision-gate.spec.ts` 改为 `writeFixtures()` self-provisions minimal `image_gen_v1` schema 文件（仅 output_schema 含 image_url 字段足够 vision-gate 逻辑探测）+ `clearFixtures()` 清掉，4/4 cases 仍绿。Sample seeds 现在只剩 2 sample schemas (`pcw_text_v1` + `pcw_image_v1`) + evalyst 自带 `qa_answer_v1`。
+
 ### Changed
 
 - **Sample schemas reorg: 6 → 2** —— 之前 v0.16.0 ship 了 3 个 text schemas (`pcw_xhs_v1` / `pcw_douyin_v1` / `pcw_friends_v1`) + PR #2 ship 了 3 个 image schemas (`pcw_xhs_image_v1` / `pcw_douyin_image_v1` / `pcw_friends_image_v1`)，每个 schema 各挂 1 个 baseline experiment。User 反馈："/compare 左侧选 schema 后只看到 1 个评测结果，没法对比"——schema-as-prompt-variant 的拆分错位 /compare 的核心交互（一个 schema 多个 experiments 横排）。
