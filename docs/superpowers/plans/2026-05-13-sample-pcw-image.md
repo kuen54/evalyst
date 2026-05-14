@@ -461,7 +461,7 @@ Expected: 看到 3 个新 schema 出现在列表 (`pcw_xhs_image_v1` / `pcw_douy
 
 Expected: schema editor 渲染正常；prompt 中文不乱码；output_schema 显示 `image_url` + `caption`
 
-- [ ] **Step 6.4: Visit `/experiments`**
+- [ ] **Step 6.4: Visit `/`（总览页 = 实验列表，sidebar「总览」）**
 
 Expected: 看到 3 个新 baseline 实验 (`pcw_xhs_image_baseline` 等)，每个显示 0 results（因为还没跑）
 

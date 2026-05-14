@@ -254,7 +254,7 @@
 
 **关键 demo 路径（验收）**:
 
-1. user 进 `/experiments` → 看到 3 个 image baseline 实验（与 v2 三个文案 baseline 平行）
+1. user 进 `/`（总览页 = 实验列表）→ 看到 3 个 image baseline 实验（与 v2 三个文案 baseline 平行）
 2. 点任一进详情页 → 看到 20 行结果，每行 row header 显示 商品名 / 目标用户 / 价 / 核心卖点 + 一张 4:5 / 9:16 / 1:1 大图
 3. toolbar 看到「**对比 (vs 2)**」按钮（PR #97 ship 的对比入口）
 4. 点击 → `/compare` 自动预选 3 个 baseline → 一行同商品三张不同风格图横排
