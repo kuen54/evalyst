@@ -27,6 +27,7 @@ import fs from 'fs/promises'
 import fsSync from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
+import { buildInputPreview } from '../src/lib/schema/engine'
 
 const SEEDS = path.join(process.cwd(), 'src', 'lib', 'seeds')
 const DATA = path.join(process.cwd(), 'data')
@@ -253,7 +254,7 @@ async function main() {
         schema_id: exp.schemaId,
         schema_version: 1,
         input_refs: { p: sample.pid },
-        input_preview: { p: sample },
+        input_preview: buildInputPreview({ p: sample as unknown as Record<string, unknown> }),
         prompt_excerpt: renderedPrompt.slice(0, 200),
         timestamp: new Date().toISOString(),
         model: MODEL,
