@@ -198,6 +198,15 @@ async function main() {
   console.log(`[runner] picked ${samples.length} products: ${samples.map((s) => s.pid).join(', ')}`)
   console.log(`[runner] estimated wall: 60 records / ${RPM_LIMIT} RPM ≈ 12-15 min (submit) + poll latency`)
 
+  // Eagerly load all schemas before the per-experiment loop so a mid-run
+  // branch switch (which can wipe seeds/schemas/*) won't crash subsequent
+  // experiments — schemas are held in memory.
+  const schemas: Record<string, any> = {}
+  for (const exp of EXPERIMENTS) {
+    const schemaPath = path.join(SEEDS, 'schemas', `${exp.schemaId}.json`)
+    schemas[exp.id] = JSON.parse(fsSync.readFileSync(schemaPath, 'utf8'))
+  }
+
   const limiter = new SubmitRateLimiter()
   let totalSuccess = 0
   let totalFailed = 0
@@ -206,8 +215,7 @@ async function main() {
 
   for (const exp of EXPERIMENTS) {
     console.log(`\n[runner] === ${exp.id} (schema=${exp.schemaId}) ===`)
-    const schemaPath = path.join(SEEDS, 'schemas', `${exp.schemaId}.json`)
-    const schema = JSON.parse(fsSync.readFileSync(schemaPath, 'utf8'))
+    const schema = schemas[exp.id]
     const promptTemplate = schema.default_prompt as string
 
     const resultsDir = path.join(DATA, 'results', exp.id)
