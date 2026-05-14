@@ -3,13 +3,26 @@
   "name": "商品配图 · 朋友圈生活感 · gemini-2.5-flash-image baseline",
   "created_at": "2026-05-13T00:00:00Z",
   "updated_at": "2026-05-13T00:00:00Z",
-  "schema_id": "pcw_friends_image_v1",
-  "filter_values": { "categories": ["美妆","数码","食品饮料","家居","服饰","母婴"], "limit": 20 },
+  "schema_id": "pcw_image_v1",
+  "filter_values": {
+    "categories": [
+      "美妆",
+      "数码",
+      "食品饮料",
+      "家居",
+      "服饰",
+      "母婴"
+    ],
+    "limit": 20
+  },
   "model": "gemini-2.5-flash-image",
   "temperature": 1,
   "max_tokens": 1,
-  "api_config": { "base_url": "", "api_key": "" },
-  "prompt_template": "(uses schema default_prompt)",
+  "api_config": {
+    "base_url": "",
+    "api_key": ""
+  },
+  "prompt_template": "你是个普通人，刚买了这个东西想发朋友圈。\n\n风格要求：\n- 1:1 方图（朋友圈默认）\n- 手机随手拍质感：自然光、桌面 / 窗台 / 手心，略带颗粒感\n- 不要影棚布光，不要修图过度的\"商品图感\"\n- 不要文字 / 价签 / 包装贴纸\n\n商品参数：\n- 名：{{name}}\n- 品类：{{category}}\n- 价：{{price}}\n- 核心卖点：{{features}}\n- 目标用户：{{target_user}}\n\n直接生图。",
   "status": "completed",
   "notes": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），friends 生活感 prompt × gemini-2.5-flash-image 跑 20 张配图。配套 xhs / douyin baseline 共同对比 3 风格。不带 judge / 不带 annotations，留给用户进 evalyst annotation UI 自打分。"
 }

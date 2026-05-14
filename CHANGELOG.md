@@ -24,6 +24,14 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 - **`src/lib/seed.ts:seedResultsTree()` 改递归 copy `<exp_id>/` 子目录**（含 `images/` 嵌套）—— 之前只 copy `.jsonl` 扩展名，PNG / 任意嵌套文件全部 silent drop。修法：用新加的 `copyTreeIdempotent()` helper 递归 walk + 幂等跳过已存在文件。8 老 + 1 新单测覆盖。这是 PR #2 demo "fresh boot 后图能渲染"的前置依赖。
 
+### Changed
+
+- **Sample schemas reorg: 6 → 2** —— 之前 v0.16.0 ship 了 3 个 text schemas (`pcw_xhs_v1` / `pcw_douyin_v1` / `pcw_friends_v1`) + PR #2 ship 了 3 个 image schemas (`pcw_xhs_image_v1` / `pcw_douyin_image_v1` / `pcw_friends_image_v1`)，每个 schema 各挂 1 个 baseline experiment。User 反馈："/compare 左侧选 schema 后只看到 1 个评测结果，没法对比"——schema-as-prompt-variant 的拆分错位 /compare 的核心交互（一个 schema 多个 experiments 横排）。
+  - 合并为 2 schemas: `pcw_text_v1` (label "商品文案改写") + `pcw_image_v1` (label "商品配图")
+  - 6 个 sample experiments 改 `schema_id` 指向新 parent schema；prompt_template 字段从原"(uses schema default_prompt)" 占位符填充为各自实际 prompt 文本（per-experiment override 是 `ExperimentConfig.prompt_template` 的设计意图）
+  - 236 row 全部就地改 schema_id 字段（17 + 20 + 20 image rows + 59 + 60 + 60 text rows），无 API 重跑
+  - **效果**：/compare 左侧选 schema = "商品配图" → 列出 3 个 baselines (xhs/douyin/friends image) → 多选对比。同 schema = "商品文案改写"。
+
 ## [0.16.0] — 2026-05-13 · sample-pcw-copywriting + header_fields renderer fix (PR #98)
 
 V1 sample data 全废 + lessons 沉淀（v0.15.0）后第一个**ship 成功**的 sample suite。1 PR / 6 commits / 4 角色（spec / fix / data / runner）/ 2 轮 opus QA 浏览器实测（第 1 轮发现 lessons §6.4 #3 红线复刻 → 修 → 第 2 轮全绿）。Lessons §6.4 全部硬约束闭环。

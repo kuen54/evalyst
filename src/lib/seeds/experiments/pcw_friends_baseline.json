@@ -3,14 +3,26 @@
   "name": "商品文案 · 朋友圈风 · Opus 4.6 baseline",
   "created_at": "2026-05-13T00:00:00Z",
   "updated_at": "2026-05-13T00:00:00Z",
-  "schema_id": "pcw_friends_v1",
-  "filter_values": { "categories": ["美妆", "数码", "食品饮料", "家居", "服饰", "母婴"] },
+  "schema_id": "pcw_text_v1",
+  "filter_values": {
+    "categories": [
+      "美妆",
+      "数码",
+      "食品饮料",
+      "家居",
+      "服饰",
+      "母婴"
+    ]
+  },
   "model": "claude-opus-4-6",
   "temperature": 0.7,
   "max_tokens": 1024,
   "rubric_id": "pcw_quality",
-  "api_config": { "base_url": "", "api_key": "" },
-  "prompt_template": "(uses schema default_prompt)",
+  "api_config": {
+    "base_url": "",
+    "api_key": ""
+  },
+  "prompt_template": "你是个普通用户，刚买了一个东西想发朋友圈推荐给朋友。\n\n要求：\n- title：≤ 20 字，口语化开头，不要\"震惊体\"\n- body：≤ 80 字（短）；\"昨天买了 / 这次回购 / 朋友推荐\"风；不要用\"种草\"\"姐妹们\"这类小红书黑话；不要带购买链接\n- hashtags：留空数组（朋友圈不用 hashtag）\n- cta：留空字符串（朋友圈不强推）\n\n输出 JSON：{\"title\": \"...\", \"body\": \"...\", \"hashtags\": [], \"cta\": \"\"}\n\n商品名：{{name}}\n品类：{{category}}\n价格：{{price}}\n核心卖点：{{features}}\n目标用户：{{target_user}}",
   "status": "completed",
   "notes": "Sample experiment shipped with seed; results at data/results/pcw_friends_baseline/results.jsonl + judge annotations at data/annotations/pcw_friends_baseline/annotations.jsonl"
 }
