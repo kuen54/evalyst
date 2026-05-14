@@ -42,9 +42,9 @@ const POLL_TIMEOUT_MS = 240_000  // 4 min per task max
 const RESIZE_TARGET_PX = 768  // longest dimension; 768x768 PNG ~250-400 KB
 
 const EXPERIMENTS: Array<{ id: string; schemaId: string; promptKey: 'xhs' | 'douyin' | 'friends' }> = [
-  { id: 'pcw_xhs_image_baseline', schemaId: 'pcw_xhs_image_v1', promptKey: 'xhs' },
-  { id: 'pcw_douyin_image_baseline', schemaId: 'pcw_douyin_image_v1', promptKey: 'douyin' },
-  { id: 'pcw_friends_image_baseline', schemaId: 'pcw_friends_image_v1', promptKey: 'friends' },
+  { id: 'pcw_xhs_image_baseline', schemaId: 'pcw_image_v1', promptKey: 'xhs' },
+  { id: 'pcw_douyin_image_baseline', schemaId: 'pcw_image_v1', promptKey: 'douyin' },
+  { id: 'pcw_friends_image_baseline', schemaId: 'pcw_image_v1', promptKey: 'friends' },
 ]
 
 // 每品类抽取条数 (固定，加起来 = 20)
@@ -199,13 +199,16 @@ async function main() {
   console.log(`[runner] picked ${samples.length} products: ${samples.map((s) => s.pid).join(', ')}`)
   console.log(`[runner] estimated wall: 60 records / ${RPM_LIMIT} RPM ≈ 12-15 min (submit) + poll latency`)
 
-  // Eagerly load all schemas before the per-experiment loop so a mid-run
-  // branch switch (which can wipe seeds/schemas/*) won't crash subsequent
-  // experiments — schemas are held in memory.
-  const schemas: Record<string, any> = {}
+  // Eagerly load each experiment's prompt_template before the per-experiment
+  // loop so a mid-run branch switch (which can wipe seeds/experiments/) won't
+  // crash later iterations. After the 6→2 schema reorg, per-prompt content
+  // lives in experiment.prompt_template (not schema.default_prompt) — runner
+  // doesn't need the schema file at runtime here.
+  const prompts: Record<string, string> = {}
   for (const exp of EXPERIMENTS) {
-    const schemaPath = path.join(SEEDS, 'schemas', `${exp.schemaId}.json`)
-    schemas[exp.id] = JSON.parse(fsSync.readFileSync(schemaPath, 'utf8'))
+    const expMetaPath = path.join(SEEDS, 'experiments', `${exp.id}.json`)
+    const expMeta = JSON.parse(fsSync.readFileSync(expMetaPath, 'utf8'))
+    prompts[exp.id] = expMeta.prompt_template as string
   }
 
   const limiter = new SubmitRateLimiter()
@@ -216,8 +219,7 @@ async function main() {
 
   for (const exp of EXPERIMENTS) {
     console.log(`\n[runner] === ${exp.id} (schema=${exp.schemaId}) ===`)
-    const schema = schemas[exp.id]
-    const promptTemplate = schema.default_prompt as string
+    const promptTemplate = prompts[exp.id]!
 
     const resultsDir = path.join(DATA, 'results', exp.id)
     const imagesDir = path.join(resultsDir, 'images')
