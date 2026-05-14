@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server'
  *
  * Threat model: evalyst runs as a localhost dev tool with no auth on
  * data-mutating routes (POST/PUT/DELETE on /api/datasets, /api/schemas,
- * /api/llm-config, /api/experiments, …). This middleware closes ONE
+ * /api/llm-config, /api/experiments, …). This proxy closes ONE
  * specific attack surface: a logged-in browser session being driven by
  * a malicious cross-origin page (classic CSRF).
  *
@@ -32,7 +32,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const SKILLS_PREFIX = '/api/skills/'
 
-export function middleware(req: NextRequest): NextResponse | undefined {
+export function proxy(req: NextRequest): NextResponse | undefined {
   // Public agent-discovery endpoint — always allowed.
   if (req.nextUrl.pathname.startsWith(SKILLS_PREFIX)) return
 

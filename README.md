@@ -73,7 +73,7 @@ docker compose up -d
 
 ### 安全 / 跨源访问
 
-`/api/*` 由 `src/middleware.ts` 守门。默认放行：浏览器同源（same-origin / same-site）+ 直接打开（地址栏 / curl / agent 脚本，浏览器侧 `Sec-Fetch-Site` 为空或 `none`）。**跨源（cross-site）请求一律 403**，除非 origin 出现在 `EVALYST_ALLOW_ORIGIN` 白名单：
+`/api/*` 由 `src/proxy.ts` 守门。默认放行：浏览器同源（same-origin / same-site）+ 直接打开（地址栏 / curl / agent 脚本，浏览器侧 `Sec-Fetch-Site` 为空或 `none`）。**跨源（cross-site）请求一律 403**，除非 origin 出现在 `EVALYST_ALLOW_ORIGIN` 白名单：
 
 ```bash
 # docker-compose.yml（或 .env）
@@ -88,7 +88,7 @@ EVALYST_ALLOW_ORIGIN=https://your-tool.example.com,https://another.example.org
 
 **evalyst 不支持 LAN / 公网暴露。** 只为本地开发工具场景设计——单用户、localhost、loopback only。
 
-`src/middleware.ts` 是 **CSRF gate（不是 auth）**：用浏览器 attested `Sec-Fetch-Site` header 拦 cross-site，关浏览器场景下"恶意页面驱动 logged-in session"那一面；但 **LAN 攻击者直接 `curl http://victim:3000/api/llm-config` 没有 `Sec-Fetch-Site` header，会直接放行**——拿走你 LLM API key、写入你的实验都行。
+`src/proxy.ts` 是 **CSRF gate（不是 auth）**：用浏览器 attested `Sec-Fetch-Site` header 拦 cross-site，关浏览器场景下"恶意页面驱动 logged-in session"那一面；但 **LAN 攻击者直接 `curl http://victim:3000/api/llm-config` 没有 `Sec-Fetch-Site` header，会直接放行**——拿走你 LLM API key、写入你的实验都行。
 
 `docker-compose.yml` 默认 `ports: "127.0.0.1:3000:3000"` 绑 loopback——容器外不可见。**不要**改成 `"3000:3000"` 或 `"0.0.0.0:3000:3000"` 暴露给宿主机网卡，除非你已经在前面加了 auth 反代。
 
