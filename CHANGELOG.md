@@ -36,6 +36,20 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
   - 236 row 全部就地改 schema_id 字段（17 + 20 + 20 image rows + 59 + 60 + 60 text rows），无 API 重跑
   - **效果**：/compare 左侧选 schema = "商品配图" → 列出 3 个 baselines (xhs/douyin/friends image) → 多选对比。同 schema = "商品文案改写"。
 
+## [0.16.1] — 2026-05-14 · Next.js 16 middleware → proxy rename (PR #99)
+
+跟进 Next.js 16.2 [`middleware` 文件约定弃用](https://nextjs.org/docs/messages/middleware-to-proxy)。**零行为变更**——仅约定层重命名。
+
+### Changed
+
+- `src/middleware.ts` → `src/proxy.ts`（git mv，文件历史保留 94% 相似度）
+- `export function middleware` → `export function proxy`（Next.js 16 入口约定）
+- 同步术语：文件内 JSDoc / `README.md` 两处路径引用 / `e2e/auth-gate.spec.ts` 顶部 JSDoc
+
+### Why
+
+dev server 启动时打 `The "middleware" file convention is deprecated. Please use "proxy" instead.`。Next.js 17+ 可能直接 hard error，提早跟进零成本。CSRF gate 拦截逻辑、matcher、Edge runtime 全部不变；CHANGELOG 历史条目保持引用 `middleware.ts`（不重写历史，按 AGENTS.md §4）。
+
 ## [0.16.0] — 2026-05-13 · sample-pcw-copywriting + header_fields renderer fix (PR #98)
 
 V1 sample data 全废 + lessons 沉淀（v0.15.0）后第一个**ship 成功**的 sample suite。1 PR / 6 commits / 4 角色（spec / fix / data / runner）/ 2 轮 opus QA 浏览器实测（第 1 轮发现 lessons §6.4 #3 红线复刻 → 修 → 第 2 轮全绿）。Lessons §6.4 全部硬约束闭环。
