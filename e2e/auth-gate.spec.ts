@@ -1,14 +1,14 @@
 import { test, expect } from "@playwright/test"
 
 /**
- * Auth gate regression suite — exercises the middleware CSRF gate.
- * The middleware uses Sec-Fetch-Site to allow first-party requests
+ * Auth gate regression suite — exercises the proxy CSRF gate.
+ * The proxy uses Sec-Fetch-Site to allow first-party requests
  * and rejects cross-site requests unless the origin appears in
  * EVALYST_ALLOW_ORIGIN.
  *
  * Notes:
  *   - Playwright's `request` fixture does NOT send Sec-Fetch-Site by
- *     default, which the middleware treats as a non-browser caller
+ *     default, which the proxy treats as a non-browser caller
  *     (curl / agent). That gives us the "same-origin / curl" baseline
  *     for free.
  *   - Cross-site is simulated by setting the header explicitly.
