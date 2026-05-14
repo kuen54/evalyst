@@ -13,12 +13,12 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 ### Added
 
 - **Sample suite "商品配图"（生图）** —— sample-data-redesign stream **PR #2 of 3**。镜像 v0.16.0 商品文案 demo 的「跨 prompt 对比」叙事到生图场景：
-  - **3 Schemas（同 `compare_group="product_image_v1"`）**：`pcw_xhs_image_v1`（小红书插画 4:5 / 无字）、`pcw_douyin_image_v1`（抖音封面 9:16 / 中文钩子 ≤ 6 字 / 高对比商业感）、`pcw_friends_image_v1`（朋友圈生活感 1:1 / 手机随手拍质感）。**复用 v2 `product_copywriting_v1` dataset（不重新写 dataset）** —— 业务评测员看完文案 demo + 配图 demo → 理解 evalyst 「跨 prompt 对比」框架对任意 LLM 任务（文本 / 图像）通用。
-  - **3 Sample experiments × `gemini-2.5-flash-image` × 20 records / experiment = 60 records**（每品类抽 3-4 条）。`pcw_xhs_image_baseline` 18 success / `pcw_douyin_image_baseline` 16 success / `pcw_friends_image_baseline` 19 success = **53 success / 60 = 88%**（7 fail 来自 sankuai gateway transient errors，已 strip per lessons §6.4 #4）。
+  - **3 Schemas（同 `compare_group="product_image_v1"`）**：`pcw_xhs_image_v1`（小红书插画 / 无字）、`pcw_douyin_image_v1`（抖音封面高对比 / 无字）、`pcw_friends_image_v1`（朋友圈生活感 / 无字）。**全部 1:1 方图统一比例**——sankuai gateway gemini imageGenerate 不接 aspect ratio param，所有图实际都是 1:1，display 与实际 output 显式对齐；3 prompt 全不带任何文字（gemini 中文字渲染不稳，v1 让 douyin 带中文钩子实测大部分错字 / 乱码已撤回）。**复用 v2 `product_copywriting_v1` dataset**（不重新写 dataset）—— 业务评测员看完文案 demo + 配图 demo → 理解 evalyst 「跨 prompt 对比」框架对任意 LLM 任务（文本 / 图像）通用。
+  - **3 Sample experiments × `gemini-2.5-flash-image` × 20 records / experiment = 60 records**（每品类抽 3-4 条）。`pcw_xhs_image_baseline` 18 success / `pcw_douyin_image_baseline` 20 success / `pcw_friends_image_baseline` 20 success = **58 success / 60 = 97%**（2 fail 来自 sankuai gateway 拒生成 `no image url in response`，已 strip per lessons §6.4 #4；retry 1 轮已救回 13/15）。
   - **不带 judge / 不带 annotations**（lessons §6.4 #6 红线 buffer）—— vision judge 是禁项；文本 judge "评 prompt 而非评图"叙事错位；**留给业务评测员进 evalyst annotation UI 自打分**最贴他们真实工作流，且凸显 evalyst 「人标注」能力。
-  - **53 张 768px PNG ship 进 git**（~44 MB seeds 增量；sips resize 自 1024×1024 原图 ~2 MB 压到 ~800 KB / 张）。
-- **`scripts/run-pcw-image-samples.ts`** —— zero-dep ~280 行 standalone runner（**不走 evalyst llm-client**：sankuai gateway gemini google native imageGenerate 端点是异步 submit + poll，evalyst 现 `endpoint_kind=images_generations` 只支持 OpenAI Images API，未集成 google native）。含 RPM=5 sliding-window submit 限流 / 5s poll 间隔 / 240s/task timeout / sips resize 768px / skip-if-exists / 嵌套写 `data/results/<exp_id>/{results.jsonl, images/}`。`SANKUAI_KEY=xxx npm run run:pcw-image-samples` 入口。
-- **`scripts/run-pcw-image-samples.ts` 启动时 eagerly load 所有 schemas 到内存** —— 防御性设计，跑长时（RPM=5 → ~20 min wall）期间 user 切 branch（schemas 文件消失）不会让后续 experiments 崩 ENOENT。
+  - **58 张 768×768 PNG ship 进 git**（~47 MB seeds 增量；sips resize 自 1024×1024 原图 ~2 MB 压到 ~800 KB / 张）。
+- **`scripts/run-pcw-image-samples.ts`** —— zero-dep ~280 行 standalone runner（**不走 evalyst llm-client**：sankuai gateway gemini google native imageGenerate 端点是异步 submit + poll，evalyst 现 `endpoint_kind=images_generations` 只支持 OpenAI Images API，未集成 google native）。含 RPM=5 sliding-window submit 限流 / 5s poll 间隔 / 240s/task timeout / sips resize 768px / skip-if-exists / 嵌套写 `data/results/<exp_id>/{results.jsonl, images/}` / 用 `buildInputPreview` 输出 canonical 扁平 input_preview shape。`SANKUAI_KEY=xxx npm run run:pcw-image-samples` 入口。
+- **`scripts/run-pcw-image-samples.ts` 启动时 eagerly load 所有 schemas 到内存** —— 防御性设计，跑长时（RPM=5 → ~12-15 min wall）期间 user 切 branch（schemas 文件消失）不会让后续 experiments 崩 ENOENT。
 
 ### Fixed
 

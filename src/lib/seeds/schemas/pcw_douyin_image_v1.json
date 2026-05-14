@@ -34,7 +34,7 @@
     { "name": "features", "source": "p.core_features", "transform": [{ "op": "join", "sep": "、" }] },
     { "name": "target_user", "source": "p.target_user" }
   ],
-  "default_prompt": "你是抖音视频封面设计师。请为这个商品生成视频封面图。\n\n风格要求：\n- 9:16 竖版构图\n- 商业感强，高饱和、高对比、视觉冲击\n- 商品占比要大（封面就要看到货）\n- 可加 1 个短中文钩子文字（≤ 6 字，例如「绝了」「必囤」「新一代」「真香」）\n  注：gpt-image-1 中文字渲染不稳，允许偶尔出错——这恰好是评测员要看见的模型弱点之一\n- 留出右下角空白处便于后续叠平台 UI\n\n商品参数：\n- 名：{{name}}\n- 品类：{{category}}\n- 价：{{price}}\n- 核心卖点：{{features}}\n- 目标用户：{{target_user}}\n\n直接生图。",
+  "default_prompt": "你是抖音视频封面设计师。请为这个商品生成视频封面图。\n\n风格要求：\n- 1:1 方图\n- 商业感强，高饱和、高对比、视觉冲击\n- 商品占比要大（封面就要看到货）\n- 不放任何文字 / 标题 / 价签 / logo（生图模型中文字渲染不稳，避开）\n- 通过视觉符号（光晕 / 强反差 / 突出感）建立\"封面\"感，不靠文字\n\n商品参数：\n- 名：{{name}}\n- 品类：{{category}}\n- 价：{{price}}\n- 核心卖点：{{features}}\n- 目标用户：{{target_user}}\n\n直接生图。",
   "message_builder": {
     "user_template": "请为这个商品生成一张配图。"
   },
