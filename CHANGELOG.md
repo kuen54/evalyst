@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-05-14 · sample-pcw-image suite + 6→2 schema reorg (PR #100)
+
+Sample-data-redesign stream PR #2 of 3。镜像 v0.16.0 商品文案 demo 的「跨 prompt 对比」叙事到生图场景；同步把 v0.16.0 + 本 PR ship 的 sample schemas 从 6 个收敛到 2 个，对齐 /compare 「同 schema 多 experiment」核心交互。25 commits / 4 轮 opus QA。
+
 ### Added
 
 - **Sample suite "商品配图"（生图）** —— sample-data-redesign stream **PR #2 of 3**。镜像 v0.16.0 商品文案 demo 的「跨 prompt 对比」叙事到生图场景：
