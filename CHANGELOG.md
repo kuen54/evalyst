@@ -10,6 +10,12 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **宽屏 UI 修复**（1920px 实测）：
+  - 实验详情页头部「对比/重试/暂停」按钮原 `ml-auto` 飞到右边缘，title 与按钮间留 1300+ px 空白；改为按钮直接跟 title 簇集（去掉 `ml-auto`），按钮在 title 后顺位排列。
+  - 对比页 sidebar 实验项 schema label / model id badges 横向溢出 280px 侧栏；外层加 `min-w-0 flex-1`，badges 行加 `flex-wrap`，badge 自身 `max-w-full truncate`。长 schema 名「商品文案 · 抖音脚本风 · Opus 4.6 baseline」现在按 ellipsis 截尾不溢出。
+
 ## [0.18.1] — 2026-05-17 · Cache 命中观测搬到 LLM 设置 (PR #102)
 
 ### Changed

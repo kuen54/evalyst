@@ -221,11 +221,11 @@ function ComparePageInner() {
                             disabled={disabled}
                             className="mt-0.5"
                           />
-                          <div>
-                            <div className="font-medium">{exp.name}</div>
-                            <div className="flex gap-1 mt-0.5">
-                              {expSchema && <Badge variant="outline" className="text-xs">{expSchema.label}</Badge>}
-                              <Badge variant="secondary" className="text-xs">{exp.model}</Badge>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{exp.name}</div>
+                            <div className="flex flex-wrap gap-1 mt-0.5 min-w-0">
+                              {expSchema && <Badge variant="outline" className="text-xs max-w-full truncate">{expSchema.label}</Badge>}
+                              <Badge variant="secondary" className="text-xs max-w-full truncate">{exp.model}</Badge>
                             </div>
                             {exp.run_stats && (
                               <span className="text-xs text-muted-foreground">{t("compare.results_count", { n: exp.run_stats.completed_tasks })}</span>
