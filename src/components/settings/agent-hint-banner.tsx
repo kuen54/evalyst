@@ -22,7 +22,7 @@ interface Props {
 export function AgentHintBanner({ slashCommand, title, bodyPrefix, bodySuffix }: Props) {
   const t = useT()
   return (
-    <GlassWarning className="mb-4 border-amber-200 bg-amber-50/50 dark:border-amber-800/40 dark:bg-amber-950/20">
+    <GlassWarning className="mb-4 border-amber-400/70 bg-amber-50/50 dark:border-amber-700/60 dark:bg-amber-950/20">
       <div className="flex items-start gap-3 p-3">
         <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="flex-1 text-sm">

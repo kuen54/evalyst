@@ -7,10 +7,10 @@ export type StatusInfo = { label: string; tone: StatusTone }
 /** Tailwind class string per tone, applied on Badge variant="outline". */
 export const STATUS_TONE_CLASS: Record<StatusTone, string> = {
   neutral: "bg-secondary text-secondary-foreground border-transparent",
-  info: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
-  success: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-  warning: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
-  danger: "bg-destructive/15 text-destructive border-destructive/30 dark:bg-destructive/20 dark:text-destructive-foreground",
+  info: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/50",
+  success: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/50",
+  warning: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/50",
+  danger: "bg-destructive/15 text-destructive border-destructive/50 dark:bg-destructive/20 dark:text-destructive-foreground",
 }
 
 interface ComputeStatusInput {
