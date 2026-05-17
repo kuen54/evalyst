@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.3] — 2026-05-17 · 语义色边框白底饱和度回血 (PR #104)
+
 ### Fixed
 
 - **白色主题非 copilot 模式下语义色边框过浅** —— 实验详情页失败任务面板 `border-red-200/60`、rubric stats 面板 `border-emerald-200/60`、settings agent banner `border-amber-200` 在白底无玻璃模糊衬托下基本看不见。改为 -500 系 + 80% alpha（`border-red-500/80` / `border-emerald-500/80` / `border-amber-400/70`）。状态胶囊 STATUS_TONE_CLASS 边 alpha `/30` → `/50`，让 dashboard 「已生成」「已生成 · N 失败」「已生成 · 评分 X/Y」等 pill 在白底也能清晰区分。
