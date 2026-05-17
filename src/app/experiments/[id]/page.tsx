@@ -257,7 +257,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
             rubric={rubric}
             t={t}
           />
-          <div className="flex gap-2 ml-auto shrink-0">
+          <div className="flex gap-2 shrink-0">
             {(experiment.status === "draft" || experiment.status === "failed") && (
               <Button size="sm" variant="tinted" onClick={() => handleRun(false)}>{t("experiment.run_btn")}</Button>
             )}
