@@ -10,6 +10,18 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Changed
+
+- **Cache 命中可观测搬到 LLM 设置** —— 移除 Copilot 面板顶部的 `CacheStatsChip`（占满一行 chrome 不算 chat 内容）；新增 `<CacheStatsInline>` 挂在 `/settings/llm` 模型卡 Copilot 勾选框右侧，per-model 展示「Cache 7d {pct} · {n} 次」+ break 数 + info icon hover 详情 popup（近 7 天调用 / cache tokens / break diff）。Anthropic + OpenAI 不同 cache 语义按 model 分桶后才不糊。0 calls 显示「暂无数据」无 info icon。
+
+### Added
+
+- **`/api/copilot/cache-stats` 加 `?model=xxx` 过滤** —— `readCacheStats({ model })` opts；route weekly 段加 `recent` 字段（per-model 最近 N 条调用，给 inline hover popup 消费）。
+
+### Removed
+
+- `src/copilot/components/cache-stats-chip.tsx` + chat-view 挂载点 + e2e `cache stats chip renders with seeded weekly data`（搬到 settings 后该 e2e 不再贴 UI；API 契约由 unit test 兜底）。
+
 ## [0.18.0] — 2026-05-17 · 实验状态双轴状态机 + 评分流程重构 (PR #101)
 
 5 轮 user feedback 滚动迭代。dashboard + 实验详情页体验大改：双轴状态机统一文案 / 上色 / hover；评分入口下放到结果卡片；卡片纵向间距收紧。

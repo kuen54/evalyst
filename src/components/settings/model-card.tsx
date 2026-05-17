@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useT } from "@/lib/i18n/provider"
 import { GlassCard } from "@/components/glass/shell"
+import { CacheStatsInline } from "@/components/settings/cache-stats-inline"
 import type { ModelConfig, ApiFormat, ModelPricing } from "@/lib/llm-config"
 import { buildApiRequest } from "@/lib/llm-client"
 
@@ -236,7 +237,7 @@ export function ModelCard({ entry, isDefault, onChange, onSetDefault, onDelete }
           )}
         </div>
 
-        <div className="flex items-center gap-2 py-1">
+        <div className="flex items-center gap-2 py-1 flex-wrap">
           <Checkbox
             id={`copilot-enabled-${entry.id}`}
             checked={!!entry.copilot_enabled}
@@ -248,6 +249,11 @@ export function ModelCard({ entry, isDefault, onChange, onSetDefault, onDelete }
           <span className="text-[11px] text-muted-foreground ml-1">
             {t("settings.llm.copilot_enabled_hint")}
           </span>
+          {entry.copilot_enabled && entry.model && (
+            <span className="ml-auto">
+              <CacheStatsInline model={entry.model} />
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 py-1">
