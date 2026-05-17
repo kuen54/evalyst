@@ -102,7 +102,8 @@ export const zh = {
   "dashboard.status_draft": "草稿",
   "dashboard.status_running": "运行中",
   "dashboard.status_paused": "已暂停",
-  "dashboard.status_completed": "已完成",
+  "dashboard.status_completed": "已生成",
+  "dashboard.schema_label": "评测任务：{label}",
   "dashboard.status_failed": "失败",
   "dashboard.failed_count": "{n} 失败",
   "dashboard.delete_experiment_confirm": "确定删除该实验及所有结果？",
@@ -442,6 +443,13 @@ export const zh = {
   "experiment.new.save_run": "保存并运行",
   "experiment.new.submitting": "创建中...",
   "experiment.completed_word": "完成",
+  "experiment.status.awaiting_review": "已生成 · 待评分",
+  "experiment.status.reviewing": "已生成 · 评分 {n}/{total}",
+  "experiment.status.fully_done": "已生成 · 已评分",
+  "experiment.status.completed_with_failures": "已生成 · {n} 失败",
+  "experiment.status.review_label": "评分",
+  "experiment.status.review_progress": "{n}/{total}",
+  "experiment.status.rubric_label": "评分量表",
 
   // compare page (extra)
   "compare.select_prompt": "选择实验（≥2 个同类型）",
@@ -896,6 +904,9 @@ export const zh = {
 
   // === results annotator ===
   "results.annotate.btn_empty": "评分",
+  "results.annotate.btn_edit": "编辑评分",
+  "results.annotate.section_title": "评分",
+  "results.annotate.no_score": "—",
   "results.annotate.dialog_title": "给该条结果打分",
   "results.annotate.rationale": "备注（可选）",
   "results.annotate.save": "保存",

@@ -18,11 +18,12 @@ import {
 import { readField, renderField } from "./view-helpers"
 import { getOutputFields, inferFieldRenderType } from "./output-structure"
 import { formatCost, formatTokens } from "@/lib/format"
+import { ResultScoringSection } from "./result-rubric-slot"
 
 /**
  * 2 维展示：按 dim[0] 分组，每组下按 dim[1] 列出所有 result。
  */
-export function DualListResults({ results, schema }: ResultViewProps) {
+export function DualListResults({ results, schema, experimentId, rubric, annotationByTask, onAnnotationSaved }: ResultViewProps) {
   const t = useT()
   const dims = dimensionsOf(schema)
   const outputFields = useMemo(() => getOutputFields(schema.output_schema), [schema.output_schema])
@@ -57,21 +58,31 @@ export function DualListResults({ results, schema }: ResultViewProps) {
             rows={rows}
             secondaryValues={secondaryValues}
             outputFields={outputFields}
+            schema={schema}
             t={t}
+            {...(experimentId !== undefined ? { experimentId } : {})}
+            {...(rubric !== undefined ? { rubric } : {})}
+            {...(annotationByTask !== undefined ? { annotationByTask } : {})}
+            {...(onAnnotationSaved !== undefined ? { onAnnotationSaved } : {})}
           />
         ))}
     </div>
   )
 }
 
-function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues, outputFields, t }: {
+function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues, outputFields, schema, t, experimentId, rubric, annotationByTask, onAnnotationSaved }: {
   groupValue: string | number | null
   primaryDim: import("@/lib/schema/types").DisplayDimension
   secondaryDim: import("@/lib/schema/types").DisplayDimension
   rows: import("@/lib/schema/types").GenericResultRecord[]
   secondaryValues: Array<string | number>
   outputFields: ReturnType<typeof getOutputFields>
+  schema: import("@/lib/schema/types").TaskSchema
   t: TFn
+  experimentId?: string
+  rubric?: import("@/lib/schema/types").Rubric | null
+  annotationByTask?: Map<string, import("@/lib/schema/types").Annotation>
+  onAnnotationSaved?: () => void
 }) {
   const [open, setOpen] = useState(true)
 
@@ -122,7 +133,7 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
                   </Badge>
                 </div>
                 <GlassThin
-                  className={`flex-1 p-2 flex flex-col gap-4 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10 ${r && r.status !== "success" ? "border-red-500/40 bg-red-500/10" : ""}`}
+                  className={`flex-1 p-2 flex flex-col gap-1.5 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10 ${r && r.status !== "success" ? "border-red-500/40 bg-red-500/10" : ""}`}
                   {...(r
                     ? {
                         "data-copilot-context": "task_result",
@@ -167,6 +178,14 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
                             )}
                           </div>
                         )}
+                        <ResultScoringSection
+                          result={r}
+                          schema={schema}
+                          {...(experimentId !== undefined ? { experimentId } : {})}
+                          {...(rubric !== undefined ? { rubric } : {})}
+                          {...(annotationByTask !== undefined ? { annotationByTask } : {})}
+                          {...(onAnnotationSaved !== undefined ? { onAnnotationSaved } : {})}
+                        />
                       </div>
                     ) : (
                       <p className="text-xs text-red-500">{r.status}: {r.error?.slice(0, 80)}</p>

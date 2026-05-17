@@ -11,14 +11,14 @@ import { Separator } from "@/components/ui/separator"
 import type { ExperimentConfig, ProgressState } from "@/lib/types"
 import type { GenericResultRecord, TaskSchema, Display, Rubric, Annotation } from "@/lib/schema/types"
 import { pickView } from "@/components/results/registry"
-import { RubricAnnotator } from "@/components/results/rubric-annotator"
 import type { RubricAggregate } from "@/lib/annotation-store"
 import { useT } from "@/lib/i18n/provider"
-import { formatCostMap, formatTokens } from "@/lib/format"
 import { aggregateResults } from "@/lib/results-aggregate"
 import { findComparableExperiments, buildCompareHref } from "@/lib/compare-helpers"
 import { GlassRegular, GlassCard, GlassSuccess, GlassDanger } from "@/components/glass/shell"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
+import { computeStatusInfo } from "@/lib/experiment-status"
+import { ExperimentStatusBadge } from "@/components/experiment-status-badge"
 
 export default function ExperimentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -123,13 +123,18 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     fetchProgress()
   }, [id, fetchExperiment, fetchProgress])
 
-  // 按 task_id 索引最新 annotation（evaluator=human）
+  // 按 task_id 索引最新 annotation：human > llm 优先级（人工覆盖 LLM baseline），同档取 timestamp 最新。
+  // 同时 surface 给结果卡片的 RubricAnnotator existing —— 人 review LLM 分数 / 修正 / 直接保存即可。
   const annotationByTask = useMemo(() => {
     const m = new Map<string, Annotation>()
     for (const a of annotations) {
-      if (a.evaluator !== "human") continue
       const prev = m.get(a.task_id)
-      if (!prev || a.timestamp > prev.timestamp) m.set(a.task_id, a)
+      if (!prev) { m.set(a.task_id, a); continue }
+      const prevIsHuman = prev.evaluator === "human"
+      const curIsHuman = a.evaluator === "human"
+      if (curIsHuman && !prevIsHuman) { m.set(a.task_id, a); continue }
+      if (!curIsHuman && prevIsHuman) continue
+      if (a.timestamp > prev.timestamp) m.set(a.task_id, a)
     }
     return m
   }, [annotations])
@@ -195,8 +200,18 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
   const resultsNode = useMemo(() => {
     if (!viewBundle || !viewBundle.schema || results.length === 0) return null
     const { ViewComp, schema } = viewBundle
-    return <ViewComp results={results} schema={schema} />
-  }, [viewBundle, results])
+    const onAnnotationSaved = rubric ? () => fetchAnnotations(rubric.id) : undefined
+    return (
+      <ViewComp
+        results={results}
+        schema={schema}
+        experimentId={id}
+        rubric={rubric}
+        annotationByTask={annotationByTask}
+        {...(onAnnotationSaved ? { onAnnotationSaved } : {})}
+      />
+    )
+  }, [viewBundle, results, id, rubric, annotationByTask, fetchAnnotations])
 
   if (!experiment) return <div className="p-8 text-muted-foreground">{t("common.loading")}</div>
 
@@ -205,60 +220,44 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
   const stats = experiment.run_stats || progress
   const progressPct = stats && stats.total_tasks > 0
     ? Math.round((stats.completed_tasks / stats.total_tasks) * 100) : 0
+  // Sample experiments / 旧数据可能缺 run_stats —— 从 results.jsonl 兜底，让状态胶囊 hover 也能出详情
+  const progressInfo: ProgressInfo | null = stats
+    ? { completed: stats.completed_tasks, total: stats.total_tasks, failed: stats.failed_tasks }
+    : results.length > 0
+      ? (() => {
+          const failed = results.filter(r => r.status !== "success").length
+          return { completed: results.length - failed, total: results.length, failed }
+        })()
+      : null
+  const statusInfo = computeStatusInfo({
+    experimentStatus: experiment.status,
+    failedCount: progressInfo?.failed ?? 0,
+    hasRubric: !!rubric,
+    annotatedCount: aggregate?.annotated_tasks ?? 0,
+    evalTotal: (aggregate?.total_tasks || results.length),
+    t,
+  })
 
   return (
     <div className="px-6 py-4">
-      <GlassRegular className="p-6">
-        <div className="flex items-baseline gap-3 mb-6">
-          <Link href="/" className="text-muted-foreground hover:text-foreground text-xs">&larr; {t("common.back")}</Link>
-          <h2 className="text-lg font-semibold tracking-tight">{experiment.name}</h2>
-          {schema && <Badge variant="outline" className="text-[11px]">{schema.label}</Badge>}
-          {rubric && <Badge variant="outline" className="text-[11px]">✅ {rubric.name}</Badge>}
-        </div>
-
-      <Collapsible open={configOpen} onOpenChange={(v) => startTransition(() => setConfigOpen(v))}>
-        <CollapsibleTrigger className="mb-2 text-muted-foreground text-sm hover:text-foreground transition-colors cursor-pointer px-2 py-1 rounded hover:bg-accent">
-          {configOpen ? "▾" : "▸"} {t("experiment.detail.config_title")} &middot; {experiment.model} / t={experiment.temperature}
-        </CollapsibleTrigger>
-        <CollapsibleContent style={{ contain: "layout paint" }}>
-          <GlassCard className="mb-4">
-            <CardContent className="pt-4">
-              <ExperimentPromptPreview
-                template={experiment.prompt_template}
-                {...(experiment.notes !== undefined ? { notes: experiment.notes } : {})}
-                notesLabel={t("experiment.detail.notes")}
-              />
-            </CardContent>
-          </GlassCard>
-        </CollapsibleContent>
-      </Collapsible>
-
       <GlassRegular
-        className="mb-6 px-4 py-3 text-sm text-card-foreground overflow-hidden"
+        className="p-6"
         data-copilot-context="experiment"
         data-copilot-context-id={experiment.id}
         data-copilot-context-summary={`${experiment.name} · ${experiment.model}`}
       >
-        <div className="flex items-center gap-3">
-          <Badge variant={experiment.status === "running" ? "default" : "secondary"}>
-            {t(`dashboard.status_${experiment.status}`)}
-          </Badge>
-          {stats && (
-            <span className="text-sm text-muted-foreground">
-              {stats.completed_tasks}/{stats.total_tasks} {t("experiment.completed_word")}
-              {stats.failed_tasks > 0 && <span className="text-red-500"> · {t("dashboard.failed_count", { n: stats.failed_tasks })}</span>}
-              {statsAgg.has_token_data && (
-                <span> · {t("experiment.tokens_io", {
-                  input: formatTokens(statsAgg.total_input_tokens),
-                  output: formatTokens(statsAgg.total_output_tokens),
-                })}</span>
-              )}
-              {statsAgg.has_cost_data && (
-                <span> · <span className="font-medium text-foreground">{formatCostMap(statsAgg.total_cost_by_currency)}</span></span>
-              )}
-            </span>
-          )}
-          <div className="flex gap-2 ml-auto">
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          <Link href="/" className="text-muted-foreground hover:text-foreground text-xs shrink-0">&larr; {t("common.back")}</Link>
+          <h2 className="text-lg font-semibold tracking-tight min-w-0 truncate">{experiment.name}</h2>
+          {schema && <Badge variant="outline" className="text-[11px] shrink-0">{schema.label}</Badge>}
+          <ExperimentStatusBadge
+            statusInfo={statusInfo}
+            progressInfo={progressInfo}
+            statsAgg={statsAgg}
+            rubric={rubric}
+            t={t}
+          />
+          <div className="flex gap-2 ml-auto shrink-0">
             {(experiment.status === "draft" || experiment.status === "failed") && (
               <Button size="sm" variant="tinted" onClick={() => handleRun(false)}>{t("experiment.run_btn")}</Button>
             )}
@@ -288,20 +287,36 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
           </div>
         </div>
         {experiment.status === "running" && stats && stats.total_tasks > 0 && (
-          <Progress value={progressPct} className="h-1.5 mt-2.5" />
+          <Progress value={progressPct} className="h-1.5 mb-4" />
         )}
-      </GlassRegular>
+
+      <Collapsible open={configOpen} onOpenChange={(v) => startTransition(() => setConfigOpen(v))}>
+        <CollapsibleTrigger className="mb-2 text-muted-foreground text-sm hover:text-foreground transition-colors cursor-pointer px-2 py-1 rounded hover:bg-accent">
+          {configOpen ? "▾" : "▸"} {t("experiment.detail.config_title")} &middot; {experiment.model} / t={experiment.temperature}
+        </CollapsibleTrigger>
+        <CollapsibleContent style={{ contain: "layout paint" }}>
+          <GlassCard className="mb-4">
+            <CardContent className="pt-4">
+              <ExperimentPromptPreview
+                template={experiment.prompt_template}
+                {...(experiment.notes !== undefined ? { notes: experiment.notes } : {})}
+                notesLabel={t("experiment.detail.notes")}
+              />
+            </CardContent>
+          </GlassCard>
+        </CollapsibleContent>
+      </Collapsible>
 
       {rubric && aggregate && (
         <Collapsible open={scoringOpen} onOpenChange={(v) => startTransition(() => setScoringOpen(v))} style={{ contain: "layout paint" }}>
           <GlassSuccess
-            className="mb-6 border-emerald-200/60"
+            className="mb-6 border-emerald-200/60 py-3 gap-2"
             data-copilot-context="rubric_stats"
             data-copilot-context-id={experiment.id}
             data-copilot-context-extra={JSON.stringify({ rubric_id: rubric.id })}
             data-copilot-context-summary={`${rubric.name} 评分统计`}
           >
-            <CardContent className="pt-4">
+            <CardContent>
               <CollapsibleTrigger className="w-full text-left">
                 <div className="flex items-center gap-3 text-sm">
                   <span className="text-muted-foreground">{scoringOpen ? "▾" : "▸"}</span>
@@ -316,7 +331,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="mt-3 flex flex-wrap gap-4">
+                <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1.5">
                   {aggregate.criteria.map(c => (
                     <div key={c.key} className="min-w-[180px] space-y-0.5">
                       <div className="text-xs font-medium">{c.label}</div>
@@ -338,42 +353,6 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
                     </div>
                   ))}
                 </div>
-
-                {/* Per-result annotator table */}
-                {results.length > 0 && (
-                  <div className="mt-4 border-t pt-3 space-y-1">
-                    <div className="text-[11px] text-muted-foreground mb-2">{t("experiment.detail.scoring_table_hint")}</div>
-                    <div className="max-h-96 overflow-auto divide-y divide-border/60">
-                      {results.map(r => {
-                        const preview = summarizeResult(r)
-                        const existing = annotationByTask.get(r.task_id)
-                        return (
-                          <div
-                            key={r.task_id}
-                            className="flex items-start gap-3 py-1.5 text-xs"
-                            data-copilot-context="task_result"
-                            data-copilot-context-id={r.task_id}
-                            data-copilot-context-extra={JSON.stringify({ experiment_id: experiment.id })}
-                            data-copilot-context-summary={preview}
-                          >
-                            <span className="font-mono text-[10px] text-muted-foreground shrink-0 w-20 truncate" title={r.task_id}>{r.task_id}</span>
-                            <span className="flex-1 min-w-0 text-muted-foreground truncate">{preview}</span>
-                            <RubricAnnotator
-                              experimentId={id}
-                              taskId={r.task_id}
-                              rubric={rubric}
-                              {...(existing !== undefined ? { existing } : {})}
-                              onSaved={() => fetchAnnotations(rubric.id)}
-                              triggerClassName="shrink-0"
-                              result={r}
-                              {...(schema !== undefined ? { schema } : {})}
-                            />
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
               </CollapsibleContent>
             </CardContent>
           </GlassSuccess>
@@ -403,19 +382,6 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       </GlassRegular>
     </div>
   )
-}
-
-function summarizeResult(r: GenericResultRecord): string {
-  if (r.status !== "success") return `[${r.status}] ${(r.error ?? "").slice(0, 80)}`
-  const out = r.output ?? {}
-  const parts: string[] = []
-  for (const [k, v] of Object.entries(out)) {
-    if (parts.join(" · ").length > 120) break
-    if (v == null) continue
-    if (typeof v === "object") continue
-    parts.push(`${k}=${String(v).slice(0, 30)}`)
-  }
-  return parts.join(" · ") || "(empty)"
 }
 
 const ExperimentPromptPreview = memo(function ExperimentPromptPreview({
@@ -494,3 +460,5 @@ function FailedPanelImpl({ results, onRetryTask, running, t }: {
 }
 
 const FailedPanel = memo(FailedPanelImpl)
+
+type ProgressInfo = { completed: number; total: number; failed: number }

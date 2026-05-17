@@ -10,6 +10,26 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Added
+
+- **实验状态双轴状态机 + 上色** —— 把 run 状态 + 评分状态合成单个状态胶囊。文案：`草稿 / 运行中 / 已暂停 / 失败 / 已生成 / 已生成 · N 失败 / 已生成 · 待评分 / 已生成 · 评分 X/Y / 已生成 · 已评分`；色调：neutral 灰、info 蓝（伴 pulse）、success 绿、warning 琥珀、danger 红。提取共享 helper `src/lib/experiment-status.ts`（`computeStatusInfo` + `STATUS_TONE_CLASS`）。
+- **状态胶囊 hover 详情 popup** —— 提取 `<ExperimentStatusBadge>` 共享组件（`src/components/experiment-status-badge.tsx`）。胶囊右侧 info icon 提示可 hover；popup 列 完成数 / 失败 / tokens / cost / rubric 名。dashboard 卡片 + 实验详情页头部都消费同一组件 = 视觉一致。
+- **dashboard 卡片重排** —— 状态胶囊（含 hover info icon）放卡片头部右上角；schema 名移到内容行作纯文本「评测任务：XXXX」。新增 `dashboard.schema_label` i18n。
+- **结果卡片内嵌评分入口** —— 每条结果卡片底部加 border-top 分隔线 + criterion 内联展示（pass_fail→✓/✗，数值原样，未评显示 `—`）+ 右上角「评分 / 编辑评分」按钮（打开既有 RubricAnnotator dialog）。新组件 `src/components/results/result-rubric-slot.tsx#ResultScoringSection`。`single_list` / `dual_list` / `triple_grid` / `json_default` 四套 view 都接入。
+
+### Changed
+
+- **实验详情页 header 紧凑化** —— 删除独立的状态条 `GlassRegular`（占一整行）；状态 Badge 直接放标题行 schema 标签右侧；run/pause/retry/compare 按钮归位标题行右侧（`ml-auto`）；running 时 Progress 条紧贴标题行下方。`data-copilot-context="experiment"` 三件套上移到外层 `GlassRegular`。原"✅ 商品文案质量"独立 rubric 胶囊取消，rubric 名进 hover popup。
+- **评分总览面板瘦身** —— 实验详情页 rubric 面板删除原 per-task list（max-h-96 长列表，重复占位），只保留 aggregate criteria 统计；逐条评分入口下放到结果卡片内。
+- **实验详情页 / dashboard 卡片纵向间距收紧** —— `GlassCardThin` / `GlassSuccess` 默认 `py-4 gap-4` + 内层 `p-3 space-y-2` 累计上下太松，改为 outer `py-2 gap-0` + inner `px-3 space-y-1.5`；评分面板 CardContent 删 `pt-4`，criteria 容器 `mt-3 gap-4` → `mt-2 gap-x-6 gap-y-1.5`；ResultScoringSection `mt-2 pt-2` → `mt-1.5 pt-1.5`；dual_list / triple_grid 单格 GlassThin `gap-4` → `gap-1.5`。
+- **`annotationByTask` map 优先级修正** —— 之前过滤 `evaluator !== "human"`，导致 sample 数据 60 条 LLM baseline 标注全被丢，结果卡片按钮永远显示「评分」空态。改为 human > llm 优先级（同档取 timestamp 最新）：人 review LLM baseline → 修改后保存即覆盖，符合"人工修正"工作流。
+
+### Fixed
+
+- **`renderField` "badge" 分支 array 渲染** —— `inferFieldRenderType` 对名字含 `tag/label/category/status` 的字段返 `"badge"`；对 array 值之前走 `JSON.stringify` 塞进单个 `whitespace-nowrap` Badge，导致 hashtags（如 `["眼影盘推荐","平价彩妆",...]`）整行横向溢出 compare 卡片。改成 array 时 map 每项为单独 Badge，外层 `flex flex-wrap min-w-0` 容器换行。
+- **dashboard sample 数据状态胶囊不可 hover** —— sample experiments 缺 `run_stats` 字段（v0.17.0 reorg 副作用），`stats` 为 null 时 `hasDetails=false` 直接不挂 PreviewCard。修法：从 `results.length / r.status` 派生 `progressInfo` 兜底，已有 token/cost 也算 hover 触发条件。
+- **`aggregate.total_tasks=0` 兜底** —— sample 数据 aggregate API 返回 `annotated_tasks=60 / total_tasks=0`（标注算对了但总数没算），用 `||` 兜底到 `results.length` 与详情页 scoring panel 行为对齐，避免双轴状态机错判为"未评分"。
+
 ## [0.17.0] — 2026-05-14 · sample-pcw-image suite + 6→2 schema reorg (PR #100)
 
 Sample-data-redesign stream PR #2 of 3。镜像 v0.16.0 商品文案 demo 的「跨 prompt 对比」叙事到生图场景；同步把 v0.16.0 + 本 PR ship 的 sample schemas 从 6 个收敛到 2 个，对齐 /compare 「同 schema 多 experiment」核心交互。25 commits / 4 轮 opus QA。

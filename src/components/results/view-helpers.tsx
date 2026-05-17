@@ -77,7 +77,18 @@ export function renderField(value: unknown, type: string | undefined, maxLength?
       // legacy: any other string falls through to muted text
       return <span className="text-muted-foreground">{formatValue(value, maxLength)}</span>
     case "badge":
-      return <Badge variant="secondary" className="text-xs">{formatValue(value, maxLength)}</Badge>
+      if (Array.isArray(value)) {
+        const items = value.filter(v => v != null && v !== "")
+        if (items.length === 0) return <span className="text-muted-foreground">-</span>
+        return (
+          <div className="flex flex-wrap gap-1 min-w-0">
+            {items.map((v, i) => (
+              <Badge key={i} variant="secondary" className="text-xs max-w-full">{formatValue(v, maxLength)}</Badge>
+            ))}
+          </div>
+        )
+      }
+      return <Badge variant="secondary" className="text-xs max-w-full">{formatValue(value, maxLength)}</Badge>
     case "json":
       return <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>
     case "text":
