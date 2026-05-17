@@ -4,13 +4,14 @@ import { CardContent, CardHeader } from "@/components/ui/card"
 import { GlassCardThin } from "@/components/glass/shell"
 import { Badge } from "@/components/ui/badge"
 import type { ResultViewProps, CellViewProps } from "./types"
+import { ResultScoringSection } from "./result-rubric-slot"
 
 /** 通用 JSON 展示 — 推断兜底 */
-export function JsonDefaultResults({ results }: ResultViewProps) {
+export function JsonDefaultResults({ results, schema, experimentId, rubric, annotationByTask, onAnnotationSaved }: ResultViewProps) {
   return (
     <div className="space-y-3">
       {results.map(r => (
-        <GlassCardThin key={r.task_id} className={`${r.status !== "success" ? "border-red-500/40" : ""}`}>
+        <GlassCardThin key={r.task_id} className={`py-2 gap-1.5 ${r.status !== "success" ? "border-red-500/40" : ""}`}>
           <CardHeader className="py-2 px-4">
             <div className="flex flex-wrap gap-1.5 text-xs">
               <Badge variant="outline" className="font-mono">{r.task_id}</Badge>
@@ -29,6 +30,14 @@ export function JsonDefaultResults({ results }: ResultViewProps) {
             ) : (
               <p className="text-xs text-red-500">{r.status}: {r.error?.slice(0, 200)}</p>
             )}
+            <ResultScoringSection
+              result={r}
+              schema={schema}
+              {...(experimentId !== undefined ? { experimentId } : {})}
+              {...(rubric !== undefined ? { rubric } : {})}
+              {...(annotationByTask !== undefined ? { annotationByTask } : {})}
+              {...(onAnnotationSaved !== undefined ? { onAnnotationSaved } : {})}
+            />
           </CardContent>
         </GlassCardThin>
       ))}

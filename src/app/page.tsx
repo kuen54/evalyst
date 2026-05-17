@@ -1,46 +1,35 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AgentHintBanner } from "@/components/settings/agent-hint-banner"
 import { GlassCard } from "@/components/glass/shell"
+import { ExperimentStatusBadge, type StatsAgg, type ProgressInfo } from "@/components/experiment-status-badge"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import { useT, useLocale } from "@/lib/i18n/provider"
 import { formatDate } from "@/lib/i18n/format"
 import { formatCostMap } from "@/lib/format"
+import { computeStatusInfo } from "@/lib/experiment-status"
 import type { ExperimentConfig } from "@/lib/types"
-import type { TaskSchema } from "@/lib/schema/types"
+import type { TaskSchema, Rubric } from "@/lib/schema/types"
 
-const SCHEMA_BADGE_COLORS: Record<string, string> = {}
-
-const SCHEMA_COLOR_POOL = [
-  "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30",
-  "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30",
-  "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-  "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30",
-  "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/30",
-  "bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30",
-]
-
-function colorForSchema(id: string): string {
-  if (SCHEMA_BADGE_COLORS[id]) return SCHEMA_BADGE_COLORS[id]
-  let h = 0
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
-  return SCHEMA_COLOR_POOL[Math.abs(h) % SCHEMA_COLOR_POOL.length]!
-}
+/** rubric_id 实验的标注覆盖摘要——用于 dashboard 状态胶囊推算评分阶段 */
+type AnnotationSummary = { annotated: number; total: number }
 
 export default function Dashboard() {
   const t = useT()
   const { locale } = useLocale()
   const [experiments, setExperiments] = useState<ExperimentConfig[]>([])
   const [schemas, setSchemas] = useState<TaskSchema[]>([])
+  const [rubrics, setRubrics] = useState<Rubric[]>([])
   const [loading, setLoading] = useState(true)
   const [schemaFilter, setSchemaFilter] = useState<string | undefined>(undefined)
+  /** rubric_id 实验 → 标注覆盖摘要。dashboard 推算评分阶段用。 */
+  const [annotationSummaries, setAnnotationSummaries] = useState<Record<string, AnnotationSummary>>({})
 
   const fetchExperiments = () => {
     fetch("/api/experiments")
@@ -50,12 +39,59 @@ export default function Dashboard() {
       .finally(() => setLoading(false))
   }
 
+  // rubric experiments 列表的稳定 key —— 内容（id + rubric_id + updated_at）变了再触发 aggregate fetch
+  const rubricExpsKey = useMemo(
+    () => experiments
+      .filter(e => !!e.rubric_id)
+      .map(e => `${e.id}:${e.rubric_id}:${e.updated_at}`)
+      .join("|"),
+    [experiments],
+  )
+
+  const fetchAnnotationSummaries = useCallback(async (exps: ExperimentConfig[]) => {
+    const targets = exps.filter(e => !!e.rubric_id)
+    if (targets.length === 0) return
+    const entries = await Promise.all(
+      targets.map(async e => {
+        try {
+          const r = await fetch(`/api/experiments/${e.id}/annotations?rubric_id=${e.rubric_id}`)
+          if (!r.ok) return [e.id, null] as const
+          const data = await r.json() as { aggregate: { annotated_tasks: number; total_tasks: number } | null }
+          const agg = data.aggregate
+          if (!agg) return [e.id, null] as const
+          // sample/老 fixture 里 aggregate.total_tasks 可能为 0；用 run_stats / annotated_tasks 兜底
+          const total = agg.total_tasks || e.run_stats?.total_tasks || agg.annotated_tasks
+          return [e.id, { annotated: agg.annotated_tasks, total }] as const
+        } catch {
+          return [e.id, null] as const
+        }
+      }),
+    )
+    setAnnotationSummaries(prev => {
+      const next = { ...prev }
+      for (const [id, summary] of entries) {
+        if (summary) next[id] = summary
+        else delete next[id]
+      }
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     fetchExperiments()
     fetch("/api/schemas").then(r => r.json()).then(setSchemas)
+    fetch("/api/rubrics").then(r => r.json()).then((list: Rubric[]) => Array.isArray(list) && setRubrics(list)).catch(() => {})
     const interval = setInterval(fetchExperiments, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  // rubric 实验列表变化时拉 aggregate（rubricExpsKey 用 updated_at 触发，不会每 5s 重拉）
+  useEffect(() => {
+    if (experiments.length === 0) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch seeds aggregate state inside Promise.then
+    fetchAnnotationSummaries(experiments)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: rubricExpsKey 已经是 experiments 的稳定派生 key
+  }, [rubricExpsKey, fetchAnnotationSummaries])
 
   const handleDelete = async (id: string) => {
     if (!confirm(t("dashboard.delete_experiment_confirm"))) return
@@ -64,6 +100,7 @@ export default function Dashboard() {
   }
 
   const schemaById = Object.fromEntries(schemas.map(s => [s.id, s]))
+  const rubricById = useMemo(() => Object.fromEntries(rubrics.map(r => [r.id, r])), [rubrics])
 
   const filtered = useMemo(() => {
     if (!schemaFilter) return experiments
@@ -146,7 +183,8 @@ export default function Dashboard() {
               key={exp.id}
               experiment={exp}
               schemaLabel={schemaById[exp.schema_id ?? ""]?.label ?? exp.schema_id ?? t("common.unknown")}
-              schemaColor={colorForSchema(exp.schema_id ?? "")}
+              rubric={exp.rubric_id ? (rubricById[exp.rubric_id] ?? null) : null}
+              annotationSummary={annotationSummaries[exp.id] ?? null}
               onDelete={handleDelete}
               locale={locale}
               t={t}
@@ -158,10 +196,11 @@ export default function Dashboard() {
   )
 }
 
-function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, locale, t }: {
+function ExperimentCard({ experiment: exp, schemaLabel, rubric, annotationSummary, onDelete, locale, t }: {
   experiment: ExperimentConfig
   schemaLabel: string
-  schemaColor?: string
+  rubric: Rubric | null
+  annotationSummary: AnnotationSummary | null
   onDelete: (id: string) => void
   locale: "zh" | "en"
   t: (key: string, vars?: Record<string, string | number>) => string
@@ -170,6 +209,24 @@ function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, l
     ? Math.round((exp.run_stats.completed_tasks / exp.run_stats.total_tasks) * 100)
     : 0
   const isRunning = exp.status === "running"
+  const statusInfo = computeStatusInfo({
+    experimentStatus: exp.status,
+    failedCount: exp.run_stats?.failed_tasks ?? 0,
+    hasRubric: !!exp.rubric_id,
+    annotatedCount: annotationSummary?.annotated ?? 0,
+    evalTotal: annotationSummary?.total ?? 0,
+    t,
+  })
+  const progressInfo: ProgressInfo | null = exp.run_stats
+    ? { completed: exp.run_stats.completed_tasks, total: exp.run_stats.total_tasks, failed: exp.run_stats.failed_tasks }
+    : null
+  const statsAgg: StatsAgg = {
+    total_input_tokens: exp.run_stats?.total_input_tokens,
+    total_output_tokens: exp.run_stats?.total_output_tokens,
+    total_cost_by_currency: exp.run_stats?.total_cost_by_currency ?? {},
+    has_token_data: exp.run_stats?.total_input_tokens != null,
+    has_cost_data: !!exp.run_stats?.total_cost_by_currency && Object.keys(exp.run_stats.total_cost_by_currency).length > 0,
+  }
 
   return (
     <GlassCard
@@ -181,13 +238,13 @@ function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, l
       <CardHeader className="pb-1.5 pt-4 px-4">
         <div className="flex items-start justify-between gap-2 min-w-0">
           <CardTitle className="text-sm font-medium leading-snug truncate min-w-0 flex-1" title={exp.name}>{exp.name}</CardTitle>
-          <Badge
-            variant="outline"
-            className={`text-[11px] shrink max-w-[50%] min-w-0 ${schemaColor ?? ""}`}
-            title={schemaLabel}
-          >
-            <span className="truncate flex-1 min-w-0">{schemaLabel}</span>
-          </Badge>
+          <ExperimentStatusBadge
+            statusInfo={statusInfo}
+            progressInfo={progressInfo}
+            statsAgg={statsAgg}
+            rubric={rubric}
+            t={t}
+          />
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5 min-w-0">
           <span className="truncate min-w-0" title={exp.model}>{exp.model}</span>
@@ -197,19 +254,17 @@ function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, l
         </div>
       </CardHeader>
       <CardContent className="pb-3 px-4 pt-0 space-y-2">
-        <div className="flex items-center gap-1.5 text-[13px]">
-          <StatusDot status={exp.status} />
-          <span className="text-muted-foreground">{t(`dashboard.status_${exp.status}`)}</span>
+        <div className="flex items-center gap-2 text-[12px] min-w-0">
+          <span className="text-muted-foreground truncate min-w-0" title={schemaLabel}>
+            {t("dashboard.schema_label", { label: schemaLabel })}
+          </span>
           {exp.run_stats && (
-            <span className="text-muted-foreground text-[11px]">
+            <span className="text-muted-foreground text-[11px] shrink-0 ml-auto">
               {exp.run_stats.completed_tasks}/{exp.run_stats.total_tasks}
-              {exp.run_stats.failed_tasks > 0 && (
-                <span className="text-red-500"> ({t("dashboard.failed_count", { n: exp.run_stats.failed_tasks })})</span>
-              )}
             </span>
           )}
           {exp.run_stats && exp.run_stats.total_cost_by_currency && Object.keys(exp.run_stats.total_cost_by_currency).length > 0 && (
-            <span className="ml-auto text-[11px] font-medium text-foreground">
+            <span className="text-[11px] font-medium text-foreground shrink-0">
               {formatCostMap(exp.run_stats.total_cost_by_currency)}
             </span>
           )}
@@ -226,15 +281,4 @@ function ExperimentCard({ experiment: exp, schemaLabel, schemaColor, onDelete, l
       </CardContent>
     </GlassCard>
   )
-}
-
-function StatusDot({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    draft: "bg-gray-400",
-    running: "bg-blue-500 animate-pulse",
-    paused: "bg-yellow-500",
-    completed: "bg-green-500",
-    failed: "bg-red-500",
-  }
-  return <span className={`inline-block w-2 h-2 rounded-full ${colors[status] || "bg-gray-400"}`} />
 }

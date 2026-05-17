@@ -8,9 +8,10 @@ import { dimensionsOf, readDimensionValue, labelFor } from "./dimension-helpers"
 import { readField, renderField } from "./view-helpers"
 import { getOutputFields, inferFieldRenderType } from "./output-structure"
 import { formatCost, formatTokens } from "@/lib/format"
+import { ResultScoringSection } from "./result-rubric-slot"
 
 /** 1 维（或 0 维）展示：每条 result 一行；维度值作为 header */
-export function SingleListResults({ results, schema }: ResultViewProps) {
+export function SingleListResults({ results, schema, experimentId, rubric, annotationByTask, onAnnotationSaved }: ResultViewProps) {
   const dims = dimensionsOf(schema)
   // 收集**所有** dim 的 header_fields（去重），让每条 row card 顶部显示 input 上下文
   // —— 闭环 lessons §6.4 #3"看不到题目，只有结果"，与 dual_list/triple_grid 对齐
@@ -33,12 +34,12 @@ export function SingleListResults({ results, schema }: ResultViewProps) {
       {results.map(r => (
         <GlassCardThin
           key={r.task_id}
-          className={`${r.status !== "success" ? "border-red-500/40" : ""}`}
+          className={`py-2 gap-0 ${r.status !== "success" ? "border-red-500/40" : ""}`}
           data-copilot-context="task_result"
           data-copilot-context-id={r.task_id}
           data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id })}
         >
-          <div className="p-3 space-y-2">
+          <div className="px-3 space-y-1.5">
             {/* Header: 所有维度值用 " · " 连接 */}
             <div className="flex flex-wrap items-center gap-2 text-sm">
               {dims.length > 0 ? (
@@ -107,6 +108,14 @@ export function SingleListResults({ results, schema }: ResultViewProps) {
             ) : (
               <div className="text-xs text-red-500">{r.status}: {r.error?.slice(0, 200)}</div>
             )}
+            <ResultScoringSection
+              result={r}
+              schema={schema}
+              {...(experimentId !== undefined ? { experimentId } : {})}
+              {...(rubric !== undefined ? { rubric } : {})}
+              {...(annotationByTask !== undefined ? { annotationByTask } : {})}
+              {...(onAnnotationSaved !== undefined ? { onAnnotationSaved } : {})}
+            />
           </div>
         </GlassCardThin>
       ))}

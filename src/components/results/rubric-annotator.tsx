@@ -24,6 +24,8 @@ interface Props {
   /** Optional result + schema for inline preview (esp. image generation rubrics) */
   result?: GenericResultRecord
   schema?: TaskSchema
+  /** 覆盖按钮文案（结果卡片场景下分数已经在卡内展示，按钮只是"评分/编辑"入口） */
+  labelOverride?: string
 }
 
 function emptyScores(rubric: Rubric): Record<string, number | boolean | null> {
@@ -32,7 +34,7 @@ function emptyScores(rubric: Rubric): Record<string, number | boolean | null> {
   return r
 }
 
-export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSaved, triggerClassName, result, schema }: Props) {
+export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSaved, triggerClassName, result, schema, labelOverride }: Props) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const [scores, setScores] = useState<Record<string, number | boolean | null>>(() =>
@@ -97,6 +99,7 @@ export function RubricAnnotator({ experimentId, taskId, rubric, existing, onSave
     buttonLabel = summarizeScores(existing.scores, rubric.criteria)
     buttonVariant = "secondary"
   }
+  if (labelOverride) buttonLabel = labelOverride
 
   return (
     <>

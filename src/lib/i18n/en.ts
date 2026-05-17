@@ -104,7 +104,8 @@ export const en: Record<keyof typeof zh, string> = {
   "dashboard.status_draft": "Draft",
   "dashboard.status_running": "Running",
   "dashboard.status_paused": "Paused",
-  "dashboard.status_completed": "Completed",
+  "dashboard.status_completed": "Generated",
+  "dashboard.schema_label": "Task: {label}",
   "dashboard.status_failed": "Failed",
   "dashboard.failed_count": "{n} failed",
   "dashboard.delete_experiment_confirm": "Delete this experiment and all results?",
@@ -444,6 +445,13 @@ export const en: Record<keyof typeof zh, string> = {
   "experiment.new.save_run": "Save and run",
   "experiment.new.submitting": "Creating...",
   "experiment.completed_word": "done",
+  "experiment.status.awaiting_review": "Generated · awaiting review",
+  "experiment.status.reviewing": "Generated · review {n}/{total}",
+  "experiment.status.fully_done": "Generated · reviewed",
+  "experiment.status.completed_with_failures": "Generated · {n} failed",
+  "experiment.status.review_label": "Review",
+  "experiment.status.review_progress": "{n}/{total}",
+  "experiment.status.rubric_label": "Rubric",
 
   // compare page (extra)
   "compare.select_prompt": "Select experiments (≥2 of the same type)",
@@ -898,6 +906,9 @@ export const en: Record<keyof typeof zh, string> = {
 
   // === results annotator ===
   "results.annotate.btn_empty": "Score",
+  "results.annotate.btn_edit": "Edit",
+  "results.annotate.section_title": "Review",
+  "results.annotate.no_score": "—",
   "results.annotate.dialog_title": "Score this result",
   "results.annotate.rationale": "Rationale (optional)",
   "results.annotate.save": "Save",
