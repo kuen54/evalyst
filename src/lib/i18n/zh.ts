@@ -1132,6 +1132,14 @@ export const zh = {
   // LLM settings —— Copilot 开关
   "settings.llm.copilot_enabled_label": "Copilot 可用",
   "settings.llm.copilot_enabled_hint": "允许 Evalyst Copilot 使用该模型对话",
+  "settings.llm.cache.label_summary": "Cache 7d {pct} · {calls} 次",
+  "settings.llm.cache.no_data": "Cache 7d 暂无数据",
+  "settings.llm.cache.break_count": "· {n} 次 break",
+  "settings.llm.cache.window_label": "近 7 天",
+  "settings.llm.cache.calls_value": "{n} 次调用",
+  "settings.llm.cache.hit_rate_label": "命中率",
+  "settings.llm.cache.tokens_label": "tokens",
+  "settings.llm.cache.tokens_value": "读 {read} · 写 {create}",
   "settings.llm.vision_capable_label": "支持图像输入",
   "settings.llm.vision_capable_desc": "允许此模型在 Copilot 接收圈选结果中的图像。仅影响 Copilot，不影响批量评测。",
 }

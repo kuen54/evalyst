@@ -38,6 +38,7 @@ export function appendCacheStat(stat: CacheUsageStat): void {
 export function readCacheStats(opts?: {
   since_ms?: number
   session_id?: string
+  model?: string
 }): CacheUsageStat[] {
   if (!fs.existsSync(cacheStatsPath())) return []
   const raw = fs.readFileSync(cacheStatsPath(), 'utf-8')
@@ -49,6 +50,7 @@ export function readCacheStats(opts?: {
       const s = JSON.parse(line) as CacheUsageStat
       if (cutoff && new Date(s.ts).getTime() < cutoff) continue
       if (opts?.session_id && s.session_id !== opts.session_id) continue
+      if (opts?.model && s.model !== opts.model) continue
       out.push(s)
     } catch {
       // skip malformed

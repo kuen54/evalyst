@@ -14,9 +14,12 @@ const RECENT_LIMIT = 10
 
 export async function GET(req: NextRequest) {
   const sessionId = req.nextUrl.searchParams.get('session_id') ?? undefined
+  const model = req.nextUrl.searchParams.get('model') ?? undefined
 
   const sessionStats = sessionId ? readCacheStats({ session_id: sessionId }) : []
-  const weeklyStats = readCacheStats({ since_ms: SEVEN_DAYS_MS })
+  const weeklyOpts: { since_ms: number; model?: string } = { since_ms: SEVEN_DAYS_MS }
+  if (model) weeklyOpts.model = model
+  const weeklyStats = readCacheStats(weeklyOpts)
 
   const sessionAgg = aggregateCacheHitRate(sessionStats)
   const weeklyAgg = aggregateCacheHitRate(weeklyStats)
@@ -36,6 +39,8 @@ export async function GET(req: NextRequest) {
       recent_break_reasons: weeklyReasons,
       // v2.5 P2 §3.3: 最近一对 break (prev/curr) + reasons，给 tooltip 做 diff 展示
       latest_break_pair: latestBreakPair,
+      // 7 天范围的最近 N 条调用（设置页 per-model 视图消费）
+      recent: weeklyStats.slice(-RECENT_LIMIT).reverse(),
     },
   })
 }

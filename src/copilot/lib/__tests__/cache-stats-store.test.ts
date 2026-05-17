@@ -53,6 +53,23 @@ describe('appendCacheStat + readCacheStats', () => {
     expect(readCacheStats({ session_id: 'a' })).toHaveLength(1)
   })
 
+  it('model filter', () => {
+    appendCacheStat(stat({ session_id: 'a', model: 'claude-sonnet-4-6' }))
+    appendCacheStat(stat({ session_id: 'b', model: 'gpt-4o' }))
+    appendCacheStat(stat({ session_id: 'c', model: 'claude-sonnet-4-6' }))
+    const filtered = readCacheStats({ model: 'claude-sonnet-4-6' })
+    expect(filtered).toHaveLength(2)
+    expect(filtered.map(s => s.session_id)).toEqual(['a', 'c'])
+  })
+
+  it('model + since_ms combined filter', () => {
+    appendCacheStat(stat({ session_id: 'old-claude', model: 'claude-sonnet-4-6', ts: new Date(Date.now() - 10 * 60_000).toISOString() }))
+    appendCacheStat(stat({ session_id: 'new-gpt', model: 'gpt-4o', ts: new Date().toISOString() }))
+    appendCacheStat(stat({ session_id: 'new-claude', model: 'claude-sonnet-4-6', ts: new Date().toISOString() }))
+    const filtered = readCacheStats({ model: 'claude-sonnet-4-6', since_ms: 5 * 60_000 })
+    expect(filtered.map(s => s.session_id)).toEqual(['new-claude'])
+  })
+
   it('since_ms filter', () => {
     const old = stat({ session_id: 'old', ts: new Date(Date.now() - 10 * 60_000).toISOString() })
     const recent = stat({ session_id: 'new', ts: new Date().toISOString() })
