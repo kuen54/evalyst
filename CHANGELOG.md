@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-05-17 · 实验状态双轴状态机 + 评分流程重构 (PR #101)
+
+5 轮 user feedback 滚动迭代。dashboard + 实验详情页体验大改：双轴状态机统一文案 / 上色 / hover；评分入口下放到结果卡片；卡片纵向间距收紧。
+
 ### Added
 
 - **实验状态双轴状态机 + 上色** —— 把 run 状态 + 评分状态合成单个状态胶囊。文案：`草稿 / 运行中 / 已暂停 / 失败 / 已生成 / 已生成 · N 失败 / 已生成 · 待评分 / 已生成 · 评分 X/Y / 已生成 · 已评分`；色调：neutral 灰、info 蓝（伴 pulse）、success 绿、warning 琥珀、danger 红。提取共享 helper `src/lib/experiment-status.ts`（`computeStatusInfo` + `STATUS_TONE_CLASS`）。
