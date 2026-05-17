@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.1] — 2026-05-17 · Cache 命中观测搬到 LLM 设置 (PR #102)
+
 ### Changed
 
 - **Cache 命中可观测搬到 LLM 设置** —— 移除 Copilot 面板顶部的 `CacheStatsChip`（占满一行 chrome 不算 chat 内容）；新增 `<CacheStatsInline>` 挂在 `/settings/llm` 模型卡 Copilot 勾选框右侧，per-model 展示「Cache 7d {pct} · {n} 次」+ break 数 + info icon hover 详情 popup（近 7 天调用 / cache tokens / break diff）。Anthropic + OpenAI 不同 cache 语义按 model 分桶后才不糊。0 calls 显示「暂无数据」无 info icon。
