@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.4] — 2026-05-18 · Copilot 圈选体验微调 (PR #105 + #106)
+
 ### Changed
 
 - **Copilot 新建会话时清空圈选** —— `panel.tsx:handleCreate` 在 `setActiveSessionId(s.id)` 后调一次 `clearContexts()`。新会话语义就是 clean slate，上一轮的 contexts 不带过来；切到已有会话不清（那是历史浏览语义，圈选仍属于「当前用户操作 buffer」）。
