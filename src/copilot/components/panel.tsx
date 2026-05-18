@@ -11,7 +11,7 @@ import type { CopilotSessionMeta } from "@/copilot/lib/types"
 
 export function CopilotPanel() {
   const t = useT()
-  const { open, setOpen, toggleOpen, width, setWidth, activeSessionId, setActiveSessionId, mounted, contexts } = useCopilotStore()
+  const { open, setOpen, toggleOpen, width, setWidth, activeSessionId, setActiveSessionId, mounted, contexts, clearContexts } = useCopilotStore()
 
   const [sessions, setSessions] = useState<CopilotSessionMeta[]>([])
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
@@ -59,10 +59,11 @@ export function CopilotPanel() {
       const s = await r.json() as CopilotSessionMeta
       setSessions(prev => [s, ...prev])
       setActiveSessionId(s.id)
+      clearContexts() // 新会话清空上一轮残留圈选；切换到已有会话不清，那是历史浏览语义
     } catch {
       toast.error(t("copilot.create_session_failed"))
     }
-  }, [modelId, setActiveSessionId, t])
+  }, [modelId, setActiveSessionId, clearContexts, t])
 
   const handleRename = useCallback(async (id: string, title: string) => {
     await fetch(`/api/copilot/sessions/${id}`, {

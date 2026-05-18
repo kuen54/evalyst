@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Changed
+
+- **Copilot 新建会话时清空圈选** —— `panel.tsx:handleCreate` 在 `setActiveSessionId(s.id)` 后调一次 `clearContexts()`。新会话语义就是 clean slate，上一轮的 contexts 不带过来；切到已有会话不清（那是历史浏览语义，圈选仍属于「当前用户操作 buffer」）。
+
 ### Fixed
 
 - **Copilot 首次圈选误弹「页面刷新」提示** —— `src/copilot/components/panel.tsx` 那条「sessionStorage 残留 contexts → 提示一次」的 effect 把 `contexts` 写进了 deps，导致新会话首次添加 context（contexts 0→1）也命中 latch，错弹「页面刷新后，1 个 context 已保留但标注徽章失效」。改为 deps 只放 `mounted`，依赖 store init effect 把 `setContexts(parsed)` 与 `setMounted(true)` 同帧批量提交的特性，在 mount 翻 true 那次就读到 hydrated contexts；之后的 add/remove 不再重触发。Bug 仅影响 dev/prod 一次/页面生命周期，但视觉/交互上很迷惑。
