@@ -26,7 +26,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   const {
     contexts, clearContexts, removeContext,
     setInspectorActive, inspectorActive,
-    pageContext, bumpTypingSignal,
+    pageContext,
     setActiveSessionId,
   } = useCopilotStore()
 
@@ -162,7 +162,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
         hasMessages={stream.messages.length > 0}
         onForkSession={handleForkSession}
       />
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+      <div className="copilot-chat-list flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {stream.loadingSession && stream.messages.length === 0 && (
           <div className="text-[11px] text-muted-foreground text-center">{t("common.loading")}</div>
         )}
@@ -226,7 +226,6 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
             value={input}
             onChange={e => {
               setInput(e.target.value)
-              bumpTypingSignal()
             }}
             onKeyDown={onKeyDown}
             placeholder={t("copilot.input_placeholder")}

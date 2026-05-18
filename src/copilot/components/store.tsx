@@ -46,11 +46,9 @@ interface CopilotStore {
   busy: boolean
   setBusy: (v: boolean) => void
 
-  // ---- PR-4: Page Context + typing signal + route change banner ----
+  // ---- PR-4: Page Context + route change banner ----
   pageContext: PageContext | null
   setPageContext: (pc: PageContext | null) => void
-  typingSignal: number
-  bumpTypingSignal: () => void
   routeChangeBanner: { visible: boolean; count: number } | null
   showRouteChangeBanner: (count: number) => void
   dismissRouteChangeBanner: () => void
@@ -72,7 +70,6 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   const [contexts, setContexts] = useState<CapturedContext[]>([])
   const [busy, setBusy] = useState(false)
   const [pageContext, setPageContextState] = useState<PageContext | null>(null)
-  const [typingSignal, setTypingSignalState] = useState(0)
   const [routeChangeBanner, setRouteChangeBannerState] = useState<{ visible: boolean; count: number } | null>(null)
   const [lastOpenedAt, setLastOpenedAt] = useState(0)
   /** 同步追踪当前 open 值。rising edge 检测需要 sync 读，state 是异步的 */
@@ -212,26 +209,6 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     setPageContextState(pc)
   }, [])
 
-  // typing signal 内部 debounce 250ms，避免每键盘事件都 setState
-  const typingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const bumpTypingSignal = useCallback(() => {
-    if (typingDebounceRef.current) return
-    typingDebounceRef.current = setTimeout(() => {
-      setTypingSignalState(n => n + 1)
-      typingDebounceRef.current = null
-    }, 250)
-  }, [])
-
-  // Provider unmount 时清掉在飞的 debounce 计时器，避免 leaked timeout 触发 setState on unmounted。
-  useEffect(() => {
-    return () => {
-      if (typingDebounceRef.current) {
-        clearTimeout(typingDebounceRef.current)
-        typingDebounceRef.current = null
-      }
-    }
-  }, [])
-
   const showRouteChangeBanner = useCallback((count: number) => {
     setRouteChangeBannerState({ visible: true, count })
   }, [])
@@ -298,8 +275,6 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     // new
     pageContext,
     setPageContext,
-    typingSignal,
-    bumpTypingSignal,
     routeChangeBanner,
     showRouteChangeBanner,
     dismissRouteChangeBanner,
@@ -314,7 +289,6 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     contexts, addContext, removeContext, clearContexts,
     busy,
     pageContext, setPageContext,
-    typingSignal, bumpTypingSignal,
     routeChangeBanner, showRouteChangeBanner, dismissRouteChangeBanner,
     clearManualContexts,
   ])
@@ -354,8 +328,6 @@ const NOOP_STORE: CopilotStore = {
   // new
   pageContext: null,
   setPageContext: () => {},
-  typingSignal: 0,
-  bumpTypingSignal: () => {},
   routeChangeBanner: null,
   showRouteChangeBanner: () => {},
   dismissRouteChangeBanner: () => {},
