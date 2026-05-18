@@ -4,6 +4,7 @@ import path from "node:path"
 import os from "node:os"
 import { readToolResultTool } from "../read-tool-result.server"
 import { maybePersistToolResult } from "../../tool-result-store"
+import { runTool } from "../../tool-runtime"
 
 let testDir: string
 let originalCwd: string
@@ -70,5 +71,27 @@ describe("read_tool_result tool", () => {
       ok: false,
       error: { code: "INVALID_INPUT", message: expect.stringContaining("ref") },
     })
+  })
+
+  // Bug repro: session qooekg5n90 第 38-168 行 LLM 卡在 read_tool_result 死循环 26 次。
+  // 原因：payloadGuardHook 见 read_tool_result 输出 > maxResultSizeChars 又把它落盘成新 ref，
+  // LLM 拿新 ref 再调 read_tool_result，又 > maxResultSizeChars，再生新 ref。
+  // skipPayloadGuard: true 修法——payloadGuardHook 见到强制 inline。
+  it("returns kind:inline even when payload exceeds maxResultSizeChars (no ref→ref loop)", async () => {
+    // Persist 一个 20KB payload；任何合理 size 阈值都会 > 之
+    const big = { body: "x".repeat(20000), marker: "huge" }
+    const persisted = await maybePersistToolResult(ctx.session_id, big, 1000)
+    if (persisted.kind !== "ref") throw new Error("setup expected ref")
+
+    // 走完整 runTool pipeline（含 payloadGuardHook），之前会拿到 kind:"ref"，导致死循环
+    const r = await runTool(readToolResultTool, { ref: persisted.ref }, ctx, { skipConfirm: true })
+
+    expect(r.kind).toBe("done")
+    if (r.kind === "done") {
+      const out = r.output as { kind: string; value?: unknown; ref?: string }
+      expect(out.kind).toBe("inline")
+      expect(out.ref).toBeUndefined()
+      expect(out.value).toEqual(big)
+    }
   })
 })

@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **Copilot `read_tool_result` 工具 ref → ref 死循环** —— `payloadGuardHook` 是个对**所有**工具 output 跑的 post-hook，包括 `read_tool_result` 自己。当被回捞的 payload 序列化后超过 `maxResultSizeChars`（read_tool_result 设的是 8000），hook 把它**再次落盘**返回新 ref。LLM 拿到新 ref 又调 `read_tool_result(new_ref)`，又超 8000 又生新 ref——形成无限链。session `qooekg5n90` repro：单次问答里 26 次空转 read_tool_result，整页"调了十几轮还在查"的体感来源。修法：`ToolMetadata` 加 `skipPayloadGuard?: boolean` flag，`read_tool_result.metadata` 设 `true`；`payloadGuardHook` 见 flag 强制返 `{kind:'inline', value: output}`，绕过 size-based ref 化。`maxResultSizeChars` 同时拉到 `Number.MAX_SAFE_INTEGER` 防误读。bug repro 用例落在 `src/copilot/lib/tools/__tests__/read-tool-result.test.ts`，走完整 `runTool` pipeline 而非裸 `.call()`（既有测试只测 `.call()`，所以一直没抓到这个 hook-pipeline 层的 bug）。
+
 ## [0.18.5] — 2026-05-18 · Copilot 开启后整页卡顿优化 (PR #107)
 
 ### Performance

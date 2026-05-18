@@ -14,6 +14,10 @@ interface ToolMetadata {
   maxResultSizeChars: number
   /** 预留：并行 dispatch 是否安全。当前不消费 */
   isConcurrencySafe?: boolean
+  /** 跳过 payloadGuardHook 的 size-based ref 化，强制 inline 返回。
+   *  仅用于"回捞型"工具（read_tool_result）：它的契约就是把已落盘的 payload 原样返出，
+   *  再走 maybePersistToolResult 会形成 ref → ref 死循环（v0.18.6 PR 修复）。 */
+  skipPayloadGuard?: boolean
 }
 
 /**
