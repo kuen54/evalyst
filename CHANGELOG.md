@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.5] — 2026-05-18 · Copilot 开启后整页卡顿优化 (PR #107)
+
 ### Performance
 
 - **Copilot 开启后整页卡顿优化** —— 主因是 `GlowOverlay` 的两层 `filter: blur(22-24px)` 永动动画位于所有 `GlassCard`（116 处使用点）下方，每帧 transform 让上层 `backdrop-filter: blur(28px)` 被迫重 blur，整页 GPU 合成预算被烧穿。
