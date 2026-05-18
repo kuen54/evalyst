@@ -10,6 +10,15 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Performance
+
+- **Copilot 开启后整页卡顿优化** —— 主因是 `GlowOverlay` 的两层 `filter: blur(22-24px)` 永动动画位于所有 `GlassCard`（116 处使用点）下方，每帧 transform 让上层 `backdrop-filter: blur(28px)` 被迫重 blur，整页 GPU 合成预算被烧穿。
+  - `globals.css` 的 `.copilot-glow::before / .copilot-glow-flow` 默认不再挂动画；只在 `[data-state="active"]`（busy/streaming）时跑 4s drift（idle 静止只显色，busy 仍活）。
+  - `glow-overlay.tsx` 加 Page Visibility 订阅，`document.hidden` 时给容器 `data-visible="false"`，CSS 用 `animation-play-state: paused` 暂停动画。
+  - `store.tsx` 删除无人消费的 `typingSignal` / `bumpTypingSignal`（dead code，250ms 周期更新整个 `CopilotCtx` value 触发所有 consumer re-render）；`chat-view.tsx` 同步去掉调用点。
+  - `chat-view-parts.tsx` 给 `MessageRow` 套自定义 `memo` 比较器：streaming 期间只 re-render `msg` 引用真变了的那行，其它行跳过。
+  - `chat-view.tsx` 消息滚动列表加 `.copilot-chat-list` class，`globals.css` 让其直接子节点走 `content-visibility: auto + contain-intrinsic-size: auto 80px`，长会话滚出视口的消息不参与 paint。
+
 ## [0.18.4] — 2026-05-18 · Copilot 圈选体验微调 (PR #105 + #106)
 
 ### Changed

@@ -43,8 +43,11 @@ interface MessageRowProps {
 }
 
 /** 单条聊天消息：user（primary 色块右对齐）/ assistant（muted 色块左对齐）+ hover 出工具条。
- *  tool_use / tool_result 由 chat-view 顶层路由到 ToolCallCard，这里直接 return null。 */
-export function MessageRow({ msg, editing, editDraft, onEditDraftChange, onCopy, onEdit, onDelete, onEditCancel, onEditCommit }: MessageRowProps) {
+ *  tool_use / tool_result 由 chat-view 顶层路由到 ToolCallCard，这里直接 return null。
+ *  memo 自定义比较：streaming 时只重渲染 msg ref 真变了的那行（其他行 msg 引用稳定 → 跳过）。
+ *  callback 故意不进比较——chat-view 里都是 inline arrow，每次都是新引用，
+ *  但闭包里只读 msg 本身，msg ref 不变时新旧 lambda 行为等价。 */
+function MessageRowImpl({ msg, editing, editDraft, onEditDraftChange, onCopy, onEdit, onDelete, onEditCancel, onEditCommit }: MessageRowProps) {
   const t = useT()
   if (msg.role !== "user" && msg.role !== "assistant") return null
   const isUser = msg.role === "user"
@@ -135,6 +138,13 @@ export function MessageRow({ msg, editing, editDraft, onEditDraftChange, onCopy,
     </div>
   )
 }
+
+export const MessageRow = memo(MessageRowImpl, (prev, next) => {
+  if (prev.msg !== next.msg) return false
+  if (prev.editing !== next.editing) return false
+  if (next.editing && prev.editDraft !== next.editDraft) return false
+  return true
+})
 
 function IconButton({ children, title, onClick, danger }: { children: React.ReactNode; title: string; onClick: () => void; danger?: boolean }) {
   return (

@@ -205,9 +205,9 @@
   }
   .copilot-glow[data-enabled="true"] { opacity: 1; }
 
-  /* 底层：四角色斑，漂移 + 呼吸 scale + 饱和加亮。
-     copilot 开着时就一直是"活的"状态，不区分 idle/busy —— busy 只是走得更快一点。
-     节奏 8s（busy 4s），配合大幅位移出"很轻柔"的感觉。 */
+  /* 底层：四角色斑。idle 静止只显色不动，busy 才跑 4s 动画。
+     idle 不动是为了让上层 GlassCard 的 backdrop-filter 不再每帧重 blur
+     —— glow 动 → 卡片背景 buffer 变 → backdrop blur 重算，是 copilot 开着卡顿的主因。 */
   .copilot-glow::before {
     content: "";
     position: absolute;
@@ -218,13 +218,11 @@
       radial-gradient(ellipse 50% 35% at 12% 85%, color-mix(in oklab, var(--glow-c) 44%, transparent) 0%, transparent 68%),
       radial-gradient(ellipse 55% 40% at 90% 88%, color-mix(in oklab, var(--glow-d) 42%, transparent) 0%, transparent 68%);
     filter: blur(22px) saturate(1.2) brightness(1.08);
-    animation: copilot-glow-drift 8s ease-in-out infinite alternate;
-    will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
   }
 
-  /* 中层：长椭圆，反向漂移 + 明显旋转 */
+  /* 中层：长椭圆。同上，idle 静止 */
   .copilot-glow-flow {
     position: absolute;
     inset: -60px;
@@ -234,18 +232,24 @@
       radial-gradient(ellipse 60% 30% at 72% 58%, color-mix(in oklab, var(--glow-a) 42%, transparent) 0%, transparent 62%),
       radial-gradient(ellipse 40% 55% at 50% 28%, color-mix(in oklab, var(--glow-c) 38%, transparent) 0%, transparent 65%);
     filter: blur(24px) saturate(1.2) brightness(1.06);
-    animation: copilot-glow-flow 8s ease-in-out infinite alternate;
-    will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
   }
 
-  /* busy(streaming) 再快一点点；颜色已经默认就"活"，不需要再提亮 */
+  /* busy(streaming) 才挂动画 + will-change，避免 idle 占 GPU layer 预算 */
   .copilot-glow[data-state="active"]::before {
-    animation-duration: 4s;
+    animation: copilot-glow-drift 4s ease-in-out infinite alternate;
+    will-change: transform;
   }
   .copilot-glow[data-state="active"] .copilot-glow-flow {
-    animation-duration: 4s;
+    animation: copilot-glow-flow 4s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  /* 页面隐藏时（document.hidden）暂停动画 —— 看不见就别画 */
+  .copilot-glow[data-visible="false"][data-state="active"]::before,
+  .copilot-glow[data-visible="false"][data-state="active"] .copilot-glow-flow {
+    animation-play-state: paused;
   }
 
   /* 大幅漂移 —— 让人眼看得到运动 */
@@ -551,6 +555,14 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
 
 @media (prefers-reduced-motion: reduce) {
   .copilot-panel-enter { animation: none; }
+}
+
+/* Chat 历史列表的滚动外容器：每个直接子（MessageRow / SystemNoticeBubble / ToolCallCard）
+   滚出视口时跳过 paint。intrinsic-size: auto 让浏览器记住真实尺寸，避免来回滑动跳行。
+   长会话场景这是 paint cost 的主要来源（streaming 时整个列表 paint）。 */
+.copilot-chat-list > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
 }
 
 /* Theme switch cascade rules live in src/app/layout.tsx via <style dangerouslySetInnerHTML>.
