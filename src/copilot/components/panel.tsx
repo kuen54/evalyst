@@ -125,13 +125,16 @@ export function CopilotPanel() {
   }, [open, setOpen])
 
   // 首次加载若 sessionStorage 里残留 contexts（说明是刷新场景），提示一次。mask 由 ContextMask 自行处理 DOM 重查询。
+  // deps 故意只放 mounted：store init effect 把 setContexts(parsed) + setMounted(true) 同帧批量提交，mounted 翻 true 那次
+  // 跑就能读到 hydrated contexts；若把 contexts 也放 deps，新会话首次圈选（contexts 0→1）会误触发这条「刷新提示」。
   useEffect(() => {
     if (!mounted || reloadToastShown.current) return
+    reloadToastShown.current = true
     if (contexts.length > 0) {
-      reloadToastShown.current = true
       toast(t("copilot.context_reload_toast", { n: contexts.length }))
     }
-  }, [mounted, contexts, t])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 见上方注释：只在 mount 时读一次 hydrated contexts，后续 add/remove 不重触发
+  }, [mounted])
 
   const effectiveOpen = mounted && open
   const panelWidth = effectiveOpen ? width : 0
