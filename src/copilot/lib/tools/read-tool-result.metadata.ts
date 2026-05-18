@@ -22,8 +22,10 @@ export const readToolResultMetadata: ToolMetadataDescriptor = {
   metadata: {
     isReadOnly: true,
     isDestructive: false,
-    // 回捞的 payload 通常是原始大结果；放宽到 8KB，超出仍会再次走 payloadGuard 落盘
-    // （防止 read_tool_result 的结果自己又超限——这种情况 LLM 应自己用更精细的查询）。
-    maxResultSizeChars: 8000,
+    // 回捞型工具：契约就是把已落盘 payload 原样返出，不能再走 ref 化（ref→ref 死循环）。
+    // skipPayloadGuard 让 payloadGuardHook 强制 inline；maxResultSizeChars 此时被忽略，
+    // 但保留是因为 ToolMetadata 类型要求；设个大值避免后续若有改动误触发。
+    maxResultSizeChars: Number.MAX_SAFE_INTEGER,
+    skipPayloadGuard: true,
   },
 }

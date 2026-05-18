@@ -88,9 +88,19 @@ function liftAttachments(output: unknown): { value: unknown; attachments: ImageR
  * Image vision §4.5：先 lift `_attachments`（如有），再走 maybePersistToolResult。
  * 这样落盘的 inner value 不带 `_attachments`（避免 base64 路径名串撑大），
  * wrapper 上挂 `attachments` 让 build-llm-messages 后续 collectImageRefs 能识别。
+ *
+ * skipPayloadGuard: 跳过 size-based ref 化，强制 inline。仅 read_tool_result 用——
+ * 它的契约就是回捞已落盘 payload 原样返出；再走 ref 化会形成 ref→ref 死循环
+ * （bug repro: session qooekg5n90 第 38-168 行 26 次空转）。attachments 仍 lift，
+ * 保留 vision pipeline。
  */
 export const payloadGuardHook: PostToolCallHook = async ({ tool, output, session_id }) => {
   const { value, attachments } = liftAttachments(output)
+  if (tool.metadata.skipPayloadGuard) {
+    const wrapped: { kind: "inline"; value: unknown; attachments?: ImageRef[] } = { kind: "inline", value }
+    if (attachments && attachments.length > 0) wrapped.attachments = attachments
+    return { output: wrapped }
+  }
   const wrapped = await maybePersistToolResult(session_id, value, tool.metadata.maxResultSizeChars)
   if (attachments && attachments.length > 0 && wrapped.kind !== "compacted") {
     // ToolResultContent.inline / .ref 都接受 attachments?: ImageRef[]
