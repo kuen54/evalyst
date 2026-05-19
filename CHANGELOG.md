@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.23] — 2026-05-19 · COPILOT_SYSTEM_PROMPT anti-fabrication 主动指令（PR #125 · hallucination audit PR-B）
+
+> Hallucination audit 2 PR 完成。配合 PR-A (v0.18.22) 工具层 `_warning` 双保险——工具层给信号 + prompt 层告诉 LLM 怎么做。
+
 ### Fixed
 
 - **`COPILOT_SYSTEM_PROMPT` 加 anti-fabrication 主动指令**（hallucination audit PR-B）—— `build-llm-messages.ts` 的 `COPILOT_SYSTEM_PROMPT` 把末尾 passive `"Don't fabricate data that wasn't shared."` 升级为 4 条主动 ANTI-FABRICATION RULES：(1) NEVER 编造 model names / schema_ids 等具体值；(2) 看到 `_warning.unknown_fields` 立即 retry，不填空；(3) 字段缺失时说"X 没有记录"而不是猜测；(4) 不确定就用"I need to check"+ 调工具，不要 confident-sounding fabrication。配合 PR-A `read_resource` warn 双保险。test: lock-in 4 关键短语防回归。
