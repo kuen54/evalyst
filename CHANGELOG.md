@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.12] — 2026-05-19 · /tool-result POST 同 call_id 幂等 (PR #114 · audit H5)
+
+> Audit (#28) 8 项中 H5。5 个 H 全部落地（H2 误报无 PR）。
+
 ### Fixed
 
 - **`/tool-result` POST 加同 call_id 幂等检查**（H5）—— `route.ts` 在 active branch 里查同 `call_id` 的 tool_result 是否已落盘，命中返 409 + `existing_message_id`，不再调 runTool。原行为：客户端 `pendingCallIds` 仅防 in-flight，不防 already-completed；用户 Confirm 双触 / fork 后旧链尾 tool_use 被新链重激活 / 客户端重试，都会让 mutating tool（`edit_template` 让 schema.version 翻倍 / `restart_experiment` 重复 startBatch）重复执行。test: `tool-result-idempotency.test.ts` 双 case（同 call_id 拒绝 / 新 call_id 不误判）。
