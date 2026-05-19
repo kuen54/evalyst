@@ -10,17 +10,23 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.8] — 2026-05-19 · Copilot 开启后整页卡顿结构性修复 + fetch-failed 可观测性 (PR #110)
+
+> 浏览器实测：用户回报 v0.18.5 后仍然"开 copilot 整页卡顿，完全不动也卡"。Audit 发现真凶是 65+ glass cards × backdrop-filter blur(28px) 的结构性 GPU paint cost——与有没有动画无关。本版本核心修复让 offscreen result 卡跳过 paint，命中后用户确认"性能好像好了很多"。
+
 ### Performance
 
-- **Copilot 圈选 mask 渲染重写**（用户报告：圈选框是页面卡顿的主因）—— `context-mask.tsx` 三层重构：
-  - **A. 删全局 `MutationObserver(document.body, subtree:true)`** —— 换成 per-target `ResizeObserver`，仅目标自己尺寸变化才触发。原 observer 在 LLM streaming 期间每 chunk 都触发回调（subtree:true 让 V8 维护整个 DOM 树的 mutation 记录），现在彻底消失。Route change 由 `pathname` effect 兜底。
-  - **B. scroll/resize 走 imperative DOM 更新** —— `setRects → React 重渲染 N 个 div` 的路径换成 `div.style.transform = translate3d(...)` 直写。React state 只控制 mask 的存在与否（contexts 增删），位置更新走 ref。`transform` + `will-change` 让位置更新只 composite 不 layout。
-  - **C. busy（LLM streaming）期间冻结** —— 所有 schedule 直接 return；busy 落幕时补一帧 catch-up 对齐当前位置。streaming 期间 mask 0 cost。
+- **`[data-copilot-context="task_result"]` 走 `content-visibility: auto`**（结构性主修）—— `globals.css` 加单条 CSS 规则，experiment 详情/对比页 50+ task result 卡，**滚出视口的卡跳过 paint（含 backdrop-filter 重 blur）+ 跳过 layout**，浏览器自动记忆真实高度避免跳行。N 同时 paint 从 65 降到典型可见 5-10。零组件改动，单选择器覆盖 `single-list / dual-list / triple-grid / display-jsx / display-table / bubble-auto / json-default` 全部 result 渲染器。
+- **Copilot mask 圈选框 perf 优化** —— `context-mask.tsx` 两层：
+  - 删全局 `MutationObserver(document.body, subtree:true, childList:true)` —— 换成 **per-target `ResizeObserver`**，仅目标自己尺寸变化才触发。原 observer 在 LLM streaming 期间每 chunk 都触发回调（subtree:true 让 V8 维护整个 DOM 树的 mutation 记录），现在彻底消失。Route change 由 `pathname` effect 兜底。
+  - **busy（LLM streaming）期间冻结** —— `recompute` / `scheduleRecompute` 见 busy=true 直接 return；busy 落幕补一帧 catch-up 对齐当前位置。streaming 期间 mask 完全 0 cost。
+  - 注：曾尝试把 scroll 路径改成 imperative DOM 更新（`div.style.transform` 直写跳过 React diff），但 query 出 target 时若 rect 0,0,0,0 会让所有 mask 堆左上角，回滚到 `setRects` React 路径——原代码定位本身正常，只优化外围 observer。
+- **`busy` 字段从 `useCopilotStore` main value 拆出独立 `CopilotBusyCtx`** —— streaming 期间 busy 抖动只重渲染 `useCopilotBusy()` 订阅者（GlowOverlay + ContextMask），不再波及 main store 50+ consumer。idle 场景帮助有限（busy 此时稳定 false），但 streaming 是免费 perf win。`setBusy` 仍在 main store value（writer 不订阅，无 re-render 影响）。
 
 ### Added
 
-- **Copilot SSE 加 20s heartbeat** —— `sse-response.ts` 在 runner 跑期间每 20s `write({kind:'heartbeat'})`。防中间件 idle-close（连接长时间无数据被反向代理切断）+ 给 client 一个"连接活着但服务端在算"的可观测信号。client 收到 `heartbeat` kind 直接忽略（`use-chat-stream.ts` makeSseHandler 早返）。`ChatSseEvent` union 加 `heartbeat` 成员。
-- **`fetch failed` 错误日志全链路加 stack** —— v0.18.7 后用户遇到 `fetch failed` toast 但没现场信息。`sse-response.ts` 的 runner catch 里 `console.error('[copilot/sse] runner threw:', e)` 把 stack 写到 dev server stderr；`use-chat-stream.ts` send/tool-result 两处 catch 加 `console.error('[copilot/chat-stream] ... failed:', e)` 写到 browser console。toast 文案不变，下次复现有 stack 可看。
+- **Copilot SSE 加 20s heartbeat** —— `sse-response.ts` runner 跑期间每 20s `write({kind:'heartbeat'})`。防中间件 idle-close（连接长时间无数据被反向代理切断）+ 给 client 一个"连接活着但服务端在算"的可观测信号。client 收到 `heartbeat` kind 直接忽略（`use-chat-stream.ts` makeSseHandler 早返）。`ChatSseEvent` union 加 `heartbeat` 成员。
+- **`fetch failed` 错误日志全链路加 stack** —— v0.18.7 后用户偶发遇到 `fetch failed` toast 但既没 dev server stderr 也没 browser console。`sse-response.ts` 的 runner catch 加 `console.error('[copilot/sse] runner threw:', e)` 把 stack 写到 dev server stderr；`use-chat-stream.ts` send / tool-result 两处 catch 加 `console.error('[copilot/chat-stream] ... failed:', e)` 写到 browser console。toast 文案不变，下次复现有 stack 可看。
 
 ## [0.18.7] — 2026-05-19 · Copilot ref-loop 修复的同源 followup (PR #109)
 
