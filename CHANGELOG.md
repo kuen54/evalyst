@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **System prompt 加 `read_context` 优先指令 + ctx summary 含 experiment_id**（PR-1 of audit）—— `build-llm-messages.ts` 把 system 消息前缀从 passive `"Session context (JSON):"` 改成硬指令：当 `refs.length > 0` 时 prepend `"User has circled the following contexts (UI chips #1, #2, ...). When the user references them ... you MUST call `read_context(id=ctx_N)` FIRST, before any other tool. ..."`。同时给 `buildSystemHeader` 传 `summarize` 让 ctx summary 含 `experiment_id`（之前 ctx_1 / ctx_2 都是 `task_result box:108` 同名无区分）。session 30cqfqrfxv 实证：用户圈 box:108×2 询问副标题对比，LLM **0 次 read_context** 直接 read_page 找乱猜 box:1，34 轮才半放弃。test: 新增 2 case lock-in directive 顺序 + summary 区分度。
+
 ## [0.18.18] — 2026-05-19 · Mask scroll 不跟手回归修复（PR #120）
 
 > v0.18.8 加的 C 级 busy 冻结副作用——用户报圈选元素后滑动页面 mask 完全不动。
