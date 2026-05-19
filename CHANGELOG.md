@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.18] — 2026-05-19 · Mask scroll 不跟手回归修复（PR #120）
+
+> v0.18.8 加的 C 级 busy 冻结副作用——用户报圈选元素后滑动页面 mask 完全不动。
+
 ### Fixed
 
 - **Mask scroll 不跟手回归修复**（v0.18.8 留的坑）—— `context-mask.tsx` 删 C 级"busy 期间冻结" + 落幕 catch-up + `useCopilotBusy` 依赖。原 v0.18.8 用 busy gate 想让"streaming 期间 mask 0 cost"，但：(1) A 级 per-target ResizeObserver 已是 perf 主防线，C 级冗余；(2) 用户 scroll 是主动交互应该立即跟手，被 busy 短路是 UX bug；(3) H4 (v0.18.11) busy 计数器若 inc/dec 不配对的 race，busy 永久卡 true → mask 永远不动。perf 主防线仅靠 A + RAF debounce。
