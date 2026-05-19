@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useEffect, useRef, useState } from "react"
-import { useCopilotStore } from "./store"
+import { useCopilotStore, useCopilotBusy } from "./store"
 
 // Copilot 光效：仅背景漂移，刻意不带"点击变色"。
 //
@@ -45,7 +45,8 @@ const StaticGlow = memo(function StaticGlow({
 })
 
 export function GlowOverlay() {
-  const { open, busy } = useCopilotStore()
+  const { open } = useCopilotStore()
+  const busy = useCopilotBusy()
   const enabled = open
   const glowRef = useRef<HTMLDivElement | null>(null)
   const [visible, setVisible] = useState(true)

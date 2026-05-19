@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { useCopilotStore } from "./store"
+import { useCopilotStore, useCopilotBusy } from "./store"
 import { queryContextElement } from "@/copilot/lib/context-registry"
 import { usePathname } from "next/navigation"
 import { useT } from "@/lib/i18n/provider"
@@ -40,7 +40,8 @@ function colorForTag(tag: number): string {
 }
 
 export function ContextMask() {
-  const { contexts, removeContext, open, busy } = useCopilotStore()
+  const { contexts, removeContext, open } = useCopilotStore()
+  const busy = useCopilotBusy()
   const t = useT()
   const visible = open
   const pathname = usePathname()
