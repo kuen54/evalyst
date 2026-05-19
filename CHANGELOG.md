@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **Session 切换时旧 GET 响应竞态守卫**（H3）—— `use-chat-stream.ts` session 加载 effect 加 AbortController + `signal.aborted` 守卫每个 chain 段。原行为：用户快速切 session A→B 时，旧 A 的 fetch.then 后到会用 A 的 messages 覆盖 B 的（factory 用 `currentSessionRef` 保护 SSE 事件，但 GET `.then` 没校验）。修后 cleanup `ctrl.abort()` 取消 stale 请求 + `signal.aborted` 检查防 state 误更新。
+
 ## [0.18.9] — 2026-05-19 · Copilot stream abort 防孤儿 tool_use (PR #111 · audit H1)
 
 > 系统 audit (#28) 列出 5 H + 3 M 共 8 项 copilot agentic 流程的 bug，本版本只修 H1 一项最高优——客户端在 stream 收尾窗口 abort 落孤儿 tool_use 消息。后续 7 项 (H2-H5, M1+M2, M3, M5) 各自独立 PR + tag。

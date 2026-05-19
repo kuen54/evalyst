@@ -148,14 +148,26 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
     currentSessionRef.current = sessionId
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on session change before async load; see docs/conventions/react19-hydration.md
     if (!sessionId) { setMessages([]); return }
+    // v0.18.10 H3：快速切 session 时旧 session GET .then 后到会覆盖新 session messages。
+    // AbortController 取消 stale 请求 + signal.aborted 守卫每个 chain 段，确保只有当前
+    // session 的响应能改 state。
+    const ctrl = new AbortController()
     setLoadingSession(true)
-    fetch(`/api/copilot/sessions/${sessionId}`)
+    fetch(`/api/copilot/sessions/${sessionId}`, { signal: ctrl.signal })
       .then(r => r.json())
       .then((d: { messages?: CopilotMessage[] }) => {
+        if (ctrl.signal.aborted) return
         setMessages((d.messages ?? []).map(toUiMessage))
       })
-      .catch(() => setMessages([]))
-      .finally(() => setLoadingSession(false))
+      .catch(() => {
+        if (ctrl.signal.aborted) return
+        setMessages([])
+      })
+      .finally(() => {
+        if (ctrl.signal.aborted) return
+        setLoadingSession(false)
+      })
+    return () => { ctrl.abort() }
   }, [sessionId])
 
   useEffect(() => {
