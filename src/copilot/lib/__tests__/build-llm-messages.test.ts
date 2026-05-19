@@ -175,7 +175,8 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     const msgs = await buildLlmMessages(branch, {
       route_type: "dashboard",
       path: "/",
-      summary: "dashboard summary",
+      timestamp: "2026-01-01T00:00:00.000Z",
+      summary: { kind: "dashboard summary" },
     })
     const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
     const header = systemMsgs.find((s) => s.content.includes("Session context"))
