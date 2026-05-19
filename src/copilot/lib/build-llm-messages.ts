@@ -145,14 +145,32 @@ export async function buildLlmMessages(
     ...(pageContext?.path !== undefined ? { path: pageContext.path } : {}),
     ...(pageContext !== null && pageContext !== undefined ? { page_context: pageContext } : {}),
     contexts: refs,
+    // v0.18.19 PR-1：summary 含 experiment_id 等区分字段——之前 ctx_1/ctx_2 都是
+    // "task_result box:108"（同 box 不同 experiment 时无差别），LLM 看不出是用户想"对比"
+    // 的两个不同 experiment 的同位置结果。
+    summarize: (r) => {
+      const extra = (r.extra ?? {}) as Record<string, unknown>
+      const exp = extra.experiment_id
+      if (typeof exp === "string" && exp.length > 0) {
+        return `${r.type} ${r.id} in ${exp}`
+      }
+      return `${r.type} ${r.id}`
+    },
     // v1 → v2 转场：不做 inline 预解（异步 + fs 依赖），一律 ref-only。
     // LLM 看到 ctx_N 后按需 read_context 拉详情。后续可按遥测决定是否加
     // resolveInline（同步读少量资源，仅小 payload 时塞 inline）。
   })
   if (refs.length > 0 || pageContext) {
+    // v0.18.19 PR-1：硬指令前缀——之前是 passive "Session context (JSON):"，LLM 把
+    // active_contexts 当背景信息读，结果它选了它最熟的 read_page 而不是 read_context。
+    // session 30cqfqrfxv 实证：用户圈了 box:108×2，LLM 0 次 read_context，
+    // 直接 read_page 然后猜 box:1 死磕 34 轮。
+    const directive = refs.length > 0
+      ? 'User has circled the following contexts (UI chips #1, #2, …). When the user references them — by phrases like "these results", "this experiment", "#N", "两个结果", "圈选的", or any pronoun pointing at the chips — you MUST call `read_context(id=ctx_N)` FIRST, before any other tool. Each context\'s `id` field is the exact argument to read_context.\n\nSession context (JSON):\n'
+      : 'Session context (JSON):\n'
     out.push({
       role: 'system',
-      content: 'Session context (JSON):\n' + JSON.stringify(header, null, 2),
+      content: directive + JSON.stringify(header, null, 2),
     })
   }
 

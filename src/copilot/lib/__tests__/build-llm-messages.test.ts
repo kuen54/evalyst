@@ -129,12 +129,60 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     ]
     const msgs = await buildLlmMessages(branch, null)
     const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
-    const header = systemMsgs.find((s) => s.content.startsWith("Session context"))
+    const header = systemMsgs.find((s) => s.content.includes("Session context"))
     expect(header).toBeTruthy()
     expect(header!.content).toContain("ctx_1")
     expect(header!.content).toContain("ctx_2")
     // no inline-resolution → no exp_A body leaked into system header
     expect(header!.content).not.toContain("\"name\":")
+  })
+
+  it("SystemHeader directive: prepends read_context-first instruction when refs present (v0.18.19 PR-1)", async () => {
+    const branch: CopilotMessage[] = [
+      {
+        id: "m_u1",
+        session_id: "s",
+        role: "user",
+        content: "compare these",
+        timestamp: "t",
+        contexts: [
+          { tag: 1, type: "task_result", id: "box:108", extra: { experiment_id: "exp_A" } },
+          { tag: 2, type: "task_result", id: "box:108", extra: { experiment_id: "exp_B" } },
+        ],
+      },
+    ]
+    const msgs = await buildLlmMessages(branch, null)
+    const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
+    const header = systemMsgs.find((s) => s.content.includes("Session context"))
+    expect(header).toBeTruthy()
+    // directive 必须在 JSON 之前
+    const idx = header!.content.indexOf("Session context")
+    const idx2 = header!.content.indexOf("read_context")
+    expect(idx2).toBeGreaterThan(-1)
+    expect(idx2).toBeLessThan(idx)  // directive 出现在 "Session context" 标签之前
+    // summary 区分度：含 experiment_id（同 box 不同 experiment 的 disambiguation）
+    expect(header!.content).toContain("exp_A")
+    expect(header!.content).toContain("exp_B")
+    // ctx_N 仍然在
+    expect(header!.content).toContain("ctx_1")
+    expect(header!.content).toContain("ctx_2")
+  })
+
+  it("SystemHeader directive: omitted when no refs (only page_context)", async () => {
+    const branch: CopilotMessage[] = [
+      { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },
+    ]
+    const msgs = await buildLlmMessages(branch, {
+      route_type: "dashboard",
+      path: "/",
+      timestamp: "2026-01-01T00:00:00.000Z",
+      summary: { kind: "dashboard summary" },
+    })
+    const systemMsgs = msgs.filter((m): m is { role: "system"; content: string } => m.role === "system")
+    const header = systemMsgs.find((s) => s.content.includes("Session context"))
+    expect(header).toBeTruthy()
+    // 无 ctx 时 directive 不要乱加
+    expect(header!.content).not.toContain("read_context")
   })
 
   it("SystemHeader is not added when there are neither contexts nor page_context", async () => {
