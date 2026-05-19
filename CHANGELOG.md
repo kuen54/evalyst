@@ -10,6 +10,13 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **Loop detector hardening**（M1+M2）—— `tool-loop-detector.ts` 两处精确化：
+  - **M1**：`ref_chain` 检测从 `outputContent.includes('"kind":"ref"')` substring 匹配改为 `JSON.parse → kind === "ref"` 精确判定。原行为：payload 内容含 `"kind":"ref"` 字面量（如讨论 ref 协议的 dataset record）会被误识别为 ref 链。
+  - **M2**：`argsHash` 从 `JSON.stringify(input, Object.keys(input).sort())` 仅 top-level sort 改为递归 sort 所有嵌套 object keys。原行为：嵌套字段（如 `read_experiment_results.filter.score_lt/score_gt`）顺序不同就 hash 不同 → no-progress 检测对嵌套 args 工具不可靠。数组顺序保留（语义有意义）。
+  - test: 27/27 全过（+2 case：M1 inline value 含 ref 字面量不误判 / M2 嵌套 + 顶层 key 双颠倒视为同 hash 触发 no-progress warn）。
+
 ## [0.18.12] — 2026-05-19 · /tool-result POST 同 call_id 幂等 (PR #114 · audit H5)
 
 > Audit (#28) 8 项中 H5。5 个 H 全部落地（H2 误报无 PR）。

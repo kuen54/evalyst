@@ -39,13 +39,38 @@ export type ToolLoopDecision =
   | { action: "block"; reasonKey: LoopReasonKey; reasonVars: { tool: string; count: number } }
 
 /**
- * 稳定 JSON hash（sort top-level keys）。
- * - JSON.stringify 的 replacer array 只强制 key 次序，对 value 递归不排序
- * - 对于嵌套 object 的 key 顺序仍不稳定，但 tool 参数多为平坦 map；
- *   真遇到嵌套且对顺序敏感的工具，未来加递归排序
+ * 稳定 JSON hash —— 递归 sort 所有嵌套 object 的 keys（v0.18.13 M2）。
+ * v0.18.6 之前只 sort top-level，嵌套字段（如 `read_experiment_results.filter.score_lt`）
+ * 顺序不同就 hash 不同 → no-progress 检测对嵌套 args 工具不可靠。
+ * 数组保留顺序（语义有意义）。
  */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value)
+  if (Array.isArray(value)) {
+    return "[" + value.map(stableStringify).join(",") + "]"
+  }
+  const obj = value as Record<string, unknown>
+  const keys = Object.keys(obj).sort()
+  return "{" + keys.map(k => JSON.stringify(k) + ":" + stableStringify(obj[k])).join(",") + "}"
+}
+
 function argsHash(input: Record<string, unknown>): string {
-  return JSON.stringify(input, Object.keys(input).sort())
+  return stableStringify(input)
+}
+
+/**
+ * 解析 tool_result.content，判定 ToolResultContent.kind 是否为 "ref"（v0.18.13 M1）。
+ * v0.18.7 原实现用 `includes('"kind":"ref"')` substring 匹配，会被 payload **内容**
+ * 含这个字面量的合法工具返回（如讨论 ref 协议的 dataset record / meta 实验数据）误触发。
+ */
+function isRefKindResult(content: string): boolean {
+  try {
+    const parsed = JSON.parse(content) as unknown
+    if (!parsed || typeof parsed !== "object") return false
+    return (parsed as { kind?: unknown }).kind === "ref"
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -209,7 +234,7 @@ export function analyzeToolLoop(
       const p = pairs[i]
       if (!p) break
       if (p.toolName !== "read_tool_result") break
-      if (!p.outputContent.includes('"kind":"ref"')) break
+      if (!isRefKindResult(p.outputContent)) break
       refChainCount++
     }
     if (refChainCount >= config.refChainBlock) {

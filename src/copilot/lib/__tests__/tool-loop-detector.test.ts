@@ -319,3 +319,44 @@ describe('analyzeToolLoop · ref-chain (G1 v0.18.7)', () => {
     expect(r.action).toBe('proceed')
   })
 })
+
+describe('analyzeToolLoop · M1+M2 hardening (v0.18.13)', () => {
+  it('M1: read_tool_result 返 inline 但 value 文本含 "kind":"ref" 字面量 → 不误判为 ref-chain', () => {
+    // 例如：用户拿 read_tool_result 拉的 dataset record 内容里讨论 ref 协议 / meta 实验
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_tool_result', { ref: 'r1' }, {
+        kind: 'inline',
+        value: { description: 'ref protocol example payload like {"kind":"ref"} embedded in docs' },
+      }),
+      ...ok('2', 'read_tool_result', { ref: 'r2' }, {
+        kind: 'inline',
+        value: { description: 'another payload mentioning "kind":"ref" string literally' },
+      }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_tool_result', { ref: 'r3' })
+    expect(r.action).toBe('proceed')
+  })
+
+  it('M2: argsHash 递归 sort 嵌套 keys → 不同 key 顺序的 nested args 视为同 hash', () => {
+    // read_experiment_results 这种带嵌套 filter 的工具：no-progress 检测需要识别
+    // {filter:{score_lt:5, score_gt:1}} 和 {filter:{score_gt:1, score_lt:5}} 是同一个调用
+    const sameOutput = { kind: 'inline', value: { rows: [], total: 0 } }
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_experiment_results',
+        { experiment_id: 'e1', filter: { score_lt: 5, score_gt: 1 } },
+        sameOutput,
+      ),
+      ...ok('2', 'read_experiment_results',
+        { experiment_id: 'e1', filter: { score_gt: 1, score_lt: 5 } },  // 嵌套 keys 颠倒顺序
+        sameOutput,
+      ),
+    ]
+    // 第三次同语义调用 → no-progress 应该 warn（>= noProgressWarn=2）
+    const r = analyzeToolLoop(branch, 'read_experiment_results', {
+      filter: { score_gt: 1, score_lt: 5 },
+      experiment_id: 'e1',  // 顶层 keys 也颠倒
+    })
+    expect(r.action).toBe('warn')
+    expect(r.action === 'warn' && r.reasonKey).toBe('no_progress')
+  })
+})
