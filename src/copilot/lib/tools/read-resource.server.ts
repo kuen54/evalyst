@@ -34,12 +34,36 @@ function loadResource(type: ReadResourceType, id: string): unknown {
   }
 }
 
+/**
+ * v0.18.22 PR-A：之前用 `.filter(([,v]) => v !== undefined)` 静默丢弃未知字段。
+ * LLM 问 ["schema_id", "variables"] 拿到 {schema_id: "fortune_v4"} 完全分不清是
+ * "variables 字段不存在" 还是 "值为 null"——session dnbsrpjz3y 实证导致 LLM 直接
+ * 编造模型名（"claude-sonnet-4-20250514" / "gemini-3.1-pro-preview"，工具结果里 0 出现）。
+ *
+ * 改为：picked + unknown_fields + available_fields 三段返回；LLM 看到 _warning 就
+ * 知道字段不存在，能换个名字 retry。
+ */
 function pickFields(obj: unknown, fields: string[]): Record<string, unknown> {
   if (!obj || typeof obj !== "object") return {}
   const src = obj as Record<string, unknown>
-  return Object.fromEntries(
-    fields.map((f) => [f, src[f]]).filter(([, v]) => v !== undefined),
-  )
+  const picked: Record<string, unknown> = {}
+  const unknownFields: string[] = []
+  for (const f of fields) {
+    if (f in src) {
+      // 包含 undefined / null 也保留（语义上"字段存在但无值"，与"字段不存在"区分）
+      picked[f] = src[f]
+    } else {
+      unknownFields.push(f)
+    }
+  }
+  if (unknownFields.length > 0) {
+    picked._warning = {
+      unknown_fields: unknownFields,
+      available_fields: Object.keys(src),
+      hint: "These field names don't exist on this resource. Pick from available_fields and call again. DO NOT fabricate data for missing fields.",
+    }
+  }
+  return picked
 }
 
 /** v0.18.7 G4: NOT_FOUND 时按 type 给具体 hint，避免 LLM 编 id（session repro: LLM
