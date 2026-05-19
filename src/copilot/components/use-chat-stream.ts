@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { CopilotMessage, CopilotContextRef, PageContext } from "@/copilot/lib/types"
 import { needsConfirm } from "@/copilot/lib/tools/client-registry"
 import { isSessionAllowed, getSessionAllowList, addSessionAllow, isSessionDenied, getSessionDenyList, addSessionDeny } from "@/copilot/lib/session-allow"
@@ -131,6 +131,25 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
   const [loadingSession, setLoadingSession] = useState(false)
   const [pendingCallIds, setPendingCallIds] = useState<Set<string>>(new Set())
   const abortRef = useRef<AbortController | null>(null)
+  // v0.18.11 H4：busy 改成计数器
+  // 原因：`send()` 触发的 done 事件会 fire-and-forget IIFE 跑 `postToolResult()`
+  //   auto-run，IIFE 不被 send() await。两者都 setBusy(true)/setBusy(false)，重叠时
+  //   先结束的那条会把 busy 提前置 false，但另一条还在跑——UI 显 idle 但 stream 活着。
+  // 解：incBusy/decBusy 维护引用计数；只在 0→1 / 1→0 转换时实际写 setBusy；负数兜底。
+  const busyCountRef = useRef(0)
+  const incBusy = useCallback(() => {
+    if (busyCountRef.current === 0) setBusy(true)
+    busyCountRef.current++
+  }, [setBusy])
+  const decBusy = useCallback(() => {
+    busyCountRef.current = Math.max(0, busyCountRef.current - 1)
+    if (busyCountRef.current === 0) setBusy(false)
+  }, [setBusy])
+  // v0.18.11 H4：abortRef 只在仍是自己拥有的 ctrl 时清——
+  // 避免新 send() 已设了新 ctrl 后被旧操作 finally 误清成 null。
+  const clearAbortIfOwn = useCallback((ctrl: AbortController) => {
+    if (abortRef.current === ctrl) abortRef.current = null
+  }, [])
   // 追踪流中 tool_use_end 进入 state 的顺序，done 时按序配 id 给 tool_use_message_ids
   const streamToolUseOrderRef = useRef<string[]>([])
   // Auto-run 队列：tool_use_end 事件进来时先只渲染 UI，把 read 工具的 call_id/input
@@ -399,7 +418,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
       next.add(call_id)
       return next
     })
-    setBusy(true)
+    incBusy()
     // 先插入 tool_result 占位（content 显示 denied/resolved 摘要；id 由 tool_result_message 事件回填）
     setMessages(prev => [
       ...prev,
@@ -476,8 +495,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         next.delete(call_id)
         return next
       })
-      setBusy(false)
-      abortRef.current = null
+      decBusy()
+      clearAbortIfOwn(ctrl)
     }
   }
 
@@ -509,7 +528,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
     if (!sessionId || !modelId) return
     const pairSessionId = sessionId
     setSending(true)
-    setBusy(true)
+    incBusy()
     setMessages(prev => [
       ...prev,
       {
@@ -565,8 +584,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
       })
     } finally {
       setSending(false)
-      setBusy(false)
-      abortRef.current = null
+      decBusy()
+      clearAbortIfOwn(ctrl)
     }
   }
 
