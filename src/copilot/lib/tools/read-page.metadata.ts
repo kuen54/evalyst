@@ -22,6 +22,8 @@ export const readPageMetadata: ToolMetadataDescriptor = {
   metadata: {
     isReadOnly: true,
     isDestructive: false,
-    maxResultSizeChars: 3000,
+    // v0.18.14 M3：从 3000 抬到 8000，跟齐 v0.18.7 G3 的 read_context/resource/results=12000 标准。
+    // top-5 page node 含路径 / inner text 摘要后 inline 走得起。
+    maxResultSizeChars: 8000,
   },
 }
