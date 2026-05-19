@@ -139,33 +139,36 @@ function parseResultContent(toolResult?: CopilotMessage): unknown {
  *   { kind: "compacted", summary, ref? }
  *
  * v1 fallback: unwrapped object is returned as-is as displayValue.
+ *
+ * v0.18.16 PR-B：拆成 displayValue（cheap，no stringify）+ previewText（expensive，
+ * 带 JSON.stringify）。previewText 调用方 short-circuit `expanded ? unwrapV2PreviewText(parsed) : null`，
+ * collapsed 时彻底跳 stringify；配合 PR-A 的 ToolCallCard memo（data 变才 re-render），
+ * expanded=true 时每次 render 也 = 每次 data 真变化，stringify 是必要工作。
  */
-function unwrapV2Content(parsed: unknown): { displayValue: unknown; previewText: string | null } {
+function unwrapV2DisplayValue(parsed: unknown): unknown {
+  if (parsed && typeof parsed === "object" && "kind" in parsed) {
+    const p = parsed as { kind: string; value?: unknown }
+    if (p.kind === "inline") return p.value ?? null
+    if (p.kind === "ref") return null
+    if (p.kind === "compacted") return null
+  }
+  return parsed
+}
+
+function unwrapV2PreviewText(parsed: unknown): string | null {
   if (parsed && typeof parsed === "object" && "kind" in parsed) {
     const p = parsed as { kind: string; value?: unknown; ref?: string; preview?: string; summary?: string }
     if (p.kind === "inline") {
-      return {
-        displayValue: p.value ?? null,
-        previewText: p.value !== undefined ? JSON.stringify(p.value, null, 2) : null,
-      }
+      return p.value !== undefined ? JSON.stringify(p.value, null, 2) : null
     }
     if (p.kind === "ref") {
-      return {
-        displayValue: null,
-        previewText: `${p.preview ?? ""}\n\n[Full result available via read_tool_result("${p.ref}")]`,
-      }
+      return `${p.preview ?? ""}\n\n[Full result available via read_tool_result("${p.ref}")]`
     }
     if (p.kind === "compacted") {
-      return {
-        displayValue: null,
-        previewText: p.summary ?? "",
-      }
+      return p.summary ?? ""
     }
   }
-  return {
-    displayValue: parsed,
-    previewText: parsed !== null ? JSON.stringify(parsed, null, 2) : null,
-  }
+  return parsed !== null ? JSON.stringify(parsed, null, 2) : null
 }
 
 /**
@@ -338,12 +341,12 @@ function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
     // ternary on top-level toolResult.denied was unreachable since use-chat-stream always
     // pairs `denied:true` with a `{denied:true,reason}` content payload.
     const parsed = parseResultContent(toolResult)
-    const unwrapped = unwrapV2Content(parsed)
-    const parsedError = parseToolError(unwrapped.displayValue)
+    const displayValue = unwrapV2DisplayValue(parsed)
+    const parsedError = parseToolError(displayValue)
     if (parsedError) {
       return <ErrorRender parsedError={parsedError} toolName={toolName} t={t} />
     }
-    const summary = summarizeResult(toolName, unwrapped.displayValue, t)
+    const summary = summarizeResult(toolName, displayValue, t)
     return (
       <div className="rounded-md border px-3 py-2 text-xs bg-muted/20">
         <div className="flex items-center gap-2">
@@ -361,7 +364,7 @@ function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
         </div>
         {expanded && (
           <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap bg-background/60 p-2 rounded max-h-60 overflow-auto">
-            {unwrapped.previewText ?? (toolResult.content ?? "")}
+            {unwrapV2PreviewText(parsed) ?? (toolResult.content ?? "")}
           </pre>
         )}
       </div>
@@ -409,10 +412,10 @@ function ContextVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
   })()
   const chipTag = Number.isFinite(Number(chipNumber)) ? Number(chipNumber) : 0
   const parsed = parseResultContent(toolResult)
-  const unwrapped = unwrapV2Content(parsed)
+  const displayValue = unwrapV2DisplayValue(parsed)
 
   if (toolResult) {
-    const parsedError = parseToolError(unwrapped.displayValue)
+    const parsedError = parseToolError(displayValue)
     if (parsedError) {
       return <ErrorRender parsedError={parsedError} toolName={toolUse.tool_name ?? ""} t={t} />
     }
@@ -446,7 +449,7 @@ function ContextVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
       </div>
       {toolResult && expanded && (
         <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap bg-background/60 p-2 rounded max-h-60 overflow-auto">
-          {unwrapped.previewText ?? (toolResult.content ?? "")}
+          {unwrapV2PreviewText(parsed) ?? (toolResult.content ?? "")}
         </pre>
       )}
     </div>
@@ -463,10 +466,9 @@ function ResourceVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; too
   const id = input.id ?? "?"
   const href = linkForResource(type, id)
   const parsed = parseResultContent(toolResult)
-  const unwrapped = unwrapV2Content(parsed)
-
+  const displayValue = unwrapV2DisplayValue(parsed)
   if (toolResult) {
-    const parsedError = parseToolError(unwrapped.displayValue)
+    const parsedError = parseToolError(displayValue)
     if (parsedError) {
       return <ErrorRender parsedError={parsedError} toolName={toolUse.tool_name ?? ""} t={t} />
     }
@@ -503,7 +505,7 @@ function ResourceVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; too
       </div>
       {toolResult && expanded && (
         <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap bg-background/60 p-2 rounded max-h-60 overflow-auto">
-          {unwrapped.previewText ?? (toolResult.content ?? "")}
+          {unwrapV2PreviewText(parsed) ?? (toolResult.content ?? "")}
         </pre>
       )}
     </div>
@@ -523,10 +525,10 @@ function RetrievalVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; to
     return m ? m[1] : refStr
   })()
   const parsed = parseResultContent(toolResult)
-  const unwrapped = unwrapV2Content(parsed)
+  const displayValue = unwrapV2DisplayValue(parsed)
 
   if (toolResult) {
-    const parsedError = parseToolError(unwrapped.displayValue)
+    const parsedError = parseToolError(displayValue)
     if (parsedError) {
       return <ErrorRender parsedError={parsedError} toolName={toolUse.tool_name ?? ""} t={t} />
     }
@@ -553,7 +555,7 @@ function RetrievalVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; to
       </div>
       {toolResult && expanded && (
         <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap bg-background/60 p-2 rounded max-h-60 overflow-auto">
-          {unwrapped.previewText ?? (toolResult.content ?? "")}
+          {unwrapV2PreviewText(parsed) ?? (toolResult.content ?? "")}
         </pre>
       )}
     </div>
@@ -581,12 +583,12 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
     // toolResult.denied=true. v0.9.3 cleanup: removed unreachable top-level
     // `denied ? ... : ...` ternary — the success branch only runs for real successes.
     const parsed = parseResultContent(toolResult)
-    const unwrapped = unwrapV2Content(parsed)
-    const parsedError = parseToolError(unwrapped.displayValue)
+    const displayValue = unwrapV2DisplayValue(parsed)
+    const parsedError = parseToolError(displayValue)
     if (parsedError) {
       return <ErrorRender parsedError={parsedError} toolName={toolName} t={t} />
     }
-    const summary = summarizeResult(toolName, unwrapped.displayValue, t)
+    const summary = summarizeResult(toolName, displayValue, t)
     return (
       <div
         className="rounded-md border-2 px-3 py-2 text-xs border-amber-500/60 bg-amber-50/40 dark:bg-amber-950/20"
@@ -610,7 +612,7 @@ function WriteVariant({ toolUse, toolResult, onConfirm, onDeny, pending }: Props
         </div>
         {expanded && (
           <pre className="mt-2 text-[10px] font-mono whitespace-pre-wrap bg-background/60 p-2 rounded max-h-60 overflow-auto">
-            {unwrapped.previewText ?? (toolResult.content ?? "")}
+            {unwrapV2PreviewText(parsed) ?? (toolResult.content ?? "")}
           </pre>
         )}
       </div>
