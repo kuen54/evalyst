@@ -10,9 +10,15 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.10] — 2026-05-19 · Session 切换 GET race 守卫 (PR #112 · audit H3)
+
+> Audit (#28) 8 项中 H3。
+
 ### Fixed
 
 - **Session 切换时旧 GET 响应竞态守卫**（H3）—— `use-chat-stream.ts` session 加载 effect 加 AbortController + `signal.aborted` 守卫每个 chain 段。原行为：用户快速切 session A→B 时，旧 A 的 fetch.then 后到会用 A 的 messages 覆盖 B 的（factory 用 `currentSessionRef` 保护 SSE 事件，但 GET `.then` 没校验）。修后 cleanup `ctrl.abort()` 取消 stale 请求 + `signal.aborted` 检查防 state 误更新。
+
+> Audit (#28) 中 H2 (loop detector isFailure modern shape) 验证为误报：`isFailure` 第 64 行 `"error" in obj` 是查 key 不查 value，`{ok:false, error:{...}}` 含 `error` 这个键所以正确识别。25/25 测试已覆盖含 v2.5 P2 ToolError 回归。无 PR。
 
 ## [0.18.9] — 2026-05-19 · Copilot stream abort 防孤儿 tool_use (PR #111 · audit H1)
 
