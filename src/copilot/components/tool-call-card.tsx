@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { memo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -55,7 +55,7 @@ function pickVariant(toolName: string): Variant {
  *  - use shadcn `bg-card / bg-muted/...` realistic surfaces
  *  - i18n keys under `copilot.tool.*`
  */
-export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }: Props) {
+export function ToolCallCardImpl({ toolUse, toolResult, onConfirm, onDeny, pending }: Props) {
   const toolName = toolUse.tool_name ?? ""
   const variant = pickVariant(toolName)
 
@@ -85,6 +85,41 @@ export function ToolCallCard({ toolUse, toolResult, onConfirm, onDeny, pending }
 
   return <DefaultVariant toolUse={toolUse} toolResult={toolResult} />
 }
+
+/**
+ * v0.18.15 PR-A：memo 自定义 equality —— 按数据 field 比，忽略 callback identity。
+ *
+ * 父 chat-view.tsx 的 `renderToolUse` 每次 parent re-render（streaming 每个 text delta）
+ * 都会重建 `toolUseShim` / `toolResultShim` 对象 + 新 inline callbacks，导致 50 张可见
+ * 卡每次都 reconcile 727 行 DOM 树。这里在 memo 比较里：
+ *  - 比 toolUse / toolResult 的字段（id / call_id / tool_name / tool_input ref / content）
+ *    而非 object identity——shim 每次 new 但内容相同时跳过 re-render
+ *  - 比 pending 布尔
+ *  - **忽略 onConfirm / onDeny callback identity**——闭包捕获同 call_id/input 时调用效果
+ *    一致，identity 变化不影响行为
+ *
+ * 配合既有的 `globals.css:563` `.copilot-chat-list > * { content-visibility: auto }`
+ * （offscreen 跳 paint）+ MessageRow 既有 memo（跳 user/assistant 行 reconcile），
+ * streaming 期间可见 ToolCallCard 重渲染从 O(N) 降到 O(0)。
+ */
+export const ToolCallCard = memo(ToolCallCardImpl, (prev, next) => {
+  if (prev.pending !== next.pending) return false
+  // toolUse 关键字段
+  if (prev.toolUse.id !== next.toolUse.id) return false
+  if (prev.toolUse.call_id !== next.toolUse.call_id) return false
+  if (prev.toolUse.tool_name !== next.toolUse.tool_name) return false
+  // tool_input ref 比较——messages 数组里同一条消息的 tool_input 在不修改时引用稳定
+  if (prev.toolUse.tool_input !== next.toolUse.tool_input) return false
+  // toolResult 存在性 + id + content
+  const prevR = prev.toolResult, nextR = next.toolResult
+  if (!!prevR !== !!nextR) return false
+  if (prevR && nextR) {
+    if (prevR.id !== nextR.id) return false
+    if (prevR.content !== nextR.content) return false
+    if (prevR.denied !== nextR.denied) return false
+  }
+  return true
+})
 
 // ---------- helpers shared across variants ----------
 
