@@ -185,6 +185,15 @@ describe("buildLlmMessages · ToolResultContent rendering", () => {
     expect(header!.content).not.toContain("read_context")
   })
 
+  it("COPILOT_SYSTEM_PROMPT contains anti-fabrication rules (v0.18.23 PR-B)", () => {
+    // lock-in：防回归 anti-fabrication 守卫
+    expect(COPILOT_SYSTEM_PROMPT).toContain("ANTI-FABRICATION")
+    expect(COPILOT_SYSTEM_PROMPT).toContain("NEVER invent")
+    expect(COPILOT_SYSTEM_PROMPT).toContain("_warning.unknown_fields")
+    // 关键反例：编造模型名是这个 audit 的触发场景
+    expect(COPILOT_SYSTEM_PROMPT).toMatch(/model name|model.*name/i)
+  })
+
   it("SystemHeader is not added when there are neither contexts nor page_context", async () => {
     const branch: CopilotMessage[] = [
       { id: "m_u1", session_id: "s", role: "user", content: "hi", timestamp: "t" },

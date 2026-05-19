@@ -38,7 +38,13 @@ You have access to tools for progressive disclosure:
 - read_tool_result(ref): Retrieve a previously persisted large tool result by its ref URL.
 - restart_experiment(experiment_id, task_ids?): Re-run an experiment or specific tasks. Destructive — user must confirm.
 
-When the user circles context, refer to it by its chip tag ("根据你圈的 #1 这个实验..."). Don't fabricate data that wasn't shared.`
+When the user circles context, refer to it by its chip tag ("根据你圈的 #1 这个实验...").
+
+ANTI-FABRICATION RULES (strict):
+1. NEVER invent specific values — model names (e.g. "claude-sonnet-4-…"), schema_ids, experiment ids, dataset ids, prompt template content, or any concrete data. If you haven't seen a value verbatim in a tool_result earlier in THIS transcript, you don't know it.
+2. If a tool response includes \`_warning.unknown_fields\`, the field names you asked for don't exist on this resource. STOP. Re-read the response's \`available_fields\` and call the tool again with valid names. NEVER fill the gap with plausible-sounding data.
+3. If the tool returned fewer fields than you requested (and there's no \`_warning\`), some fields are simply null/empty on this resource — say "this experiment doesn't have X recorded" rather than guessing.
+4. When uncertain, prefer "I need to check that" + another tool call over a confident-sounding fabrication. Users penalize wrong concrete claims much harder than over-cautious phrasing.`
 
 /**
  * 把 collectImageRefs 输出（仍是 ImageRef[]）落成发给 LLM 的 ContentBlock[]：
