@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **`read_resource` warn on unknown fields + description 列 available fields per type**（hallucination audit PR-A）—— `read-resource.server.ts` `pickFields` 不再静默 drop 未知字段，改为返 `_warning: { unknown_fields, available_fields, hint }`，让 LLM 知道字段不存在能 retry。`read-resource.metadata.ts` description 列每种 type 的 available fields（experiment 含 model / model_id / prompt_template 等）。session dnbsrpjz3y 实证：LLM 问 `fields=["schema_id","variables"]` 拿到 `{schema_id:"fortune_v4"}` 静默漏 variables → 直接编造模型名 `"claude-sonnet-4-20250514"` / `"gemini-3.1-pro-preview"`（工具结果里 0 出现）。修后 LLM 应该看到 _warning 后用 `model` 等正确字段重调。test: 3 case（unknown 字段 _warning / 全有效字段无 _warning / 'in' 操作符语义）。
+
 ## [0.18.21] — 2026-05-19 · read_context description trigger phrase（PR #123 · audit PR-3）
 
 > Audit 3 PR 全部完成。配合 v0.18.19 system prompt 硬指令双保险（instruction-level + tool-routing level），LLM 应该明确知道圈选时优先 read_context。

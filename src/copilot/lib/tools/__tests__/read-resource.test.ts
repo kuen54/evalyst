@@ -132,4 +132,44 @@ describe("readResourceTool", () => {
     expect(tplR.error.hint).not.toBe(rbR.error.hint)
     expect(dsR.error.hint).not.toBe(rbR.error.hint)
   })
+
+  // v0.18.22 PR-A：unknown fields warn vs silent drop。session dnbsrpjz3y 实证：
+  // LLM 问 ["schema_id","variables"] 拿到 {schema_id:...} 静默漏 variables，直接编造模型名。
+  describe("unknown fields warn (v0.18.22 PR-A)", () => {
+    it("returns _warning.unknown_fields when LLM asks for non-existent field", async () => {
+      const r = await readResourceTool.call(
+        { type: "experiment", id: "exp_A", fields: ["schema_id", "variables"] },
+        ctx,
+      ) as { ok: true; value: Record<string, unknown> }
+      expect(r.ok).toBe(true)
+      expect(r.value.schema_id).toBe("sch")
+      expect(r.value._warning).toBeDefined()
+      const warn = r.value._warning as { unknown_fields: string[]; available_fields: string[]; hint: string }
+      expect(warn.unknown_fields).toEqual(["variables"])
+      expect(warn.available_fields).toContain("schema_id")
+      expect(warn.available_fields).toContain("model_name")
+      expect(warn.hint).toContain("DO NOT fabricate")
+    })
+
+    it("no _warning when all fields are valid", async () => {
+      const r = await readResourceTool.call(
+        { type: "experiment", id: "exp_A", fields: ["schema_id", "model_name"] },
+        ctx,
+      ) as { ok: true; value: Record<string, unknown> }
+      expect(r.ok).toBe(true)
+      expect(r.value._warning).toBeUndefined()
+      expect(r.value).toEqual({ schema_id: "sch", model_name: "gpt-4o" })
+    })
+
+    it("preserves field with explicit value (distinguishes from missing)", async () => {
+      const r = await readResourceTool.call(
+        { type: "experiment", id: "exp_A", fields: ["extra", "fake_field"] },
+        ctx,
+      ) as { ok: true; value: Record<string, unknown> }
+      expect(r.ok).toBe(true)
+      expect(r.value.extra).toBe("ignored")
+      const warn = r.value._warning as { unknown_fields: string[] }
+      expect(warn.unknown_fields).toEqual(["fake_field"])
+    })
+  })
 })
