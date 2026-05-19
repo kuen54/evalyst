@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { useCopilotStore, useCopilotBusy } from "./store"
+import { useCopilotStore } from "./store"
 import { queryContextElement } from "@/copilot/lib/context-registry"
 import { usePathname } from "next/navigation"
 import { useT } from "@/lib/i18n/provider"
@@ -11,11 +11,15 @@ import { useT } from "@/lib/i18n/provider"
 //
 // 刷新页面时 mask 永远找不回（新 DOM 不知道 rect），依赖 panel 里的一次 toast 提示用户。
 //
-// v0.18.8 性能优化（圈选框是页面卡顿的主因，但 setRects 路径定位本身正常，不动）：
+// v0.18.8 性能优化：
 //   A. 删全局 MutationObserver(document.body, subtree:true) → 换 per-target ResizeObserver。
 //      streaming 时每 chunk 触发的 observer 回调消失了。Route change 由 pathname effect 兜底。
-//   C. busy（LLM streaming）期间冻结：所有 schedule 直接 return；busy 落幕做一次 catch-up。
-//      streaming 期间 mask 完全 0 cost。
+//
+// v0.18.18 修：v0.18.8 当时还加了 C 级 "busy 期间 schedule return" 的冻结，但
+//   1. A 级 per-target ResizeObserver 已经把 streaming 期间的动态 cost 解决了，C 是冗余防御
+//   2. 用户 scroll 是主动交互应该立即更新，被 busy 短路是 UX bug
+//   3. H4 (v0.18.11) 把 busy 改成计数器后若有 inc/dec 不配对的 race，busy 永久卡 true → mask 永远不动
+//   故彻底删掉 busy 守卫 + 落幕 catch-up effect。perf 主防线仅靠 A + RAF debounce。
 //
 // 不做 imperative DOM 更新（曾经试过，初始 rect 0,0,0,0 时所有 mask 堆左上角，回归到 setRects 路径）。
 
@@ -41,7 +45,6 @@ function colorForTag(tag: number): string {
 
 export function ContextMask() {
   const { contexts, removeContext, open } = useCopilotStore()
-  const busy = useCopilotBusy()
   const t = useT()
   const visible = open
   const pathname = usePathname()
@@ -51,7 +54,6 @@ export function ContextMask() {
 
   const recompute = useCallback(() => {
     frameRef.current = null
-    if (busy) return // C: busy 期间不更新
     if (contexts.length === 0) {
       setRects([])
       return
@@ -69,13 +71,12 @@ export function ContextMask() {
       }
     })
     setRects(out)
-  }, [contexts, busy])
+  }, [contexts])
 
   const scheduleRecompute = useCallback(() => {
     if (frameRef.current !== null) return
-    if (busy) return // C: busy 期间不调度
     frameRef.current = requestAnimationFrame(recompute)
-  }, [recompute, busy])
+  }, [recompute])
 
   // contexts / pathname 变化时立即重算
   useEffect(() => {
@@ -115,13 +116,6 @@ export function ContextMask() {
       observerRef.current = null
     }
   }, [contexts, pathname, scheduleRecompute])
-
-  // C: busy 落幕 catch-up——streaming 期间冻结的 mask 在结束时对齐当前位置
-  const wasBusyRef = useRef(false)
-  useEffect(() => {
-    if (wasBusyRef.current && !busy) scheduleRecompute()
-    wasBusyRef.current = busy
-  }, [busy, scheduleRecompute])
 
   if (!visible || contexts.length === 0) return null
 
