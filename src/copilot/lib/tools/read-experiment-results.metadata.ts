@@ -58,6 +58,9 @@ export const readExperimentResultsMetadata: ToolMetadataDescriptor = {
   metadata: {
     isReadOnly: true,
     isDestructive: false,
-    maxResultSizeChars: 4000,
+    // v0.18.7 G3: 4000→12000。原 4000 几乎每个 limit≥3 的查询都 ref 化，强制 LLM
+    // 多走一轮 read_tool_result。read_tool_result skipPayloadGuard 后过限不再死循环，
+    // 12000 让常规查询直接 inline 出，省一轮 round-trip。
+    maxResultSizeChars: 12000,
   },
 }

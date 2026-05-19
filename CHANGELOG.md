@@ -10,6 +10,20 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Added
+
+- **Copilot tool-loop-detector 加 `ref_chain` 第 4 档**（v0.18.6 修法的回归 tripwire）—— v0.18.6 之前 `read_tool_result` 返 `{kind:"ref"}` 26 次没被检测到，因为前 3 档（exact_failure / same_tool / no_progress）都要求 args 一致或失败标记，ref 链每次 args/output 都不同且不算 failed。新增第 4 档专打 `read_tool_result` 连续返 `{kind:"ref"}`：`refChainWarn=2` / `refChainBlock=3`。其它工具返 ref 是合规设计不触发。i18n key `copilot.loop.{warn,block}.ref_chain` 中英成对加。
+- **跨所有 tool 的 runTool pipeline property 测试** —— `tool-runtime-integration.test.ts` 新增两个 case：(a) iterate registry 里所有 `skipPayloadGuard:true` 的 tool，stub call 返 50KB 假数据，断言 `runTool` 出口必为 `kind:"inline"`——v0.18.6 修法的契约自动覆盖未来加的同类工具；(b) registry 健康度（name 唯一、metadata 字段类型、`maxResultSizeChars > 0`）。补 v0.18.6 没抓到 bug 的根因——既有 9/11 工具测试都是裸 `.call()`，跳过 hook pipeline。
+
+### Changed
+
+- **`read_experiment_results` / `read_context` / `read_resource` 的 `maxResultSizeChars` 4000 → 12000** —— 原 4000 几乎每次 `limit≥3` 的查询都被 ref 化，强制 LLM 多走一轮 `read_tool_result`。v0.18.6 之后过限不再死循环只是多 round-trip，但 12000 让常规查询直接 inline 出，省一轮调用 + token。
+- **`read_resource` description 按 type 列出 id 格式** —— session 里 LLM 把 `id:"tpl_aB92xkLq"` 当 template id 反复试（template 实际用 `schema_id` 比如 `"fortune_v4"`，没有独立的 template id 实体）。description 现在显式列每种 type 的 id 格式 + 示例 + 来源。
+
+### Fixed
+
+- **`read_resource` NOT_FOUND hint 按 type 给具体提示** —— 原 hint `"Verify the resource exists"` 太通用，LLM 看不出怎么纠正。改成 type-specific：`template` 提示 `"id is the schema_id (e.g. 'fortune_v4'), get from experiment.schema_id"`；`experiment` 提示用 `list_experiments`；`dataset` 提示 `experiment.dataset_bindings`；`display` / `rubric` 各自的 id 名称。
+
 ## [0.18.6] — 2026-05-18 · Copilot read_tool_result ref→ref 死循环修复 (PR #108)
 
 ### Fixed

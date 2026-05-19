@@ -112,4 +112,24 @@ describe("readResourceTool", () => {
       error: { code: "INVALID_INPUT" },
     })
   })
+
+  // v0.18.7 G4: NOT_FOUND hint 按 type 给具体提示，避免 LLM 编 id（session repro
+  // qooekg5n90 第 25/100 行：把 'tpl_aB92xkLq' 当 template id 反复试，实际应传 schema_id）
+  it("NOT_FOUND for type=template hints to use schema_id, not 'tpl_xxx'", async () => {
+    const r = await readResourceTool.call({ type: "template", id: "tpl_made_up" }, ctx) as {
+      ok: false; error: { code: string; message: string; hint?: string }
+    }
+    expect(r.ok).toBe(false)
+    expect(r.error.code).toBe("NOT_FOUND")
+    expect(r.error.hint).toContain("schema_id")
+  })
+
+  it("NOT_FOUND hint differs per type (template vs dataset vs rubric)", async () => {
+    const tplR = await readResourceTool.call({ type: "template", id: "x" }, ctx) as { error: { hint: string } }
+    const dsR = await readResourceTool.call({ type: "dataset", id: "x" }, ctx) as { error: { hint: string } }
+    const rbR = await readResourceTool.call({ type: "rubric", id: "x" }, ctx) as { error: { hint: string } }
+    expect(tplR.error.hint).not.toBe(dsR.error.hint)
+    expect(tplR.error.hint).not.toBe(rbR.error.hint)
+    expect(dsR.error.hint).not.toBe(rbR.error.hint)
+  })
 })

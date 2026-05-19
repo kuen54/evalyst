@@ -1,10 +1,13 @@
 // v2.5 P0 §3.4: hermes tool_guardrails.py:71 三档阈值的 evalyst 翻译版。
 // 替代 v0.9.0 的硬数步 chain cap 5，改成"按错误模式"判定。
 //
-// 三档（覆盖范围从严到宽）：
+// 四档（覆盖范围从严到宽）：
 //   1. exact-failure：连续 N 次同 (tool, argsHash) 失败 → block
 //   2. same-tool：连续 N 次同 tool（args 可不同）失败 → block
 //   3. no-progress：连续 N 次同 (tool, argsHash) 成功但 output identical → block
+//   4. ref-chain：连续 N 次 read_tool_result 返 {kind:"ref"} → block。v0.18.6
+//      skipPayloadGuard 修法的 tripwire——正常路径下 read_tool_result 永远返 inline，
+//      若再现 ref 链是该 bug 回归。args 不同 + 不算 failed + output 不同导致前 3 档都漏。
 
 import type { CopilotMessage } from "./types"
 
@@ -15,15 +18,20 @@ interface ToolLoopDetectorConfig {
   sameToolFailureHalt: number
   noProgressWarn: number
   noProgressBlock: number
+  /** v0.18.7 G1: read_tool_result 返 {kind:"ref"} 连续次数阈值 */
+  refChainWarn: number
+  refChainBlock: number
 }
 
 export const DEFAULT_LOOP_CONFIG: ToolLoopDetectorConfig = {
   exactFailureWarn: 2, exactFailureBlock: 5,
   sameToolFailureWarn: 3, sameToolFailureHalt: 8,
   noProgressWarn: 2, noProgressBlock: 5,
+  // 紧阈值：skipPayloadGuard 后正常 0 次。warn 2 / block 3 留 1 次缓冲应对边缘场景。
+  refChainWarn: 2, refChainBlock: 3,
 }
 
-type LoopReasonKey = "exact_failure" | "same_tool" | "no_progress"
+type LoopReasonKey = "exact_failure" | "same_tool" | "no_progress" | "ref_chain"
 
 export type ToolLoopDecision =
   | { action: "proceed" }
@@ -189,6 +197,27 @@ export function analyzeToolLoop(
   }
   if (noProgressCount >= config.noProgressWarn) {
     return { action: "warn", reasonKey: "no_progress", reasonVars: { tool: nextToolName, count: noProgressCount } }
+  }
+
+  // ref-chain (v0.18.7 G1): read_tool_result 连续返 {kind:"ref"}。
+  // skipPayloadGuard 修法的 tripwire——args 每次不同（不同 ref）+ 不算 failed +
+  // outputContent 也每次不同（嵌套新 ref），前三档全漏。仅当 nextToolName === read_tool_result
+  // 才检测，避免误伤其它工具的正常 ref 返回（其它工具返 ref 是合规设计）。
+  if (nextToolName === "read_tool_result") {
+    let refChainCount = 0
+    for (let i = pairs.length - 1; i >= 0; i--) {
+      const p = pairs[i]
+      if (!p) break
+      if (p.toolName !== "read_tool_result") break
+      if (!p.outputContent.includes('"kind":"ref"')) break
+      refChainCount++
+    }
+    if (refChainCount >= config.refChainBlock) {
+      return { action: "block", reasonKey: "ref_chain", reasonVars: { tool: nextToolName, count: refChainCount } }
+    }
+    if (refChainCount >= config.refChainWarn) {
+      return { action: "warn", reasonKey: "ref_chain", reasonVars: { tool: nextToolName, count: refChainCount } }
+    }
   }
 
   return { action: "proceed" }
