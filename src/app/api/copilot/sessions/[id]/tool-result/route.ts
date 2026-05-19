@@ -72,6 +72,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // v2.5 P0 §3.4: 从硬数步 cap 5 换成 hermes 三档重复检测（exact-failure / same-tool / no-progress）
   const branchBefore = getActiveBranch(sessionId)
+
+  // v0.18.12 H5：同 call_id 的 tool_result 已落盘则直接 409，避免重复执行 mutating tool。
+  // 触发场景：用户 Confirm 双触 / fork 后旧链尾的 tool_use 被新链重激活 / 客户端重试。
+  // 客户端 pendingCallIds 仅防 in-flight，不防 already-completed。
+  // 用 active branch（fork 后 head 切换则旧 tool_result 不在 branch 里，允许 re-exec）。
+  const existing = branchBefore.find(m => m.role === 'tool_result' && m.call_id === body.call_id)
+  if (existing) {
+    return new Response(
+      JSON.stringify({
+        error: 'tool_result already exists for this call_id',
+        call_id: body.call_id,
+        existing_message_id: existing.id,
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   let loopWarnDecision: Extract<ToolLoopDecision, { action: "warn" }> | null = null
   if (body.denied !== true) {
     const decision = analyzeToolLoop(branchBefore, body.tool_name, body.input)
