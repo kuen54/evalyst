@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.9] — 2026-05-19 · Copilot stream abort 防孤儿 tool_use (PR #111 · audit H1)
+
+> 系统 audit (#28) 列出 5 H + 3 M 共 8 项 copilot agentic 流程的 bug，本版本只修 H1 一项最高优——客户端在 stream 收尾窗口 abort 落孤儿 tool_use 消息。后续 7 项 (H2-H5, M1+M2, M3, M5) 各自独立 PR + tag。
+
 ### Fixed
 
 - **`runToolAwareLlmStream` 加 post-stream abort 守卫**（H1）—— `stream-response.ts` 在 `callLlmStreaming` 关流到 `appendMessage` 之间若 `signal.aborted=true`，跳过 assistant + tool_use 落盘。原行为会落"孤儿 tool_use"消息（无匹配 tool_result），下次进入 session chain-cap 误算 + LLM 看到不完整链。系统审计推断这是用户偶发"copilot 断开 → 重试好"的最可能根因之一。test: `stream-response.abort.test.ts` 双 case（aborted 时 0 tool_use 落盘 / 不 aborted 时正常落盘）。
