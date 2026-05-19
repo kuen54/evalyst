@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.15] — 2026-05-19 · ToolCallCard memo（PR #117 · perf 排查 PR-A）
+
+> 用户报：copilot 展开 + 大量工具卡可见时卡顿。Audit 排出 Top 3：(1) ToolCallCard re-render 风暴 / (2) JSON.stringify 在 collapsed 时也跑 / (3) scrollIntoView 每个 token fire。本版本只修 #1（最大头），后续 PR-B/C 各自独立。
+
 ### Performance
 
 - **ToolCallCard `React.memo` 自定义 equality**（PR-A）—— `tool-call-card.tsx` 把 727 行的 ToolCallCard 套 memo，按 toolUse/toolResult 关键字段（id / call_id / tool_name / tool_input ref / content / denied）+ pending 布尔比较，**忽略 onConfirm/onDeny callback identity**。原行为：父 `chat-view.tsx` 的 `renderToolUse` 每次 parent re-render（streaming 每个 text delta）都重建 toolUseShim/toolResultShim 对象 + 新 inline callbacks，导致 N 张可见卡每次都 reconcile 整个 727 行 DOM 树。修后 streaming 期间 ToolCallCard 重渲染 O(N) → O(0)。配合既有的 `globals.css:563` `.copilot-chat-list > * { content-visibility: auto }`（offscreen 跳 paint）+ MessageRow 既有 memo，长 session 大量工具卡场景的卡顿缓解。
