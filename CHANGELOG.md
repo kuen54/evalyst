@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.17] — 2026-05-19 · Scroll + read collapsed defaults（PR #119 · perf 排查 PR-C）
+
+> Audit Top #3 (scroll smooth) + side-note (read defaults expanded) 一起落地。Perf 排查 3 PR 全部完成。
+
 ### Performance
 
 - **Streaming 期间 scroll 跳过 smooth 动画**（PR-C 第 1 部分）—— `chat-view.tsx:80-82` 的 `bottomRef.scrollIntoView` 在 `stream.sending=true`（streaming）时用 `behavior:"auto"` 即时跳，避免每个 token delta 都触发 smooth 动画引发 forced layout × N 卡。idle 时（sending=false）保留 smooth 体验。
