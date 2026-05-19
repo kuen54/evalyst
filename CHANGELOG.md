@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.11] — 2026-05-19 · busy 计数器化 + abortRef 守卫式清理 (PR #113 · audit H4)
+
+> Audit (#28) 8 项中 H4。
+
 ### Fixed
 
 - **busy 计数器化 + abortRef 守卫式清理**（H4）—— `use-chat-stream.ts` 把 `setBusy(true)/setBusy(false)` 包成 `incBusy()/decBusy()` 引用计数，仅在 0→1 / 1→0 转换时写 store。原行为：`send()` done 事件 fire-and-forget IIFE 跑 `postToolResult()` auto-run，IIFE 不被 send() await，两者都 setBusy(true)/setBusy(false)，先结束的把 busy 提前置 false，但另一条还在跑——UI 显 idle 但 stream 活着。同时 `abortRef.current = null` 改成 `clearAbortIfOwn(ctrl)`，仅在 abortRef 仍是自己 ctrl 时清，避免 stale finally 误清新 send() 已设的新 ctrl。
