@@ -42,8 +42,10 @@ interface CopilotStore {
   addContext: (c: Omit<CapturedContext, "tag">) => void
   removeContext: (elementKey: string) => void
   clearContexts: () => void
-  // copilot 是否正在产出（用于 glow idle/active 切换）
-  busy: boolean
+  // copilot 是否正在产出（用于 glow idle/active 切换 + ContextMask 冻结）
+  // v0.18.8 P3.B: 读 busy 走窄 hook useCopilotBusy() 不要从 main store 读，
+  // 避免 streaming 期间 busy 抖动让所有 useCopilotStore 消费者 re-render。
+  // 写仍在 main store（writer 不订阅，无 re-render 影响）。
   setBusy: (v: boolean) => void
 
   // ---- PR-4: Page Context + route change banner ----
@@ -270,7 +272,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     addContext,
     removeContext,
     clearContexts,
-    busy,
+    // v0.18.8 P3.B: busy 不进 main store value——读走 useCopilotBusy() 窄 hook
     setBusy,
     // new
     pageContext,
@@ -287,7 +289,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     lastOpenedAt,
     inspectorActive,
     contexts, addContext, removeContext, clearContexts,
-    busy,
+    // busy 故意不在 deps：避免 busy 抖动重建整个 value，让所有 useCopilotStore 消费者 re-render
     pageContext, setPageContext,
     routeChangeBanner, showRouteChangeBanner, dismissRouteChangeBanner,
     clearManualContexts,
@@ -299,9 +301,19 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
 
   return (
     <CopilotCtx.Provider value={value}>
-      <CopilotShellProvider value={shellState}>{children}</CopilotShellProvider>
+      <CopilotShellProvider value={shellState}>
+        <CopilotBusyCtx.Provider value={busy}>{children}</CopilotBusyCtx.Provider>
+      </CopilotShellProvider>
     </CopilotCtx.Provider>
   )
+}
+
+// v0.18.8 P3.B: busy 单独 context，避免 streaming 期间 busy 抖动让所有 useCopilotStore
+// 消费者重渲染。仅消费 busy 的组件（GlowOverlay / ContextMask）走 useCopilotBusy() 窄 hook。
+// 写仍在 useCopilotStore.setBusy（writer 不订阅，无 re-render 影响）。
+const CopilotBusyCtx = createContext<boolean>(false)
+export function useCopilotBusy(): boolean {
+  return useContext(CopilotBusyCtx)
 }
 
 // Fallback store returned when useCopilotStore is called outside a provider.
@@ -323,7 +335,6 @@ const NOOP_STORE: CopilotStore = {
   addContext: () => {},
   removeContext: () => {},
   clearContexts: () => {},
-  busy: false,
   setBusy: () => {},
   // new
   pageContext: null,

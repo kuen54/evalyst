@@ -565,6 +565,16 @@ html[data-copilot-revealing="true"] [data-glass-variant] {
   contain-intrinsic-size: auto 80px;
 }
 
+/* v0.18.8 P3.A: experiment 详情/对比页 task_result 列表卡走 content-visibility。
+   Copilot 开启时所有 [data-glass-variant] 卡挂 backdrop-filter: blur(28px)，长 list
+   场景 50+ 卡的持续 GPU paint 是"开 copilot 整页变卡"的结构性主因。
+   滚出视口的卡跳过 paint（含 backdrop-filter） + 跳过 layout，浏览器自动记忆真实
+   高度避免跳行。仅生效于 result 列表卡，顶层 GlassRegular/GlassSuccess 等装饰卡不影响。 */
+[data-copilot-context="task_result"] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
 /* Theme switch cascade rules live in src/app/layout.tsx via <style dangerouslySetInnerHTML>.
    Moving them here would cause Turbopack/LightningCSS to silently drop the entire block
    (same failure mode as v0.5.4 v1 — reproduced on v2.1 ship). */

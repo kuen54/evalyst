@@ -7,7 +7,10 @@
 // - controller.enqueue 在客户端 abort / 流已关时会抛 'Controller is already
 //   closed'。write 必须 try/catch 吞掉，没法再回写客户端。
 // - controller.close 走 finally 保证流一定关。
-// - 任何 runner 抛 → 走 catch 写 { kind: 'error', message } 后再 close。
+// - 任何 runner 抛 → 走 catch 写 { kind: 'error', message } 后再 close，
+//   并 console.error 打 stack 到 dev server stderr（v0.18.8 P1.3：定位 fetch failed）。
+// - runner 跑期间每 HEARTBEAT_INTERVAL_MS 写 { kind: 'heartbeat' }，防中间件 idle-close
+//   + 给 client "连接活着但服务端在算"的可观测信号（v0.18.8 P1.1）。
 
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',
@@ -15,6 +18,9 @@ const SSE_HEADERS = {
   'Connection': 'keep-alive',
   'X-Accel-Buffering': 'no',
 } as const
+
+/** 20s：低于常见反向代理的 30s idle 阈值；高于 LLM 单次 chunk 间隔避免噪音。 */
+const HEARTBEAT_INTERVAL_MS = 20_000
 
 type SseWrite = (payload: unknown) => void
 
@@ -53,11 +59,17 @@ export function streamSseResponse(opts: StreamSseOptions): Response {
       if (opts.initialEvents) {
         for (const ev of opts.initialEvents) write(ev)
       }
+      // v0.18.8 P1.1: heartbeat 防中间件 idle-close。runner 结束/抛错走 finally 清。
+      const heartbeat = setInterval(() => write({ kind: 'heartbeat' }), HEARTBEAT_INTERVAL_MS)
       try {
         await opts.runner(write)
       } catch (e) {
+        // v0.18.8 P1.3: dev server stderr 打 stack，方便下次 fetch failed 复现时定位。
+        // toast 给 client 看的还是只有 message（保持简洁）。
+        console.error('[copilot/sse] runner threw:', e)
         write({ kind: 'error', message: e instanceof Error ? e.message : String(e) })
       } finally {
+        clearInterval(heartbeat)
         controller.close()
       }
     },

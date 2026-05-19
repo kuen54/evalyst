@@ -26,6 +26,7 @@ type ChatSseEvent =
   | { kind: "loop_warn"; call_id: string; reason_key: string; reason_vars: { tool: string; count: number } }
   | { kind: "done"; assistant_message_id?: string; tool_use_message_ids?: string[]; usage?: { input_tokens: number; output_tokens: number }; stop_reason?: string }
   | { kind: "error"; message: string }
+  | { kind: "heartbeat" } // v0.18.8 P1.1: 防中间件 idle-close；client 收到直接忽略
 
 /**
  * 把 fetch Response 的 SSE body 解出来，按 `\n\n` 分条，丢给 onEvent。
@@ -171,6 +172,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
   const makeSseHandler = (pairSessionId: string) => {
     return (ev: ChatSseEvent) => {
       if (currentSessionRef.current !== pairSessionId) return
+      // v0.18.8 P1.2: server 每 20s 发 heartbeat 防中间件 idle-close；client 直接忽略。
+      if (ev.kind === "heartbeat") return
       if (ev.kind === "text") {
         setMessages(prev => {
           const next = prev.slice()
@@ -451,6 +454,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
       // tool_result_message 事件已经回填了 content / denied / reason，这里不再需要兜底占位。
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
+        // v0.18.8 P1.4: 完整 stack 打到 browser console，toast 仍只显示 message
+        console.error("[copilot/chat-stream] tool-result fetch failed:", e)
         onError((e as Error).message)
       }
     } finally {
@@ -530,6 +535,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
       await consumeSseStream(resp, makeSseHandler(pairSessionId))
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
+        // v0.18.8 P1.4: 完整 stack 打到 browser console，toast 仍只显示 message
+        console.error("[copilot/chat-stream] send failed:", e)
         onError(p.tI18nSendFailed + ": " + (e as Error).message)
       }
       setMessages(prev => {

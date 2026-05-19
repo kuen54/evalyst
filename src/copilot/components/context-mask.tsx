@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { useCopilotStore } from "./store"
+import { useCopilotStore, useCopilotBusy } from "./store"
 import { queryContextElement } from "@/copilot/lib/context-registry"
 import { usePathname } from "next/navigation"
 import { useT } from "@/lib/i18n/provider"
@@ -10,6 +10,14 @@ import { useT } from "@/lib/i18n/provider"
 // 核心挑战：路由切换 / resize / DOM 变化时 rect 要重算；找不到元素就隐藏（chip 保留，遮罩消失）。
 //
 // 刷新页面时 mask 永远找不回（新 DOM 不知道 rect），依赖 panel 里的一次 toast 提示用户。
+//
+// v0.18.8 性能优化（圈选框是页面卡顿的主因，但 setRects 路径定位本身正常，不动）：
+//   A. 删全局 MutationObserver(document.body, subtree:true) → 换 per-target ResizeObserver。
+//      streaming 时每 chunk 触发的 observer 回调消失了。Route change 由 pathname effect 兜底。
+//   C. busy（LLM streaming）期间冻结：所有 schedule 直接 return；busy 落幕做一次 catch-up。
+//      streaming 期间 mask 完全 0 cost。
+//
+// 不做 imperative DOM 更新（曾经试过，初始 rect 0,0,0,0 时所有 mask 堆左上角，回归到 setRects 路径）。
 
 interface MaskRect {
   elementKey: string
@@ -33,14 +41,17 @@ function colorForTag(tag: number): string {
 
 export function ContextMask() {
   const { contexts, removeContext, open } = useCopilotStore()
+  const busy = useCopilotBusy()
   const t = useT()
   const visible = open
   const pathname = usePathname()
   const [rects, setRects] = useState<MaskRect[]>([])
   const frameRef = useRef<number | null>(null)
+  const observerRef = useRef<ResizeObserver | null>(null)
 
   const recompute = useCallback(() => {
     frameRef.current = null
+    if (busy) return // C: busy 期间不更新
     if (contexts.length === 0) {
       setRects([])
       return
@@ -58,12 +69,13 @@ export function ContextMask() {
       }
     })
     setRects(out)
-  }, [contexts])
+  }, [contexts, busy])
 
   const scheduleRecompute = useCallback(() => {
     if (frameRef.current !== null) return
+    if (busy) return // C: busy 期间不调度
     frameRef.current = requestAnimationFrame(recompute)
-  }, [recompute])
+  }, [recompute, busy])
 
   // contexts / pathname 变化时立即重算
   useEffect(() => {
@@ -83,30 +95,33 @@ export function ContextMask() {
     }
   }, [contexts.length, scheduleRecompute])
 
-  // DOM 变化时用 MutationObserver 触发重算，但按 500ms 节流
-  // —— 避免 copilot streaming / 其它高频局部更新把 rect 查询跑到 60fps。
+  // A: per-target ResizeObserver 取代旧 MutationObserver(body, subtree:true)
+  // 旧方案 streaming 期间每 chunk 都触发 observer 回调；新方案只在 target 自身尺寸变化时触发。
+  // Route change 已有 pathname effect 兜底，新元素出现的场景由 inspector 添加新 context 自带 query。
   useEffect(() => {
     if (contexts.length === 0) return
-    let pending = false
-    let lastRun = 0
-    const observer = new MutationObserver(() => {
-      const now = performance.now()
-      if (now - lastRun < 500) {
-        if (pending) return
-        pending = true
-        setTimeout(() => {
-          pending = false
-          lastRun = performance.now()
-          scheduleRecompute()
-        }, 500 - (now - lastRun))
-        return
-      }
-      lastRun = now
-      scheduleRecompute()
-    })
-    observer.observe(document.body, { subtree: true, childList: true, attributes: false })
-    return () => observer.disconnect()
-  }, [contexts.length, scheduleRecompute])
+    const targets: HTMLElement[] = []
+    for (const c of contexts) {
+      if (c.type === "text_selection") continue
+      const el = queryContextElement(c.type, c.id, c.extra as Record<string, unknown> | undefined)
+      if (el) targets.push(el)
+    }
+    if (targets.length === 0) return
+    const ro = new ResizeObserver(() => scheduleRecompute())
+    for (const el of targets) ro.observe(el)
+    observerRef.current = ro
+    return () => {
+      ro.disconnect()
+      observerRef.current = null
+    }
+  }, [contexts, pathname, scheduleRecompute])
+
+  // C: busy 落幕 catch-up——streaming 期间冻结的 mask 在结束时对齐当前位置
+  const wasBusyRef = useRef(false)
+  useEffect(() => {
+    if (wasBusyRef.current && !busy) scheduleRecompute()
+    wasBusyRef.current = busy
+  }, [busy, scheduleRecompute])
 
   if (!visible || contexts.length === 0) return null
 
