@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.13] — 2026-05-19 · Loop detector hardening (PR #115 · audit M1+M2)
+
+> Audit (#28) 8 项中 M1+M2。
+
 ### Fixed
 
 - **Loop detector hardening**（M1+M2）—— `tool-loop-detector.ts` 两处精确化：
