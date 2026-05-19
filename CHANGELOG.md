@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.21] — 2026-05-19 · read_context description trigger phrase（PR #123 · audit PR-3）
+
+> Audit 3 PR 全部完成。配合 v0.18.19 system prompt 硬指令双保险（instruction-level + tool-routing level），LLM 应该明确知道圈选时优先 read_context。
+
 ### Fixed
 
 - **`read_context` description 改动词驱动 + trigger phrase**（PR-3 of audit）—— `read-context.metadata.ts` description 从 passive `"Fetch details of a user-circled context chip..."` 改成 imperative `"PRIMARY tool when the user references circled contexts. Trigger phrases: 'these results', 'this experiment', '#N', '两个结果', '圈选的', any pronoun pointing at chips. Call this BEFORE read_page or read_experiment_results when active_contexts is non-empty..."`。原 description 没有 trigger phrase，LLM 不知 WHEN to call → 走 read_page。配合 PR-1 的 system prompt 硬指令双保险。
