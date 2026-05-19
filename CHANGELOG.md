@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.16] — 2026-05-19 · ToolCallCard JSON.stringify lazy（PR #118 · perf 排查 PR-B）
+
+> Audit Top #2 落地。
+
 ### Performance
 
 - **ToolCallCard `JSON.stringify` lazy**（PR-B）—— `tool-call-card.tsx` 把 `unwrapV2Content` 拆成 `unwrapV2DisplayValue`（cheap，无 stringify）+ `unwrapV2PreviewText`（expensive，含 stringify）两个独立函数。所有 5 个 variant（Default / Context / Resource / Retrieval / Write）的 displayValue 在顶层算（用于 summary / 错误识别），previewText 直接 inline 在 `{expanded && <pre>{unwrapV2PreviewText(parsed) ?? ...}</pre>}` JSX 内——expanded=false 时 JSX 短路彻底跳过 stringify。配合 PR-A memo（data 变才 re-render），expanded=true 时每次 render 也 = 每次 data 真变化，stringify 是必要工作不浪费。Default + Write 默认 collapsed → 完全无成本；其他 3 个 variant 用户折叠后无成本。
