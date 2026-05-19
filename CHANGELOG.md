@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **`COPILOT_SYSTEM_PROMPT` 加 anti-fabrication 主动指令**（hallucination audit PR-B）—— `build-llm-messages.ts` 的 `COPILOT_SYSTEM_PROMPT` 把末尾 passive `"Don't fabricate data that wasn't shared."` 升级为 4 条主动 ANTI-FABRICATION RULES：(1) NEVER 编造 model names / schema_ids 等具体值；(2) 看到 `_warning.unknown_fields` 立即 retry，不填空；(3) 字段缺失时说"X 没有记录"而不是猜测；(4) 不确定就用"I need to check"+ 调工具，不要 confident-sounding fabrication。配合 PR-A `read_resource` warn 双保险。test: lock-in 4 关键短语防回归。
+
 ## [0.18.22] — 2026-05-19 · read_resource warn unknown fields（PR #124 · hallucination audit PR-A）
 
 > 用户报：v0.18.21 后工具调用流程对了，但 LLM 对未拿到的 model 字段直接幻觉编造模型名（"claude-sonnet-4-20250514" / "gemini-3.1-pro-preview" 工具结果里 0 出现）。Audit 找出 3 条 root cause，本版本修主因 #1 + #2。
