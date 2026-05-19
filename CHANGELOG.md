@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **`runToolAwareLlmStream` 加 post-stream abort 守卫**（H1）—— `stream-response.ts` 在 `callLlmStreaming` 关流到 `appendMessage` 之间若 `signal.aborted=true`，跳过 assistant + tool_use 落盘。原行为会落"孤儿 tool_use"消息（无匹配 tool_result），下次进入 session chain-cap 误算 + LLM 看到不完整链。系统审计推断这是用户偶发"copilot 断开 → 重试好"的最可能根因之一。test: `stream-response.abort.test.ts` 双 case（aborted 时 0 tool_use 落盘 / 不 aborted 时正常落盘）。
+
 ## [0.18.8] — 2026-05-19 · Copilot 开启后整页卡顿结构性修复 + fetch-failed 可观测性 (PR #110)
 
 > 浏览器实测：用户回报 v0.18.5 后仍然"开 copilot 整页卡顿，完全不动也卡"。Audit 发现真凶是 65+ glass cards × backdrop-filter blur(28px) 的结构性 GPU paint cost——与有没有动画无关。本版本核心修复让 offscreen result 卡跳过 paint，命中后用户确认"性能好像好了很多"。

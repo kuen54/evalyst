@@ -19,6 +19,9 @@
 //   5. 合并相邻 assistant+tool_use 保证 Anthropic alternation —— 这是
 //      `serializeMessagesForProvider` 的职责（在 `llm-stream.ts` 内），本 helper
 //      只把 branch 交给 `buildLlmMessages`，序列化阶段自动处理，不在 helper 层。
+//   6. Post-stream abort 守卫（v0.18.9 H1）—— stream 关流到 appendMessage 之间
+//      若 signal aborted，跳过 append。否则会落下孤儿 tool_use（无 tool_result），
+//      下次进入 session chain-cap 误算 + LLM 看到不完整链。
 
 import { callLlmStreaming } from './llm-stream'
 import { appendMessage } from './session-store'
@@ -140,6 +143,13 @@ export async function runToolAwareLlmStream(p: RunStreamParams): Promise<RunStre
 
   // race fix #3：流结束后，按顺序落盘 assistant 文本（若有）→ 每条 tool_use，
   // parent_id 链式串起来。caller 拿到 result 后才 emit done，保证"落盘先于 done"。
+  //
+  // race fix #6（v0.18.9 H1）：客户端在 stream 关流到这里之间 abort，则跳过 append——
+  // 否则会落下"孤儿 tool_use"消息（无匹配 tool_result），下次进入 session 时 chain-cap
+  // 误算 + LLM 看到不完整链。caller 拿到空 result 后会尝试 write done，被流关后 try/catch 吞。
+  if (p.signal.aborted) {
+    return { toolUseMessageIds: [] }
+  }
   let parentId: string | undefined = p.startParentId
   let assistantMessageId: string | undefined
   if (assistantText.trim().length > 0) {
