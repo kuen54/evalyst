@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **Tool loop detector 加 thrashing 第 5 档**（PR-2 of audit）—— `tool-loop-detector.ts` 加滑窗高频重复检测：last `thrashingWindow=12` 个成功 pair 内同 `(toolName, argsHash)` 累计（含本次）≥ `thrashingBlock=4` 次 → block，≥ `thrashingWarn=3` 次 → warn。兜底 A-B-A-B 交替循环——前 4 档（exact_failure / same_tool / no_progress / ref_chain）都看"末尾连续相同"，alternating 永远漏。session 30cqfqrfxv 实证：12 次 read_experiment_results 在 exp_osDX-dG6 / exp_bcFjhfYa 之间反复跳没被任何档抓住。i18n 双语 key 成对加（zh.ts/en.ts）。test: 5 case（A-B-A-B block / no_progress 优先 / 不同 filter argsHash 不同→proceed / 滑窗外旧 A 不算 / warn 档 projected=3）。
+
 ## [0.18.19] — 2026-05-19 · System prompt read_context 优先指令（PR #121 · audit PR-1）
 
 > 用户报：圈选 box:108×2 问副标题对比，LLM 0 次 read_context 直接 read_page 乱猜 box:1，34 轮 tool call 才半放弃。Audit 找出 4 条 root cause，本版本修主因 #1 + #2。

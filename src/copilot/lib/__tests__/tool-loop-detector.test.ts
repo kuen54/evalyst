@@ -111,12 +111,15 @@ describe('analyzeToolLoop · no-progress（同 args 成功但输出 identical）
     const r = analyzeToolLoop(branch, 'read_tool_result', { ref: 'r1' })
     expect(r.action).toBe('block')
   })
-  it('output 不同（哪怕一字符）则不算 no-progress', () => {
+  it('output 不同（哪怕一字符）则不算 no-progress（v0.18.20: 但 thrashing 第 5 档会抓到同 args 重复）', () => {
     const branch = [
       ...ok('1', 'read_tool_result', { ref: 'r1' }, { value: 'foo' }),
       ...ok('2', 'read_tool_result', { ref: 'r1' }, { value: 'foo2' }),
     ]
-    expect(analyzeToolLoop(branch, 'read_tool_result', { ref: 'r1' })).toEqual({ action: 'proceed' })
+    // no_progress 不触发（output 不同），但 thrashing 看到同 args 在窗口里 2 次 + 本次 = 3 → warn
+    const r = analyzeToolLoop(branch, 'read_tool_result', { ref: 'r1' })
+    expect(r.action).toBe('warn')
+    expect(r.action === 'warn' && r.reasonKey).toBe('thrashing')
   })
 })
 
@@ -358,5 +361,77 @@ describe('analyzeToolLoop · M1+M2 hardening (v0.18.13)', () => {
     })
     expect(r.action).toBe('warn')
     expect(r.action === 'warn' && r.reasonKey).toBe('no_progress')
+  })
+})
+
+describe('analyzeToolLoop · thrashing 第 5 档（v0.18.20 audit PR-2）', () => {
+  // 兜底 A-B-A-B 交替循环——前 4 档全看"末尾连续相同"，alternating 漏。
+  // 默认阈值：window=12, warn=3, block=4（projected 含本次）
+  it('A-B-A-B 交替 6 次后下一次 A → projected=4 → block', () => {
+    // A 出现 3 次 + B 出现 3 次（last 6 pairs 全在 window=12 内）
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_experiment_results', { experiment_id: 'expA' }, { kind: 'inline', value: { rows: [] } }),
+      ...ok('2', 'read_experiment_results', { experiment_id: 'expB' }, { kind: 'inline', value: { rows: [] } }),
+      ...ok('3', 'read_experiment_results', { experiment_id: 'expA' }, { kind: 'inline', value: { rows: [] } }),
+      ...ok('4', 'read_experiment_results', { experiment_id: 'expB' }, { kind: 'inline', value: { rows: [] } }),
+      ...ok('5', 'read_experiment_results', { experiment_id: 'expA' }, { kind: 'inline', value: { rows: [] } }),
+      ...ok('6', 'read_experiment_results', { experiment_id: 'expB' }, { kind: 'inline', value: { rows: [] } }),
+    ]
+    // 下一次 expA → 累计 expA 共 4 次（含本次） → block
+    const r = analyzeToolLoop(branch, 'read_experiment_results', { experiment_id: 'expA' })
+    expect(r.action).toBe('block')
+    expect(r.action === 'block' && r.reasonKey).toBe('thrashing')
+  })
+
+  it('A-A-A 末尾连续：no_progress 优先（同 args 同 output count=3 → warn no_progress）', () => {
+    // 同 args + 同 output 3 次 → no_progress count=3 → warn（noProgressWarn=2，noProgressBlock=5 不到）
+    // 不会落到 thrashing 档
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'list_experiments', { limit: 5 }, { kind: 'inline', value: { items: [] } }),
+      ...ok('2', 'list_experiments', { limit: 5 }, { kind: 'inline', value: { items: [] } }),
+      ...ok('3', 'list_experiments', { limit: 5 }, { kind: 'inline', value: { items: [] } }),
+    ]
+    const r = analyzeToolLoop(branch, 'list_experiments', { limit: 5 })
+    expect(r.action).toBe('warn')
+    expect(r.action === 'warn' && r.reasonKey).toBe('no_progress')
+  })
+
+  it('合理深挖：不同 filter 参数 → argsHash 不同 → 不累加 → proceed', () => {
+    // LLM 用不同 score_lt 翻找，每次 args 不同，不该误伤
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_experiment_results', { experiment_id: 'e', filter: { score_lt: 5 } }, { kind: 'inline', value: { rows: [] } }),
+      ...ok('2', 'read_experiment_results', { experiment_id: 'e', filter: { score_lt: 4 } }, { kind: 'inline', value: { rows: [] } }),
+      ...ok('3', 'read_experiment_results', { experiment_id: 'e', filter: { score_lt: 3 } }, { kind: 'inline', value: { rows: [] } }),
+      ...ok('4', 'read_experiment_results', { experiment_id: 'e', filter: { score_lt: 2 } }, { kind: 'inline', value: { rows: [] } }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_experiment_results', { experiment_id: 'e', filter: { score_lt: 1 } })
+    expect(r.action).toBe('proceed')
+  })
+
+  it('滑窗外的旧 A 不算：A 在 13 个 pair 之前就有过 → 不累加', () => {
+    // 构造 13 个不同 args 的成功 pair，第 1 个是 expA。第 14 次再调 expA 时窗口里只有它自己 → projected=1 → proceed
+    const filler: CopilotMessage[] = []
+    for (let i = 1; i <= 13; i++) {
+      filler.push(...ok(String(i), 'read_experiment_results',
+        { experiment_id: i === 1 ? 'expA' : `exp_${i}` },
+        { kind: 'inline', value: { rows: [] } },
+      ))
+    }
+    const r = analyzeToolLoop(filler, 'read_experiment_results', { experiment_id: 'expA' })
+    expect(r.action).toBe('proceed')
+  })
+
+  it('thrashing warn 档：projected=3', () => {
+    // 2 个 A + 1 个 B → 下一次 A projected=3 → warn
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'list_experiments', { limit: 5 }, { kind: 'inline', value: { items: [{ id: 1 }] } }),
+      ...ok('2', 'list_experiments', { limit: 10 }, { kind: 'inline', value: { items: [{ id: 1 }] } }),
+      ...ok('3', 'list_experiments', { limit: 5 }, { kind: 'inline', value: { items: [{ id: 2 }] } }),
+    ]
+    // 注意：args limit=5 出现 2 次，但 output 不一致——no_progress 不触发；
+    // alternating 也不算（A-B-A）。第 4 次 limit=5 → projected=3 → thrashing warn
+    const r = analyzeToolLoop(branch, 'list_experiments', { limit: 5 })
+    expect(r.action).toBe('warn')
+    expect(r.action === 'warn' && r.reasonKey).toBe('thrashing')
   })
 })
