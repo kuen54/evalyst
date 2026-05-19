@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.7] — 2026-05-19 · Copilot ref-loop 修复的同源 followup (PR #109)
+
+> 浏览器实测：在原 bug 复现实验 `exp_osDX-dG6` 上重发同条 prompt，session `lfpwg723ko` 共 12 次 tool_use（原 80+，-85%），其中 2 次 `read_tool_result` **全部 inline 返回**，0 次 ref 链，ref_chain detector 也未被触发（说明根因修复，不靠兜底）。
+
 ### Added
 
 - **Copilot tool-loop-detector 加 `ref_chain` 第 4 档**（v0.18.6 修法的回归 tripwire）—— v0.18.6 之前 `read_tool_result` 返 `{kind:"ref"}` 26 次没被检测到，因为前 3 档（exact_failure / same_tool / no_progress）都要求 args 一致或失败标记，ref 链每次 args/output 都不同且不算 failed。新增第 4 档专打 `read_tool_result` 连续返 `{kind:"ref"}`：`refChainWarn=2` / `refChainBlock=3`。其它工具返 ref 是合规设计不触发。i18n key `copilot.loop.{warn,block}.ref_chain` 中英成对加。
