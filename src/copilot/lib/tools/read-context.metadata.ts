@@ -29,7 +29,8 @@ export const readContextMetadata: ToolMetadataDescriptor = {
   metadata: {
     isReadOnly: true,
     isDestructive: false,
-    // parent scope 可能带整条 task 出来，4KB 给缓冲；超出走 payloadGuard 落盘
-    maxResultSizeChars: 4000,
+    // v0.18.7 G3: 4000→12000。parent scope 拉整条 task 经常超 4KB；read_tool_result
+    // skipPayloadGuard 后过限不再死循环，12000 让常规查询直接 inline 省一轮 round-trip。
+    maxResultSizeChars: 12000,
   },
 }

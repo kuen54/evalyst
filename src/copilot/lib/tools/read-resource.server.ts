@@ -42,6 +42,23 @@ function pickFields(obj: unknown, fields: string[]): Record<string, unknown> {
   )
 }
 
+/** v0.18.7 G4: NOT_FOUND 时按 type 给具体 hint，避免 LLM 编 id（session repro: LLM
+ *  把 'tpl_aB92xkLq' 当 template id 反复试，实际应传 schema_id）。 */
+function notFoundHint(type: ReadResourceType): string {
+  switch (type) {
+    case "template":
+      return "For type='template', id is the schema_id (e.g. 'fortune_v4'), NOT a 'tpl_xxx' string. Get it from experiment.schema_id (call read_resource(type='experiment', id=<exp_id>, fields=['schema_id']) first)."
+    case "experiment":
+      return "Verify the experiment exists. Use list_experiments to enumerate."
+    case "dataset":
+      return "id is the dataset_id (e.g. 'boxes'). Get it from experiment.dataset_bindings."
+    case "display":
+      return "id is the display_id."
+    case "rubric":
+      return "id is the rubric_id (e.g. 'rb_xxx')."
+  }
+}
+
 export const readResourceTool: ToolDescriptor<ReadResourceInput, unknown> = {
   ...readResourceMetadata,
   call: async ({ type, id, fields }) => {
@@ -53,7 +70,7 @@ export const readResourceTool: ToolDescriptor<ReadResourceInput, unknown> = {
     const res = loadResource(type, id)
     if (!res) {
       return err("NOT_FOUND", `${type}/${id} not found`, {
-        hint: "Verify the resource exists",
+        hint: notFoundHint(type),
       })
     }
     const value = fields && fields.length > 0 ? pickFields(res, fields) : res

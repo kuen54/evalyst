@@ -249,3 +249,73 @@ describe('analyzeToolLoop · 真实 branch 形态（v2.5 P0 hotfix）', () => {
     expect(r.action).toBe('proceed')
   })
 })
+
+// v0.18.7 G1: ref-chain 档——专打 read_tool_result 返 {kind:"ref"} 死循环
+// （v0.18.6 的 skipPayloadGuard 修法回归 tripwire）。
+describe('analyzeToolLoop · ref-chain (G1 v0.18.7)', () => {
+  it('1 次 read_tool_result 返 ref → proceed（warn 阈值=2）', () => {
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_tool_result', { ref: 'ref://tool-result/tr_a' }, { kind: 'ref', ref: 'ref://tool-result/tr_b', preview: 'x' }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_tool_result', { ref: 'ref://tool-result/tr_b' })
+    expect(r.action).toBe('proceed')
+  })
+
+  it('2 次 ref 链 → warn', () => {
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_tool_result', { ref: 'ref://tool-result/tr_a' }, { kind: 'ref', ref: 'ref://tool-result/tr_b', preview: 'x' }),
+      ...ok('2', 'read_tool_result', { ref: 'ref://tool-result/tr_b' }, { kind: 'ref', ref: 'ref://tool-result/tr_c', preview: 'y' }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_tool_result', { ref: 'ref://tool-result/tr_c' })
+    expect(r).toEqual({
+      action: 'warn',
+      reasonKey: 'ref_chain',
+      reasonVars: { tool: 'read_tool_result', count: 2 },
+    })
+  })
+
+  it('3 次 ref 链 → block', () => {
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_tool_result', { ref: 'ref://tool-result/tr_a' }, { kind: 'ref', ref: 'ref://tool-result/tr_b', preview: 'x' }),
+      ...ok('2', 'read_tool_result', { ref: 'ref://tool-result/tr_b' }, { kind: 'ref', ref: 'ref://tool-result/tr_c', preview: 'y' }),
+      ...ok('3', 'read_tool_result', { ref: 'ref://tool-result/tr_c' }, { kind: 'ref', ref: 'ref://tool-result/tr_d', preview: 'z' }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_tool_result', { ref: 'ref://tool-result/tr_d' })
+    expect(r).toEqual({
+      action: 'block',
+      reasonKey: 'ref_chain',
+      reasonVars: { tool: 'read_tool_result', count: 3 },
+    })
+  })
+
+  it('read_tool_result 返 inline 不算 ref 链', () => {
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_tool_result', { ref: 'ref://tool-result/tr_a' }, { kind: 'inline', value: { data: 'ok' } }),
+      ...ok('2', 'read_tool_result', { ref: 'ref://tool-result/tr_b' }, { kind: 'inline', value: { data: 'ok' } }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_tool_result', { ref: 'ref://tool-result/tr_c' })
+    expect(r.action).toBe('proceed')
+  })
+
+  it('其它工具返 ref 不触发 ref-chain（仅 read_tool_result 检测）', () => {
+    // 其它工具返 ref 是合规设计，不能误伤
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_experiment_results', { experiment_id: 'e1' }, { kind: 'ref', ref: 'ref://tool-result/tr_a', preview: 'x' }),
+      ...ok('2', 'read_experiment_results', { experiment_id: 'e1', limit: 5 }, { kind: 'ref', ref: 'ref://tool-result/tr_b', preview: 'y' }),
+      ...ok('3', 'read_experiment_results', { experiment_id: 'e1', limit: 10 }, { kind: 'ref', ref: 'ref://tool-result/tr_c', preview: 'z' }),
+    ]
+    const r = analyzeToolLoop(branch, 'read_experiment_results', { experiment_id: 'e1', limit: 20 })
+    expect(r.action).toBe('proceed')
+  })
+
+  it('read_tool_result 之间夹 inline 中断链', () => {
+    const branch: CopilotMessage[] = [
+      ...ok('1', 'read_tool_result', { ref: 'r1' }, { kind: 'ref', ref: 'r2', preview: 'x' }),
+      ...ok('2', 'read_tool_result', { ref: 'r2' }, { kind: 'inline', value: { data: 'ok' } }),
+      ...ok('3', 'read_tool_result', { ref: 'r3' }, { kind: 'ref', ref: 'r4', preview: 'y' }),
+    ]
+    // 末尾只有 1 次 ref（inline 中断），proceed
+    const r = analyzeToolLoop(branch, 'read_tool_result', { ref: 'r4' })
+    expect(r.action).toBe('proceed')
+  })
+})
