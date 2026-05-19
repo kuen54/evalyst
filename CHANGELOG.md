@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.14] — 2026-05-19 · Tool size raise (PR #116 · audit M3)
+
+> Audit (#28) 8 项中 M3。剩 M5 (fetch failed → toast)。
+
 ### Tuning
 
 - **`list_experiments` / `read_page` `maxResultSizeChars` 抬高**（M3）—— `list_experiments`: 2000 → 8000；`read_page`: 3000 → 8000。跟齐 v0.18.7 G3 给 `read_context/resource/results` 抬到 12000 的标准。原值偏紧，50 个 experiment × ~120 字符 ≈ 6000 已经超限，导致大部分 list 调用 ref-spill，多一轮 read_tool_result。
