@@ -36,6 +36,9 @@ export const listExperimentsMetadata: ToolMetadataDescriptor = {
   metadata: {
     isReadOnly: true,
     isDestructive: false,
-    maxResultSizeChars: 2000,
+    // v0.18.14 M3：从 2000 抬到 8000，跟齐 v0.18.7 G3 的 read_context/resource/results=12000 标准。
+    // 50 个 experiment × ~120 字符（id + name + status + ts）≈ 6000，inline 走得起，
+    // 避免大部分调用 ref-spill 多一轮 read_tool_result。
+    maxResultSizeChars: 8000,
   },
 }
