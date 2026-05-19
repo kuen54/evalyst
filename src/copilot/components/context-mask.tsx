@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, useCallback } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react"
 import { useCopilotStore } from "./store"
 import { queryContextElement } from "@/copilot/lib/context-registry"
 import { usePathname } from "next/navigation"
@@ -14,10 +14,14 @@ import { useT } from "@/lib/i18n/provider"
 // v0.18.8 性能重构（圈选框是页面卡顿的主因）：
 //   A. 删全局 MutationObserver(document.body, subtree:true) → 换 per-target ResizeObserver。
 //      streaming 时每 chunk 触发的 observer 回调消失了。Route change 由 pathname effect 兜底。
-//   B. 位置更新走 imperative：scroll/resize 时直接 div.style.transform 写位置，
-//      不走 React state → 不触发 setRects → 不触发 N 个 div re-render。
-//      用 transform 而非 top/left 避免 layout，只 composite。
+//   B. scroll/resize 走 imperative：scroll 时直接 div.style.transform 写位置，不走 React state。
+//      transform 而非 top/left → 避免 layout，只 composite。
 //   C. busy（LLM streaming）期间完全冻结：所有 schedule 直接 return，busy 落幕做一次 catch-up。
+//
+//   状态分两层：
+//     - React state 「哪些 context 定位成功」（初次定位的初始 rect）—— 触发 mask 是否渲染
+//     - imperative ref 「mask 当前位置」—— 触发 transform 实时更新
+//   只有 contexts/pathname 改变时才动 state；scroll/resize/ResizeObserver 全走 ref 不重渲染。
 
 const COLORS = [
   "rgb(59 130 246)",  // blue
@@ -32,18 +36,28 @@ function colorForTag(tag: number): string {
   return COLORS[(tag - 1) % COLORS.length]!
 }
 
+interface ResolvedMask {
+  elementKey: string
+  tag: number
+  /** 初始 rect：state 里只存 contexts/pathname 变时的 first-paint 位置；
+   *  scroll/resize 不更新 state，走 ref imperative。 */
+  initial: { x: number; y: number; w: number; h: number }
+}
+
 export function ContextMask() {
   const { contexts, removeContext, open, busy } = useCopilotStore()
   const t = useT()
   const visible = open
   const pathname = usePathname()
 
-  // elementKey → target HTMLElement（每次 contexts/pathname 变重新 query）
+  /** 哪些 context 定位成功：只在 contexts/pathname/visible 变时重算 */
+  const [resolved, setResolved] = useState<ResolvedMask[]>([])
+
+  // elementKey → target HTMLElement
   const targetsRef = useRef<Map<string, HTMLElement>>(new Map())
-  // elementKey → 我们渲染的 mask div（callback ref 注册）
+  // elementKey → 我们渲染的 mask div
   const maskDivsRef = useRef<Map<string, HTMLDivElement>>(new Map())
   const frameRef = useRef<number | null>(null)
-  // ResizeObserver 监听每个 target 自身大小变化（取代原 MutationObserver）
   const observerRef = useRef<ResizeObserver | null>(null)
 
   /** rAF 内同步：iterate targets，getBoundingClientRect → div.style.transform 直写。
@@ -69,88 +83,106 @@ export function ContextMask() {
 
   const schedule = useCallback(() => {
     if (frameRef.current !== null) return
-    if (busy) return // C: busy 期间不调度
+    if (busy) return
     frameRef.current = requestAnimationFrame(updatePositions)
   }, [busy, updatePositions])
 
-  // contexts / pathname 变化：重新 query target elements + 重设 ResizeObserver
+  // schedule 同步进 ref，避免 useLayoutEffect / ResizeObserver 因 busy 变化重设
+  const scheduleRef = useRef(schedule)
+  useEffect(() => { scheduleRef.current = schedule }, [schedule])
+
+  // contexts / pathname / visible 变化：重新 query target，刷新 resolved + ResizeObserver
   useLayoutEffect(() => {
+    if (!visible) {
+      // copilot 关闭：清空 resolved + targets 让 mask 消失
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on dep change; see docs/conventions/react19-hydration.md
+      setResolved([])
+      targetsRef.current = new Map()
+      observerRef.current?.disconnect()
+      observerRef.current = null
+      return
+    }
     const newTargets = new Map<string, HTMLElement>()
+    const newResolved: ResolvedMask[] = []
     for (const c of contexts) {
-      // text_selection 没有对应 DOM，不渲染 mask
+      // text_selection 没有对应 DOM
       if (c.type === "text_selection") continue
       const el = queryContextElement(c.type, c.id, c.extra as Record<string, unknown> | undefined)
-      if (el) newTargets.set(c.elementKey, el)
+      if (!el) continue
+      newTargets.set(c.elementKey, el)
+      const r = el.getBoundingClientRect()
+      newResolved.push({
+        elementKey: c.elementKey,
+        tag: c.tag,
+        initial: { x: r.left - 2, y: r.top - 2, w: r.width + 4, h: r.height + 4 },
+      })
     }
     targetsRef.current = newTargets
+    setResolved(newResolved)
 
-    // A: 替换 MutationObserver。每个 target 自带 ResizeObserver，仅在尺寸变才触发
+    // A: per-target ResizeObserver 替代旧的 body subtree MutationObserver。
+    // 走 scheduleRef 避免捕获过期 schedule（busy 变时不需要重设 observer）。
     observerRef.current?.disconnect()
     if (newTargets.size > 0) {
-      const ro = new ResizeObserver(() => schedule())
+      const ro = new ResizeObserver(() => scheduleRef.current())
       for (const el of newTargets.values()) ro.observe(el)
       observerRef.current = ro
     } else {
       observerRef.current = null
     }
+  }, [contexts, pathname, visible])
 
-    // useLayoutEffect 在 paint 前同步跑，立即写 transform 避免 1 帧瞬移闪烁
-    updatePositions()
-
-    return () => {
-      observerRef.current?.disconnect()
-      observerRef.current = null
-    }
-  }, [contexts, pathname, updatePositions, schedule])
-
-  // scroll / resize 监听：用 capture=true 捕获嵌套 scroll 容器（chat list / main overflow）
+  // scroll / resize 监听：capture=true 捕获嵌套 scroll 容器
   useEffect(() => {
-    if (contexts.length === 0) return
-    const onScroll = () => schedule()
-    const onResize = () => schedule()
+    if (!visible || resolved.length === 0) return
+    const onScroll = () => scheduleRef.current()
+    const onResize = () => scheduleRef.current()
     window.addEventListener("scroll", onScroll, { passive: true, capture: true })
     window.addEventListener("resize", onResize)
     return () => {
       window.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions)
       window.removeEventListener("resize", onResize)
     }
-  }, [contexts.length, schedule])
+  }, [visible, resolved.length])
 
-  // C: busy 落幕 catch-up——streaming 期间冻结的 mask 在结束时对齐到当前位置
+  // C: busy 落幕 catch-up
   const wasBusyRef = useRef(false)
   useEffect(() => {
-    if (wasBusyRef.current && !busy) {
-      // busy 0→1 不动；1→0 时补一帧
-      schedule()
-    }
+    if (wasBusyRef.current && !busy) scheduleRef.current()
     wasBusyRef.current = busy
-  }, [busy, schedule])
+  }, [busy])
 
-  if (!visible || contexts.length === 0) return null
+  // 卸载清理 ResizeObserver / 在飞 rAF
+  useEffect(() => {
+    return () => {
+      observerRef.current?.disconnect()
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
+    }
+  }, [])
+
+  if (!visible || resolved.length === 0) return null
 
   return (
     <>
-      {contexts.map(c => {
-        if (c.type === "text_selection") return null
-        const color = colorForTag(c.tag)
+      {resolved.map(r => {
+        const color = colorForTag(r.tag)
         const bgColor = color.replace("rgb", "rgba").replace(")", " / 0.08)")
         const shadowColor = color.replace("rgb", "rgba").replace(")", " / 0.15)")
         return (
           <div
-            key={c.elementKey}
+            key={r.elementKey}
             ref={(el) => {
-              if (el) maskDivsRef.current.set(c.elementKey, el)
-              else maskDivsRef.current.delete(c.elementKey)
+              if (el) maskDivsRef.current.set(r.elementKey, el)
+              else maskDivsRef.current.delete(r.elementKey)
             }}
             data-copilot-overlay
             className="fixed pointer-events-none z-[9996] rounded-sm copilot-mask-enter"
             style={{
               top: 0,
               left: 0,
-              // initial 0/0；useLayoutEffect 同步阶段会改成正确 transform
-              width: 0,
-              height: 0,
-              transform: "translate3d(0, 0, 0)",
+              width: r.initial.w,
+              height: r.initial.h,
+              transform: `translate3d(${r.initial.x}px, ${r.initial.y}px, 0)`,
               willChange: "transform",
               border: `2px solid ${color}`,
               backgroundColor: bgColor,
@@ -166,13 +198,13 @@ export function ContextMask() {
                 className="w-5 h-5 rounded-full text-[11px] font-bold text-white flex items-center justify-center shadow-sm"
                 style={{ backgroundColor: color }}
               >
-                {c.tag}
+                {r.tag}
               </span>
             </div>
             {/* X 移除按钮 —— 右上角 */}
             <button
               data-copilot-overlay
-              onClick={() => removeContext(c.elementKey)}
+              onClick={() => removeContext(r.elementKey)}
               className="absolute -top-2.5 -right-2.5 pointer-events-auto w-5 h-5 rounded-full bg-white/95 hover:bg-white border flex items-center justify-center text-[11px] leading-none text-muted-foreground hover:text-destructive shadow-sm transition-colors"
               style={{ borderColor: color }}
               title={t("copilot.context_remove_title")}
