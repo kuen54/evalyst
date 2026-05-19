@@ -10,6 +10,18 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Performance
+
+- **Copilot 圈选 mask 渲染重写**（用户报告：圈选框是页面卡顿的主因）—— `context-mask.tsx` 三层重构：
+  - **A. 删全局 `MutationObserver(document.body, subtree:true)`** —— 换成 per-target `ResizeObserver`，仅目标自己尺寸变化才触发。原 observer 在 LLM streaming 期间每 chunk 都触发回调（subtree:true 让 V8 维护整个 DOM 树的 mutation 记录），现在彻底消失。Route change 由 `pathname` effect 兜底。
+  - **B. scroll/resize 走 imperative DOM 更新** —— `setRects → React 重渲染 N 个 div` 的路径换成 `div.style.transform = translate3d(...)` 直写。React state 只控制 mask 的存在与否（contexts 增删），位置更新走 ref。`transform` + `will-change` 让位置更新只 composite 不 layout。
+  - **C. busy（LLM streaming）期间冻结** —— 所有 schedule 直接 return；busy 落幕时补一帧 catch-up 对齐当前位置。streaming 期间 mask 0 cost。
+
+### Added
+
+- **Copilot SSE 加 20s heartbeat** —— `sse-response.ts` 在 runner 跑期间每 20s `write({kind:'heartbeat'})`。防中间件 idle-close（连接长时间无数据被反向代理切断）+ 给 client 一个"连接活着但服务端在算"的可观测信号。client 收到 `heartbeat` kind 直接忽略（`use-chat-stream.ts` makeSseHandler 早返）。`ChatSseEvent` union 加 `heartbeat` 成员。
+- **`fetch failed` 错误日志全链路加 stack** —— v0.18.7 后用户遇到 `fetch failed` toast 但没现场信息。`sse-response.ts` 的 runner catch 里 `console.error('[copilot/sse] runner threw:', e)` 把 stack 写到 dev server stderr；`use-chat-stream.ts` send/tool-result 两处 catch 加 `console.error('[copilot/chat-stream] ... failed:', e)` 写到 browser console。toast 文案不变，下次复现有 stack 可看。
+
 ## [0.18.7] — 2026-05-19 · Copilot ref-loop 修复的同源 followup (PR #109)
 
 > 浏览器实测：在原 bug 复现实验 `exp_osDX-dG6` 上重发同条 prompt，session `lfpwg723ko` 共 12 次 tool_use（原 80+，-85%），其中 2 次 `read_tool_result` **全部 inline 返回**，0 次 ref 链，ref_chain detector 也未被触发（说明根因修复，不靠兜底）。
