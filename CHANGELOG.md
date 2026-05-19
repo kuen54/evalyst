@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **`read_context` description 改动词驱动 + trigger phrase**（PR-3 of audit）—— `read-context.metadata.ts` description 从 passive `"Fetch details of a user-circled context chip..."` 改成 imperative `"PRIMARY tool when the user references circled contexts. Trigger phrases: 'these results', 'this experiment', '#N', '两个结果', '圈选的', any pronoun pointing at chips. Call this BEFORE read_page or read_experiment_results when active_contexts is non-empty..."`。原 description 没有 trigger phrase，LLM 不知 WHEN to call → 走 read_page。配合 PR-1 的 system prompt 硬指令双保险。
+
 ## [0.18.20] — 2026-05-19 · Tool loop detector thrashing 第 5 档（PR #122 · audit PR-2）
 
 > 兜底 A-B-A-B 交替循环——前 4 档都看"末尾连续相同"，alternating 永远漏。session 30cqfqrfxv 实证 12 次 read_experiment_results 反复跳没被任何档抓住。
