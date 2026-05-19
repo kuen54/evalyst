@@ -78,7 +78,11 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
   }, [contexts])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    // v0.18.17 PR-C：streaming 期间用 behavior:"auto" 跳过 smooth-scroll 动画。
+    // 原 behavior:"smooth" 每个 text delta 都触发 forced layout × N 卡。auto 是即时跳转
+    // 不动画，多张工具卡可见时显著省 layout cost。idle 时（sending=false）保留 smooth 体验。
+    const behavior: ScrollBehavior = stream.sending ? "auto" : "smooth"
+    bottomRef.current?.scrollIntoView({ behavior, block: "end" })
   }, [stream.messages, stream.sending, stream.pendingCallIds])
 
   const canSend = !!input.trim() && !stream.sending && !!sessionId && !!modelId

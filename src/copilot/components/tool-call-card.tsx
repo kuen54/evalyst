@@ -400,7 +400,10 @@ function DefaultVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
 
 function ContextVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage | undefined }) {
   const t = useT()
-  const [expanded, setExpanded] = useState(true)
+  // v0.18.17 PR-C：read variants 默认 collapsed。原默认 expanded=true 对短 session 体验友好，
+  // 但长 session 50+ 工具卡时每次 data 变都触发 N 张卡的 JSON.stringify + DOM <pre> 渲染。
+  // collapsed 默认让用户按需展开（显示有 chip/scope/ref 摘要，原始 JSON 通过 ▸ 按钮）。
+  const [expanded, setExpanded] = useState(false)
   const input = (toolUse.tool_input ?? {}) as { id?: string; scope?: string; tag?: number }
   const scope = input.scope ?? "self"
   // ctx id could be `ctx_N` slug or raw tag; if it starts with `ctx_` we trim the prefix
@@ -460,7 +463,10 @@ function ContextVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; tool
 
 function ResourceVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage | undefined }) {
   const t = useT()
-  const [expanded, setExpanded] = useState(true)
+  // v0.18.17 PR-C：read variants 默认 collapsed。原默认 expanded=true 对短 session 体验友好，
+  // 但长 session 50+ 工具卡时每次 data 变都触发 N 张卡的 JSON.stringify + DOM <pre> 渲染。
+  // collapsed 默认让用户按需展开（显示有 chip/scope/ref 摘要，原始 JSON 通过 ▸ 按钮）。
+  const [expanded, setExpanded] = useState(false)
   const input = (toolUse.tool_input ?? {}) as { type?: string; id?: string; fields?: string[] }
   const type = input.type ?? "?"
   const id = input.id ?? "?"
@@ -516,7 +522,10 @@ function ResourceVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; too
 
 function RetrievalVariant({ toolUse, toolResult }: { toolUse: CopilotMessage; toolResult?: CopilotMessage | undefined }) {
   const t = useT()
-  const [expanded, setExpanded] = useState(true)
+  // v0.18.17 PR-C：read variants 默认 collapsed。原默认 expanded=true 对短 session 体验友好，
+  // 但长 session 50+ 工具卡时每次 data 变都触发 N 张卡的 JSON.stringify + DOM <pre> 渲染。
+  // collapsed 默认让用户按需展开（显示有 chip/scope/ref 摘要，原始 JSON 通过 ▸ 按钮）。
+  const [expanded, setExpanded] = useState(false)
   const input = (toolUse.tool_input ?? {}) as { ref?: string }
   const refStr = input.ref ?? "?"
   // extract tr_xxx from ref://tool-result/tr_xxx

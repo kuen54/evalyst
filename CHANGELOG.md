@@ -10,6 +10,11 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Performance
+
+- **Streaming 期间 scroll 跳过 smooth 动画**（PR-C 第 1 部分）—— `chat-view.tsx:80-82` 的 `bottomRef.scrollIntoView` 在 `stream.sending=true`（streaming）时用 `behavior:"auto"` 即时跳，避免每个 token delta 都触发 smooth 动画引发 forced layout × N 卡。idle 时（sending=false）保留 smooth 体验。
+- **Read variants 默认 `expanded=false`**（PR-C 第 2 部分）—— `tool-call-card.tsx` 的 ContextVariant / ResourceVariant / RetrievalVariant 默认状态从 `expanded=true` 改成 `expanded=false`。原默认对短 session 友好，但长 session 50+ 工具卡时每次 data 变都触发 N 张卡的 JSON.stringify + `<pre>` 渲染。collapsed 默认让用户按需展开（chip/scope/ref 摘要仍直接显示，▸ 按钮展开 raw JSON）。
+
 ## [0.18.16] — 2026-05-19 · ToolCallCard JSON.stringify lazy（PR #118 · perf 排查 PR-B）
 
 > Audit Top #2 落地。
