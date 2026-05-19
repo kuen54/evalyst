@@ -1,13 +1,17 @@
 // v2.5 P0 §3.4: hermes tool_guardrails.py:71 三档阈值的 evalyst 翻译版。
 // 替代 v0.9.0 的硬数步 chain cap 5，改成"按错误模式"判定。
 //
-// 四档（覆盖范围从严到宽）：
+// 五档（覆盖范围从严到宽）：
 //   1. exact-failure：连续 N 次同 (tool, argsHash) 失败 → block
 //   2. same-tool：连续 N 次同 tool（args 可不同）失败 → block
 //   3. no-progress：连续 N 次同 (tool, argsHash) 成功但 output identical → block
 //   4. ref-chain：连续 N 次 read_tool_result 返 {kind:"ref"} → block。v0.18.6
 //      skipPayloadGuard 修法的 tripwire——正常路径下 read_tool_result 永远返 inline，
 //      若再现 ref 链是该 bug 回归。args 不同 + 不算 failed + output 不同导致前 3 档都漏。
+//   5. thrashing：滑窗 last N 次成功 pair 内同 (tool, argsHash) 出现 ≥ M 次 → block。
+//      v0.18.20 audit PR-2 加：兜底 A-B-A-B 交替循环——前 4 档都看"末尾连续相同"，
+//      A-B-A-B-A-B 这种 alternating 永远漏。session 30cqfqrfxv 实证：12 次
+//      read_experiment_results 在 exp_osDX-dG6 / exp_bcFjhfYa 之间反复跳。
 
 import type { CopilotMessage } from "./types"
 
@@ -21,6 +25,10 @@ interface ToolLoopDetectorConfig {
   /** v0.18.7 G1: read_tool_result 返 {kind:"ref"} 连续次数阈值 */
   refChainWarn: number
   refChainBlock: number
+  /** v0.18.20 audit PR-2: 滑窗内同 (tool, argsHash) 累计次数（含本次）阈值 */
+  thrashingWindow: number
+  thrashingWarn: number
+  thrashingBlock: number
 }
 
 export const DEFAULT_LOOP_CONFIG: ToolLoopDetectorConfig = {
@@ -29,9 +37,12 @@ export const DEFAULT_LOOP_CONFIG: ToolLoopDetectorConfig = {
   noProgressWarn: 2, noProgressBlock: 5,
   // 紧阈值：skipPayloadGuard 后正常 0 次。warn 2 / block 3 留 1 次缓冲应对边缘场景。
   refChainWarn: 2, refChainBlock: 3,
+  // 保守起步：last 12 个成功 pair 内，同 (tool, argsHash) 含本次 ≥ 4 次才 block。
+  // 合理深挖（不同 filter 参数 → argsHash 不同）不累加，不会误伤。
+  thrashingWindow: 12, thrashingWarn: 3, thrashingBlock: 4,
 }
 
-type LoopReasonKey = "exact_failure" | "same_tool" | "no_progress" | "ref_chain"
+type LoopReasonKey = "exact_failure" | "same_tool" | "no_progress" | "ref_chain" | "thrashing"
 
 export type ToolLoopDecision =
   | { action: "proceed" }
@@ -242,6 +253,24 @@ export function analyzeToolLoop(
     }
     if (refChainCount >= config.refChainWarn) {
       return { action: "warn", reasonKey: "ref_chain", reasonVars: { tool: nextToolName, count: refChainCount } }
+    }
+  }
+
+  // thrashing (v0.18.20 audit PR-2)：滑窗内同 (tool, argsHash) 累计 ≥ M 次（含本次）。
+  // 兜底 A-B-A-B 交替循环：前 4 档都看"末尾连续相同"，alternating 永远漏。
+  // 保守阈值：失败 pair 排除（已被前几档兜住），合理深挖不同 filter 参数 argsHash 不同不累加。
+  {
+    const window = pairs.slice(-config.thrashingWindow).filter(p => !p.failed)
+    let nextKeyCount = 0
+    for (const p of window) {
+      if (p.toolName === nextToolName && p.argsHash === nextHash) nextKeyCount++
+    }
+    const projected = nextKeyCount + 1  // 含本次将要发生的调用
+    if (projected >= config.thrashingBlock) {
+      return { action: "block", reasonKey: "thrashing", reasonVars: { tool: nextToolName, count: projected } }
+    }
+    if (projected >= config.thrashingWarn) {
+      return { action: "warn", reasonKey: "thrashing", reasonVars: { tool: nextToolName, count: projected } }
     }
   }
 
