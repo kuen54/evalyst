@@ -22,7 +22,7 @@
     "base_url": "",
     "api_key": ""
   },
-  "prompt_template": "你是商品配图设计师。请为这个商品生成一张小红书风的种草配图。\n\n风格要求：\n- 1:1 方图\n- ins 插画 / 手账 / 少女系，柔和暖色调\n- 商品居中或左上偏置，留白舒适\n- 不要硬商业感，要\"在博主手里\"的随性场景感\n- 不放任何文字 / 标题 / logo（小红书图片靠 caption 不靠图内字）\n\n商品参数：\n- 名：{{name}}\n- 品类：{{category}}\n- 价：{{price}}\n- 核心卖点：{{features}}\n- 目标用户：{{target_user}}\n\n直接生图。",
+  "prompt_template": "You are a Xiaohongshu (RED) lifestyle illustrator. Create one square ad-creative image for this product.\n\nStyle:\n- 1:1 square frame\n- ins-illustration / journal / girly aesthetic, soft warm palette\n- product centered or upper-left, generous negative space\n- relaxed \"blogger holding it casually\" feel, not heavy commercial polish\n\nHard rule:\n- DO NOT render any text, letters, numbers, characters, words, captions, titles, labels, packaging copy, watermarks, signs, or logos anywhere in the image. Xiaohongshu posts rely on the caption, not on text inside the image.\n\nProduct:\n- Name: {{name_en}}\n- Category: {{category_en}}\n- Price: {{price_en}}\n- Core features: {{features_en}}\n- Target user: {{target_user_en}}\n\nReturn the image directly.",
   "status": "completed",
   "notes": "复用 v2 product_copywriting_v1 dataset 抽 20 条商品（每品类 3-4 条），xhs 插画风 prompt × gemini-2.5-flash-image 跑 20 张配图。配套 douyin / friends baseline 共同对比 3 风格。不带 judge / 不带 annotations，留给用户进 evalyst annotation UI 自打分。"
 }

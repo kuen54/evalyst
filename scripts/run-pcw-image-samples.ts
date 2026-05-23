@@ -59,6 +59,11 @@ interface Product {
   price: string
   core_features: string[]
   target_user: string
+  name_en: string
+  category_en: string
+  price_en: string
+  core_features_en: string[]
+  target_user_en: string
 }
 
 interface QueryResponse {
@@ -242,12 +247,17 @@ async function main() {
         continue
       }
 
-      const features = sample.core_features.join('、')
+      const features = sample.core_features_en.join(', ')
       const renderedPrompt = promptTemplate
+        .replace(/\{\{name_en\}\}/g, sample.name_en)
+        .replace(/\{\{category_en\}\}/g, sample.category_en)
+        .replace(/\{\{price_en\}\}/g, sample.price_en)
+        .replace(/\{\{features_en\}\}/g, features)
+        .replace(/\{\{target_user_en\}\}/g, sample.target_user_en)
         .replace(/\{\{name\}\}/g, sample.name)
         .replace(/\{\{category\}\}/g, sample.category)
         .replace(/\{\{price\}\}/g, sample.price)
-        .replace(/\{\{features\}\}/g, features)
+        .replace(/\{\{features\}\}/g, sample.core_features.join('、'))
         .replace(/\{\{target_user\}\}/g, sample.target_user)
 
       const baseRecord = {

@@ -1,7 +1,7 @@
 {
   "id": "pcw_image_v1",
   "label": "商品配图",
-  "description": "给商品生成配图。本 schema 下挂 3 个 sample experiment（小红书插画 / 抖音封面 / 朋友圈生活感），各自的具体 prompt 见 experiment.prompt_template。",
+  "description": "给商品生成配图。本 schema 下挂 3 个 sample experiment（小红书插画 / 抖音封面 / 朋友圈生活感），各自的具体 prompt 见 experiment.prompt_template。Prompt 走英文字段（*_en）以避免生图模型把中文 leak 进画面且渲染错字。Display 仍用中文字段（name/category/...）。",
   "version": 1,
   "compare_group": "product_image_v1",
   "inputs": [
@@ -60,6 +60,32 @@
   ],
   "variables": [
     {
+      "name": "name_en",
+      "source": "p.name_en"
+    },
+    {
+      "name": "category_en",
+      "source": "p.category_en"
+    },
+    {
+      "name": "price_en",
+      "source": "p.price_en"
+    },
+    {
+      "name": "features_en",
+      "source": "p.core_features_en",
+      "transform": [
+        {
+          "op": "join",
+          "sep": ", "
+        }
+      ]
+    },
+    {
+      "name": "target_user_en",
+      "source": "p.target_user_en"
+    },
+    {
       "name": "name",
       "source": "p.name"
     },
@@ -86,9 +112,9 @@
       "source": "p.target_user"
     }
   ],
-  "default_prompt": "你是商品配图设计师。请为这个商品生成一张小红书风的种草配图。\n\n风格要求：\n- 1:1 方图\n- ins 插画 / 手账 / 少女系，柔和暖色调\n- 商品居中或左上偏置，留白舒适\n- 不要硬商业感，要\"在博主手里\"的随性场景感\n- 不放任何文字 / 标题 / logo（小红书图片靠 caption 不靠图内字）\n\n商品参数：\n- 名：{{name}}\n- 品类：{{category}}\n- 价：{{price}}\n- 核心卖点：{{features}}\n- 目标用户：{{target_user}}\n\n直接生图。",
+  "default_prompt": "You are a product photography stylist. Generate one product image.\n\nStyle:\n- 1:1 square frame\n- soft, magazine-quality natural styling\n- the product is the clear visual subject, with comfortable negative space around it\n\nHard rule:\n- DO NOT render any text, letters, numbers, characters, words, captions, labels, price tags, packaging copy, watermarks, signs, or logos anywhere in the image.\n\nProduct:\n- Name: {{name_en}}\n- Category: {{category_en}}\n- Price: {{price_en}}\n- Core features: {{features_en}}\n- Target user: {{target_user_en}}\n\nReturn the image directly.",
   "message_builder": {
-    "user_template": "请为这个商品生成一张配图。"
+    "user_template": "Generate one image for this product."
   },
   "output_schema": {
     "type": "object",
