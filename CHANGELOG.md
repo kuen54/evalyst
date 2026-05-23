@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.24] — 2026-05-23 · image baseline prompts 全英文化（PR #126）
+
+> 修复历史 sample 中文 prompt + 中文商品名导致 gemini-2.5-flash-image 把中文 leak 进画面且写错字的问题。Prompt + 商品参数全英文化，60 张 sample 全部重生。文案 baseline 不动。
+
 ### Fixed
 
 - **3 套 image baseline sample（pcw_xhs / pcw_douyin / pcw_friends）prompt 全英文化，重生 60 张**—— 历史 sample 用中文 prompt + 中文商品名（"哑光丝绒口红 #枫叶棕" / "¥89"），gemini-2.5-flash-image 即便 prompt 写"不放任何文字"也常把中文 leak 进画面且渲染错字。本次修复：
