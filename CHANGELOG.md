@@ -10,6 +10,16 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **3 套 image baseline sample（pcw_xhs / pcw_douyin / pcw_friends）prompt 全英文化，重生 60 张**—— 历史 sample 用中文 prompt + 中文商品名（"哑光丝绒口红 #枫叶棕" / "¥89"），gemini-2.5-flash-image 即便 prompt 写"不放任何文字"也常把中文 leak 进画面且渲染错字。本次修复：
+  - dataset `product_copywriting_v1.jsonl` 60 条全部增补 5 个英文字段（`name_en` / `category_en` / `price_en` / `core_features_en` / `target_user_en`）。原中文字段保留供文案 baseline + display header 用。
+  - schema `pcw_image_v1` variables 新增 5 个 `*_en`（原 5 个保留），`default_prompt` 改全英文 + 加 "DO NOT render any text/letters/numbers/characters/...characters" 硬规则。
+  - 3 个 image experiment 的 `prompt_template` 改全英文（xhs lifestyle illustrator / douyin video cover / friends WeChat Moments），引用 `{{name_en}}` 等变量。
+  - `scripts/run-pcw-image-samples.ts` 同步加 *_en 字段渲染。
+  - 重跑 60 张全部成功（727s · ~12 min wall · RPM=5 fully utilized），抽查 prod_002 口红 / prod_011 耳机 / prod_021 咖啡豆 三张画面均无中文字。
+  - 不影响 3 套**文案** baseline（pcw_xhs / pcw_douyin / pcw_friends_baseline）—— 中文字段路径未动。
+
 ## [0.18.23] — 2026-05-19 · COPILOT_SYSTEM_PROMPT anti-fabrication 主动指令（PR #125 · hallucination audit PR-B）
 
 > Hallucination audit 2 PR 完成。配合 PR-A (v0.18.22) 工具层 `_warning` 双保险——工具层给信号 + prompt 层告诉 LLM 怎么做。
