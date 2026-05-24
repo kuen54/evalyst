@@ -10,6 +10,13 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Added
+
+- **Brand logo + favicon** —— 第一版 evalyst 视觉品牌。三条不等长 bar（80 / 50 / 100 比）作 letterform "E"，同时读作 mini leaderboard。
+  - `src/app/icon.svg` —— 圆角 bars，色用 `--primary` 暖棕的 sRGB 等价值 `#2a2522`，内嵌 `prefers-color-scheme: dark` 切换到 `#ececec`。`src/app/favicon.ico`（Next.js 默认星号）删除。
+  - **Wordmark** —— Fraunces 衬线（`next/font/google`，axes `SOFT` + `opsz`，含 italic）：`eval` roman 420 / `yst` italic 380 染 `--copilot-accent` sky blue。logo 自身就把产品两支主色（primary 暖棕 = brand chrome / sky blue = copilot 激活）按语义角色编排了一次。
+  - **Sidebar 品牌区**（`src/components/sidebar.tsx`）—— 把原 `<h1>{t("sidebar.title")}</h1>` 文字标题换成 18px 内联 SVG mark + Fraunces wordmark lockup。Mark 走 `currentColor` + `text-primary`，dark mode 自动反相。Collapsed 形态保持原状（仅 toggle 按钮）。
+
 ## [0.18.25] — 2026-05-24 · skills 沉淀 image-gen 中文 leak + standalone script 反直觉（PR #127）
 
 > v0.18.24 修完跑过一遍发现 `evalyst` + `evalyst-task` 两个 skill 跟项目实际状态有 drift，且少了 v0.18.24 PR 的核心 lesson。本版本把两条反直觉沉淀进 skill，下个 session 不再踩。Docs-only。

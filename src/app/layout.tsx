@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono, Fraunces } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { ConfirmProvider } from "@/components/ui/confirm-dialog"
@@ -55,6 +55,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 })
 
+// Brand wordmark face. Sidebar lockup uses opsz 36 + SOFT 30 (roman) / SOFT 100 (italic "yst").
+// next/font/google API: `axes` for extra variable axes beyond wght; italic loaded via `style`.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["SOFT", "opsz"],
+})
+
 export const metadata: Metadata = {
   title: "Evalyst · 批量评测",
   description: "Evalyst — agent-driven LLM evaluation platform · 本地跑的 LLM prompt 评测平台",
@@ -68,7 +77,7 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
