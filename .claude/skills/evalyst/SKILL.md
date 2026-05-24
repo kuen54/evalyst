@@ -239,20 +239,42 @@ Annotation 是 **append-only**（同 `(task_id, rubric_id, evaluator)` 可多条
 
 ## 生图评测 (Image Generation)
 
-evalyst v1 支持 text-in / image-out 的生图模型评测。最短路径：
+evalyst 支持 text-in / image-out 的生图模型评测，但 v1 路径有限：**只支持 OpenAI-兼容生图 gateway**（响应里 `choices[0].message.images[]` 含 `data:image/...;base64,...`），batch-runner 自动 decode 落盘到 `data/results/{exp_id}/images/`，JSONL 里 `output.image_url` 写绝对 API URL。
 
-1. **配模型**：`/settings/llm` 加生图模型，`api_format=openai`（OpenAI-兼容生图 gateway 都行）
-   - 例：sankuai `https://aigc.sankuai.com/v1/openai/native` + 模型 `gemini-3.1-flash-image-preview`
+### 走 evalyst llm-client 的路径（OpenAI-compat gateway）
+
+1. **配模型**：`/settings/llm` 加生图模型，`api_format=openai`（OpenAI-兼容生图 gateway）
    - api_key 填 `Bearer <token>`（gateway 通常要 Bearer）
-2. **建实验**：Dashboard → New experiment → 选这个模型 + 选内置 `image_gen_v1` schema
-   - 可选：绑定 `image_quality_v1` rubric 走 HEIM 5 题打分
-3. **Run**：图自动落盘到 `data/results/{exp_id}/images/`，JSONL 里 `output.image_url` 是绝对 API URL
-4. **看图 / 打分**：详情页一行一条 prompt，图可点击放大（Lightbox）；rubric 打分弹窗里同时显示 prompt 和图
-5. **跨模型对比**：跑第二个实验换模型 → /compare 自动按 `compare_group="image_gen"` 把两实验的同 prompt 图并排
+2. **建 schema**：output 声明 `image_url` / `image_url_list` 字段（见 `/evalyst-task` skill 的 Image Output Types 段）
+3. **跑实验**：标准 `/api/experiments/{id}/run` 路径即可
 
-定制：复制 `image_gen_v1.schema.json` 改 prompt template / 加变量；output 声明 `type: "image_url"` 的字段就会被当做生成的图（批 runner 自动落盘）。
+### 反直觉：内置 PCW image baseline 不走 llm-client
 
-**已知限制（v1）**：
+项目里内置的 3 套 image baseline（`pcw_xhs_image_baseline` / `pcw_douyin_image_baseline` / `pcw_friends_image_baseline`）跑的是 sankuai `gemini-2.5-flash-image` 模型 —— 但这条路径走的是 google native `imageGenerate` 端点（**异步 submit + poll**），evalyst llm-client 没集成这条路径。
+
+所以**这 3 套 sample 不能通过 `/api/experiments/{id}/run` 跑**，必须走 standalone script：
+
+```bash
+SANKUAI_KEY=<sankuai-token> npm run run:pcw-image-samples
+```
+
+脚本 `scripts/run-pcw-image-samples.ts` 直接 fetch sankuai gateway，submit + poll + download + sips resize（768px longest dim）+ append jsonl。RPM=5，60 张约 12 min wall。
+
+调试 image baseline / 重跑 sample 时**先看脚本而不是 batch-runner**。
+
+### 反直觉：image-gen 模型对中文 prompt 不稳定
+
+gemini 系生图模型（包括 2.5-flash-image / 3.x flash-image-preview）即便 prompt 写"不放任何文字"，看到中文输入仍会**把中文 leak 进画面且渲染错字**。规避：
+
+- **prompt 用英文**（system prompt 风格描述全英文）
+- **商品 / 实体名英文化**（用 dataset record 的英文字段）
+- **加硬规则**："DO NOT render any text/letters/numbers/characters/words/captions/labels/watermarks/signs/logos anywhere in the image."
+
+PCW image baseline 的 dataset 模式：`product_copywriting_v1.jsonl` 同时备 5 个中文字段 + 5 个 `*_en` 英文字段，schema variables 同时声明两版（image schema 用 `{{name_en}}`，display 用 `input_preview.p.name` 中文）。新建 image evaluation 推荐复用这个 pattern。
+
+### 已知限制（v1）
+
+- google native `imageGenerate` 端点未集成 → 走 standalone script
 - VLM-as-judge 自动评分还没做（v2）
 - compare cell 宽度仍是 220-400px，看大图走 Lightbox
 - LLM 自带 thinking_config 等 extra_body 现在不暴露给 ModelConfig；如果你要传，编辑 `data/experiments/{id}.json` 直接改 `api_config.extra_body`

@@ -55,6 +55,21 @@ Example schema:
 }
 ```
 
+#### 反直觉：image-gen 模型对中文 prompt 不稳定（必读）
+
+gemini 系（2.5-flash-image / 3.x flash-image-preview）等生图模型，即便 prompt 显式写"不放任何文字 / 标题 / logo"，看到中文输入仍会**把中文 leak 进画面且渲染错字**（u200b 错位、笔画粘连、字形完全错误）。这是模型层缺陷，prompt-engineering 兜不住。
+
+新建 image schema **必须做**：
+
+1. **prompt_template 全英文**（system prompt 风格描述、business context 都英文）
+2. **dataset 同时备中英文字段**：record 既有 `name`（中文 display 用）也有 `name_en`（image prompt 用）
+3. **schema variables 双声明**：声明 `name`（source `p.name`）+ `name_en`（source `p.name_en`），prompt 用 `{{name_en}}`，`display_dimensions.header_fields` 用 `input_preview.p.name` 中文
+4. **加 hard rule**：prompt 末尾固定写 `DO NOT render any text, letters, numbers, characters, words, captions, titles, labels, packaging copy, watermarks, signs, or logos anywhere in the image.`
+
+参考实现：`pcw_image_v1` schema + `product_copywriting_v1` dataset + `pcw_xhs_image_baseline` / `pcw_douyin_image_baseline` / `pcw_friends_image_baseline` 3 套 experiment 的 prompt_template。
+
+> 同时注意：内置 PCW image baseline 跑的是 sankuai google native `imageGenerate`（异步 submit + poll），不走 evalyst llm-client；要重跑 sample 调 `npm run run:pcw-image-samples`。详见主 evalyst skill 的"生图评测"段。
+
 ## Step 3 · 产出 schema 文件
 
 `data/schemas/{id}.json` 的顶层结构见 `meta-prompts/template.ts`。写的时候注意几个容易翻车的点：
