@@ -10,12 +10,20 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.26] — 2026-05-24 · 第一版 brand logo + Fraunces italic-yst wordmark（PR #128）
+
+> evalyst 第一版视觉品牌：三条 80/50/100 长度的 bar 同时读作字母 "E" 和 mini leaderboard，配 Fraunces 衬线 wordmark。logo 自身把产品两支主色（primary 暖棕 = brand chrome / sky blue = copilot 激活）按语义角色编排了一次。
+
 ### Added
 
 - **Brand logo + favicon** —— 第一版 evalyst 视觉品牌。三条不等长 bar（80 / 50 / 100 比）作 letterform "E"，同时读作 mini leaderboard。
   - `src/app/icon.svg` —— 圆角 bars，色用 `--primary` 暖棕的 sRGB 等价值 `#2a2522`，内嵌 `prefers-color-scheme: dark` 切换到 `#ececec`。`src/app/favicon.ico`（Next.js 默认星号）删除。
   - **Wordmark** —— Fraunces 衬线（`next/font/google`，axes `SOFT` + `opsz`，含 italic）：`eval` roman 420 / `yst` italic 380 染 `--copilot-accent` sky blue。logo 自身就把产品两支主色（primary 暖棕 = brand chrome / sky blue = copilot 激活）按语义角色编排了一次。
-  - **Sidebar 品牌区**（`src/components/sidebar.tsx`）—— 把原 `<h1>{t("sidebar.title")}</h1>` 文字标题换成 18px 内联 SVG mark + Fraunces wordmark lockup。Mark 走 `currentColor` + `text-primary`，dark mode 自动反相。Collapsed 形态保持原状（仅 toggle 按钮）。
+  - **Sidebar 品牌区**（`src/components/sidebar.tsx`）—— 把原 `<h1>{t("sidebar.title")}</h1>` 文字标题换成内联 SVG mark + Fraunces wordmark lockup。Mark 走 `currentColor` + `text-primary`，dark mode 自动反相。Collapsed 形态保持原状（仅 toggle 按钮）。
+
+### Tuning
+
+- **Sidebar brand 尺寸 18+16 → 28+22** —— 初始尺寸视觉重量偏轻，user feedback 后放大；mark 28×28 / wordmark 22px Fraunces / gap 10px。h1 占 sidebar 60% 宽，toggle 按钮空间充足。
 
 ## [0.18.25] — 2026-05-24 · skills 沉淀 image-gen 中文 leak + standalone script 反直觉（PR #127）
 
