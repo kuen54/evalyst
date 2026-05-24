@@ -10,6 +10,17 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.25] — 2026-05-24 · skills 沉淀 image-gen 中文 leak + standalone script 反直觉（PR #127）
+
+> v0.18.24 修完跑过一遍发现 `evalyst` + `evalyst-task` 两个 skill 跟项目实际状态有 drift，且少了 v0.18.24 PR 的核心 lesson。本版本把两条反直觉沉淀进 skill，下个 session 不再踩。Docs-only。
+
+### Docs
+
+- **`evalyst` skill 生图章节** —— 修 schema/group/model id drift（`image_gen_v1` → `pcw_image_v1` / `image_gen` → `product_image_v1` / `gemini-3.1-flash-image-preview` → `gemini-2.5-flash-image`），并新增两个反直觉：
+  - 内置 PCW image baseline 跑 sankuai google native `imageGenerate`（异步 submit + poll），evalyst llm-client 没集成 —— 3 套 sample 不能 `/api/experiments/{id}/run`，必须 `npm run run:pcw-image-samples`
+  - gemini 系生图模型对中文 prompt 不稳定（即便写"不放任何文字"也照样 leak 中文且错字），需 prompt 全英文 + dataset 双字段 + schema variables 双声明 + hard-rule
+- **`evalyst-task` skill Image Output Types 段** —— 加同样的中文 leak 警告 + 4 步必做（prompt 全英文 / dataset 双字段 / variables 双声明 / hard-rule prompt 模板）+ 引用 `pcw_image_v1` 作参考实现。
+
 ## [0.18.24] — 2026-05-23 · image baseline prompts 全英文化（PR #126）
 
 > 修复历史 sample 中文 prompt + 中文商品名导致 gemini-2.5-flash-image 把中文 leak 进画面且写错字的问题。Prompt + 商品参数全英文化，60 张 sample 全部重生。文案 baseline 不动。
