@@ -140,8 +140,26 @@ export function Sidebar() {
     >
       <div className={`flex items-center ${collapsed ? "justify-center py-4" : "justify-between px-3 py-5"}`}>
         {!collapsed && (
-          <h1 className="font-semibold tracking-tight text-[13px] text-foreground/80 px-2.5">
-            {t("sidebar.title")}
+          <h1 className="flex items-center gap-2.5 px-2.5 leading-none text-primary">
+            <svg viewBox="0 0 160 160" width="28" height="28" role="img" aria-label={t("sidebar.title")} className="shrink-0">
+              <rect x="32" y="38" width="76" height="22" rx="3" fill="currentColor" />
+              <rect x="32" y="69" width="48" height="22" rx="3" fill="currentColor" />
+              <rect x="32" y="100" width="92" height="22" rx="3" fill="currentColor" />
+            </svg>
+            <span style={{
+              fontFamily: "var(--font-fraunces), serif",
+              fontVariationSettings: '"opsz" 36, "SOFT" 30',
+              fontWeight: 420,
+              letterSpacing: "-0.02em",
+              fontSize: "22px",
+            }}>
+              eval<em style={{
+                fontStyle: "italic",
+                fontVariationSettings: '"opsz" 36, "SOFT" 100',
+                fontWeight: 380,
+                color: "var(--copilot-accent)",
+              }}>yst</em>
+            </span>
           </h1>
         )}
         <button
