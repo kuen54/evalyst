@@ -13,9 +13,12 @@ Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（
 | **thin** | 16px | 8% | 数据密集行级卡 / 表格单元格 |
 | **regular** | 28px | 35% | 页面主外壳 + 内容卡（默认档） |
 | **thick** | 40px | 55% | 浮层（Dialog / Select content / 自建 popover） |
-| **tinted** | 28px | 35% + accent 22% | primary CTA / segmented selected / active tab |
+| **tinted** | 28px | accent 14% 透底 | primary CTA / segmented selected / active tab（对齐 GlassSegmentedItem active 发光带） |
 
-> Sticky 顶/底结构条（compare header / StickySaveBar 等）之前是 9 档玻璃的 chrome-up / chrome-down 两档，R2 #T3 因各只 1 个调用点 inline 进 `src/copilot/components/sticky-chrome.tsx` —— 用 `<GlassStickyHeader>` / `<GlassStickyFooter>` 而非 `useGlassStyle("...")`。
+> Sticky 顶/底结构条（compare header / StickySaveBar 等）之前是 9 档玻璃的 chrome-up / chrome-down 两档，R2 #T3 因各只 1 个调用点 inline 进 `src/components/glass/sticky-chrome.tsx` —— 用 `<GlassStickyHeader>` / `<GlassStickyFooter>` 而非 `useGlassStyle("...")`。Sticky 条 bg 45%（比 regular 高一档，悬在滚动内容上方要有材质区隔）。
+
+**统一标尺**：顶部白切边 `inset 0 1px 0` —— thin 0.35 / regular 系（含 tinted/semantic）0.6 / thick 0.7；底部暗切边 `inset 0 -1px 0 / 0.1` regular 系全员、thick 0.15；border alpha —— thin 45% / regular 50% / thick 60% / semantic 55%。
+**嵌套去重**（perf）：`[data-glass-variant]` 嵌套时内层自动失去 backdrop-filter（`globals.css` 一条 `!important` 规则；thick / sticky-up / sticky-down 例外）——嵌套层的 backdrop 本来就是外层糊过的，再 blur 是乘法级 paint 成本。regular 嵌 regular 时内层 bg 同时降到 20% 防不透明度叠闷。写嵌套玻璃时不需要（也不应该）手动绕过。
 
 **Semantic（Regular 材质 + 语义 border + 语义 ambient shadow）**：
 
@@ -27,7 +30,7 @@ Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（
 
 Semantic 档的 border 色 class（如 `border-emerald-200/60`）要**保留在 className 上**，作为 copilot 关闭态（shadcn 扁平）下的 border fallback——inline `borderColor` 只在 copilot 开时生效。
 
-组件 `GlassThin` / `GlassRegular` / `GlassThick` / `GlassTinted` / `GlassCard` / `GlassCardThin` / `GlassSuccess` / `GlassWarning` / `GlassDanger` 从 `@/copilot/components/shell` 导出。`GlassStickyHeader` / `GlassStickyFooter` 从 `@/copilot/components/sticky-chrome` 导出。`GlassSegmentedItem` 从 `@/copilot/components/glass-segmented` 导出。非 JSX 场景用 `useGlassStyle(variant)` hook 取 `CSSProperties`。
+组件 `GlassThin` / `GlassRegular` / `GlassThick` / `GlassTinted` / `GlassCard` / `GlassCardThin` / `GlassSuccess` / `GlassWarning` / `GlassDanger` 从 `@/components/glass/shell` 导出。`GlassStickyHeader` / `GlassStickyFooter` 从 `@/components/glass/sticky-chrome` 导出。`GlassSegmentedItem` 从 `@/components/glass/glass-segmented` 导出。非 JSX 场景用 `useGlassStyle(variant)` hook 取 `CSSProperties`。
 
 ## `--copilot-accent` 而非 `--primary`
 
@@ -35,7 +38,7 @@ Semantic 档的 border 色 class（如 `border-emerald-200/60`）要**保留在 
 
 ## Segmented 选中态
 
-**`<GlassSegmentedItem>` (`src/copilot/components/glass-segmented.tsx`)** 是 segmented control / active tab / nav item 的统一组件。通过 `render` prop 支持 `<button>` / `<Link>` / `<a>` 等任意底层 element：
+**`<GlassSegmentedItem>` (`src/components/glass/glass-segmented.tsx`)** 是 segmented control / active tab / nav item 的统一组件。通过 `render` prop 支持 `<button>` / `<Link>` / `<a>` 等任意底层 element：
 
 ```tsx
 <GlassSegmentedItem active={isActive} className="p-3 text-left" render={<button type="button" onClick={...} />}>
@@ -78,10 +81,11 @@ React.createElement('div', {
 
 ## 可访问性
 
-`src/app/globals.css` 尾部 3 条媒介查询降级：
+`src/app/globals.css` 尾部 4 条媒介查询降级：
 - `prefers-reduced-transparency: reduce` → 全部玻璃降为实底 `var(--card)`
 - `prefers-contrast: more` → 实心 + 更强描边
 - `prefers-reduced-motion: reduce` → 关 press-squish / hover-lift / scroll-edge 动画
+- `forced-colors: active`（Windows High Contrast）→ 玻璃全退场，`Canvas` 底 + `CanvasText` 描边，glow / reveal wave 隐藏
 
 玻璃组件必须挂 `data-glass-variant` 属性才能被这三条规则选中降级。`makeGlass` 工厂自动挂。手写 inline glass style 时记得带 `data-glass-variant={copilotOpen ? "regular" : undefined}`。
 

@@ -44,12 +44,17 @@ export function getGlassStyleForVariant(
     return { transition: baseTransition }
   }
 
+  // 高光/边框统一标尺（玻璃"切边"语言一致）：
+  //   顶部白切边 inset 0 1px 0 —— thin 0.35 / regular 系（含 tinted/semantic）0.6 / thick 0.7
+  //   底部暗切边 inset 0 -1px 0 0.1 —— regular 系全员；thick 0.15
+  //   border alpha —— thin 45% / regular 50% / thick 60% / semantic 55%
   if (variant === "thin") {
     return {
       backgroundColor: "color-mix(in oklab, var(--card) 8%, transparent)",
       backdropFilter: "blur(16px) saturate(1.2)",
       WebkitBackdropFilter: "blur(16px) saturate(1.2)",
-      borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
+      borderColor: "color-mix(in oklab, var(--border) 45%, transparent)",
+      boxShadow: "inset 0 1px 0 oklch(1 0 0 / 0.35)",
       transition: baseTransition,
     }
   }
@@ -77,7 +82,7 @@ export function getGlassStyleForVariant(
       WebkitBackdropFilter: "blur(28px) saturate(1.25)",
       borderColor: "color-mix(in oklab, var(--copilot-accent) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.7), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 25%, transparent), 0 3px 10px -2px color-mix(in oklab, var(--copilot-accent) 40%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
+        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 25%, transparent), 0 3px 10px -2px color-mix(in oklab, var(--copilot-accent) 40%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
       transition: baseTransition,
     }
   }
@@ -88,9 +93,9 @@ export function getGlassStyleForVariant(
       backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
       backdropFilter: "blur(28px) saturate(1.25)",
       WebkitBackdropFilter: "blur(28px) saturate(1.25)",
-      borderColor: "color-mix(in oklab, oklch(0.696 0.17 162.48) 50%, transparent)",
+      borderColor: "color-mix(in oklab, oklch(0.696 0.17 162.48) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.696 0.17 162.48) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
+        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.696 0.17 162.48) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
       transition: baseTransition,
     }
   }
@@ -103,7 +108,7 @@ export function getGlassStyleForVariant(
       WebkitBackdropFilter: "blur(28px) saturate(1.25)",
       borderColor: "color-mix(in oklab, oklch(0.769 0.188 70.08) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.769 0.188 70.08) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
+        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.769 0.188 70.08) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
       transition: baseTransition,
     }
   }
@@ -114,9 +119,9 @@ export function getGlassStyleForVariant(
       backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
       backdropFilter: "blur(28px) saturate(1.25)",
       WebkitBackdropFilter: "blur(28px) saturate(1.25)",
-      borderColor: "color-mix(in oklab, oklch(0.637 0.237 25.33) 50%, transparent)",
+      borderColor: "color-mix(in oklab, oklch(0.637 0.237 25.33) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.637 0.237 25.33) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
+        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.637 0.237 25.33) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
       transition: baseTransition,
     }
   }

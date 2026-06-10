@@ -12,6 +12,7 @@ import { useT } from "@/lib/i18n/provider"
 import type { Rubric } from "@/lib/schema/types"
 import type { ExperimentConfig } from "@/lib/types"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
+import { GlassRegular } from "@/components/glass/shell"
 
 const TYPE_LABELS: Record<string, string> = {
   pass_fail: "pass/fail",
@@ -97,9 +98,9 @@ export default function RubricDetailPage({ params }: { params: Promise<{ id: str
       <Separator />
 
       <Section title={t("settings.rubrics.detail.criteria_title", { n: rubric.criteria.length })}>
-        <div className="space-y-1">
+        <GlassRegular className="px-3 py-1 text-sm text-card-foreground">
           {rubric.criteria.map((c, i) => (
-            <div key={c.key} className="grid grid-cols-[auto_1fr_2fr_auto] gap-3 text-xs py-2 border-b items-start">
+            <div key={c.key} className="grid grid-cols-[auto_1fr_2fr_auto] gap-3 text-xs py-2 border-b last:border-b-0 items-start">
               <Badge variant="outline" className="text-[10px]">#{i + 1}</Badge>
               <div className="flex flex-col gap-0.5">
                 <code className="font-mono text-[11px]">{c.key}</code>
@@ -114,14 +115,14 @@ export default function RubricDetailPage({ params }: { params: Promise<{ id: str
               </div>
             </div>
           ))}
-        </div>
+        </GlassRegular>
       </Section>
 
       <Section title={t("settings.rubrics.detail.experiments_title", { n: experiments.length })}>
         {experiments.length === 0 ? (
           <p className="text-xs text-muted-foreground">{t("settings.rubrics.detail.no_experiments")}</p>
         ) : (
-          <div className="space-y-1">
+          <GlassRegular className="p-1.5 space-y-1 text-sm text-card-foreground">
             {experiments.slice(0, 20).map(e => (
               <Link key={e.id} href={`/experiments/${e.id}`} className="flex items-center gap-2 text-xs py-1.5 px-2 rounded hover:bg-muted/50">
                 <span className="font-medium">{e.name}</span>
@@ -130,8 +131,8 @@ export default function RubricDetailPage({ params }: { params: Promise<{ id: str
                 <span className="ml-auto text-[11px] text-muted-foreground">{e.model}</span>
               </Link>
             ))}
-            {experiments.length > 20 && <p className="text-xs text-muted-foreground">{t("settings.rubrics.detail.more_experiments", { n: experiments.length - 20 })}</p>}
-          </div>
+            {experiments.length > 20 && <p className="text-xs text-muted-foreground px-2 pb-1">{t("settings.rubrics.detail.more_experiments", { n: experiments.length - 20 })}</p>}
+          </GlassRegular>
         )}
       </Section>
     </div>

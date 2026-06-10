@@ -119,12 +119,12 @@ export default function LlmConfigPage() {
           {t("settings.llm.intro_full")}
         </p>
         {!hasAnyModel && (
-          <div className="mt-3 p-3 rounded border border-amber-300 bg-amber-50 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-100 dark:border-amber-800">
+          <div className="mt-3 p-3 rounded border border-amber-500/40 bg-amber-500/10 text-xs text-amber-700 dark:text-amber-300">
             {t("settings.llm.no_model_warn")}
           </div>
         )}
         {hasAnyModel && !isConfigured && (
-          <div className="mt-3 p-3 rounded border border-amber-300 bg-amber-50 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-100 dark:border-amber-800">
+          <div className="mt-3 p-3 rounded border border-amber-500/40 bg-amber-500/10 text-xs text-amber-700 dark:text-amber-300">
             {t("settings.llm.not_configured_warn")}
           </div>
         )}

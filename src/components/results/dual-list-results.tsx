@@ -133,7 +133,7 @@ function GroupRow({ groupValue, primaryDim, secondaryDim, rows, secondaryValues,
                   </Badge>
                 </div>
                 <GlassThin
-                  className={`flex-1 p-2 flex flex-col gap-1.5 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10 ${r && r.status !== "success" ? "border-red-500/40 bg-red-500/10" : ""}`}
+                  className={`flex-1 p-2 flex flex-col gap-1.5 overflow-hidden rounded-lg border bg-card text-sm text-card-foreground ${r && r.status !== "success" ? "border-red-500/40 bg-red-500/10" : ""}`}
                   {...(r
                     ? {
                         "data-copilot-context": "task_result",
