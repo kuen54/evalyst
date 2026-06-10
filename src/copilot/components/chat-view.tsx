@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -84,6 +84,17 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
     const behavior: ScrollBehavior = stream.sending ? "auto" : "smooth"
     bottomRef.current?.scrollIntoView({ behavior, block: "end" })
   }, [stream.messages, stream.sending, stream.pendingCallIds])
+
+  // call_id → tool_result 一次性建 Map，避免 renderToolUse 里对每条 tool_use 都
+  // 向后线性扫一遍 messages（原来是 O(tool_use 数 × 消息数)，长工具链会话每个流式
+  // tick 都重算）。
+  const toolResultByCallId = useMemo(() => {
+    const map = new Map<string, Extract<UiMessage, { role: "tool_result" }>>()
+    for (const m of stream.messages) {
+      if (m.role === "tool_result") map.set(m.call_id, m)
+    }
+    return map
+  }, [stream.messages])
 
   const canSend = !!input.trim() && !stream.sending && !!sessionId && !!modelId
 
@@ -176,7 +187,7 @@ export function ChatView({ sessionId, selectedModelId, onPickModel }: Props) {
           </div>
         )}
         {stream.messages.map((m, i) => {
-          if (m.role === "tool_use") return renderToolUse(m, i, stream.messages, sessionId, stream.pendingCallIds, stream.confirmTool, stream.denyTool)
+          if (m.role === "tool_use") return renderToolUse(m, i, toolResultByCallId, sessionId, stream.pendingCallIds, stream.confirmTool, stream.denyTool)
           if (m.role === "tool_result") return null
           if (m.role === "system_notice") {
             return (
@@ -298,18 +309,13 @@ function ExpandIcon({ collapsed }: { collapsed: boolean }) {
 function renderToolUse(
   m: Extract<UiMessage, { role: "tool_use" }>,
   i: number,
-  allMessages: UiMessage[],
+  toolResultByCallId: Map<string, Extract<UiMessage, { role: "tool_result" }>>,
   sessionId: string,
   pendingCallIds: Set<string>,
   onConfirm: (call_id: string, tool_name: string, input: Record<string, unknown>, alwaysAllow: boolean) => void,
   onDeny: (call_id: string, tool_name: string, input: Record<string, unknown>, reason: string, alwaysDeny: boolean) => void,
 ) {
-  let paired: UiMessage | undefined
-  for (let j = i + 1; j < allMessages.length; j++) {
-    const x = allMessages[j]
-    if (!x) continue
-    if (x.role === "tool_result" && x.call_id === m.call_id) { paired = x; break }
-  }
+  const paired: UiMessage | undefined = toolResultByCallId.get(m.call_id)
   const pending = pendingCallIds.has(m.call_id)
   const persistedOnServer = !!m.id && !m.id.startsWith("tu-")
   const toolUseShim: CopilotMessage = {

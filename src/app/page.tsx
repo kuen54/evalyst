@@ -31,13 +31,13 @@ export default function Dashboard() {
   /** rubric_id 实验 → 标注覆盖摘要。dashboard 推算评分阶段用。 */
   const [annotationSummaries, setAnnotationSummaries] = useState<Record<string, AnnotationSummary>>({})
 
-  const fetchExperiments = () => {
+  const fetchExperiments = useCallback(() => {
     fetch("/api/experiments")
       .then(r => r.json())
       .then(setExperiments)
       .catch(() => {})
       .finally(() => setLoading(false))
-  }
+  }, [])
 
   // rubric experiments 列表的稳定 key —— 内容（id + rubric_id + updated_at）变了再触发 aggregate fetch
   const rubricExpsKey = useMemo(
@@ -81,9 +81,15 @@ export default function Dashboard() {
     fetchExperiments()
     fetch("/api/schemas").then(r => r.json()).then(setSchemas)
     fetch("/api/rubrics").then(r => r.json()).then((list: Rubric[]) => Array.isArray(list) && setRubrics(list)).catch(() => {})
-    const interval = setInterval(fetchExperiments, 5000)
+  }, [fetchExperiments])
+
+  // 有实验在跑时 5s poll 看进度；全 idle 时降到 30s（只为兜住别的 tab/进程改了状态）。
+  // 原来无条件 5s 全量扫盘，dashboard 一直开着就是稳定后台 I/O。
+  const anyRunning = experiments.some(e => e.status === "running")
+  useEffect(() => {
+    const interval = setInterval(fetchExperiments, anyRunning ? 5000 : 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [anyRunning, fetchExperiments])
 
   // rubric 实验列表变化时拉 aggregate（rubricExpsKey 用 updated_at 触发，不会每 5s 重拉）
   useEffect(() => {

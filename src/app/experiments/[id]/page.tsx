@@ -49,7 +49,24 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
   }, [id])
 
   const fetchResults = useCallback(() => {
-    fetch(`/api/experiments/${id}/results`).then(r => r.json()).then(setResults)
+    fetch(`/api/experiments/${id}/results`).then(r => r.json()).then((incoming: GenericResultRecord[]) => {
+      // 服务端每次返回全新对象（HTTP→JSON）。运行中轮询时若整张 setResults 全新数组，
+      // 104 行全部丢引用 → ViewComp 行级 memo 全失效。这里按 task_id 合并：内容未变
+      // （同 timestamp + 同 status）的行复用旧引用，只有真变的行才换新对象；整体没变就
+      // 返回旧数组（resultsNode useMemo 直接跳过）。
+      if (!Array.isArray(incoming)) return
+      setResults(prev => {
+        const prevByTask = new Map(prev.map(r => [r.task_id, r]))
+        let changed = incoming.length !== prev.length
+        const merged = incoming.map(rec => {
+          const old = prevByTask.get(rec.task_id)
+          if (old && old.timestamp === rec.timestamp && old.status === rec.status) return old
+          changed = true
+          return rec
+        })
+        return changed ? merged : prev
+      })
+    })
   }, [id])
 
   const fetchAnnotations = useCallback((rubricId: string) => {

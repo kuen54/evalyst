@@ -207,27 +207,46 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
    * 还在同一 session 时才生效，避免用户中途切会话 / fork 后 stale 事件污染。
    */
   const makeSseHandler = (pairSessionId: string, turnPageContext: PageContext | null) => {
+    // C1: 文本增量按 rAF 合帧再 setMessages。原来每个 token 都 setMessages（整个
+    // messages 数组 slice + 全列表 reconcile，O(n)/token）；合帧后降到 ≤1 次/帧。
+    // buffer/raf 是本 stream closure 私有，多个并发流不会串。
+    let textBuffer = ""
+    let flushRaf: number | null = null
+    const flushText = () => {
+      if (flushRaf !== null) { cancelAnimationFrame(flushRaf); flushRaf = null }
+      if (!textBuffer) return
+      const chunk = textBuffer
+      textBuffer = ""
+      if (currentSessionRef.current !== pairSessionId) return
+      setMessages(prev => {
+        const next = prev.slice()
+        // 找最后一条 assistant，没有就 push 一个 streaming=true 的新气泡
+        for (let i = next.length - 1; i >= 0; i--) {
+          const m = next[i]
+          if (!m) continue
+          if (m.role === "assistant") {
+            next[i] = { ...m, content: m.content + chunk, streaming: true }
+            return next
+          }
+          if (m.role === "tool_use" || m.role === "tool_result") break
+        }
+        next.push({ role: "assistant", content: chunk, streaming: true })
+        return next
+      })
+    }
     return (ev: ChatSseEvent) => {
       if (currentSessionRef.current !== pairSessionId) return
       // v0.18.8 P1.2: server 每 20s 发 heartbeat 防中间件 idle-close；client 直接忽略。
       if (ev.kind === "heartbeat") return
       if (ev.kind === "text") {
-        setMessages(prev => {
-          const next = prev.slice()
-          // 找最后一条 assistant，没有就 push 一个 streaming=true 的新气泡
-          for (let i = next.length - 1; i >= 0; i--) {
-            const m = next[i]
-            if (!m) continue
-            if (m.role === "assistant") {
-              next[i] = { ...m, content: m.content + ev.delta, streaming: true }
-              return next
-            }
-            if (m.role === "tool_use" || m.role === "tool_result") break
-          }
-          next.push({ role: "assistant", content: ev.delta, streaming: true })
-          return next
-        })
-      } else if (ev.kind === "user_message") {
+        textBuffer += ev.delta
+        if (flushRaf === null) flushRaf = requestAnimationFrame(flushText)
+        return
+      }
+      // 任何非 text 事件前先把缓冲文本落地，保证 text 与 tool_use/done 的相对顺序
+      // （done/error/tool_use_end 都依赖"末尾 streaming assistant"已带上全部文本）。
+      flushText()
+      if (ev.kind === "user_message") {
         setMessages(prev => {
           const next = prev.slice()
           for (let i = next.length - 1; i >= 0; i--) {

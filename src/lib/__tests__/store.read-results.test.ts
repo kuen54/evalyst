@@ -74,6 +74,18 @@ describe("readResults · corrupt-line tolerance", () => {
     expect(readResults("exp_a")).toEqual([])
   })
 
+  it("mtime cache: invalidates on append, returns stable ref when unchanged", () => {
+    appendResult("exp_a", rec("t1"))
+    const first = readResults("exp_a")
+    // 同一文件未变 → cache 命中，返回同一数组引用（让上层 memo/identity 跳过）
+    expect(readResults("exp_a")).toBe(first)
+    // append 改变 size/mtime → cache 失效，拿到新数据
+    appendResult("exp_a", rec("t2"))
+    const second = readResults("exp_a")
+    expect(second).not.toBe(first)
+    expect(second.map(r => r.task_id)).toEqual(["t1", "t2"])
+  })
+
   it("dedupes by task_id (last wins) even when corrupt lines are interleaved", () => {
     const file = path.join(tmp, "data", "results", "exp_a", "results.jsonl")
     fs.writeFileSync(
