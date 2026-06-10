@@ -10,6 +10,24 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.28] — 2026-06-10 · copilot 正确性 bug 修复 + IO/流式性能第二轮（PR #131 + #132 + #133）
+
+> 第二轮审计后的成果：1 个 P0（编辑/删历史落孤儿消息）+ 3 个 P1（路径穿越 / tool-result 磁盘泄漏 / StrictMode 计数）+ 4 个 P2 glitch，外加服务端 IO 缓存与流式合帧。全部三 PR 合一起跑过五件套 + e2e + Playwright 真实驱动回归（圈选 / 流式 / 工具卡 / route banner 均有运行时证据）。
+
+### Fixed
+
+- **Copilot 正确性 bug**（PR #131）——
+  - **P0** 编辑/删除历史前先 abort 在飞流：abort 经 `req.signal` 传到服务端，`stream-response` 的 post-stream append 被 `signal.aborted` 守卫跳过，否则 prune 删完后那个 append 会落下 parent 已被删的孤儿消息；同时清掉本地无 id 的乐观占位气泡。
+  - **P1** `read_tool_result` 路径穿越：id 强制 `^tr_[a-z0-9]+$`，否则 `ref://tool-result/../../etc/hosts` 之类能 `path.join` 出 storeDir 之外让 LLM 读任意 `.json`（含安全测试）。
+  - **P1** 删 session 接上 `deleteToolResultDir`，否则 `data/copilot/tool-results/{id}/` 永久泄漏。
+  - **P1（dev）** `clearManualContexts` count 从 `contextsRef` 同步读，不放进 `setContexts` updater（StrictMode 双调用恒返 0 → route-change banner 永不出现）。
+  - **P2** inspector 已选高亮用完整 elementKey（含 task_result 的 experiment_id 前缀）；burst 用 store 实际分配的 tag 上色；ContextMask 缓存复用节点前校验 dataset id/type；流式中途切页用 turn 起始快照的 pageContext 续链。store contexts 改成 `contextsRef` 单一真相源。
+
+### Performance
+
+- **IO + 流式第二轮**（PR #132）—— `readResults` mtime 缓存（append-only，`(mtimeMs,size)` 当版本号）；dashboard 轮询门控（idle 降 30s）；流式文本 rAF 合帧（每 token setMessages → ≤1 次/帧）；tool_use→tool_result 配对改 `useMemo` Map（去 O(n²)）；结果行按 task_id 合并复用未变行引用（行级 memo 不再全失效）。
+- **batch-runner stat 写节流**（PR #133）—— 每完成 task 的 `writeProgress` + `updateExperiment` 节流到 ≥500ms 一次（第一个 task 即时写、final 块无条件写）；`appendResult` 仍 per-task，resume 幂等去重保证结果不丢。
+
 ## [0.18.27] — 2026-06-10 · copilot 组合场景卡顿结构性修复 + Glass UI 配方收口（PR #129 + #130）
 
 > 此前几轮 perf 优化只救单一条件，组合场景（copilot 开 × 玻璃 × 圈选 × 流式长对话）仍卡——本版本打掉放大器本体（嵌套 backdrop-filter 叠乘）+ 三个触发器（圈选 layout / 流式重解析 / resize 重排），并把玻璃"切边"语言收口到一个统一标尺。
