@@ -128,11 +128,30 @@ export function appendResult(experimentId: string, result: GenericResultRecord) 
   fs.appendFileSync(filePath, JSON.stringify(result) + '\n')
 }
 
+// readResults 缓存：results.jsonl 是 append-only（mtime + size 单调增），用
+// (mtimeMs, size) 当版本号即可可靠判失效。详情页运行中每 1s poll 一次、compare
+// 页一次读 N 个实验，原来每次都全量重 parse + 重建去重 Map。缓存值视为只读
+// （调用方都只 map/filter/find，不 mutate）。
+const resultsCache = new Map<string, { mtimeMs: number; size: number; value: GenericResultRecord[] }>()
+
 export function readResults(experimentId: string): GenericResultRecord[] {
   const filePath = path.join(resultsDir(), experimentId, 'results.jsonl')
-  if (!fs.existsSync(filePath)) return []
+  let stat: fs.Stats
+  try {
+    stat = fs.statSync(filePath)
+  } catch {
+    resultsCache.delete(filePath)
+    return []
+  }
+  const cached = resultsCache.get(filePath)
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+    return cached.value
+  }
   const content = fs.readFileSync(filePath, 'utf-8').trim()
-  if (!content) return []
+  if (!content) {
+    resultsCache.set(filePath, { mtimeMs: stat.mtimeMs, size: stat.size, value: [] })
+    return []
+  }
   // Skip corrupt lines instead of throwing — a single half-written entry
   // (process crash / power loss mid-appendFileSync) would otherwise make
   // the entire experiment unreadable. Matches the per-line tolerance in
@@ -150,7 +169,9 @@ export function readResults(experimentId: string): GenericResultRecord[] {
   // Deduplicate: last entry per task_id wins (retries replace old failures)
   const map = new Map<string, GenericResultRecord>()
   for (const r of all) map.set(r.task_id, r)
-  return Array.from(map.values())
+  const value = Array.from(map.values())
+  resultsCache.set(filePath, { mtimeMs: stat.mtimeMs, size: stat.size, value })
+  return value
 }
 
 // --- Progress ---
