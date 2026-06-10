@@ -380,6 +380,28 @@
   }
 }
 
+/* ---------------- Copilot Glass · Paint cost containment ---------------- */
+
+/* 嵌套玻璃去重：experiments 详情页典型栈是 GlassRegular(页外壳) > GlassCardThin(行)
+   > GlassThin(格)，三层 backdrop-filter 叠乘——内层 blur 采样的 backdrop 本来就是外层
+   已经糊过的，再 blur 一次视觉上几乎无差但 paint 成本乘法级增长。这是"开 copilot 后
+   可视区内卡片越多越卡"的结构性主因（content-visibility 只救得了视口外的卡）。
+   内层只保留半透明 bg / border / 高光，blur 只留给最外层那一面玻璃。
+   thick 例外：dialog/select 走 portal 不会嵌套，页内自定义 popover（thick）浮在卡片
+   之上需要自己的 blur。!important 必须——shell.tsx 的 backdropFilter 是 inline style。 */
+html[data-copilot-open="true"] [data-glass-variant] [data-glass-variant]:not([data-glass-variant="thick"]) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 圈选（inspector）激活期间关掉页面玻璃 blur：hover 高亮框 + crosshair 每次移动都让
+   可视区重绘，blur 留着等于每帧全量重跑 backdrop-filter。半透明 bg 保留（glow 自身
+   已是糊的，视觉差异小），退出 inspector 后由 320ms transition 平滑恢复。 */
+body.copilot-inspector-active [data-glass-variant] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* ---------------- Copilot Glass · Interactive states ---------------- */
 
 .copilot-press-squish {
