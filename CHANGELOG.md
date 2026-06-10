@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.27] — 2026-06-10 · copilot 组合场景卡顿结构性修复 + Glass UI 配方收口（PR #129 + #130）
+
+> 此前几轮 perf 优化只救单一条件，组合场景（copilot 开 × 玻璃 × 圈选 × 流式长对话）仍卡——本版本打掉放大器本体（嵌套 backdrop-filter 叠乘）+ 三个触发器（圈选 layout / 流式重解析 / resize 重排），并把玻璃"切边"语言收口到一个统一标尺。
+
 ### Fixed
 
 - **Copilot 组合场景卡顿结构性修复**（PR #129）—— 此前优化（content-visibility / glow idle 静止 / per-message memo）只救单一条件，组合场景（copilot 开 × 玻璃 × 圈选 × 流式长对话）仍卡。本轮打放大器本体：嵌套 backdrop-filter 去重（`GlassRegular > GlassCardThin > GlassThin` 三层 blur 叠乘 → 只留最外层；thick / sticky 例外）、inspector 激活期间整页玻璃 blur 关闭、hover 框 transform 定位 + 同 rect 跳过 setState、ContextMask querySelector 移出 scroll 热路径、流式 markdown 150ms 节流（原每 token 全量重跑 remark 解析）、panel resize rAF 合帧。
