@@ -387,9 +387,12 @@
    已经糊过的，再 blur 一次视觉上几乎无差但 paint 成本乘法级增长。这是"开 copilot 后
    可视区内卡片越多越卡"的结构性主因（content-visibility 只救得了视口外的卡）。
    内层只保留半透明 bg / border / 高光，blur 只留给最外层那一面玻璃。
-   thick 例外：dialog/select 走 portal 不会嵌套，页内自定义 popover（thick）浮在卡片
-   之上需要自己的 blur。!important 必须——shell.tsx 的 backdropFilter 是 inline style。 */
-html[data-copilot-open="true"] [data-glass-variant] [data-glass-variant]:not([data-glass-variant="thick"]) {
+   例外：thick（dialog/select 走 portal 不会嵌套，页内自定义 popover 浮在卡片之上）
+   和 sticky-up/down（sticky 条悬在滚动内容上方，backdrop 是滚过的内容而非父玻璃）
+   需要自己的 blur。!important 必须——shell.tsx 的 backdropFilter 是 inline style。 */
+html[data-copilot-open="true"]
+  [data-glass-variant]
+  [data-glass-variant]:not([data-glass-variant="thick"]):not([data-glass-variant="sticky-up"]):not([data-glass-variant="sticky-down"]) {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
