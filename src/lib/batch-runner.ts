@@ -161,6 +161,40 @@ export class BatchRunner {
     const errors: Array<{ task_id: string; error: string; timestamp: string }> = []
     const inFlight = new Set<Promise<void>>()
 
+    // S3：每完成一个 task 都做 writeProgress（atomic）+ updateExperiment（读 + atomic 重写）
+    // + Array.from(completedIds) 重建，104 task 就是 100+ 次 rename storm + 全量序列化。
+    // 详情页 poll 只 ≤1Hz，sub-second 新鲜度无意义，所以把 stat 写节流到 ≥STAT_WRITE_MS
+    // 一次（appendResult 仍 per-task 不动——那才是真数据；crash 后丢的几条 completed id
+    // 顶多让对应 task 在 resume 时重跑，appendResult 按 task_id 去重幂等）。循环结束的
+    // final 块无条件写，保证最后状态不丢。
+    const STAT_WRITE_MS = 500
+    let lastStatWrite = 0
+    const flushStats = (force: boolean) => {
+      const now = Date.now()
+      if (!force && now - lastStatWrite < STAT_WRITE_MS) return
+      lastStatWrite = now
+      progress.completed_tasks = completedCount
+      progress.failed_tasks = failedCount
+      progress.completed_task_ids = Array.from(completedIds)
+      progress.failed_task_ids = Array.from(failedIds)
+      progress.updated_at = new Date().toISOString()
+      progress.error_log = errors.slice(-20)
+      progress.total_input_tokens = totalInputTokens
+      progress.total_output_tokens = totalOutputTokens
+      progress.total_cost_by_currency = { ...totalCostByCurrency }
+      writeProgress(progress)
+      touchHeartbeat(this.config.id)
+      updateExperiment(this.config.id, {
+        run_stats: {
+          total_tasks: total, completed_tasks: completedCount, failed_tasks: failedCount,
+          started_at: progress.started_at,
+          total_input_tokens: totalInputTokens,
+          total_output_tokens: totalOutputTokens,
+          total_cost_by_currency: { ...totalCostByCurrency },
+        },
+      })
+    }
+
     const runOne = (task: Task): Promise<void> =>
       this.executeTask(task)
         .then(result => {
@@ -186,27 +220,7 @@ export class BatchRunner {
             totalCostByCurrency[ccy] = (totalCostByCurrency[ccy] ?? 0) + result.cost_value
           }
 
-          progress.completed_tasks = completedCount
-          progress.failed_tasks = failedCount
-          progress.completed_task_ids = Array.from(completedIds)
-          progress.failed_task_ids = Array.from(failedIds)
-          progress.updated_at = new Date().toISOString()
-          progress.error_log = errors.slice(-20)
-          progress.total_input_tokens = totalInputTokens
-          progress.total_output_tokens = totalOutputTokens
-          progress.total_cost_by_currency = { ...totalCostByCurrency }
-          writeProgress(progress)
-          touchHeartbeat(this.config.id)
-
-          updateExperiment(this.config.id, {
-            run_stats: {
-              total_tasks: total, completed_tasks: completedCount, failed_tasks: failedCount,
-              started_at: progress.started_at,
-              total_input_tokens: totalInputTokens,
-              total_output_tokens: totalOutputTokens,
-              total_cost_by_currency: { ...totalCostByCurrency },
-            },
-          })
+          flushStats(false)
         })
         .catch(() => { /* errors handled in executeTask */ })
 

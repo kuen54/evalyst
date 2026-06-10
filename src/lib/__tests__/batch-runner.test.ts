@@ -297,7 +297,7 @@ describe("BatchRunner.run — case 3: 中途 stop", () => {
 })
 
 describe("BatchRunner.run — case 4: progress 三路径累加", () => {
-  it("input_tokens / output_tokens / total_cost_by_currency.USD; writeProgress 精确 5 次", async () => {
+  it("input_tokens / output_tokens / total_cost_by_currency.USD 累加；stat 写节流", async () => {
     const expId = "exp_test"
     mocks.fns.getDataset.mockReturnValue(makeDataset(3))
     // 默认定价 input_per_mtok=10, output_per_mtok=20 USD
@@ -307,13 +307,16 @@ describe("BatchRunner.run — case 4: progress 三路径累加", () => {
     const runner = new BatchRunner(makeConfig({ id: expId }), 4)
     await runner.run(false)
 
+    // 累加总数必须精确（final 块无条件写，节流不丢最终值）
     const fp = mocks.store.progress.get(expId) as ProgressState
     expect(fp.total_input_tokens).toBe(30)
     expect(fp.total_output_tokens).toBe(60)
     expect(fp.total_cost_by_currency!.USD).toBeCloseTo(1.5e-3, 10)
 
-    // 1 init (line 138) + 3 per-task (line 177) + 1 final (line 214) = 5
-    expect(mocks.fns.writeProgress).toHaveBeenCalledTimes(5)
+    // S3 节流：init(1) + 第一个 task flush(1, lastStatWrite=0) + final(1) = 3。
+    // 中间两个 task 在 500ms 窗口内被节流掉（mock 任务瞬时完成）。
+    // 原来是每 task 都写 = init + 3 + final = 5。
+    expect(mocks.fns.writeProgress).toHaveBeenCalledTimes(3)
   })
 })
 
