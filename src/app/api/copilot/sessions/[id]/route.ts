@@ -6,6 +6,7 @@ import {
   getActiveBranch,
 } from '@/copilot/lib/session-store'
 import { deleteSnapshot } from '@/copilot/lib/snapshot-cache'
+import { deleteToolResultDir } from '@/copilot/lib/tool-result-store'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -34,6 +35,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const ok = deleteSession(id)
   deleteSnapshot(id)
+  // 落盘的 tool-result 目录一起清，否则 data/copilot/tool-results/{id}/ 永久泄漏
+  await deleteToolResultDir(id)
   if (!ok) return NextResponse.json({ error: 'not found' }, { status: 404 })
   return NextResponse.json({ deleted: id })
 }

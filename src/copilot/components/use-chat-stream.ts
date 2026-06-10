@@ -150,6 +150,12 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
   const clearAbortIfOwn = useCallback((ctrl: AbortController) => {
     if (abortRef.current === ctrl) abortRef.current = null
   }, [])
+  /** 编辑/删除历史前调用：停掉在飞的流 + 清掉本地无 id 的乐观占位（仅 in-flight
+   *  消息没有 id，已落盘的历史消息都有 id，故 idle 时这是 no-op）。 */
+  const abortInflightForHistoryEdit = useCallback(() => {
+    abortRef.current?.abort()
+    setMessages(prev => (prev.some(m => !m.id) ? prev.filter(m => m.id) : prev))
+  }, [])
   // 追踪流中 tool_use_end 进入 state 的顺序，done 时按序配 id 给 tool_use_message_ids
   const streamToolUseOrderRef = useRef<string[]>([])
   // Auto-run 队列：tool_use_end 事件进来时先只渲染 UI，把 read 工具的 call_id/input
@@ -200,7 +206,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
    * 参数 pairSessionId 是发起流时快照的 sessionId —— 流回来的事件只有在
    * 还在同一 session 时才生效，避免用户中途切会话 / fork 后 stale 事件污染。
    */
-  const makeSseHandler = (pairSessionId: string) => {
+  const makeSseHandler = (pairSessionId: string, turnPageContext: PageContext | null) => {
     return (ev: ChatSseEvent) => {
       if (currentSessionRef.current !== pairSessionId) return
       // v0.18.8 P1.2: server 每 20s 发 heartbeat 防中间件 idle-close；client 直接忽略。
@@ -369,14 +375,17 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         // 各自 append tool_result + 调 LLM → appendMessage 虽然现在用 append-mode 不会丢消息，
         // 但多条 tool_result 的 parent_id 都会错位指向 /chat 末端而不是各自的 tool_use。
         // 另外 chain cap 逻辑依赖 trailing pair 计数，串行才准。
+        // auto-run 续链沿用本 turn 起始时快照的 pageContext，不读 live 值——
+        // 否则用户流式中途切页，续链会用新页面的 route_type 算可见工具，
+        // 把 read_experiment_results 等工具从链里剔掉，LLM 中途"失忆"。
         ;(async () => {
           for (const tu of pending) {
             if (currentSessionRef.current !== pairSessionId) break
-            await postToolResult(tu.call_id, tu.tool_name, tu.input, false)
+            await postToolResult(tu.call_id, tu.tool_name, tu.input, false, undefined, turnPageContext)
           }
           for (const tu of pendingDeny) {
             if (currentSessionRef.current !== pairSessionId) break
-            await postToolResult(tu.call_id, tu.tool_name, tu.input, true, tu.reason)
+            await postToolResult(tu.call_id, tu.tool_name, tu.input, true, tu.reason, turnPageContext)
           }
         })()
       } else if (ev.kind === "error") {
@@ -410,9 +419,13 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
     input: Record<string, unknown>,
     denied: boolean,
     reason?: string,
+    pageContextOverride?: PageContext | null,
   ) => {
     if (!sessionId) return
     const pairSessionId = sessionId
+    // 本 turn 的 pageContext 快照：auto-run 续链传入上游快照；用户直接 confirm/deny
+    // 时无 override，取调用此刻的 live 值并冻结，往下游链一路沿用。
+    const turnPageContext = pageContextOverride !== undefined ? pageContextOverride : pageContext
     setPendingCallIds(prev => {
       const next = new Set(prev)
       next.add(call_id)
@@ -442,7 +455,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           call_id, tool_name, input, denied, reason,
-          client_snapshot: pageContext ? collectClientSnapshot(pairSessionId, pageContext) : undefined,
+          client_snapshot: turnPageContext ? collectClientSnapshot(pairSessionId, turnPageContext) : undefined,
           session_allow_list: pairSessionId ? getSessionAllowList(pairSessionId) : [],
           session_deny_list: pairSessionId ? getSessionDenyList(pairSessionId) : [],
         }),
@@ -481,7 +494,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
       streamToolUseOrderRef.current = []
       pendingAutoRunRef.current = []
       pendingAutoDenyRef.current = []
-      await consumeSseStream(resp, makeSseHandler(pairSessionId))
+      await consumeSseStream(resp, makeSseHandler(pairSessionId, turnPageContext))
       // tool_result_message 事件已经回填了 content / denied / reason，这里不再需要兜底占位。
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
@@ -527,6 +540,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
   const send = async (text: string, sendContexts?: CopilotContextRef[]) => {
     if (!sessionId || !modelId) return
     const pairSessionId = sessionId
+    // 冻结本 turn 的 pageContext，auto-run 续链全程沿用（见 #8 注释）
+    const turnPageContext = pageContext
     setSending(true)
     incBusy()
     setMessages(prev => [
@@ -553,7 +568,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
           user_message: text,
           model_id: modelId,
           contexts: sendContexts,
-          client_snapshot: pageContext ? collectClientSnapshot(pairSessionId, pageContext) : undefined,
+          client_snapshot: turnPageContext ? collectClientSnapshot(pairSessionId, turnPageContext) : undefined,
           session_allow_list: pairSessionId ? getSessionAllowList(pairSessionId) : [],
           session_deny_list: pairSessionId ? getSessionDenyList(pairSessionId) : [],
         }),
@@ -563,7 +578,7 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
         const errBody = await resp.text().catch(() => "")
         throw new Error(`HTTP ${resp.status}: ${errBody.slice(0, 200)}`)
       }
-      await consumeSseStream(resp, makeSseHandler(pairSessionId))
+      await consumeSseStream(resp, makeSseHandler(pairSessionId, turnPageContext))
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         // v0.18.8 P1.4: 完整 stack 打到 browser console，toast 仍只显示 message
@@ -592,6 +607,10 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
   const deleteMessage = async (msg: UiMessage) => {
     if (!sessionId || !msg.id) return
     if (!confirm(p.tI18nDeleteConfirm)) return
+    // 改历史前先停在飞的流：abort 经 req.signal 传到服务端，stream-response 的
+    // post-stream append 被 `p.signal.aborted` 守卫跳过，否则 prune 删完后那个
+    // append 会落下 parent 已被删的孤儿消息。同时丢掉本地乐观的无 id 占位气泡。
+    abortInflightForHistoryEdit()
     try {
       const r = await fetch(`/api/copilot/sessions/${sessionId}/messages/${msg.id}`, { method: "DELETE" })
       if (!r.ok) throw new Error(String(r.status))
@@ -607,6 +626,8 @@ export function useChatStream(p: UseChatStreamParams): UseChatStreamResult {
     if (!sessionId || !msg.id || !newText.trim()) return
     if (msg.role !== "user") return
     const oldContexts = msg.contexts
+    // 改历史前先停在飞的流（见 deleteMessage 注释）
+    abortInflightForHistoryEdit()
     // 1) 删掉旧 user 消息 + 它的所有后代（通常是一条 assistant 回复）
     try {
       const r = await fetch(`/api/copilot/sessions/${sessionId}/messages/${msg.id}`, { method: "DELETE" })

@@ -91,6 +91,22 @@ describe("maybePersistToolResult", () => {
   it("loadPersistedToolResult throws on missing file", async () => {
     await expect(loadPersistedToolResult("sess_1", "tr_notfound")).rejects.toThrow()
   })
+
+  it("loadPersistedToolResult rejects path-traversal refs (security)", async () => {
+    // 在 storeDir 之外种一个文件，验证 traversal ref 读不到它
+    const outside = path.join(testDir, "data", "copilot", "secret.json")
+    await fs.mkdir(path.dirname(outside), { recursive: true })
+    await fs.writeFile(outside, JSON.stringify({ leaked: true }))
+    for (const evil of [
+      "ref://tool-result/../secret",
+      "ref://tool-result/../../../../etc/hosts",
+      "../secret",
+      "tr_../escape",
+      "tr_with/slash",
+    ]) {
+      await expect(loadPersistedToolResult("sess_evil", evil)).rejects.toThrow(/invalid tool-result ref/)
+    }
+  })
 })
 
 describe("maybePersistToolResult preview head+tail (v2.5 P1a §3.2)", () => {
