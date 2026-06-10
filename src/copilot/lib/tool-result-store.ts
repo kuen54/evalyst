@@ -74,6 +74,12 @@ export async function loadPersistedToolResult(
 ): Promise<unknown> {
   const m = refOrId.match(/^ref:\/\/tool-result\/(.+)$/)
   const id = m ? m[1] : refOrId
+  // id 必须是 maybePersistToolResult 生成的 `tr_<nanoid>` 形态。不校验的话
+  // `ref://tool-result/../../../../etc/hosts` 之类会 path.join 出 storeDir 之外，
+  // 让 LLM 驱动的 read_tool_result 读到任意 .json（含别的 session）。
+  if (!/^tr_[a-z0-9]+$/.test(id ?? '')) {
+    throw new Error(`invalid tool-result ref: ${refOrId}`)
+  }
   const file = path.join(storeDir(session_id), `${id}.json`)
   const text = await fs.readFile(file, 'utf-8')
   return JSON.parse(text)

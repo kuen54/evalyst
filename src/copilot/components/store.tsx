@@ -39,7 +39,7 @@ interface CopilotStore {
   inspectorActive: boolean
   setInspectorActive: (v: boolean) => void
   contexts: CapturedContext[]
-  addContext: (c: Omit<CapturedContext, "tag">) => void
+  addContext: (c: Omit<CapturedContext, "tag">) => number
   removeContext: (elementKey: string) => void
   clearContexts: () => void
   // copilot 是否正在产出（用于 glow idle/active 切换 + ContextMask 冻结）
@@ -82,6 +82,15 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
    *  时读到这个值计算 startVw。 */
   const widthRef = useRef(420)
   useEffect(() => { widthRef.current = width }, [width])
+  /** contexts 的同步真相源：tag 分配 / 去重 / count 都从这里读，不走 setContexts
+   *  updater（updater 在 StrictMode 下双调用，且 React 异步执行无法同步返回结果——
+   *  burst 颜色对错 + clearManualContexts 计 0 两个 bug 的共同根因）。 */
+  const contextsRef = useRef<CapturedContext[]>([])
+  const commitContexts = useCallback((next: CapturedContext[]) => {
+    contextsRef.current = next
+    setContexts(next)
+    try { sessionStorage.setItem(SS_CONTEXTS, JSON.stringify(next)) } catch {}
+  }, [])
 
   // 初始化读 localStorage（SSR safe）
   useEffect(() => {
@@ -114,7 +123,7 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
       if (savedCtx) {
         try {
           const parsed = JSON.parse(savedCtx) as CapturedContext[]
-          if (Array.isArray(parsed)) setContexts(parsed)
+          if (Array.isArray(parsed)) { contextsRef.current = parsed; setContexts(parsed) }
         } catch { /* noop */ }
       }
     } catch { /* noop */ }
@@ -178,34 +187,25 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
     } catch {}
   }, [])
 
-  const persistContexts = useCallback((list: CapturedContext[]) => {
-    try { sessionStorage.setItem(SS_CONTEXTS, JSON.stringify(list)) } catch {}
-  }, [])
-
-  const addContext = useCallback((c: Omit<CapturedContext, "tag">) => {
-    setContexts(prev => {
-      // 已存在（同 elementKey）不重复，但仍算作"已选"（不加 tag）
-      if (prev.some(x => x.elementKey === c.elementKey)) return prev
-      const nextTag = prev.length === 0 ? 1 : Math.max(...prev.map(x => x.tag)) + 1
-      const next = [...prev, { ...c, tag: nextTag } as CapturedContext]
-      persistContexts(next)
-      return next
-    })
-  }, [persistContexts])
+  /** 返回实际分配的 tag（已存在则返回它现有的 tag）。inspector 用它给 burst 上色，
+   *  不再自己从 stale ref 重算 nextTag —— 保证动画色与落地 chip/mask 色一致。 */
+  const addContext = useCallback((c: Omit<CapturedContext, "tag">): number => {
+    const cur = contextsRef.current
+    const existing = cur.find(x => x.elementKey === c.elementKey)
+    if (existing) return existing.tag
+    const nextTag = cur.length === 0 ? 1 : Math.max(...cur.map(x => x.tag)) + 1
+    commitContexts([...cur, { ...c, tag: nextTag } as CapturedContext])
+    return nextTag
+  }, [commitContexts])
 
   const removeContext = useCallback((elementKey: string) => {
-    setContexts(prev => {
-      const next = prev.filter(x => x.elementKey !== elementKey)
-      // 不重新编号：保持现有 tag 不变，避免删 #1 后 #2 变色的反直觉行为
-      persistContexts(next)
-      return next
-    })
-  }, [persistContexts])
+    // 不重新编号：保持现有 tag 不变，避免删 #1 后 #2 变色的反直觉行为
+    commitContexts(contextsRef.current.filter(x => x.elementKey !== elementKey))
+  }, [commitContexts])
 
   const clearContexts = useCallback(() => {
-    setContexts([])
-    try { sessionStorage.removeItem(SS_CONTEXTS) } catch {}
-  }, [])
+    commitContexts([])
+  }, [commitContexts])
 
   const setPageContext = useCallback((pc: PageContext | null) => {
     setPageContextState(pc)
@@ -220,14 +220,12 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const clearManualContexts = useCallback((): { count: number } => {
-    let removed = 0
-    setContexts(prev => {
-      removed = prev.length
-      return []
-    })
-    try { sessionStorage.removeItem(SS_CONTEXTS) } catch {}
-    return { count: removed }
-  }, [])
+    // count 从 ref 同步读，不放进 setContexts updater（StrictMode 双调用 → 第二次
+    // prev 已是 []，原实现恒返 0，route-change banner 永不出现）
+    const count = contextsRef.current.length
+    commitContexts([])
+    return { count }
+  }, [commitContexts])
 
   // 全局快捷键：⌘K / Ctrl+K 切换面板
   useEffect(() => {
@@ -332,7 +330,7 @@ const NOOP_STORE: CopilotStore = {
   inspectorActive: false,
   setInspectorActive: () => {},
   contexts: [],
-  addContext: () => {},
+  addContext: () => 0,
   removeContext: () => {},
   clearContexts: () => {},
   setBusy: () => {},

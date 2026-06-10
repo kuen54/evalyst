@@ -68,8 +68,10 @@ export function ContextMask() {
         return { elementKey: c.elementKey, tag: c.tag, rect: null }
       }
       let el = cache.get(c.elementKey) ?? null
-      if (!el || !el.isConnected) {
-        // 缓存失效（首次 / 路由切换后元素重建 / 之前没找到）才重新 query
+      // isConnected 不够：列表筛选/排序后 React 可能复用同一 DOM 节点渲染另一个 task，
+      // 节点仍 connected 但 data-id 已变 → mask 框错内容。复用前校验 dataset 仍匹配。
+      if (!el || !el.isConnected || el.dataset.copilotContextId !== c.id || el.dataset.copilotContext !== c.type) {
+        // 缓存失效（首次 / 路由切换后元素重建 / 节点被复用给别的 context / 之前没找到）才重新 query
         el = queryContextElement(c.type, c.id, c.extra as Record<string, unknown> | undefined)
         cache.set(c.elementKey, el)
       }

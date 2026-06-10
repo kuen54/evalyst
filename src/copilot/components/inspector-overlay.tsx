@@ -35,7 +35,7 @@ export function InspectorOverlay() {
   const t = useT()
   const { inspectorActive, setInspectorActive, addContext, contexts } = useCopilotStore()
   const [hoverRect, setHoverRect] = useState<DOMRect | null>(null)
-  const [hoverInfo, setHoverInfo] = useState<{ type: string; id: string; summary?: string } | null>(null)
+  const [hoverInfo, setHoverInfo] = useState<{ type: string; id: string; key: string; summary?: string } | null>(null)
   const [bursts, setBursts] = useState<Burst[]>([])
   const [hintCenterPx, setHintCenterPx] = useState<number | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -131,9 +131,13 @@ export function InspectorOverlay() {
       ) return
       lastHoverRef.current = { host, rect }
       setHoverRect(rect)
+      // key 用 captureFromElement 的完整 elementKey（task_result/task_field 带
+      // experiment_id 前缀），否则 compare 页"已选过"高亮判不出来
+      const captured = captureFromElement(host)
       setHoverInfo({
         type,
         id: host.dataset.copilotContextId ?? "",
+        key: captured?.elementKey ?? `${type}:${host.dataset.copilotContextId ?? ""}`,
         ...(host.dataset.copilotContextSummary !== undefined ? { summary: host.dataset.copilotContextSummary } : {}),
       })
     }
@@ -184,12 +188,9 @@ export function InspectorOverlay() {
       const captured = captureFromElement(host)
       if (!captured) return
 
-      // 检查是否已存在同 context（已选过不应重复播 burst）
-      const ctxs = contextsRef.current
-      const alreadyPicked = ctxs.some(c => c.elementKey === captured.elementKey)
-      if (alreadyPicked) return
+      // 已选过不重复播 burst（store.addContext 内部也会去重，这层只为省掉重复动画）
+      if (contextsRef.current.some(c => c.elementKey === captured.elementKey)) return
 
-      const nextTag = ctxs.length === 0 ? 1 : Math.max(...ctxs.map(c => c.tag)) + 1
       // 收集 host 之外的祖先链（host 自己是 primary，不重复）
       const ancestors = collectAncestorChain(host.parentElement)
       const newCtx: Omit<CapturedContext, "tag"> = {
@@ -199,8 +200,9 @@ export function InspectorOverlay() {
         ...(captured.summary !== undefined ? { summary: captured.summary } : {}),
         elementKey: captured.elementKey,
       }
-      addContext(newCtx)
-      emitBurst(e.clientX, e.clientY, nextTag)
+      // burst 用 store 实际分配的 tag 上色，不再自己从 stale ref 重算
+      const assignedTag = addContext(newCtx)
+      emitBurst(e.clientX, e.clientY, assignedTag)
     }
 
     const onKey = (e: KeyboardEvent) => {
@@ -230,8 +232,9 @@ export function InspectorOverlay() {
   if (!inspectorActive && bursts.length === 0) return null
 
   const existingKeys = new Set(contexts.map(c => c.elementKey))
-  const elementKey = hoverInfo ? `${hoverInfo.type}:${hoverInfo.id}` : null
-  const alreadyPicked = elementKey ? existingKeys.has(elementKey) : false
+  // 用 hoverInfo.key（完整 elementKey，含 task_result 的 experiment_id 前缀），
+  // 否则 compare 页悬停已圈选的结果卡判不出"已选"
+  const alreadyPicked = hoverInfo ? existingKeys.has(hoverInfo.key) : false
 
   return (
     <>
