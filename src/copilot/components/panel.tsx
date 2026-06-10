@@ -100,11 +100,24 @@ export function CopilotPanel() {
     setResizing(true)
     const startX = e.clientX
     const startW = width
+    // rAF 合帧：panel 是 main 的 flex 兄弟，每次 setWidth 都让 main 整棵子树
+    // relayout + 玻璃全量重绘，mousemove 裸调一拖就是每事件一次整页重排
+    let raf: number | null = null
+    let lastX = startX
     const onMove = (ev: MouseEvent) => {
-      const dx = startX - ev.clientX
-      setWidth(startW + dx)
+      lastX = ev.clientX
+      if (raf !== null) return
+      raf = requestAnimationFrame(() => {
+        raf = null
+        setWidth(startW + (startX - lastX))
+      })
     }
     const onUp = () => {
+      if (raf !== null) {
+        cancelAnimationFrame(raf)
+        raf = null
+      }
+      setWidth(startW + (startX - lastX))
       setResizing(false)
       window.removeEventListener("mousemove", onMove)
       window.removeEventListener("mouseup", onUp)

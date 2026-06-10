@@ -41,6 +41,13 @@ export function InspectorOverlay() {
   const rafRef = useRef<number | null>(null)
   const lastPointRef = useRef<{ x: number; y: number } | null>(null)
   const burstIdRef = useRef(0)
+  const lastHoverRef = useRef<{ host: HTMLElement; rect: DOMRect } | null>(null)
+  // contexts 进 ref：主监听 effect 不依赖 contexts，避免每次圈选命中都拆装一遍
+  // 全局 mousemove/click/keydown 监听器
+  const contextsRef = useRef(contexts)
+  useEffect(() => {
+    contextsRef.current = contexts
+  }, [contexts])
 
   // 跟踪中间内容区（<main>）的水平中心，让 hint banner 在 sidebar 和 copilot panel 之间居中，
   // 而不是相对整个 viewport。sidebar 折叠 / copilot panel resize / 窗口 resize 时都会更新。
@@ -68,6 +75,7 @@ export function InspectorOverlay() {
     body.classList.add("copilot-inspector-active")
     return () => {
       body.classList.remove("copilot-inspector-active")
+      lastHoverRef.current = null
       setHoverRect(null)
       setHoverInfo(null)
     }
@@ -92,23 +100,37 @@ export function InspectorOverlay() {
       return null
     }
 
+    const clearHover = () => {
+      if (lastHoverRef.current === null) return
+      lastHoverRef.current = null
+      setHoverRect(null)
+      setHoverInfo(null)
+    }
+
     const updateHover = () => {
       rafRef.current = null
       const pt = lastPointRef.current
       if (!pt) return
       const host = pickTargetAt(pt.x, pt.y)
       if (!host) {
-        setHoverRect(null)
-        setHoverInfo(null)
+        clearHover()
         return
       }
       const type = host.dataset.copilotContext ?? ""
       if (!(KNOWN_CONTEXT_TYPES as readonly string[]).includes(type)) {
-        setHoverRect(null)
-        setHoverInfo(null)
+        clearHover()
         return
       }
-      setHoverRect(host.getBoundingClientRect())
+      const rect = host.getBoundingClientRect()
+      // 同 host 同 rect → 跳过 setState，否则每次 mousemove 都重渲染一遍 overlay
+      const last = lastHoverRef.current
+      if (
+        last && last.host === host &&
+        last.rect.top === rect.top && last.rect.left === rect.left &&
+        last.rect.width === rect.width && last.rect.height === rect.height
+      ) return
+      lastHoverRef.current = { host, rect }
+      setHoverRect(rect)
       setHoverInfo({
         type,
         id: host.dataset.copilotContextId ?? "",
@@ -163,10 +185,11 @@ export function InspectorOverlay() {
       if (!captured) return
 
       // 检查是否已存在同 context（已选过不应重复播 burst）
-      const alreadyPicked = contexts.some(c => c.elementKey === captured.elementKey)
+      const ctxs = contextsRef.current
+      const alreadyPicked = ctxs.some(c => c.elementKey === captured.elementKey)
       if (alreadyPicked) return
 
-      const nextTag = contexts.length === 0 ? 1 : Math.max(...contexts.map(c => c.tag)) + 1
+      const nextTag = ctxs.length === 0 ? 1 : Math.max(...ctxs.map(c => c.tag)) + 1
       // 收集 host 之外的祖先链（host 自己是 primary，不重复）
       const ancestors = collectAncestorChain(host.parentElement)
       const newCtx: Omit<CapturedContext, "tag"> = {
@@ -199,8 +222,9 @@ export function InspectorOverlay() {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
       lastPointRef.current = null
+      lastHoverRef.current = null
     }
-  }, [inspectorActive, addContext, setInspectorActive, contexts])
+  }, [inspectorActive, addContext, setInspectorActive])
 
   // burst 可以在 inspector 关闭后仍短暂存在（让动画放完）
   if (!inspectorActive && bursts.length === 0) return null
@@ -231,12 +255,13 @@ export function InspectorOverlay() {
       )}
 
       {inspectorActive && hoverRect && hoverInfo && (
+        /* transform 定位 + 不挂 top/left/width/height transition：layout 属性动画
+           会在 inspector 移动时强制整页 relayout（玻璃开着时连带全量 blur 重绘） */
         <div
           data-copilot-overlay
-          className="fixed pointer-events-none z-[9997] border-2 rounded-sm transition-[top,left,width,height] duration-75"
+          className="fixed top-0 left-0 pointer-events-none z-[9997] border-2 rounded-sm"
           style={{
-            top: hoverRect.top - 3,
-            left: hoverRect.left - 3,
+            transform: `translate3d(${hoverRect.left - 3}px, ${hoverRect.top - 3}px, 0)`,
             width: hoverRect.width + 6,
             height: hoverRect.height + 6,
             borderColor: alreadyPicked ? "rgb(251 146 60)" : "rgb(59 130 246)",

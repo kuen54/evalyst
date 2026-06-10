@@ -1,6 +1,6 @@
 "use client"
 
-import { memo } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,6 +30,34 @@ export type UiMessage =
       id?: string
     }
 
+/** 值节流：interval 内最多透传一次（带 trailing 更新保证最终一致）。
+ *  streaming 时给 MarkdownBody 用——每个 text delta 都全量重跑 remark 解析是
+ *  O(消息长度)/token 的 CPU 大头，节流到 ~6 次/秒肉眼无感但 CPU 降一个量级。
+ *  interval = 0 时直接透传（消息定稿后立即渲染最终内容）。 */
+function useThrottledValue<T>(value: T, interval: number): T {
+  const [throttled, setThrottled] = useState(value)
+  const lastCommitRef = useRef(0)
+  useEffect(() => {
+    if (interval <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 节流定稿：同步外部 value 是本 hook 的职责
+      setThrottled(value)
+      return
+    }
+    const elapsed = performance.now() - lastCommitRef.current
+    if (elapsed >= interval) {
+      lastCommitRef.current = performance.now()
+      setThrottled(value)
+      return
+    }
+    const timer = setTimeout(() => {
+      lastCommitRef.current = performance.now()
+      setThrottled(value)
+    }, interval - elapsed)
+    return () => clearTimeout(timer)
+  }, [value, interval])
+  return interval <= 0 ? value : throttled
+}
+
 interface MessageRowProps {
   msg: UiMessage
   editing: boolean
@@ -49,6 +77,10 @@ interface MessageRowProps {
  *  但闭包里只读 msg 本身，msg ref 不变时新旧 lambda 行为等价。 */
 function MessageRowImpl({ msg, editing, editDraft, onEditDraftChange, onCopy, onEdit, onDelete, onEditCancel, onEditCommit }: MessageRowProps) {
   const t = useT()
+  // streaming 中的 assistant 文本节流后再喂 markdown（hook 必须在 early return 之前）
+  const isStreamingAssistant = msg.role === "assistant" && msg.streaming === true
+  const rawText = msg.role === "user" || msg.role === "assistant" ? msg.content : ""
+  const mdText = useThrottledValue(rawText, isStreamingAssistant ? 150 : 0)
   if (msg.role !== "user" && msg.role !== "assistant") return null
   const isUser = msg.role === "user"
   // 空 assistant 气泡（LLM 这轮只发了 tool_use、没发文本）不渲染空壳；
@@ -86,8 +118,8 @@ function MessageRowImpl({ msg, editing, editDraft, onEditDraftChange, onCopy, on
     <div className={`group flex gap-1.5 items-start ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
         <div className={`max-w-[90%] rounded-md px-3 py-2 text-[12.5px] leading-relaxed break-words bg-muted text-foreground border border-border/60`}>
-          {msg.content
-            ? <MarkdownBody text={msg.content} />
+          {mdText
+            ? <MarkdownBody text={mdText} />
             : msg.streaming ? <ThinkingDots /> : null}
           {msg.streaming && msg.content && <span className="inline-block w-1.5 h-3 ml-0.5 bg-current opacity-60 animate-pulse align-middle" />}
         </div>

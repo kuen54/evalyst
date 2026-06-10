@@ -51,6 +51,9 @@ export function ContextMask() {
   const [rects, setRects] = useState<MaskRect[]>([])
   const frameRef = useRef<number | null>(null)
   const observerRef = useRef<ResizeObserver | null>(null)
+  // elementKey → 已解析的 DOM 元素。querySelector 只在 contexts/pathname 变化或元素
+  // 失联时跑；scroll/resize 的每帧 recompute 只读 getBoundingClientRect。
+  const elCacheRef = useRef<Map<string, HTMLElement | null>>(new Map())
 
   const recompute = useCallback(() => {
     frameRef.current = null
@@ -58,12 +61,18 @@ export function ContextMask() {
       setRects([])
       return
     }
+    const cache = elCacheRef.current
     const out: MaskRect[] = contexts.map(c => {
       // text_selection 没有对应 DOM 元素，不渲染 mask（但 chip 保留）
       if (c.type === "text_selection") {
         return { elementKey: c.elementKey, tag: c.tag, rect: null }
       }
-      const el = queryContextElement(c.type, c.id, c.extra as Record<string, unknown> | undefined)
+      let el = cache.get(c.elementKey) ?? null
+      if (!el || !el.isConnected) {
+        // 缓存失效（首次 / 路由切换后元素重建 / 之前没找到）才重新 query
+        el = queryContextElement(c.type, c.id, c.extra as Record<string, unknown> | undefined)
+        cache.set(c.elementKey, el)
+      }
       return {
         elementKey: c.elementKey,
         tag: c.tag,
@@ -78,8 +87,12 @@ export function ContextMask() {
     frameRef.current = requestAnimationFrame(recompute)
   }, [recompute])
 
-  // contexts / pathname 变化时立即重算
+  // contexts / pathname 变化时立即重算（顺带清掉已移除 context 的缓存项）
   useEffect(() => {
+    const keys = new Set(contexts.map(c => c.elementKey))
+    for (const k of elCacheRef.current.keys()) {
+      if (!keys.has(k)) elCacheRef.current.delete(k)
+    }
     scheduleRecompute()
   }, [contexts, pathname, scheduleRecompute])
 
