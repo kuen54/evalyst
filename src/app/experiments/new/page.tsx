@@ -220,7 +220,7 @@ export default function NewExperiment() {
       <section className="space-y-4 mb-8">
         <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("experiment.new.model_config")}</h3>
         {models.length === 0 ? (
-          <div className="p-3 rounded border border-amber-300 bg-amber-50 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-100 dark:border-amber-800">
+          <div className="p-3 rounded border border-amber-500/40 bg-amber-500/10 text-xs text-amber-700 dark:text-amber-300">
             {t("experiment.new.model_none")} · <Link href="/settings/llm" className="underline">/settings/llm</Link>
           </div>
         ) : (

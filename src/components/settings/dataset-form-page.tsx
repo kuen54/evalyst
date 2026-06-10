@@ -225,13 +225,13 @@ export function DatasetFormPage({ mode = "create", initial }: Props = {}) {
             onClick={() => fileInputRef.current?.click()}
             className={`rounded-lg border-2 border-dashed p-8 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
               dragActive
-                ? "border-primary bg-primary/10"
+                ? "border-[color:var(--copilot-accent)] bg-[color:color-mix(in_oklab,var(--copilot-accent)_12%,transparent)]"
                 : form.records_text
-                  ? "border-muted-foreground/30 bg-muted/30 hover:border-primary/50 hover:bg-primary/5"
-                  : "border-primary/40 bg-primary/5 hover:border-primary/60 hover:bg-primary/10"
+                  ? "border-muted-foreground/30 bg-muted/30 hover:border-[color:color-mix(in_oklab,var(--copilot-accent)_50%,transparent)] hover:bg-[color:color-mix(in_oklab,var(--copilot-accent)_6%,transparent)]"
+                  : "border-[color:color-mix(in_oklab,var(--copilot-accent)_40%,transparent)] bg-[color:color-mix(in_oklab,var(--copilot-accent)_6%,transparent)] hover:border-[color:color-mix(in_oklab,var(--copilot-accent)_60%,transparent)] hover:bg-[color:color-mix(in_oklab,var(--copilot-accent)_12%,transparent)]"
             }`}
           >
-            <UploadIcon className={`size-8 ${dragActive ? "text-primary" : "text-primary/70"}`} />
+            <UploadIcon className={`size-8 ${dragActive ? "text-[color:var(--copilot-accent)]" : "text-[color:color-mix(in_oklab,var(--copilot-accent)_70%,transparent)]"}`} />
             <div className="text-sm font-medium">{t("settings.datasets.form.dropzone_title")}</div>
             <div className="text-xs text-muted-foreground text-center max-w-xl">
               {t("settings.datasets.form.dropzone_hint")}

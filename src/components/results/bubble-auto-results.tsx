@@ -202,7 +202,7 @@ function BubbleOverlay({ result, bubbleFieldName, coordName, textName, emojiName
               style={{ left: `${coord[0] * 100}%`, top: `${coord[1] * 100}%`, transform: "translate(-50%, -50%)" }}
             >
               <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow" />
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white/90 backdrop-blur px-2 py-0.5 rounded text-xs shadow border text-gray-900">
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 whitespace-nowrap bg-popover/90 backdrop-blur px-2 py-0.5 rounded text-xs shadow border text-popover-foreground">
                 {emoji && <span className="mr-1">{emoji}</span>}
                 {text}
               </div>
@@ -211,7 +211,7 @@ function BubbleOverlay({ result, bubbleFieldName, coordName, textName, emojiName
         })}
         {/* 无坐标气泡固定右下（如「系列气泡」） */}
         {unpositioned.length > 0 && unpositioned[0] && (
-          <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-sm shadow border text-gray-900">
+          <div className="absolute bottom-3 right-3 bg-popover/90 backdrop-blur px-3 py-1 rounded-full text-sm shadow border text-popover-foreground">
             {emojiName && unpositioned[0][emojiName] ? <span className="mr-1">{String(unpositioned[0][emojiName])}</span> : null}
             {textName && <span>{String(unpositioned[0][textName] ?? "")}</span>}
           </div>
@@ -272,7 +272,7 @@ export function BubbleAutoCell({ result, schema }: CellViewProps) {
                 style={{ left: `${coord[0] * 100}%`, top: `${coord[1] * 100}%`, transform: "translate(-50%, -50%)" }}
               >
                 <div className="w-2 h-2 rounded-full bg-blue-500 border-2 border-white shadow" />
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white/90 backdrop-blur px-1.5 py-0.5 rounded text-[10px] shadow border text-gray-900 leading-tight">
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-popover/90 backdrop-blur px-1.5 py-0.5 rounded text-[10px] shadow border text-popover-foreground leading-tight">
                   {emoji && <span className="mr-0.5">{emoji}</span>}
                   {text}
                 </div>
@@ -281,7 +281,7 @@ export function BubbleAutoCell({ result, schema }: CellViewProps) {
           })}
           {/* 无坐标气泡固定右下 */}
           {unpositioned.length > 0 && unpositioned[0] && (
-            <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur px-2 py-0.5 rounded-full text-[10px] shadow border text-gray-900">
+            <div className="absolute bottom-2 right-2 bg-popover/90 backdrop-blur px-2 py-0.5 rounded-full text-[10px] shadow border text-popover-foreground">
               {emojiName && unpositioned[0][emojiName] ? <span className="mr-0.5">{String(unpositioned[0][emojiName])}</span> : null}
               {textName && <span>{String(unpositioned[0][textName] ?? "")}</span>}
             </div>

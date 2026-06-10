@@ -10,6 +10,14 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **Copilot 组合场景卡顿结构性修复**（PR #129）—— 此前优化（content-visibility / glow idle 静止 / per-message memo）只救单一条件，组合场景（copilot 开 × 玻璃 × 圈选 × 流式长对话）仍卡。本轮打放大器本体：嵌套 backdrop-filter 去重（`GlassRegular > GlassCardThin > GlassThin` 三层 blur 叠乘 → 只留最外层；thick / sticky 例外）、inspector 激活期间整页玻璃 blur 关闭、hover 框 transform 定位 + 同 rect 跳过 setState、ContextMask querySelector 移出 scroll 热路径、流式 markdown 150ms 节流（原每 token 全量重跑 remark 解析）、panel resize rAF 合帧。
+
+### Tuning
+
+- **Glass UI 一致性 + 配方统一**（PR #130）—— audit 后收口：results 组件去 ring-1 双边框 ×5、dropzone 激活色 --primary → --copilot-accent、rubric 详情页补玻璃、4 处旧式 amber 横幅改 alpha 配方、semantic 卡关闭态 fallback 降档；高光/边框统一标尺（顶部白切边 thin 0.35 / regular 系 0.6 / thick 0.7，底部暗边 regular 系全员，border alpha thin 45 / regular 50 / thick 60 / semantic 55）；sticky chrome bg 35%→45%；accent 亮色模式色相 230→225 与暗色统一；regular 嵌 regular 内层 bg 降 20%；补 `forced-colors: active` 第 4 条 a11y 降级；glass-ui.md 导入路径 / tinted 配方文档漂移修正。
+
 ## [0.18.26] — 2026-05-24 · 第一版 brand logo + Fraunces italic-yst wordmark（PR #128）
 
 > evalyst 第一版视觉品牌：三条 80/50/100 长度的 bar 同时读作字母 "E" 和 mini leaderboard，配 Fraunces 衬线 wordmark。logo 自身把产品两支主色（primary 暖棕 = brand chrome / sky blue = copilot 激活）按语义角色编排了一次。

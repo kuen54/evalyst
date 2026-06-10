@@ -146,7 +146,7 @@ function GridGroup({ groupValue, primaryDim, rowDim, colDim, rows, rowValues, co
                 return (
                   <GlassThin
                     key={String(cv)}
-                    className={`p-2 flex flex-col gap-1.5 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10 ${r.status !== "success" ? "border-red-500/40 bg-red-500/10" : ""}`}
+                    className={`p-2 flex flex-col gap-1.5 overflow-hidden rounded-lg border bg-card text-sm text-card-foreground ${r.status !== "success" ? "border-red-500/40 bg-red-500/10" : ""}`}
                     data-copilot-context="task_result"
                     data-copilot-context-id={r.task_id}
                     data-copilot-context-extra={JSON.stringify({ experiment_id: r.experiment_id })}

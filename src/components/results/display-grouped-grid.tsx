@@ -168,13 +168,13 @@ function GroupCard({
               if (!r) return <div key={String(v)} className="text-xs text-muted-foreground p-2 text-center">-</div>
               if (r.status !== "success") {
                 return (
-                  <GlassThin key={String(v)} className="p-2 border-red-500/40 bg-red-500/10 flex flex-col gap-4 overflow-hidden rounded-xl border text-sm text-card-foreground ring-1 ring-foreground/10">
+                  <GlassThin key={String(v)} className="p-2 border-red-500/40 bg-red-500/10 flex flex-col gap-4 overflow-hidden rounded-lg border text-sm text-card-foreground">
                     <p className="text-xs text-red-500">{r.status}: {r.error?.slice(0, 40)}</p>
                   </GlassThin>
                 )
               }
               return (
-                <GlassThin key={String(v)} className="p-2 space-y-1 flex flex-col gap-4 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10">
+                <GlassThin key={String(v)} className="p-2 space-y-1 flex flex-col gap-4 overflow-hidden rounded-lg border bg-card text-sm text-card-foreground">
                   {cellColumns.map(c => (
                     <div key={c.field}>{renderField(readField(r, c.field), c.type, c.max_length)}</div>
                   ))}
@@ -185,7 +185,7 @@ function GroupCard({
 
           {fallbackRow && (
             <div className="mt-3">
-              <GlassThin className={`p-2 flex flex-col gap-4 overflow-hidden rounded-xl border bg-card text-sm text-card-foreground ring-1 ring-foreground/10 ${fallbackRow.status !== "success" ? "border-red-500/40 bg-red-500/10" : "bg-muted/30"}`}>
+              <GlassThin className={`p-2 flex flex-col gap-4 overflow-hidden rounded-lg border bg-card text-sm text-card-foreground ${fallbackRow.status !== "success" ? "border-red-500/40 bg-red-500/10" : "bg-muted/30"}`}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-xs">{fallbackLabel ?? t("results.fallback_group")}</Badge>
                   {fallbackRow.status === "success"

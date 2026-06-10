@@ -84,9 +84,10 @@
 
   /* Copilot accent —— 激活态 / Tinted 玻璃用的"亮色"。
      不走 --primary（项目主色是暗褐色，/10 出来是灰扁块）。
-     这是 sky-blue 色调，和 glow 主色呼应，"发光"感 */
-  --copilot-accent: oklch(0.7 0.15 230);
-  --copilot-accent-soft: oklch(0.88 0.08 230);
+     这是 sky-blue 色调，和 glow 主色呼应，"发光"感。
+     色相锁 225 与 dark 模式一致（只动 lightness/chroma），accent 身份不随主题漂 */
+  --copilot-accent: oklch(0.7 0.15 225);
+  --copilot-accent-soft: oklch(0.88 0.08 225);
 }
 
 .dark {
@@ -372,6 +373,25 @@
   }
 }
 
+/* Windows High Contrast / forced-colors：玻璃配方全部退场，交给系统色。
+   forced-colors 会自动剥掉 background-color/box-shadow，但 backdrop-filter 和
+   color-mix(... transparent) border 的展平行为不可控，显式归零 + 系统色描边。 */
+@media (forced-colors: active) {
+  html[data-copilot-open="true"] [data-glass-variant] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: Canvas !important;
+    background-image: none !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+  }
+  .copilot-glow,
+  .copilot-reveal-wave,
+  .copilot-reveal-tail {
+    display: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .copilot-press-squish,
   .copilot-hover-lift {
@@ -403,6 +423,13 @@ html[data-copilot-open="true"]
 body.copilot-inspector-active [data-glass-variant] {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+/* regular 嵌 regular（如 experiments 详情页 GlassRegular 外壳里的 GlassCard）：
+   两层 35% bg 相乘后核心区发闷、不再"透"。内层降到 20%，深度靠高光/边框读出，
+   不靠不透明度堆叠。 */
+html[data-copilot-open="true"] [data-glass-variant="regular"] [data-glass-variant="regular"] {
+  background-color: color-mix(in oklab, var(--card) 20%, transparent) !important;
 }
 
 /* ---------------- Copilot Glass · Interactive states ---------------- */

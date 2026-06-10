@@ -310,7 +310,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       {rubric && aggregate && (
         <Collapsible open={scoringOpen} onOpenChange={(v) => startTransition(() => setScoringOpen(v))} style={{ contain: "layout paint" }}>
           <GlassSuccess
-            className="mb-6 border-emerald-500/80 py-3 gap-2"
+            className="mb-6 border-emerald-400/70 bg-emerald-50/50 dark:border-emerald-700/60 dark:bg-emerald-950/20 py-3 gap-2"
             data-copilot-context="rubric_stats"
             data-copilot-context-id={experiment.id}
             data-copilot-context-extra={JSON.stringify({ rubric_id: rubric.id })}
@@ -360,7 +360,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       )}
 
       {experiment.rubric_id && !rubric && (
-        <div className="mb-6 p-3 rounded border border-amber-300 bg-amber-50 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-100 dark:border-amber-800">
+        <div className="mb-6 p-3 rounded border border-amber-500/40 bg-amber-500/10 text-xs text-amber-700 dark:text-amber-300">
           {t("experiment.detail.rubric_not_found", { id: experiment.rubric_id })}
         </div>
       )}
@@ -420,7 +420,7 @@ function FailedPanelImpl({ results, onRetryTask, running, t }: {
 
   return (
     <Collapsible open={open} onOpenChange={(v) => startTransition(() => setOpen(v))} style={{ contain: "layout paint" }}>
-      <GlassDanger className="mb-6 border-red-500/80">
+      <GlassDanger className="mb-6 border-red-400/70 bg-red-50/50 dark:border-red-700/60 dark:bg-red-950/20">
         <CardContent className="pt-4">
           <CollapsibleTrigger className="w-full text-left">
             <div className="flex items-center gap-3 text-sm">

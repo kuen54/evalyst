@@ -21,7 +21,9 @@ const SHADOW_DOWN =
 function stickyChromeStyle(direction: "up" | "down", open: boolean): CSSProperties {
   if (!open) return { transition: baseTransition }
   return {
-    backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
+    // 45% 比 regular(35%) 高一档：sticky 条悬在滚动内容上方，材质要和滚过的
+    // regular 卡读出区别，否则只剩方向阴影一个差异
+    backgroundColor: "color-mix(in oklab, var(--card) 45%, transparent)",
     backdropFilter: "blur(28px) saturate(1.25)",
     WebkitBackdropFilter: "blur(28px) saturate(1.25)",
     borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
