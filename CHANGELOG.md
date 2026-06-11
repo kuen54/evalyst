@@ -10,6 +10,24 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Fixed
+
+- **系统性 code review 修复一轮**（多 agent review，14 finding 对抗验证后确认 11 条）——
+  - `writeAtomic` tmp 名加 pid + 序号：固定 `.tmp` 后缀在跨进程并发写同一目标时共享 tmp 文件，会被对方 rename 走导致 ENOENT 或发布对方字节；失败时清理残留 tmp。
+  - `acquireLock` stale 路径从盲 overwrite 改为 unlink + 重试 O_EXCL create：两个进程同时判定锁 stale 时只有一个能赢，关掉 double-acquire 残口。
+  - `startBatch` 给 `runner.run()` 链补 `.catch`：run() 半路抛出（progress.json 损坏 / 磁盘错误）时落 `status:'failed'` 终态，不再永远卡 `running` + 进程级 unhandled rejection；`getProgress` 对损坏 JSON 容错返回 null（与 `readResults` per-line 容错对齐）。
+  - `executeWithRetry` 三连修：120s 超时覆盖到 body 读取（之前 headers 到了就清 timer，body 卡死的网关会无限挂死并发槽）；abort listener 每 attempt 摘除（之前在 per-run signal 上越积越多）；backoff sleep 响应 abort（停实验不再白等最长 4s）。
+  - Copilot 序列化层孤儿 tool_use 兜底：mid-stream error（非 abort）落盘的 tool_use 若没等到 tool_result，下一轮会触发 Anthropic "tool_use 必须紧跟 tool_result" 400 把 session 钉死；`buildLlmMessages` 现在给孤儿合成 error tool_result 补链。
+  - experiments POST/PATCH 路由防御：`req.json()` 加 `.catch`（畸形 body 400 而非 500，对齐其余资源路由）；`createExperiment` 抛错（如未配置 LLM model）转 400 带原话；PATCH 加可编辑字段白名单（status / run_stats / api_config / model 等派生态不再可被客户端覆写）。
+
+### Performance
+
+- 运行中实验详情页 1s 轮询不再整树重挂：`viewBundle` memo 依赖窄化到 `schema_id` / `display_id`（之前依赖整个每秒换引用的 experiment 对象）；`pickView` 自定义 display wrapper 按 display 引用 WeakMap 缓存（之前每次返回新组件标识 → React 每秒 unmount/remount 几百张卡）；`fetchExperiment` 内容未变时复用旧引用。
+
+### Removed
+
+- `llm-stream.ts` 私有 `imageBlockForAnthropic` 拷贝删除，统一 import `llm-client.ts` 的导出版（有单测、有 docstring 的那份）；拷贝的"避免跨模块依赖"理由已不成立（同文件早就 import 了 llm-client）。
+
 ## [0.18.28] — 2026-06-10 · copilot 正确性 bug 修复 + IO/流式性能第二轮（PR #131 + #132 + #133）
 
 > 第二轮审计后的成果：1 个 P0（编辑/删历史落孤儿消息）+ 3 个 P1（路径穿越 / tool-result 磁盘泄漏 / StrictMode 计数）+ 4 个 P2 glitch，外加服务端 IO 缓存与流式合帧。全部三 PR 合一起跑过五件套 + e2e + Playwright 真实驱动回归（圈选 / 流式 / 工具卡 / route banner 均有运行时证据）。
