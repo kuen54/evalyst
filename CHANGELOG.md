@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.29] — 2026-06-11 · 系统性 review 加固一轮（PR #134）
+
+> 多 agent review（7 维度并行扫 + 逐条对抗性验证，14 finding 确认 11 条）后的集中修复：3 高危（LLM 超时不覆盖 body 读取 / copilot 孤儿 tool_use 钉死 session / 详情页轮询整树重挂）+ 并发写、runner 失败路径与路由防御加固。五件套 + 45 e2e 全绿。
+
 ### Fixed
 
 - **系统性 code review 修复一轮**（多 agent review，14 finding 对抗验证后确认 11 条）——
