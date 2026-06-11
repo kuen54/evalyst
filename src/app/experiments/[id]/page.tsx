@@ -37,7 +37,9 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
 
   const fetchExperiment = useCallback(async (): Promise<ExperimentConfig | null> => {
     const exp = await fetch(`/api/experiments/${id}`).then(r => r.json()).catch(() => null)
-    if (exp) setExperiment(exp)
+    // 内容没变就复用旧引用（config json 很小，stringify 可忽略）：轮询期间依赖
+    // experiment 对象的 memo（statsAgg / comparableExperiments / page context）不再每秒失效。
+    if (exp) setExperiment(prev => (prev && JSON.stringify(prev) === JSON.stringify(exp) ? prev : exp))
     return exp
   }, [id])
 
@@ -203,14 +205,20 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
     timestamp: new Date().toISOString(),
   }), [experiment, id])
 
+  // 依赖窄化到实际读取的两个字段：运行中 1s 轮询每次 setExperiment 都换引用，
+  // 若依赖整个 experiment 对象，viewBundle → resultsNode 每秒重算，自定义 display
+  // 的 ViewComp 还会换组件标识导致整树 remount。schema_id / display_id 跨轮询恒定。
+  const expSchemaId = experiment?.schema_id
+  const expDisplayId = experiment?.display_id
+  const hasExperiment = experiment !== null
   const viewBundle = useMemo(() => {
-    if (!experiment) return null
-    const schema = schemas.find(s => s.id === experiment.schema_id)
-    const effectiveDisplayId = experiment.display_id ?? schema?.display_id
+    if (!hasExperiment) return null
+    const schema = schemas.find(s => s.id === expSchemaId)
+    const effectiveDisplayId = expDisplayId ?? schema?.display_id
     const display = displays.find(d => d.id === effectiveDisplayId)
     const view = pickView(schema, display)
     return { schema, display, view, ViewComp: view.component }
-  }, [experiment, schemas, displays])
+  }, [hasExperiment, expSchemaId, expDisplayId, schemas, displays])
 
   // 把 ViewComp 的 JSX 节点 memo 住：Collapsible 之类状态 toggle 时 experiment/schemas/displays/results 都没变，
   // React 拿缓存的 element 引用直接复用，跳过 104 个 result item 的 diff（层级下的虚拟 DOM 树可能是 2K+ 节点）。

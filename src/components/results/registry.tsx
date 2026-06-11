@@ -28,6 +28,13 @@ const BUILTIN_ID_TO_COMPONENT: Record<string, string> = {
   builtin_json_default: "json_default",
 }
 
+// 自定义 display 的 wrapper 按 display 对象引用缓存：React 按组件标识 diff，
+// pickView 每次调用都新建箭头组件的话 ViewComp 恒为"新类型"→ 整棵结果树
+// unmount + remount（运行中详情页 1s 轮询下 = 每秒重挂几百张 GlassCard）。
+// WeakMap 键到对象引用上：display 重新 fetch / 表单重建时引用变 → 缓存自然
+// 失效，恰好对应"配置可能真变了"。
+const configurableViewCache = new WeakMap<Display, ResultViewSpec>()
+
 /**
  * 优先级：
  *   1. 显式 display (mode=table/grouped_grid/jsx) → ConfigurableDisplay
@@ -38,9 +45,14 @@ const BUILTIN_ID_TO_COMPONENT: Record<string, string> = {
 export function pickView(schema: TaskSchema | undefined, display: Display | undefined): ResultViewSpec {
   if (display) {
     if (display.mode === "table" || display.mode === "grouped_grid" || display.mode === "jsx") {
-      const Comp = (props: ResultViewProps) => <ConfigurableDisplay {...props} display={display} />
-      const Cell = (props: CellViewProps) => <ConfigurableCell {...props} display={display} />
-      return { component: Comp, Cell }
+      let spec = configurableViewCache.get(display)
+      if (!spec) {
+        const Comp = (props: ResultViewProps) => <ConfigurableDisplay {...props} display={display} />
+        const Cell = (props: CellViewProps) => <ConfigurableCell {...props} display={display} />
+        spec = { component: Comp, Cell }
+        configurableViewCache.set(display, spec)
+      }
+      return spec
     }
     if (display.mode === "builtin" && display.builtin_component) {
       const comp = BUILTIN_COMPONENTS[display.builtin_component]
