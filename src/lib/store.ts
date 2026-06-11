@@ -179,7 +179,13 @@ export function readResults(experimentId: string): GenericResultRecord[] {
 export function getProgress(experimentId: string): ProgressState | null {
   const filePath = path.join(resultsDir(), experimentId, 'progress.json')
   if (!fs.existsSync(filePath)) return null
-  return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  // 损坏的 progress.json 当作不存在：resume 会从头重跑，appendResult 按 task_id
+  // 去重是幂等的。与 readResults 的 per-line 容错对齐，避免一个坏文件把 run() 炸掉。
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  } catch {
+    return null
+  }
 }
 
 export function writeProgress(progress: ProgressState) {
