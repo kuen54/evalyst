@@ -290,13 +290,24 @@ async function executeWithRetry(req: ApiRequestSpec, externalSignal?: AbortSigna
   let lastError: Error | null = null
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    if (attempt > 0) await new Promise(r => setTimeout(r, BACKOFF_BASE_MS * attempt))
-
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+    if (attempt > 0) {
+      // backoff 期间也要响应外部 abort（停止实验时不该再白等最长 4s）：
+      // sleep 与 abort 事件 race，谁先到都 resolve 并清掉对方，醒来后立刻检查。
+      await new Promise<void>(resolve => {
+        if (externalSignal?.aborted) return resolve()
+        const onAbort = () => { clearTimeout(t); resolve() }
+        const t = setTimeout(() => { externalSignal?.removeEventListener('abort', onAbort); resolve() }, BACKOFF_BASE_MS * attempt)
+        externalSignal?.addEventListener('abort', onAbort, { once: true })
+      })
       if (externalSignal?.aborted) throw new Error('Aborted')
-      externalSignal?.addEventListener('abort', () => controller.abort(), { once: true })
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+    const onExternalAbort = () => controller.abort()
+    externalSignal?.addEventListener('abort', onExternalAbort, { once: true })
+    try {
+      if (externalSignal?.aborted) throw new Error('Aborted')
 
       const resp = await fetch(req.url, {
         method: 'POST',
@@ -304,7 +315,6 @@ async function executeWithRetry(req: ApiRequestSpec, externalSignal?: AbortSigna
         body: JSON.stringify(req.body),
         signal: controller.signal,
       })
-      clearTimeout(timeout)
 
       // 429 / 5xx → 重试
       if (resp.status === 429 || resp.status >= 500) {
@@ -316,11 +326,19 @@ async function executeWithRetry(req: ApiRequestSpec, externalSignal?: AbortSigna
         throw new Error(`HTTP ${resp.status}: ${text}`)
       }
 
+      // return await（而非裸 return）：finally 必须等 body 读完才清 timer。
+      // fetch resolve 只代表 headers 到了，headers 后 body 卡死的网关若不被
+      // 120s 超时覆盖，会无限挂死 batch-runner 的并发槽。
       return await resp.json()
     } catch (e) {
       if (externalSignal?.aborted) throw new Error('Aborted')
       lastError = e instanceof Error ? e : new Error(String(e))
       if (e instanceof Error && e.name === 'AbortError') throw new Error('Timeout')
+    } finally {
+      // 每个 attempt 自己清 timer + 摘 abort listener：原来 listener 不摘，
+      // 长批量跑下来在同一个 per-run signal 上越积越多（每个都拖着死 controller）。
+      clearTimeout(timeout)
+      externalSignal?.removeEventListener('abort', onExternalAbort)
     }
   }
 

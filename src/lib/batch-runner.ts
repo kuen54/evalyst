@@ -40,10 +40,19 @@ export function startBatch(config: ExperimentConfig, resume: boolean, concurrenc
 
   const runner = new BatchRunner(config, concurrency)
   activeRunners.set(config.id, runner)
-  runner.run(resume, taskIds).finally(() => {
-    activeRunners.delete(config.id)
-    releaseLock(config.id)
-  })
+  runner.run(resume, taskIds)
+    .catch((err) => {
+      // run() 在 route 已返回 "started" 之后才可能 reject（progress.json 损坏、
+      // 磁盘错误等）。不补终态的话实验会永远停在 status:'running'（终态写在
+      // run() 末尾，半路抛出就到不了），且整条链没有 .catch 会变成进程级
+      // unhandled rejection。恢复写本身也可能失败（如同一块盘满），best-effort 吞掉。
+      console.error(`[batch-runner] run failed for ${config.id}:`, err)
+      try { updateExperiment(config.id, { status: 'failed' }) } catch { /* best-effort */ }
+    })
+    .finally(() => {
+      activeRunners.delete(config.id)
+      releaseLock(config.id)
+    })
 
   return { totalTasks: runner.totalTasks }
 }

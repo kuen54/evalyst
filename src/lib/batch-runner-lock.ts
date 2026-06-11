@@ -104,9 +104,11 @@ function isStaleHeartbeat(iso: string): boolean {
  *
  * Atomicity: uses `fs.openSync(p, 'wx')` (O_WRONLY|O_CREAT|O_EXCL) to win
  * the lock fd-exclusively. Two concurrent acquires can't both succeed
- * the create; the loser falls into the EEXIST branch and only overwrites
- * if the existing holder is dead/stale. Replaces the previous read-check-
- * write pattern that had a TOCTOU window.
+ * the create; the loser falls into the EEXIST branch and, when the holder
+ * is dead/stale, unlinks the stale lock and re-attempts the same O_EXCL
+ * create — so even two concurrent stale-detectors resolve to a single
+ * winner. Replaces the previous read-check-write pattern that had a
+ * TOCTOU window.
  */
 export function acquireLock(experimentId: string): boolean {
   ensureDir(lockDir(experimentId))
@@ -118,6 +120,26 @@ export function acquireLock(experimentId: string): boolean {
     last_heartbeat: now,
     node_version: process.version,
   } satisfies RunnerLock)
+  if (tryExclusiveCreate(p, payload)) return true
+  // EEXIST: a lock file is already there. Decide if it's live or stale.
+  const existing = readLock(experimentId)
+  if (existing && isPidAlive(existing.pid) && !isStaleHeartbeat(existing.last_heartbeat)) {
+    return false
+  }
+  // Stale (dead PID, hung heartbeat, or corrupt content): clear it and re-attempt
+  // the O_EXCL create. A blind overwrite here would let two processes that both
+  // judged the lock stale both "win"; after unlink only one racer's create succeeds —
+  // the loser sees EEXIST (the winner's fresh lock) and backs off.
+  try {
+    fs.unlinkSync(p)
+  } catch {
+    // Already removed by a concurrent racer; proceed to the create attempt.
+  }
+  return tryExclusiveCreate(p, payload)
+}
+
+/** O_EXCL create-and-write. False on EEXIST (someone else holds it); rethrows other errors. */
+function tryExclusiveCreate(p: string, payload: string): boolean {
   try {
     const fd = fs.openSync(p, 'wx')
     try {
@@ -128,15 +150,8 @@ export function acquireLock(experimentId: string): boolean {
     return true
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e
-  }
-  // EEXIST: a lock file is already there. Decide if it's live or stale.
-  const existing = readLock(experimentId)
-  if (existing && isPidAlive(existing.pid) && !isStaleHeartbeat(existing.last_heartbeat)) {
     return false
   }
-  // Stale (dead PID, hung heartbeat, or corrupt content): overwrite.
-  writeAtomic(p, payload)
-  return true
 }
 
 /**

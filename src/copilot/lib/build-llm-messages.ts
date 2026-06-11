@@ -265,5 +265,43 @@ export async function buildLlmMessages(
       })
     }
   }
-  return out
+  return fillOrphanToolResults(out)
+}
+
+/**
+ * 防御兜底：给没有匹配 tool_result 的孤儿 tool_use 紧随其后补一条合成 error
+ * tool_result，保证发给 provider 的链恒完整。
+ *
+ * 孤儿的来源：stream-response 的 mid-stream `error` 事件（网络断 / SSE 畸形）
+ * 不触发 abort 守卫（race fix #6 只看 p.signal.aborted），已 buffer 的 tool_use
+ * 照常落盘；若客户端 auto-run 此后没把 tool_result POST 回来（confirm 类工具、
+ * 切 session、POST 自身失败），下一条 user 消息会直接挂在孤儿后面。Anthropic
+ * 对 "assistant tool_use 后必须紧跟 user tool_result" 强校验，孤儿会让该 session
+ * 后续每次请求都 400，整个会话被钉死 —— 在序列化层兜底比在落盘层修保险：
+ * 落盘层跳过 append 会反过来破坏 read 类工具 auto-run 的自愈路径。
+ */
+export function fillOrphanToolResults(messages: LlmMessage[]): LlmMessage[] {
+  const answered = new Set<string>()
+  for (const m of messages) {
+    if (m.role === 'tool_result') answered.add(m.call_id)
+  }
+  const hasOrphan = messages.some((m) => m.role === 'tool_use' && !answered.has(m.call_id))
+  if (!hasOrphan) return messages
+
+  const filled: LlmMessage[] = []
+  for (const m of messages) {
+    filled.push(m)
+    if (m.role === 'tool_use' && !answered.has(m.call_id)) {
+      filled.push({
+        role: 'tool_result',
+        call_id: m.call_id,
+        content: JSON.stringify({
+          ok: false,
+          error: { code: 'INTERNAL', message: 'tool call interrupted before a result was recorded (stream error)' },
+        }),
+        is_error: true,
+      })
+    }
+  }
+  return filled
 }

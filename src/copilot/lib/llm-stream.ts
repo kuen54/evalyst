@@ -8,32 +8,9 @@
 
 import type { ApiConfig } from '@/lib/types'
 import type { LlmMessage } from '@/lib/llm-client'
-import { isTextMessage, buildApiRequest } from '@/lib/llm-client'
+import { isTextMessage, buildApiRequest, imageBlockForAnthropic } from '@/lib/llm-client'
 import type { StreamEvent } from './types'
 import { applyAnthropicCacheControl, type AnthropicBody } from './anthropic-cache-control'
-
-/**
- * 与 src/lib/llm-client.ts 同名 helper 同形（YAGNI 就地拷贝，避免跨模块依赖）：
- * data:image/{mime};base64,... → source.type='base64' + media_type + data
- * 其他 URL → source.type='url'
- */
-function imageBlockForAnthropic(url: string): Record<string, unknown> {
-  const m = /^data:([^;]+);base64,(.+)$/.exec(url)
-  if (m) {
-    return {
-      type: 'image',
-      source: {
-        type: 'base64',
-        media_type: m[1],
-        data: m[2],
-      },
-    }
-  }
-  return {
-    type: 'image',
-    source: { type: 'url', url },
-  }
-}
 
 interface CallLlmStreamingParams {
   messages: LlmMessage[]
