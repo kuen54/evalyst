@@ -15,6 +15,30 @@ type GlassVariant =
 const baseTransition =
   "background-color 320ms ease, backdrop-filter 320ms ease, border-color 320ms ease, box-shadow 320ms ease, background-image 320ms ease"
 
+// ---- Track A「premium edge」光学配方片段（纯 box-shadow / background-image，零 filter 成本，跨浏览器一致）----
+//
+// blur / saturate / bg-color 一律不动（filter buffer 不变 = 不引入新 paint 成本，详情页 N 行列表安全）。
+// 升级只发生在「边缘光学」：方向性 rim 全档共享；色散 fringe + 内折光 + 镜面扫光仅 thick（few-hero，
+// 数据密集的 thin/regular/tinted/semantic 不挂色散，避免亮底列表把色边读成 bug —— 用户钦定 fringe 仅 thick/hero）。
+//
+// 方向性 rim：左上提亮 / 右下压暗 = 玻璃斜切边吃光（光源默认左上，与 copilot-glow 四角光呼应）。按档加重 alpha。
+// 底缘额外补一道极淡白线 `inset 0 -1px 0`：暗模式下 --card 近黑，右下黑切边等于隐形，bevel 会塌成单边；
+// 白底线在亮/暗两边都读得出（绝对白），给卡片一个稳定的「落地」下沿。
+const RIM_THIN =
+  "inset 1px 1px 0 oklch(1 0 0 / 0.3), inset 0 -1px 0 oklch(1 0 0 / 0.06), inset -1px -1px 0 oklch(0 0 0 / 0.05)"
+const RIM_REGULAR =
+  "inset 1px 1px 0 oklch(1 0 0 / 0.55), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset -1px -1px 0 oklch(0 0 0 / 0.07), inset 0 0 0 1px oklch(1 0 0 / 0.08)"
+const RIM_THICK =
+  "inset 1.5px 1.5px 0 oklch(1 0 0 / 0.65), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset -1.5px -1.5px 0 oklch(0 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.12)"
+// 色散边：左缘暖红 / 右缘冷蓝 1px 内描，模拟玻璃边缘色散（chromatic aberration 的廉价 box-shadow 近似）。
+// 仅 thick：prototype 给 regular 也挂了 6% 弱 fringe，这里收紧为 thick-only 防数据密集列表 N 卡把彩色边读成渲染 bug。
+const FRINGE =
+  "inset 2px 0 2px -1px oklch(0.62 0.21 25 / 0.1), inset -2px 0 2px -1px oklch(0.66 0.17 255 / 0.1)"
+// 内折光：顶部柔和内高光，制造「内部有厚度」的折射错觉。
+const INNER_GLOW = "inset 0 8px 24px -14px oklch(1 0 0 / 0.18)"
+// 镜面扫光：静态对角高光 backgroundImage（叠在 bg-color 之上，零动画）。a11y 媒介查询已统一 background-image:none 收敛。
+const SWEEP = "linear-gradient(135deg, oklch(1 0 0 / 0.1) 0%, oklch(1 0 0 / 0) 34%, oklch(1 0 0 / 0) 66%, oklch(1 0 0 / 0.05) 100%)"
+
 /**
  * Pure function to compute glass style for a given variant and open state.
  *
@@ -23,7 +47,7 @@ const baseTransition =
  * Primitive:
  * - thin        — chrome / sticky / 数据单元格（blur 16, bg transparent）
  * - regular     — 页面主外壳 + 内容卡（blur 28, bg 35% card）
- * - thick       — 浮层 / copilot panel / dialog（blur 40, bg 55% card, 更重阴影）
+ * - thick       — 浮层 / copilot panel / dialog（blur 40, bg 55% card, 更重阴影 + 色散/扫光）
  * - tinted      — primary CTA / active tab（blur 28, bg 35% card + accent 染色）
  *
  * Semantic（Regular 材质 + 语义 border + 弱 ambient 色光）：
@@ -31,8 +55,8 @@ const baseTransition =
  * - warning — 提示 / 引导 banner（amber 边）
  * - danger  — 错误 / 警告卡（red 边）
  *
- * Sticky 顶/底结构条 (上下方向阴影) 之前作为 9 档玻璃中的两档存在，因为各自只有 1 个调用点，
- * R2 #T3 已 inline 进 `sticky-chrome.tsx` —— 不再是公共 variant。
+ * Track A premium-edge：全档加方向性 rim（左上亮/右下暗斜切高光）；thick 额外挂色散 fringe + 内折光 +
+ * 镜面扫光。blur 半径全档保持 16/28/40 不变，升级只在 box-shadow / background-image。
  *
  * copilot 关闭时返回 transition-only style，让外部 className 的 bg-card/bg-background 原样工作。
  */
@@ -44,17 +68,13 @@ export function getGlassStyleForVariant(
     return { transition: baseTransition }
   }
 
-  // 高光/边框统一标尺（玻璃"切边"语言一致）：
-  //   顶部白切边 inset 0 1px 0 —— thin 0.35 / regular 系（含 tinted/semantic）0.6 / thick 0.7
-  //   底部暗切边 inset 0 -1px 0 0.1 —— regular 系全员；thick 0.15
-  //   border alpha —— thin 45% / regular 50% / thick 60% / semantic 55%
   if (variant === "thin") {
     return {
       backgroundColor: "color-mix(in oklab, var(--card) 8%, transparent)",
       backdropFilter: "blur(16px) saturate(1.2)",
       WebkitBackdropFilter: "blur(16px) saturate(1.2)",
       borderColor: "color-mix(in oklab, var(--border) 45%, transparent)",
-      boxShadow: "inset 0 1px 0 oklch(1 0 0 / 0.35)",
+      boxShadow: RIM_THIN,
       transition: baseTransition,
     }
   }
@@ -62,66 +82,67 @@ export function getGlassStyleForVariant(
   if (variant === "thick") {
     return {
       backgroundColor: "color-mix(in oklab, var(--card) 55%, transparent)",
+      backgroundImage: SWEEP,
       backdropFilter: "blur(40px) saturate(1.3)",
       WebkitBackdropFilter: "blur(40px) saturate(1.3)",
       borderColor: "color-mix(in oklab, var(--border) 60%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.7), inset 0 -1px 0 oklch(1 0 0 / 0.15), inset 0 0 0 1px oklch(1 0 0 / 0.12), 0 30px 60px -15px oklch(0 0 0 / 0.32), 0 6px 16px -8px oklch(0 0 0 / 0.12)",
+        `${RIM_THICK}, ${FRINGE}, ${INNER_GLOW}, 0 30px 60px -15px oklch(0 0 0 / 0.32), 0 6px 16px -8px oklch(0 0 0 / 0.12)`,
       transition: baseTransition,
     }
   }
 
   if (variant === "tinted") {
     // 对齐 GlassSegmentedItem active 的"发光带"视觉：单层 accent 14% 透底 +
-    // accent 55% 边 + accent ambient 外光 + 顶部白切边高光。文字色由调用方
+    // accent 55% 边 + accent ambient 外光 + 方向性 rim 高光。文字色由调用方
     // 走 `text-foreground`（Button 通过 data-[copilot-tinted=on]:text-foreground
-    // 覆盖默认的 text-primary-foreground 实现自适应）。
+    // 覆盖默认的 text-primary-foreground 实现自适应）。fringe 仅 thick/hero，tinted 不挂。
     return {
       backgroundColor: "color-mix(in oklab, var(--copilot-accent) 14%, transparent)",
       backdropFilter: "blur(28px) saturate(1.25)",
       WebkitBackdropFilter: "blur(28px) saturate(1.25)",
       borderColor: "color-mix(in oklab, var(--copilot-accent) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 25%, transparent), 0 3px 10px -2px color-mix(in oklab, var(--copilot-accent) 40%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
+        "inset 1px 1px 0 oklch(1 0 0 / 0.55), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset -1px -1px 0 oklch(0 0 0 / 0.07), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 25%, transparent), 0 3px 10px -2px color-mix(in oklab, var(--copilot-accent) 40%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
       transition: baseTransition,
     }
   }
 
   if (variant === "success") {
-    // Regular 材质 + emerald-500 border + 弱 emerald ambient shadow
+    // Regular 材质 + emerald-500 border + 弱 emerald ambient shadow + 方向性 rim
     return {
       backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
       backdropFilter: "blur(28px) saturate(1.25)",
       WebkitBackdropFilter: "blur(28px) saturate(1.25)",
       borderColor: "color-mix(in oklab, oklch(0.696 0.17 162.48) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.696 0.17 162.48) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
+        `${RIM_REGULAR}, 0 4px 14px -4px color-mix(in oklab, oklch(0.696 0.17 162.48) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)`,
       transition: baseTransition,
     }
   }
 
   if (variant === "warning") {
-    // Regular 材质 + amber-500 border + 弱 amber ambient shadow
+    // Regular 材质 + amber-500 border + 弱 amber ambient shadow + 方向性 rim
     return {
       backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
       backdropFilter: "blur(28px) saturate(1.25)",
       WebkitBackdropFilter: "blur(28px) saturate(1.25)",
       borderColor: "color-mix(in oklab, oklch(0.769 0.188 70.08) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.769 0.188 70.08) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
+        `${RIM_REGULAR}, 0 4px 14px -4px color-mix(in oklab, oklch(0.769 0.188 70.08) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)`,
       transition: baseTransition,
     }
   }
 
   if (variant === "danger") {
-    // Regular 材质 + red-500 border + 弱 red ambient shadow
+    // Regular 材质 + red-500 border + 弱 red ambient shadow + 方向性 rim
     return {
       backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
       backdropFilter: "blur(28px) saturate(1.25)",
       WebkitBackdropFilter: "blur(28px) saturate(1.25)",
       borderColor: "color-mix(in oklab, oklch(0.637 0.237 25.33) 55%, transparent)",
       boxShadow:
-        "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 4px 14px -4px color-mix(in oklab, oklch(0.637 0.237 25.33) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)",
+        `${RIM_REGULAR}, 0 4px 14px -4px color-mix(in oklab, oklch(0.637 0.237 25.33) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)`,
       transition: baseTransition,
     }
   }
@@ -133,7 +154,7 @@ export function getGlassStyleForVariant(
     WebkitBackdropFilter: "blur(28px) saturate(1.25)",
     borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
     boxShadow:
-      "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 20px 50px -20px oklch(0 0 0 / 0.22), 0 4px 12px -6px oklch(0 0 0 / 0.08)",
+      `${RIM_REGULAR}, 0 20px 50px -20px oklch(0 0 0 / 0.22), 0 4px 12px -6px oklch(0 0 0 / 0.08)`,
     transition: baseTransition,
   }
 }

@@ -359,6 +359,9 @@
     -webkit-backdrop-filter: none !important;
     background-color: var(--card) !important;
     background-image: none !important;
+    /* Track A premium-edge 的方向性 rim / 色散 fringe / 内折光 / 扫光全是 box-shadow+bg-image，
+       不归零会以斜角高光 + 彩色描边漏在实底卡上（透明已被收掉，光学装饰失去依据）。 */
+    box-shadow: none !important;
   }
 }
 
@@ -370,6 +373,8 @@
     background-image: none !important;
     border-color: var(--foreground) !important;
     border-width: 1.5px !important;
+    /* 深度改由强描边承担：去掉 rim/fringe/扫光，避免与高对比描边打架。 */
+    box-shadow: none !important;
   }
 }
 
