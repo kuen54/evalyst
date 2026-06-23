@@ -22,10 +22,11 @@ const baseTransition =
 // 数据密集的 thin/regular/tinted/semantic 不挂色散，避免亮底列表把色边读成 bug —— 用户钦定 fringe 仅 thick/hero）。
 //
 // 方向性 rim：左上提亮 / 右下压暗 = 玻璃斜切边吃光（光源默认左上，与 copilot-glow 四角光呼应）。按档加重 alpha。
-// 底缘额外补一道极淡白线 `inset 0 -1px 0`：暗模式下 --card 近黑，右下黑切边等于隐形，bevel 会塌成单边；
-// 白底线在亮/暗两边都读得出（绝对白），给卡片一个稳定的「落地」下沿。
-const RIM_THIN =
-  "inset 1px 1px 0 oklch(1 0 0 / 0.3), inset 0 -1px 0 oklch(1 0 0 / 0.06), inset -1px -1px 0 oklch(0 0 0 / 0.05)"
+// regular/thick 额外补一道极淡白底线 `inset 0 -1px 0`：暗模式 --card 近黑，右下黑切边隐形会让 bevel 塌成单边，
+// 白底线（绝对白）在亮/暗两边都读得出，给（较大的）卡片稳定的「落地」下沿。
+// thin 是数据密集档（results 列表一行一张，可达数百张），刻意只留 2 层 0-blur 内描、不加白底线 ——
+// 每行少一层 box-shadow paint，下沿靠相邻行的顶高光读出，把数据密集场景的 per-row 成本压到最低。
+const RIM_THIN = "inset 1px 1px 0 oklch(1 0 0 / 0.3), inset -1px -1px 0 oklch(0 0 0 / 0.05)"
 const RIM_REGULAR =
   "inset 1px 1px 0 oklch(1 0 0 / 0.55), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset -1px -1px 0 oklch(0 0 0 / 0.07), inset 0 0 0 1px oklch(1 0 0 / 0.08)"
 const RIM_THICK =
