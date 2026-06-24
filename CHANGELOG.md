@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-06-24 · Glass UI Track B 真折射 lens（PR #136）
+
+> 真 `feDisplacementMap` backdrop 折射（Chromium-only，叠在 Track A premium-edge 之上）。看得见的主角是「液态玻璃 BAR」——结果列表 sticky 表头条，结果行从底下滚过时可见地涟漪折射；外加 Dialog/compare popover 的 thick portal 折射（基础设施、几乎看不见）。撤掉全页 hero 折射（GPU 也 60fps 但视觉不可见——背后是平滑 glow）+ Select 折射（常驻 url() 节点 / 违反 copilot 面板扁平）。真 GPU 实测性能中性：idle/滚动 60fps、折射 ON vs OFF p50 delta 0.0ms（全在合成器跑）、有界 1 节点（bar）零行泄漏。组件级 a11y/inspector + Blink-family probe 门控；非 Blink / a11y 降级优雅落回 blur，`-webkit` 永远 blur 字面量。五件套 + 57 e2e + 多 agent「各种手段」验收全绿。
+
 ### Added
 
 - **Glass UI · Track B「real refraction lens」**（feDisplacementMap 真折射，Chromium-only，叠在 Track A 边缘光学之上）。两种用法：
