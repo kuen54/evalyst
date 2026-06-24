@@ -10,6 +10,10 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.18.30] — 2026-06-24 · Glass UI Track A premium-edge 光学升级（PR #135）
+
+> 参考 aave.com liquid glass，把 copilot 打开态全 7 档玻璃的边缘光学从「顶/底平切高光」升级为方向性 rim（thick 浮层档加色散 fringe + 内折光 + 镜面扫光）；blur 半径逐字节不变、升级只在 box-shadow / background-image，数据密集 results 列表零额外 backdrop-filter 成本。附修一个 pre-existing a11y 漏（reduced-transparency / contrast 未归零 box-shadow）。main vs 分支生产构建各 3 跑实测性能中性（p50 16.7ms = 60fps 中位 / 零 stall）。真正的 feDisplacementMap 折射（Track B，Chromium-only）留后续按需评估。五件套 + 51 e2e + 探索式用户行为实测全绿。
+
 ### Added
 
 - **Glass UI · Track A「premium edge」光学升级**（参考 aave.com liquid glass）——copilot 打开态下全 7 档玻璃从「顶/底平切高光」升级为**方向性 rim**（左上提亮 / 右下压暗的斜切边吃光）；`thick` 浮层档额外挂**色散 fringe**（左缘暖红 / 右缘冷蓝边）+ **内折光** + **静态镜面扫光**。关键不变量：blur 半径全档逐字节不变（16/28/40），升级只在 `box-shadow` / `background-image`——不引入新 `backdrop-filter` paint 成本，数据密集的 results 列表（thin/regular 档）零额外成本。真正的 `feDisplacementMap` 折射（Track B，Chromium-only）留作后续按需评估。
