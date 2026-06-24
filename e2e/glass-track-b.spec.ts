@@ -22,10 +22,10 @@ import path from "node:path"
  *     prefers-reduced-transparency:reduce (CDP Emulation.setEmulatedMedia) the
  *     COMPONENT gates url() OFF itself — the load-bearing a11y quirk that a CSS
  *     !important cannot strip an inline url() backdrop-filter on a portaled Dialog.
- *  5. Perf / bounded-lens: with the 300-row perf_fixture open, ZERO url() nodes exist
- *     (the data-dense page never refracts); the 300 rows carry only
- *     data-glass-variant=thin with blur (NOT url()). Refraction is confined to the
- *     opened portal (test 2).
+ *  5. Perf / bounded-lens: with the 300-row perf_fixture open, exactly ONE refracting node
+ *     exists — the liquid-glass results bar (sticky-up). The full-page hero is plain blur,
+ *     and all 300 rows stay data-glass-variant=thin with blur (NOT url()). The lens never
+ *     multiplies across the list.
  *
  * All console errors + pageerrors captured and asserted empty.
  */
@@ -285,7 +285,7 @@ test.describe("Track B · real backdrop refraction (Chromium)", () => {
     expect(errors, "no runtime errors").toEqual([])
   })
 
-  test("PERF: data-dense page never refracts; rows stay thin/blur, ZERO url() nodes", async ({ page }) => {
+  test("PERF: lens bounded to the 1 results bar; rows stay thin/blur; hero is blur", async ({ page }) => {
     const errors: string[] = []
     arm(page, errors)
 
@@ -299,17 +299,22 @@ test.describe("Track B · real backdrop refraction (Chromium)", () => {
     expect(rowCount, "300-row fixture rendered").toBeGreaterThan(200)
     await expect(rowCards.first()).toHaveAttribute("data-glass-variant", "thin")
 
-    // The lens must NEVER land on the data-dense page: NO element (rows, hero, anything)
-    // carries a url() refraction backdrop-filter at rest. Full-page hero refraction was
-    // cut because it re-rasterized the whole viewport every frame (~15fps idle); refraction
-    // is confined to opened portals (Dialog/Select/popover) only.
+    // The lens must NEVER multiply across the 300 rows. The ONLY refracting node on the
+    // data-dense page is the single liquid-glass results bar (data-glass-variant="sticky-up");
+    // the full-page hero is plain blur, and every result row stays thin/blur (no url()).
     const urlNodes = await page.evaluate(() => {
       const all = Array.from(document.querySelectorAll<HTMLElement>("*"))
       return all
         .filter((el) => getComputedStyle(el).backdropFilter.includes("url("))
         .map((el) => el.getAttribute("data-glass-variant") || el.tagName.toLowerCase())
     })
-    expect(urlNodes.length, `data-dense page must have ZERO refracting nodes: ${JSON.stringify(urlNodes)}`).toBe(0)
+    expect(urlNodes, `exactly one refracting node (the results bar): ${JSON.stringify(urlNodes)}`).toEqual(["sticky-up"])
+
+    // result rows never carry url()
+    const rowsWithUrl = await rowCards.evaluateAll((els) =>
+      els.filter((el) => getComputedStyle(el).backdropFilter.includes("url(")).length,
+    )
+    expect(rowsWithUrl, "NO result row may carry a url() refraction filter").toBe(0)
 
     // hero shell present + heavier blur (never url).
     const hero = page.locator('[data-glass-variant="hero"]').first()

@@ -16,6 +16,7 @@ import { useT } from "@/lib/i18n/provider"
 import { aggregateResults } from "@/lib/results-aggregate"
 import { findComparableExperiments, buildCompareHref } from "@/lib/compare-helpers"
 import { GlassHero, GlassCard, GlassSuccess, GlassDanger } from "@/components/glass/shell"
+import { GlassStickyHeader } from "@/components/glass/sticky-chrome"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import { computeStatusInfo } from "@/lib/experiment-status"
 import { ExperimentStatusBadge } from "@/components/experiment-status-badge"
@@ -400,7 +401,11 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
       {results.length > 0 && (
         <>
           <Separator className="mb-4" />
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">{t("experiment.detail.results_title")} ({results.length})</h3>
+          {/* Track B liquid-glass bar: result rows scroll UNDER this sticky header and
+              visibly ripple through it (Chromium + refraction live; else normal sticky blur). */}
+          <GlassStickyHeader lens className="mb-4">
+            <h3 className="text-sm font-medium text-muted-foreground">{t("experiment.detail.results_title")} ({results.length})</h3>
+          </GlassStickyHeader>
           {resultsNode}
         </>
       )}

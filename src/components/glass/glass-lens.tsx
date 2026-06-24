@@ -27,6 +27,16 @@ export const THICK_BLUR_LITERAL = "blur(40px) saturate(1.3)"
 /** Namespaced filter id (not bare #glass-refraction) to avoid collision. */
 export const REFRACTION_FILTER_ID = "evalyst-glass-refraction"
 
+/**
+ * CLEAR lens: LOW blur (so the refraction is actually VISIBLE — a heavy frost erases the
+ * displacement detail) + a turbulence-based all-over liquid warp. For the one place real
+ * refraction reads in a calm data tool: a thin "liquid glass" BAR with sharp content
+ * (result rows) scrolling UNDER it, so the rows visibly ripple through the bar. A thin bar
+ * re-warps a small area on scroll (≈6% of a full-page hero) — affordable; idle is static.
+ */
+export const LENS_STRONG_FILTER_ID = "evalyst-glass-lens-strong"
+const CLEAR_BLUR_LITERAL = "blur(6px) saturate(1.35)"
+
 const A11Y_QUERIES = [
   "(prefers-reduced-transparency: reduce)",
   "(prefers-reduced-motion: reduce)",
@@ -60,6 +70,19 @@ export function computeLensFilter(open: boolean, allowed: boolean): CSSPropertie
 }
 
 /**
+ * Pure: the CLEAR-lens override (low blur + strong turbulence warp). {} on every fallback
+ * rung — spreading it on the sticky-chrome recipe is a no-op (chrome keeps its blur). url()
+ * only when live. Safari-never-url: WebkitBackdropFilter is the low-blur literal, no url().
+ */
+export function computeClearLens(open: boolean, allowed: boolean): CSSProperties {
+  if (!open || !allowed) return {}
+  return {
+    backdropFilter: `${CLEAR_BLUR_LITERAL} url(#${LENS_STRONG_FILTER_ID})`,
+    WebkitBackdropFilter: CLEAR_BLUR_LITERAL,
+  }
+}
+
+/**
  * true only when refraction may emit url(): probe pass AND none of the four a11y queries
  * AND not inspecting. Live-subscribed so any DevTools/OS toggle re-renders and drops url()
  * immediately. The inspector signal is a body class (copilot-inspector-active) toggled by
@@ -89,8 +112,10 @@ function useRefractionAllowed(): boolean {
 }
 
 /**
- * globally live = allowed AND copilot open. Drives BOTH the <GlassRefractionDefs/> mount
- * and html[data-glass-refraction=on] (which switches the --glass-hero-filter CSS var on).
+ * globally live = allowed AND copilot open. Drives the <GlassRefractionDefs/> mount and sets
+ * html[data-glass-refraction=on] purely as a "refraction is live" marker (for e2e assertions
+ * + debugging) — there is no CSS consumer of the flag (the full-page hero refraction that used
+ * the --glass-hero-filter CSS var was cut; the lens is now component-inline only).
  */
 export function useLensGloballyLive(): boolean {
   const open = useCopilotOpen()
@@ -125,4 +150,15 @@ export function useLensFilter(_variant: "thick"): CSSProperties {
   // The leading literal blur means a (defensively) missing filter id degrades to blur, never
   // transparent. Safari reads -webkit- ONLY -> always the literal blur, never url().
   return computeLensFilter(open, allowed)
+}
+
+/**
+ * The CLEAR-lens hook for the liquid-glass BAR (sticky header over scrolling content). Same
+ * gating as useLensFilter; returns {} on every fallback rung so spreading it on the
+ * sticky-chrome recipe is a no-op (the bar keeps its normal blur on non-Blink / a11y).
+ */
+export function useClearLens(): CSSProperties {
+  const open = useCopilotOpen()
+  const allowed = useRefractionAllowed()
+  return computeClearLens(open, allowed)
 }

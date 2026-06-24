@@ -147,7 +147,12 @@ React.createElement('div', {
 
 Track A 是纯 box-shadow/background-image 的边缘光学（零 filter 成本、跨浏览器一致）。Track B 在它**之上**叠真正的 `feDisplacementMap` backdrop 折射 —— `backdrop-filter: url(#…)` 是 Blink 私有扩展，**物理上只有 Chromium 能渲染**，Safari/Firefox 会整条丢掉。所以 Track B 永远是「锦上添花」：探测失败/降级时落回今天的 thick blur 玻璃，绝不破图。
 
-**2 个表面（且仅这 2 个）**：**Dialog content + compare 详情 popover**（都是 `thick` portal —— 开时才 mount、关时 unmount，所以一次一个、有界）。折射只挂在「小而静、开了才在」的浮层上。
+折射有**两种用法**：
+
+**(a) thick portal 折射**（`useLensFilter("thick")` + 强度 26/23/20 的 `#evalyst-glass-refraction` lens map）—— **Dialog content + compare 详情 popover**（开时才 mount、关时 unmount，一次一个、有界）。但浮层有暗 scrim + 重 blur(40) + 背后内容低对比 → 折射**几乎看不见**（实测 on/off 像素几乎一致）。保留为基础设施，不是视觉主角。
+
+**(b) 液态玻璃 BAR（视觉主角，真能看见）**：`<GlassStickyHeader lens>`（`useClearLens()` + **低 blur(6)** + turbulence 全域 warp `#evalyst-glass-lens-strong`）。关键：**低 blur + 让锐利内容从 bar 底下滚过**——results 列表的文字行滚过 sticky bar 时可见地涟漪折射。这是 calm 数据工具里折射唯一真正读得出的地方（折射要弯**高频锐利**内容才看得见；glow 是平滑色块、弯不出东西；重 blur 会把折射抹掉）。当前用在 `/experiments/[id]` 的「结果(N)」表头条。
+- **为什么 bar 能可见又便宜**：薄 bar 重 warp 面积 ≈ 全页的 6%；idle（不滚）static → 60fps 零成本；滚动时 bar re-warp 实测对 p50 ~零影响（30fps 是 results 行未虚拟化的 pre-existing 成本，不是 bar）。
 
 > **为什么不挂全页 / Select**（实测后撤掉，见 `e2e/glass-track-b-copilot-perf.spec.ts`）：
 > - **全页 `GlassHero` 折射**：Chromium 无法缓存 viewport 尺寸的 backdrop 折射，每个合成帧重栅整屏 —— 300 行 + 200 条 copilot 历史下 idle 都掉到 ~15fps。所以 `GlassHero` 改成**纯加重 blur 外壳**（blur 40 + thick rim，无 url()、无 fringe/扫光），折射撤掉。

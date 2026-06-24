@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import {
   computeRefractionAllowed,
   computeLensFilter,
+  computeClearLens,
   THICK_BLUR_LITERAL,
   REFRACTION_FILTER_ID,
+  LENS_STRONG_FILTER_ID,
 } from "../glass-lens"
 import { getGlassHeroStyle, getGlassStyleForVariant } from "../shell"
 import { lensRefractionSupported, __resetLensProbeCacheForTests } from "../glass-lens-probe"
@@ -50,6 +52,26 @@ describe("computeLensFilter · fallback returns {} , live emits url()", () => {
     const s = computeLensFilter(true, true)
     expect(s.WebkitBackdropFilter).toBe(THICK_BLUR_LITERAL)
     expect(s.WebkitBackdropFilter).not.toContain("url(")
+  })
+})
+
+describe("computeClearLens · liquid-bar lens (low blur + strong warp), fallback {} ", () => {
+  it("returns {} when closed / not allowed", () => {
+    expect(computeClearLens(false, true)).toEqual({})
+    expect(computeClearLens(true, false)).toEqual({})
+  })
+
+  it("live: low-blur(6) + url(#evalyst-glass-lens-strong); webkit stays the blur literal, NO url(", () => {
+    const s = computeClearLens(true, true)
+    expect(s.backdropFilter).toContain(`url(#${LENS_STRONG_FILTER_ID})`)
+    expect(s.backdropFilter).toContain("blur(6px)") // LOW blur so the refraction is visible
+    expect(s.WebkitBackdropFilter).toBe("blur(6px) saturate(1.35)")
+    expect(s.WebkitBackdropFilter).not.toContain("url(")
+  })
+
+  it("uses the STRONG filter id, distinct from the thick portal lens", () => {
+    expect(LENS_STRONG_FILTER_ID).not.toBe(REFRACTION_FILTER_ID)
+    expect(computeClearLens(true, true).backdropFilter).not.toContain(REFRACTION_FILTER_ID + ")")
   })
 })
 

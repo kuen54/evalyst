@@ -12,7 +12,9 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ### Added
 
-- **Glass UI · Track B「real refraction lens」**（feDisplacementMap 真折射，Chromium-only，叠在 Track A 边缘光学之上）——给**小而静的浮层 portal** 引入真正的 backdrop 折射：**Dialog content + compare 详情 popover**（thick portal，开时才 mount、关时 unmount → 一次一个、有界）。中等强度 `feDisplacementMap scale 26/23/20`（边缘内折 + 极淡色散 fringe，背后内容仍可读）。
+- **Glass UI · Track B「real refraction lens」**（feDisplacementMap 真折射，Chromium-only，叠在 Track A 边缘光学之上）。两种用法：
+  - **(a) 液态玻璃 BAR（视觉主角，真能看见）**：`<GlassStickyHeader lens>`——低 blur(6) + turbulence 全域 warp，让 results 行从 sticky 表头条底下滚过时**可见地涟漪折射**（用在 `/experiments/[id]` 的「结果(N)」条）。这是 calm 数据工具里折射唯一读得出的地方（折射要弯高频锐利内容；glow 平滑弯不出、重 blur 抹掉折射）。idle static → 60fps 零成本；薄 bar 滚动 re-warp 对 p50 ~零影响（30fps 是 results 行未虚拟化的 pre-existing 成本）。
+  - **(b) thick portal 折射**：`useLensFilter("thick")`（`scale 26/23/20` lens map）挂在 **Dialog content + compare 详情 popover**（开时才 mount、一次一个、有界）。但浮层有暗 scrim + 重 blur(40)，折射几乎看不见——保留为基础设施，非视觉主角。
   - **位移图是 baked 静态产物**：`scripts/gen-glass-lens-map.ts` 仅用 `node:zlib` 手搓 PNG（无 node-canvas/sharp/pngjs），SDF 圆角矩形 rim + 四象限镜像，输出 `glass-lens-map.generated.ts`（`GLASS_LENS_MAP` data-URI）；运行时只 import 字符串，绝不 mount 时跑 canvas。`gen:glass-map --check` 字节漂移守卫。
   - **能力探测**：离屏 `feDisplacementMap` 像素回读 + Blink-family 闸（`navigator.userAgentData` 仅 Blink 有）—— WebKit 支持 canvas `filter:url()` 但不支持 `backdrop-filter:url()`，单靠回读会在 Safari false-positive；闸住后 Safari/Firefox/嵌入式 webview 一律落回今天的 thick blur 玻璃。偏 false-negative（宁可少 wow 也不破图）。
   - **a11y / inspector gating 在组件内**（不依赖 CSS）：四条降级查询 + copilot inspector 任一命中 → 组件根本不 emit `url()`（实测：portal 上 inline `url()` backdrop-filter 无法被 stylesheet `!important` 剥掉，防线必须在组件）。降级到 blur 或实底，绝不破图/透明。`-webkit-backdrop-filter` 永远 blur 字面量，Safari 绝不拿到 url()。

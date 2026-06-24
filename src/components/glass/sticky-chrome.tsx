@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react"
 import { useCopilotOpen } from "./copilot-context"
+import { useClearLens } from "./glass-lens"
 
 type StickyChromeProps = {
   children: ReactNode
@@ -40,16 +41,22 @@ export function stickyChromeStyle(direction: "up" | "down", open: boolean): CSSP
  * Sticky 顶部结构条：位于滚动容器的最上方。
  * copilot 开：Regular 玻璃 + 顶部切边高光 + 向下投影 + rounded-xl。
  * copilot 关：回退 shadcn 扁平——`bg-card border-b`，颜色与外层卡面齐平、只靠 border 划分。
+ *
+ * `lens`（Track B · opt-in）：把这条 bar 升级成「液态玻璃」—— 低 blur(6) + feDisplacementMap 折射，
+ * 让滚过 bar 底下的内容（result rows / compare grid）可见地涟漪折射。仅 Chromium + 探测通过 + 无 a11y/
+ * inspector 时生效（useClearLens 否则返回 {}，bar 退回正常 blur(28)）。sticky-up 被 nested-blur strip
+ * 豁免，嵌在 GlassHero 里也保留自己的 backdrop-filter。bar 很薄 → 滚动重 warp 面积小，成本可控。
  */
-export function GlassStickyHeader({ children, className = "", style, ...rest }: StickyChromeProps) {
+export function GlassStickyHeader({ children, className = "", style, lens = false, ...rest }: StickyChromeProps & { lens?: boolean }) {
   const open = useCopilotOpen()
   const glass = stickyChromeStyle("up", open)
+  const clearLens = useClearLens() // {} unless lens-eligible AND refraction live
   const stateClass = open ? "rounded-xl" : "bg-card border-b"
   return (
     <div
       data-glass-variant="sticky-up"
       className={`sticky top-0 z-10 px-4 py-3 ${stateClass} ${className}`}
-      style={{ ...glass, ...style }}
+      style={{ ...glass, ...(lens ? clearLens : {}), ...style }}
       {...rest}
     >
       {children}
