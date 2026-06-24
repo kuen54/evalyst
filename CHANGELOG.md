@@ -10,6 +10,15 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Added
+
+- **Glass UI · Track B「real refraction lens」**（feDisplacementMap 真折射，Chromium-only，叠在 Track A 边缘光学之上）——给**小而静的浮层 portal** 引入真正的 backdrop 折射：**Dialog content + compare 详情 popover**（thick portal，开时才 mount、关时 unmount → 一次一个、有界）。中等强度 `feDisplacementMap scale 26/23/20`（边缘内折 + 极淡色散 fringe，背后内容仍可读）。
+  - **位移图是 baked 静态产物**：`scripts/gen-glass-lens-map.ts` 仅用 `node:zlib` 手搓 PNG（无 node-canvas/sharp/pngjs），SDF 圆角矩形 rim + 四象限镜像，输出 `glass-lens-map.generated.ts`（`GLASS_LENS_MAP` data-URI）；运行时只 import 字符串，绝不 mount 时跑 canvas。`gen:glass-map --check` 字节漂移守卫。
+  - **能力探测**：离屏 `feDisplacementMap` 像素回读 + Blink-family 闸（`navigator.userAgentData` 仅 Blink 有）—— WebKit 支持 canvas `filter:url()` 但不支持 `backdrop-filter:url()`，单靠回读会在 Safari false-positive；闸住后 Safari/Firefox/嵌入式 webview 一律落回今天的 thick blur 玻璃。偏 false-negative（宁可少 wow 也不破图）。
+  - **a11y / inspector gating 在组件内**（不依赖 CSS）：四条降级查询 + copilot inspector 任一命中 → 组件根本不 emit `url()`（实测：portal 上 inline `url()` backdrop-filter 无法被 stylesheet `!important` 剥掉，防线必须在组件）。降级到 blur 或实底，绝不破图/透明。`-webkit-backdrop-filter` 永远 blur 字面量，Safari 绝不拿到 url()。
+  - **性能优化（实测「glass + 200 条 copilot 历史」重灾区后撤掉两处过界）**：① 全页 `GlassHero` 折射让 Chromium 每帧重栅整屏、idle 掉到 ~15fps —— **撤掉折射，hero 改纯加重 blur 外壳**；② `Select` dropdown 关闭仍挂载（常驻 url() 节点）+ 共享组件被 copilot 模型选择器复用（违反「copilot 面板扁平」）—— **撤掉 Select 折射，保留原有 thick blur**。最终折射只在 Dialog + compare popover，实测 portal 折射对 idle 零成本（idle p50 16.7ms、delta −0.7ms）。不碰 tinted CTA / copilot 开关 / 数据密集 thin/regular 档（results 列表零额外成本）。
+  - 自测：单测锁纯函数（probe gate / computeLensFilter / hero blur 不含 url / baked map 产物）；`e2e/glass-track-b.spec.ts` Chromium 实测折射落地 + fallback + a11y gating（12/12）；`e2e/glass-track-b-copilot-perf.spec.ts` 实测重灾区（idle/page 60fps、portal 折射零成本；message-list 滚动 ~30fps 是 pre-existing 未虚拟化 markdown 成本，与 Track B 无关，留作后续 follow-up）。
+
 ## [0.18.30] — 2026-06-24 · Glass UI Track A premium-edge 光学升级（PR #135）
 
 > 参考 aave.com liquid glass，把 copilot 打开态全 7 档玻璃的边缘光学从「顶/底平切高光」升级为方向性 rim（thick 浮层档加色散 fringe + 内折光 + 镜面扫光）；blur 半径逐字节不变、升级只在 box-shadow / background-image，数据密集 results 列表零额外 backdrop-filter 成本。附修一个 pre-existing a11y 漏（reduced-transparency / contrast 未归零 box-shadow）。main vs 分支生产构建各 3 跑实测性能中性（p50 16.7ms = 60fps 中位 / 零 stall）。真正的 feDisplacementMap 折射（Track B，Chromium-only）留后续按需评估。五件套 + 51 e2e + 探索式用户行为实测全绿。

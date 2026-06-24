@@ -215,3 +215,54 @@ export const GlassCardThin = makeGlass("thin", SHADCN_CARD_DEFAULTS)
 export const GlassSuccess = makeGlass("success", SHADCN_CARD_DEFAULTS)
 export const GlassWarning = makeGlass("warning", SHADCN_CARD_DEFAULTS)
 export const GlassDanger = makeGlass("danger", SHADCN_CARD_DEFAULTS)
+
+// ---- 「hero」变体：旗舰页一页一个的加重玻璃外壳（heavier blur，NO refraction）----
+//
+// GlassHero 不进 GlassVariant union、不走 getGlassStyleForVariant —— 保持 7 档配额 +
+// filter-buffer-lock 测试干净。它是 thick 档的「加重 blur」材质（blur 40 + 方向性 rim），
+// 给 /experiments/[id] 与 /compare 的一页一个外壳用。data-glass-variant="hero" 让四条 a11y
+// selector + inspector strip 都能匹配到它。
+//
+// 刻意不挂 feDisplacementMap 折射：实测全页 backdrop-filter: url() 折射 Chromium 无法缓存，
+// 每个合成帧重栅整屏，idle 都掉到 ~15fps（见 e2e/glass-track-b-copilot-perf）。折射只留给
+// 小而静的 portal（Dialog/Select/compare popover，走 useLensFilter）——那里既便宜又显眼。
+// 也不挂 thick 的 fringe/内折光/扫光：全页尺度上这些边缘装饰读起来过载。
+/**
+ * Pure hero-shell style (unit-tested directly; the hook below just feeds it copilot-open state).
+ */
+export function getGlassHeroStyle(open: boolean): CSSProperties {
+  if (!open) return { transition: baseTransition }
+  return {
+    // 比 regular 略实一点（40% vs 35%），给大外壳的内容可读性
+    backgroundColor: "color-mix(in oklab, var(--card) 40%, transparent)",
+    backdropFilter: "blur(40px) saturate(1.3)",
+    WebkitBackdropFilter: "blur(40px) saturate(1.3)",
+    borderColor: "color-mix(in oklab, var(--border) 55%, transparent)",
+    boxShadow:
+      `${RIM_THICK}, 0 30px 60px -15px oklch(0 0 0 / 0.32), 0 6px 16px -8px oklch(0 0 0 / 0.12)`,
+    transition: baseTransition,
+  }
+}
+
+function useGlassHeroStyle(): CSSProperties {
+  return getGlassHeroStyle(useCopilotOpen())
+}
+
+function makeGlassHero(defaultClass: string) {
+  return function GlassHero({ children, className = "", style, as: Tag = "div", ...rest }: GlassProps) {
+    const heroStyle = useGlassHeroStyle()
+    return (
+      <Tag
+        data-glass-variant="hero"
+        className={`${defaultClass} ${className}`}
+        style={{ ...heroStyle, ...style }}
+        {...rest}
+      >
+        {children}
+      </Tag>
+    )
+  }
+}
+
+/** Track B page-shell：一页一个外壳走 real refraction lens（Chromium-only，fallback 到今天的 blur 玻璃）。 */
+export const GlassHero = makeGlassHero("rounded-xl border bg-card")

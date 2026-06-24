@@ -22,6 +22,9 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Glass lens map drift guard
+        run: npx tsx scripts/gen-glass-lens-map.ts --check
+
       - name: Lint
         run: npm run lint
 

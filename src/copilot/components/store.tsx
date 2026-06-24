@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import type { CopilotContextRef, PageContext } from "@/copilot/lib/types"
 import { CopilotShellProvider } from "@/components/glass/copilot-context"
+import { GlassRefractionDefs } from "@/components/glass/glass-refraction-defs"
 import { applyRevealCascade, clearRevealCascade } from "./material-reveal-cascade"
 import { probeSessionExists } from "./probe-session"
 
@@ -300,7 +301,12 @@ export function CopilotStoreProvider({ children }: { children: React.ReactNode }
   return (
     <CopilotCtx.Provider value={value}>
       <CopilotShellProvider value={shellState}>
-        <CopilotBusyCtx.Provider value={busy}>{children}</CopilotBusyCtx.Provider>
+        <CopilotBusyCtx.Provider value={busy}>
+          {/* Track B: single shared refraction <filter>, mounted only when the lens is live
+              (probe + open + no a11y/inspector gate). Sibling region to GlowOverlay. */}
+          <GlassRefractionDefs />
+          {children}
+        </CopilotBusyCtx.Provider>
       </CopilotShellProvider>
     </CopilotCtx.Provider>
   )

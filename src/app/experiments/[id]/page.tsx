@@ -15,7 +15,7 @@ import type { RubricAggregate } from "@/lib/annotation-store"
 import { useT } from "@/lib/i18n/provider"
 import { aggregateResults } from "@/lib/results-aggregate"
 import { findComparableExperiments, buildCompareHref } from "@/lib/compare-helpers"
-import { GlassRegular, GlassCard, GlassSuccess, GlassDanger } from "@/components/glass/shell"
+import { GlassHero, GlassCard, GlassSuccess, GlassDanger } from "@/components/glass/shell"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import { computeStatusInfo } from "@/lib/experiment-status"
 import { ExperimentStatusBadge } from "@/components/experiment-status-badge"
@@ -265,7 +265,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
 
   return (
     <div className="px-6 py-4">
-      <GlassRegular
+      <GlassHero
         className="p-6"
         data-copilot-context="experiment"
         data-copilot-context-id={experiment.id}
@@ -404,7 +404,7 @@ export default function ExperimentDetail({ params }: { params: Promise<{ id: str
           {resultsNode}
         </>
       )}
-      </GlassRegular>
+      </GlassHero>
     </div>
   )
 }

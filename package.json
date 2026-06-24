@@ -16,7 +16,9 @@
     "knip:fix": "knip --fix",
     "run:pcw-samples": "tsx scripts/run-pcw-samples.ts",
     "run:pcw-image-samples": "tsx scripts/run-pcw-image-samples.ts",
-    "perf:fixture": "tsx scripts/perf-fixture.ts"
+    "perf:fixture": "tsx scripts/perf-fixture.ts",
+    "perf:copilot-fixture": "tsx scripts/gen-copilot-fixture.ts",
+    "gen:glass-map": "tsx scripts/gen-glass-lens-map.ts"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.4",

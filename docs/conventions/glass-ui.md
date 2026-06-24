@@ -142,3 +142,34 @@ React.createElement('div', {
 - 状态指示点（如 dashboard `bg-green-500` / `bg-amber-500`）—— 500 tier 是中饱和，亮暗都 OK
 - 整张状态卡 / 整段 banner —— 走 `<GlassSuccess>` / `<GlassWarning>` / `<GlassDanger>`
 - copilot tool-call-card 的 confirm/denied 框 —— 已经走 alpha 配方
+
+## Track B · refraction lens（**portal-only**，**Chromium-only**）
+
+Track A 是纯 box-shadow/background-image 的边缘光学（零 filter 成本、跨浏览器一致）。Track B 在它**之上**叠真正的 `feDisplacementMap` backdrop 折射 —— `backdrop-filter: url(#…)` 是 Blink 私有扩展，**物理上只有 Chromium 能渲染**，Safari/Firefox 会整条丢掉。所以 Track B 永远是「锦上添花」：探测失败/降级时落回今天的 thick blur 玻璃，绝不破图。
+
+**2 个表面（且仅这 2 个）**：**Dialog content + compare 详情 popover**（都是 `thick` portal —— 开时才 mount、关时 unmount，所以一次一个、有界）。折射只挂在「小而静、开了才在」的浮层上。
+
+> **为什么不挂全页 / Select**（实测后撤掉，见 `e2e/glass-track-b-copilot-perf.spec.ts`）：
+> - **全页 `GlassHero` 折射**：Chromium 无法缓存 viewport 尺寸的 backdrop 折射，每个合成帧重栅整屏 —— 300 行 + 200 条 copilot 历史下 idle 都掉到 ~15fps。所以 `GlassHero` 改成**纯加重 blur 外壳**（blur 40 + thick rim，无 url()、无 fringe/扫光），折射撤掉。
+> - **`Select` dropdown**：base-ui Select 关闭仍挂载 → 常驻一个 url() 节点；且 `SelectContent` 被 copilot 面板的模型选择器复用，挂折射会违反「copilot 面板永远扁平」。所以 Select **撤掉折射、保留原有 thick blur**。
+> - 对比验证：小 portal 折射对 idle **零成本**（开折射 Dialog 时 idle p50 16.7ms、delta −0.7ms）。
+
+**关键文件**：
+- 原语 `src/components/glass/glass-lens.tsx` —— `useLensFilter('thick')`（THE 共享 hook，Dialog/compare popover 用）、`useLensGloballyLive`（写 `html[data-glass-refraction=on]` 标记 + 驱动 defs mount）、纯函数 `computeLensFilter` / `computeRefractionAllowed`
+- 探测 `src/components/glass/glass-lens-probe.ts` —— 离屏 `feDisplacementMap` 像素回读 **＋ Blink-family 闸（`navigator.userAgentData` 仅 Blink 有）**。WebKit 支持 canvas `filter:url()` 但不支持 `backdrop-filter:url()`，单靠回读会在 Safari false-positive；闸住才安全。module-singleton memo，SSR-guard，偏 false-negative（宁可少 wow 也不破图）。
+- `<filter>` defs `src/components/glass/glass-refraction-defs.tsx` —— 单条 `#evalyst-glass-refraction`，挂在 `store.tsx` 的 provider 子树，仅 live 时 mount
+- baked 位移图 `src/components/glass/glass-lens-map.generated.ts`（产物）+ 生成器 `scripts/gen-glass-lens-map.ts`（`npm run gen:glass-map`，`--check` 做 CI 漂移守卫）
+- `GlassHero`（**无折射**的加重 blur 外壳）在 `shell.tsx`（`getGlassHeroStyle` 纯函数 + `useGlassHeroStyle`），给 `/experiments/[id]` 与 `/compare` 一页一个外壳用
+
+**位移图必须 baked 静态**：生成器仅用 `node:zlib` 手搓 PNG（SDF 圆角矩形 rim + 四象限镜像），运行时只 import data-URI 字符串。**绝不**在 mount 时跑 canvas 重建 —— 那会破坏 idle-static-glow / inspector blur-yank / material-reveal 契约（filter buffer 必须静止）。改了生成器参数务必 `npm run gen:glass-map` 重生 + 提交（CI 的 `--check` 会卡字节漂移）。
+
+**a11y / inspector gating 在组件内（load-bearing）**：实测发现 —— `prefers-reduced-transparency` 下 **portal 上的 inline `url()` backdrop-filter 无法被 stylesheet `backdrop-filter: none !important` 剥掉**（box-shadow 能剥，这是不对称）。所以 Track B 的防线必须在组件：`useLensFilter` 内部（`useRefractionAllowed`）订阅四条 a11y 查询（reduced-transparency / reduced-motion / contrast / forced-colors）+ copilot inspector 的 body class，任一命中就**根本不 emit `url()`**（返回 `{}`，spread 到 thick recipe 是 no-op）。CSS 的 `!important` 只是 belt-and-suspenders，**永远不要**指望它去剥 portal 上的 inline url()。没有 CSS url() 注入通道（hero 撤掉折射后 `--glass-hero-filter` 一并删了）。
+
+**fallback ladder**：copilot 关 → flat shadcn；非 Blink / 探测失败 / 嵌入式 webview → 今天的 thick blur 玻璃（逐字节相同，`computeLensFilter` 返回 `{}` 的 spread 是 no-op，单测断言）；reduced-transparency/contrast/forced-colors → 实底；reduced-motion → 今天的静态 blur 玻璃；inspector → blur-yank。`-webkit-backdrop-filter` **永远是 blur 字面量**（Safari 读 -webkit，一旦拿到 url() 会整条丢 backdrop-filter）。
+
+**永不碰清单**：
+- 全页 page shell / `GlassHero` —— 折射全屏太贵（idle ~15fps）；hero 只走加重 blur
+- `Select` dropdown —— 关闭仍挂载（常驻节点）+ 被 copilot 面板复用（须扁平）；保留 thick blur，不挂折射
+- tinted Run/Resume CTA —— nested-blur strip 会把嵌套 url() 清零，且是「一页一个 tinted」名额
+- copilot 开关（position:fixed，perf-decreed）/ copilot 面板内部（永远扁平）
+- 所有数据密集 thin/regular 档（`GlassThin` / `GlassCardThin` / results 列表）—— `feDisplacementMap` 是 backdrop-blur 的 3–8 倍成本，只给「开了才在」的小 portal；`useLensFilter` 类型只收 `'thick'` 就是这个守卫

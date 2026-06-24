@@ -12,9 +12,10 @@ import type { ExperimentConfig } from "@/lib/types"
 import type { GenericResultRecord, TaskSchema, Display } from "@/lib/schema/types"
 import { rowLabel } from "@/lib/compare-helpers"
 import { pickView } from "@/components/results/registry"
-import { GlassRegular, GlassThin } from "@/components/glass/shell"
+import { GlassHero, GlassThin } from "@/components/glass/shell"
 import { GlassStickyHeader } from "@/components/glass/sticky-chrome"
 import { useGlassStyle } from "@/components/glass/shell"
+import { useLensFilter } from "@/components/glass/glass-lens"
 import { useCopilotOpen } from "@/components/glass/copilot-context"
 import { useRegisterPageContext } from "@/copilot/components/use-page-context"
 import { PreviewCard } from "@base-ui/react/preview-card"
@@ -151,7 +152,7 @@ function ComparePageInner() {
 
   return (
     <div className="px-6 py-4 h-full">
-      <GlassRegular className="h-full overflow-hidden">
+      <GlassHero className="h-full overflow-hidden">
         <div
           className="grid h-full transition-[grid-template-columns] duration-200"
           style={{ gridTemplateColumns: leftCollapsed ? "28px 1fr" : "280px 1fr" }}
@@ -258,7 +259,7 @@ function ComparePageInner() {
           ) : null}
         </div>
       </div>
-      </GlassRegular>
+      </GlassHero>
     </div>
   )
 }
@@ -266,6 +267,7 @@ function ComparePageInner() {
 function PromptInfoIcon({ prompt, t }: { prompt: string; t: (k: string, v?: Record<string, string | number>) => string }) {
   const copilotOpen = useCopilotOpen()
   const glassStyle = useGlassStyle("thick")
+  const lens = useLensFilter("thick")
   return (
     <PreviewCard.Root>
       <PreviewCard.Trigger
@@ -284,7 +286,7 @@ function PromptInfoIcon({ prompt, t }: { prompt: string; t: (k: string, v?: Reco
         <PreviewCard.Positioner side="bottom" align="start" sideOffset={4} collisionPadding={12} className="z-[10000]">
           <PreviewCard.Popup
             className="w-[480px] max-h-[60vh] overflow-auto bg-popover border border-border rounded-lg shadow-lg p-4"
-            style={copilotOpen ? { ...glassStyle } : undefined}
+            style={copilotOpen ? { ...glassStyle, ...lens } : undefined}
             data-glass-variant={copilotOpen ? "thick" : undefined}
           >
             <div className="text-xs font-medium text-muted-foreground mb-2">{t("compare.prompt_template")}</div>
