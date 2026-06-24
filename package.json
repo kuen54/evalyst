@@ -15,7 +15,8 @@
     "knip": "knip",
     "knip:fix": "knip --fix",
     "run:pcw-samples": "tsx scripts/run-pcw-samples.ts",
-    "run:pcw-image-samples": "tsx scripts/run-pcw-image-samples.ts"
+    "run:pcw-image-samples": "tsx scripts/run-pcw-image-samples.ts",
+    "perf:fixture": "tsx scripts/perf-fixture.ts"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.4",

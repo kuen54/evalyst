@@ -12,13 +12,17 @@ type StickyChromeProps = {
 const baseTransition =
   "background-color 320ms ease, backdrop-filter 320ms ease, border-color 320ms ease, box-shadow 320ms ease, background-image 320ms ease"
 
-const SHADOW_UP =
-  "inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 8px 24px -12px oklch(0 0 0 / 0.22), 0 2px 6px -2px oklch(0 0 0 / 0.08)"
+// Track A premium-edge：rim 用统一的左上光源（左上亮 / 右下暗 + 底缘淡白线，与 shell.tsx RIM_REGULAR 逐字一致）。
+// up / down 两条的 inset 部分完全相同——只有「外投影方向」不同（up 向下投 `0 8px` / down 向上投 `0 -8px`），
+// 靠投影方向而非光源方向区分顶/底，避免单条 bar 出现与全局光源矛盾的反向高光。sticky few-hero，本轮只加 rim，不挂色散/扫光。
+const STICKY_RIM =
+  "inset 1px 1px 0 oklch(1 0 0 / 0.55), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset -1px -1px 0 oklch(0 0 0 / 0.07), inset 0 0 0 1px oklch(1 0 0 / 0.1)"
 
-const SHADOW_DOWN =
-  "inset 0 -1px 0 oklch(1 0 0 / 0.6), inset 0 1px 0 oklch(1 0 0 / 0.08), inset 0 0 0 1px oklch(1 0 0 / 0.1), 0 -8px 24px -12px oklch(0 0 0 / 0.22), 0 -2px 6px -2px oklch(0 0 0 / 0.08)"
+const SHADOW_UP = `${STICKY_RIM}, 0 8px 24px -12px oklch(0 0 0 / 0.22), 0 2px 6px -2px oklch(0 0 0 / 0.08)`
 
-function stickyChromeStyle(direction: "up" | "down", open: boolean): CSSProperties {
+const SHADOW_DOWN = `${STICKY_RIM}, 0 -8px 24px -12px oklch(0 0 0 / 0.22), 0 -2px 6px -2px oklch(0 0 0 / 0.08)`
+
+export function stickyChromeStyle(direction: "up" | "down", open: boolean): CSSProperties {
   if (!open) return { transition: baseTransition }
   return {
     // 45% 比 regular(35%) 高一档：sticky 条悬在滚动内容上方，材质要和滚过的

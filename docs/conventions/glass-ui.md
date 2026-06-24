@@ -17,7 +17,9 @@ Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（
 
 > Sticky 顶/底结构条（compare header / StickySaveBar 等）之前是 9 档玻璃的 chrome-up / chrome-down 两档，R2 #T3 因各只 1 个调用点 inline 进 `src/components/glass/sticky-chrome.tsx` —— 用 `<GlassStickyHeader>` / `<GlassStickyFooter>` 而非 `useGlassStyle("...")`。Sticky 条 bg 45%（比 regular 高一档，悬在滚动内容上方要有材质区隔）。
 
-**统一标尺**：顶部白切边 `inset 0 1px 0` —— thin 0.35 / regular 系（含 tinted/semantic）0.6 / thick 0.7；底部暗切边 `inset 0 -1px 0 / 0.1` regular 系全员、thick 0.15；border alpha —— thin 45% / regular 50% / thick 60% / semantic 55%。
+**统一标尺（Track A premium-edge，2026-06）**：切边语言从「顶/底平切高光」升级为**方向性 rim**——左上提亮 `inset 1px 1px 0 oklch(1 0 0 / α)` + 右下压暗 `inset -1px -1px 0 oklch(0 0 0 / α)`，模拟玻璃斜切边吃光（光源默认左上，与 copilot-glow 四角光呼应）。α 按档加重：thin 0.3/0.05 · regular 系（含 tinted/semantic）0.55/0.07 · thick 0.65/0.1（thick 用 1.5px 偏移）。border alpha 不变：thin 45% / regular 50% / thick 60% / semantic 55%。
+**thick 独占**（few-hero，数据密集档不挂以免亮底列表把色边读成 bug——本轮 fringe 仅 thick）：色散 fringe（左缘暖红 `oklch(0.62 0.21 25)` / 右缘冷蓝 `oklch(0.66 0.17 255)` 1px 内描）+ 内折光（顶部柔和内高光）+ 镜面扫光（静态 `linear-gradient(135deg)` backgroundImage）。
+**关键不变量**：blur 半径全档逐字节不变（16/28/40），升级只在 `box-shadow` / `background-image`——不引入新 backdrop-filter paint 成本。`src/components/glass/__tests__/shell.test.ts` 的 "Track A premium edge" describe 锁死 filter buffer + fringe/扫光只挂 thick。a11y：`prefers-reduced-transparency` / `prefers-contrast:more` 已补 `box-shadow: none`，否则 rim/fringe/扫光会漏在实底收敛卡上。
 **嵌套去重**（perf）：`[data-glass-variant]` 嵌套时内层自动失去 backdrop-filter（`globals.css` 一条 `!important` 规则；thick / sticky-up / sticky-down 例外）——嵌套层的 backdrop 本来就是外层糊过的，再 blur 是乘法级 paint 成本。regular 嵌 regular 时内层 bg 同时降到 20% 防不透明度叠闷。写嵌套玻璃时不需要（也不应该）手动绕过。
 
 **Semantic（Regular 材质 + 语义 border + 语义 ambient shadow）**：

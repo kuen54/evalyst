@@ -10,6 +10,14 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Added
+
+- **Glass UI · Track A「premium edge」光学升级**（参考 aave.com liquid glass）——copilot 打开态下全 7 档玻璃从「顶/底平切高光」升级为**方向性 rim**（左上提亮 / 右下压暗的斜切边吃光）；`thick` 浮层档额外挂**色散 fringe**（左缘暖红 / 右缘冷蓝边）+ **内折光** + **静态镜面扫光**。关键不变量：blur 半径全档逐字节不变（16/28/40），升级只在 `box-shadow` / `background-image`——不引入新 `backdrop-filter` paint 成本，数据密集的 results 列表（thin/regular 档）零额外成本。真正的 `feDisplacementMap` 折射（Track B，Chromium-only）留作后续按需评估。
+
+### Fixed
+
+- **a11y：玻璃光学装饰在降级媒介查询下未归零**——`prefers-reduced-transparency: reduce` / `prefers-contrast: more` 之前只收 `background-color` / `background-image`，漏了 `box-shadow`；Track A 的 rim/fringe/扫光会以斜角高光 + 彩色描边漏在实底收敛卡上。两处补 `box-shadow: none !important`（`forced-colors` 早已有）。
+
 ## [0.18.29] — 2026-06-11 · 系统性 review 加固一轮（PR #134）
 
 > 多 agent review（7 维度并行扫 + 逐条对抗性验证，14 finding 确认 11 条）后的集中修复：3 高危（LLM 超时不覆盖 body 读取 / copilot 孤儿 tool_use 钉死 session / 详情页轮询整树重挂）+ 并发写、runner 失败路径与路由防御加固。五件套 + 45 e2e 全绿。
