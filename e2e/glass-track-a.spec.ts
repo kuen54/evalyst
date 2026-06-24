@@ -155,7 +155,10 @@ test.describe("Track A glass premium-edge · user behaviour + a11y", () => {
     expect(c.boxShadow.length, "thick box-shadow is rich (rim+fringe+glow+drop)").toBeGreaterThan(80)
     expect(c.backgroundImage, "thick sweep linear-gradient present").toContain("linear-gradient")
     expect(c.backdropFilter, "thick blur present").toContain("blur(")
-    expect(c.backdropFilter, "no url() in thick filter").not.toContain("url(")
+    // NOTE: Track B adds a real feDisplacementMap refraction url() to the thick dialog in
+    // Chromium (covered by e2e/glass-track-b.spec.ts), so the dialog's backdrop-filter MAY
+    // contain url() here — that is no longer a Track A invariant. The Safari-never-url
+    // guarantee lives on the -webkit literal (asserted in the Track B spec).
 
     // close it
     await page.getByRole("button", { name: /^取消$|^Cancel$/ }).click()
