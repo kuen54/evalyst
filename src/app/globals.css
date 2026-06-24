@@ -405,6 +405,16 @@
   }
 }
 
+/* ---------------- Copilot Glass · Track B refraction lens (Chromium-only) ----------------
+   折射只挂在小而静的 portal（Dialog / Select / compare popover）上，完全走组件内联
+   backdrop-filter: url()（useLensFilter；在任何 a11y/inspector 条件下根本不 emit url()）——
+   没有 CSS 注入通道，所以这里没有规则。html[data-glass-refraction="on"] 仍由 useLensGloballyLive
+   写，只作「折射可用」标记（驱动 <GlassRefractionDefs> 挂载 + e2e 断言），无 CSS 消费。
+   曾经给全页 GlassHero 外壳走 --glass-hero-filter 注入折射，但实测全页 url() 折射 Chromium
+   无法缓存、idle 掉到 ~15fps，已撤掉——hero 现在是纯加重 blur（见 e2e/glass-track-b-copilot-perf）。
+   ！！不要！！再加一条试图剥离 portal 上 inline url() 的规则——stylesheet !important 剥不掉
+   portal 的 inline url() backdrop-filter（Track A 实测的关键不对称）；防线在组件内。 */
+
 /* ---------------- Copilot Glass · Paint cost containment ---------------- */
 
 /* 嵌套玻璃去重：experiments 详情页典型栈是 GlassRegular(页外壳) > GlassCardThin(行)

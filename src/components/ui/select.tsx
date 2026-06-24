@@ -75,6 +75,10 @@ function SelectContent({
   >) {
   const copilotOpen = useCopilotOpen()
   const glassStyle = useGlassStyle("thick")
+  // NO Track B refraction lens here: Select popups stay mounted-when-closed (a persistent
+  // url() node) and the shared SelectContent is also used by the copilot panel's model
+  // picker (constraint #2: copilot panel stays flat). Selects keep their pre-existing thick
+  // BLUR glass only; real refraction is confined to Dialog + the compare popover.
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner
