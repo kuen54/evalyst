@@ -15,7 +15,7 @@
 
 **Agent 驱动（推荐）**：Dashboard 空态和 `/settings` 顶栏各有一个「下载 SKILL.md」按钮。装上 `evalyst` skill 后，Claude Code 里一句话就能从零建数据集、评测任务、实验并跑起来——UI 专心展示结果。不想用 agent 也完全 OK，表单 UI 保持一流体验。
 
-**内嵌 Copilot**（`⌘K` 打开）：右侧滑出对话面板，能"看到"你当前屏幕上的东西 —— 圈选实验卡、task 行、prompt 模板、任意文本作为 context 发给 Copilot；切换到 copilot 模式时主内容区统一切到**玻璃 UI 语言**，和普通编辑模式视觉清晰区隔。玻璃做了 aave 风格的升级（[`docs/conventions/glass-ui.md`](docs/conventions/glass-ui.md)）：Track A 的 premium-edge 光学（方向性 rim + thick 浮层色散 fringe，纯 box-shadow、跨浏览器、零 filter 成本）+ Track B 的**真 `feDisplacementMap` 折射**——结果列表的 sticky 表头条是一道「液态玻璃」，结果行从底下滚过时可见地涟漪折射（Chromium-only，GPU 上零成本；其余引擎优雅降级到 blur）。工具调用闭环（代用户改模板 + 触发重跑）已 ship，详见 [`docs/copilot.md`](docs/copilot.md)。
+**内嵌 Copilot**（`⌘K` 打开）：右侧滑出对话面板，能"看到"你当前屏幕上的东西 —— 圈选实验卡、task 行、prompt 模板、任意文本作为 context 发给 Copilot；切换到 copilot 模式时主内容区统一切到**玻璃 UI 语言**，和普通编辑模式视觉清晰区隔。玻璃做了 aave 风格的升级（[`docs/conventions/glass-ui.md`](docs/conventions/glass-ui.md)）：每档 fill 走 **mode-aware `light-dark()`**——亮模式是收敛的 clean white frost，暗模式更透让背景 ambient glow 透出；Track A 的 premium-edge 光学（hairline 羽化 rim + thick 浮层色散 fringe，纯 box-shadow、跨浏览器、零 filter 成本）+ Track B 的**真 `feDisplacementMap` 折射**——结果列表的 sticky 表头条是一道「液态玻璃」，结果行从底下滚过时可见地涟漪折射（Chromium-only，GPU 上零成本；其余引擎优雅降级到 blur）。工具调用闭环（代用户改模板 + 触发重跑）已 ship，详见 [`docs/copilot.md`](docs/copilot.md)。
 
 项目分两个独立域，可独立理解：
 

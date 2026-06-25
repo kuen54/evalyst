@@ -99,10 +99,10 @@ describe("getGlassHeroStyle · hero page-shell recipe (heavier blur, NO refracti
     expect(r.transition).toContain("background-color")
   })
 
-  it("open: heavier blur(40) literal — NEVER url() (full-page refraction was cut: it tanked idle to ~15fps)", () => {
+  it("open: heavier blur(36) literal + luminance — NEVER url() (full-page refraction was cut: it tanked idle to ~15fps)", () => {
     const r = getGlassHeroStyle(true)
-    expect(r.backdropFilter).toBe("blur(40px) saturate(1.3)")
-    expect(r.WebkitBackdropFilter).toBe("blur(40px) saturate(1.3)")
+    expect(r.backdropFilter).toBe("blur(36px) saturate(1.3) brightness(1.10) contrast(1.03)")
+    expect(r.WebkitBackdropFilter).toBe("blur(36px) saturate(1.3) brightness(1.10) contrast(1.03)")
     expect(r.backdropFilter).not.toContain("url(")
     expect(r.WebkitBackdropFilter).not.toContain("url(")
     // thick-weight rim + drop shadow; NO fringe / sweep at page scale (over-decorated)
@@ -110,9 +110,11 @@ describe("getGlassHeroStyle · hero page-shell recipe (heavier blur, NO refracti
     expect(r.backgroundImage).toBeUndefined()
   })
 
-  it("open: slightly more opaque (40% card) than regular (35%) for big-shell legibility", () => {
+  it("open: light branch is clean white 27% (a tier above regular 20%); dark branch 23% (more transparent)", () => {
     const r = getGlassHeroStyle(true)
-    expect(r.backgroundColor).toContain("var(--card) 40%")
+    // mode-aware light-dark bg; hero stays a tier above regular in both branches
+    expect(r.backgroundColor).toContain("var(--card) 27%") // light fill (clean white frost)
+    expect(r.backgroundColor).toContain("var(--card) 23%") // dark fill (more transparent)
   })
 })
 

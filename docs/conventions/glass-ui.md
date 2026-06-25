@@ -8,19 +8,38 @@ Copilot 打开时，**主内容区**统一切换到"玻璃梯度"视觉语言（
 
 **Primitive（材质 + 高度 + 基础配色）**：
 
-| 档 | blur | bg opacity (亮) | 典型角色 |
+| 档 | blur | bg fill 亮 / 暗 | 典型角色 |
 |---|---|---|---|
-| **thin** | 16px | 8% | 数据密集行级卡 / 表格单元格 |
-| **regular** | 28px | 35% | 页面主外壳 + 内容卡（默认档） |
-| **thick** | 40px | 55% | 浮层（Dialog / Select content / 自建 popover） |
-| **tinted** | 28px | accent 14% 透底 | primary CTA / segmented selected / active tab（对齐 GlassSegmentedItem active 发光带） |
+| **thin** | 14px | 6% / 3% | 数据密集行级卡 / 表格单元格 |
+| **regular** | 20px | 20% / 11% | 页面主外壳 + 内容卡（默认档） |
+| **thick** | 28px | 30% / 19% | 浮层（Dialog / Select content / 自建 popover） |
+| **tinted** | 20px | accent 13% / 9% 透底 | primary CTA / segmented selected / active tab（对齐 GlassSegmentedItem active 发光带） |
 
-> Sticky 顶/底结构条（compare header / StickySaveBar 等）之前是 9 档玻璃的 chrome-up / chrome-down 两档，R2 #T3 因各只 1 个调用点 inline 进 `src/components/glass/sticky-chrome.tsx` —— 用 `<GlassStickyHeader>` / `<GlassStickyFooter>` 而非 `useGlassStyle("...")`。Sticky 条 bg 45%（比 regular 高一档，悬在滚动内容上方要有材质区隔）。
+> **bg fill 是 mode-aware `light-dark(亮%, 暗%)`**：每档 `backgroundColor` 用纯 inline `light-dark()` 表达式 —— `layout.tsx` 的 `<ThemeProvider>` 没传 `enableColorScheme`，next-themes 默认 `true` → 把 `color-scheme: light|dark` 写到 `<html>`，`light-dark()` 因此按当前主题解析正确分支，**零 globals.css 改动、不需要 `.dark`-keyed CSS-var fallback**。两档不是同一个值的明暗复制，而是 mode-tuned：
+> - **亮模式 = clean white frost，克制**（`var(--card)`）：thin 6% / regular 系 20% / thick 30% / tinted(accent) 13% / sticky 26% / hero 27% / semantic 20%。
+> - **暗模式 = 更透**（`var(--card)`）：thin 3% / regular 系 11% / thick 19% / tinted(accent) 9% / sticky 17% / hero 23%。
+>
+> **WHY**：近白 LIGHT 底上，透明白 fill 要么读成奶白（太高）要么消失（太低），所以亮模式用 clean restrained 白霜；DARK 底 + ambient glow 下更透让 glow 透出来。**两条都试过且都已 REVERTED**：「中性灰 tint」把 glow 搅浑、「multiply-glow 染色衬底」过饱和 / 伤可读性。glow / 背景维持 baseline 的 calm pastel，`globals.css` 与 main 一致**不动**。
+>
+> Sticky 顶/底结构条（compare header / StickySaveBar 等）之前是 9 档玻璃的 chrome-up / chrome-down 两档，各只 1 个调用点 inline 进 `src/components/glass/sticky-chrome.tsx` —— 用 `<GlassStickyHeader>` / `<GlassStickyFooter>` 而非 `useGlassStyle("...")`。Sticky 条 bg light 26% / dark 17%（两分支都比 regular 高一档，悬在滚动内容上方要有材质区隔），blur 20 + brightness(1.06) contrast(1.05)。
+>
+> hero（一页一个的加重外壳，`GlassHero`，不进 7 档 union）：blur 36（全系最重的 blur，单页一个外壳成本可忽略）+ bg light 27% / dark 23%（两分支都比 regular 实一档）+ brightness(1.10) contrast(1.03)。
 
-**统一标尺（Track A premium-edge，2026-06）**：切边语言从「顶/底平切高光」升级为**方向性 rim**——左上提亮 `inset 1px 1px 0 oklch(1 0 0 / α)` + 右下压暗 `inset -1px -1px 0 oklch(0 0 0 / α)`，模拟玻璃斜切边吃光（光源默认左上，与 copilot-glow 四角光呼应）。α 按档加重：thin 0.3/0.05 · regular 系（含 tinted/semantic）0.55/0.07 · thick 0.65/0.1（thick 用 1.5px 偏移）。border alpha 不变：thin 45% / regular 50% / thick 60% / semantic 55%。
-**thick 独占**（few-hero，数据密集档不挂以免亮底列表把色边读成 bug——本轮 fringe 仅 thick）：色散 fringe（左缘暖红 `oklch(0.62 0.21 25)` / 右缘冷蓝 `oklch(0.66 0.17 255)` 1px 内描）+ 内折光（顶部柔和内高光）+ 镜面扫光（静态 `linear-gradient(135deg)` backgroundImage）。
-**关键不变量**：blur 半径全档逐字节不变（16/28/40），升级只在 `box-shadow` / `background-image`——不引入新 backdrop-filter paint 成本。`src/components/glass/__tests__/shell.test.ts` 的 "Track A premium edge" describe 锁死 filter buffer + fringe/扫光只挂 thick。a11y：`prefers-reduced-transparency` / `prefers-contrast:more` 已补 `box-shadow: none`，否则 rim/fringe/扫光会漏在实底收敛卡上。
-**嵌套去重**（perf）：`[data-glass-variant]` 嵌套时内层自动失去 backdrop-filter（`globals.css` 一条 `!important` 规则；thick / sticky-up / sticky-down 例外）——嵌套层的 backdrop 本来就是外层糊过的，再 blur 是乘法级 paint 成本。regular 嵌 regular 时内层 bg 同时降到 20% 防不透明度叠闷。写嵌套玻璃时不需要（也不应该）手动绕过。
+**blur（mode-agnostic）**：thin 14 / regular 20 / thick 28 / sticky 20 / hero 36 / tinted 20。沿系统演进从初始的 16 / 28 / 40 降下来 —— blur = paint 成本，**只降不升**（再降会杀掉玻璃质感）；数据密集 thin 一页数百张更要守。
+
+**luminance（backdrop-filter）**：regular `brightness(1.08) contrast(1.04)` · thick `brightness(1.12) contrast(1.05)` · thin `brightness(1.07)` · hero `brightness(1.10) contrast(1.03)` · sticky `brightness(1.06) contrast(1.05)`；saturate 1.25–1.35。这是色矩阵 compositor-only 操作（不开新 paint buffer，近乎免费），补上 saturate 之外的「透亮」杠杆。**暗模式 legibility 钳制**：`brightness()` 会把已近白的渐变核进一步推白、压扁浅灰 muted text 的 ΔL —— 所以 regular/semantic brightness 收在 **1.08**（不顶满 1.10）、sticky 收在 **1.06**，改让 `contrast` 担可读性主力。thick 不受钳制（正文是近白 card-foreground，headroom 足）。
+
+**统一标尺（Track A premium-edge）**：切边语言是**方向性 rim** —— 左上提亮 + 右下压暗的内描，模拟玻璃斜切边吃光（光源默认左上，与 copilot-glow 四角光呼应）。final 态 rim 是 **hairline feathered** 软细线：`RIM_THIN` / `RIM_REGULAR` / `RIM_THICK` 用 **1px（thick 2px）BLURRED inset**（modest α 的左上高光 + 白顶线 + 一道极淡白底落地线）。**右下黑切边层在大档全部 DROP**（regular / thick / tinted / semantic / sticky 去掉最弱的 `inset -1px -1px ... oklch(0 0 0 / α)`，避免读成生硬「贴纸轮廓」）；**只有 thin 保留**它自己的右下暗 inset —— 数据密集档无白底落地线，需第三条 offset 闭合 corner。仍是 1-2px feather 模糊内描，**不**回 0-blur 锐利。border alpha：thin 45% / regular 50% / thick 60% / semantic 55%。
+**thick 独占**（few-hero，数据密集档不挂以免亮底列表把色边读成 bug）：色散 `FRINGE`（左缘暖红 `oklch(0.62 0.21 25)` / 右缘冷蓝 `oklch(0.66 0.17 255)` 1px 内描）+ 内折光 `INNER_GLOW`（顶部柔和内高光，补薄 fill 的「内部有厚度」线索，是内部柔光不是边描）+ 镜面 `SWEEP`（静态 `linear-gradient(135deg)` backgroundImage）。
+**CALM 近白 baseline glow 下卡片靠什么 distinct**：fill 薄 + 边薄后，distinctness 几乎全靠三件套 ——「左上高光细线 + 1px border（regular 50% / thin 45% / thick 60% / sticky 50%）+ 外 drop-shadow（regular `0 20px 50px -20px /0.22`、thick `0 30px 60px -15px`，投影是近白底上卡片浮起的主载体）」。右下黑层本就是最弱的一层、暗模式 `--card` 近黑时隐形，去掉无损。硬不变量：**fringe + 扫光只挂 thick**（数据密集档不读色边/扫光）。
+
+**instant-blur transition（开场转折修复）**：`baseTransition`（`shell.tsx` + `sticky-chrome.tsx` 两处）**不列 `backdrop-filter`** —— 只过渡 background-color / border-color / box-shadow / background-image 四条。根因：`backdrop-filter: none→blur()` **不可插值**，会在过渡末尾整体 snap，而 `background-color` 平滑淡入 —— 两条不同步会让亮模式 copilot 打开时出现「先透亮、后『啪』结霜」两段转折。把 `backdrop-filter` 从 transition 删掉后 blur 瞬时生效：从 t=0 就在，但此刻盖在仍不透明的卡面上**看不见**，随 fill 淡出被平滑揭示 → frost 与透亮同时到达。**关键约束**：closed 态仍只返回 `{ transition }`、**绝不加任何 backdrop-filter（连 `blur(0)` 都不加）** —— 300 行数据密集页 closed-state 零 backdrop 成本（`blur(0)` 也会让每个 closed 卡开 backdrop paint buffer，回归 perf）。
+
+**byte-lock 测试**：`src/components/glass/__tests__/` 三个测试对每档 fill 同时断言**亮 %** 与**暗 %**、锁 filter 字面量、锁 hairline「右下暗只 thin 保留」断言 + fringe/扫光只挂 thick：`shell.test.ts`（per-tier bg + tinted accent% + Track A premium edge）、`sticky-chrome.test.ts`（sticky bg / blur / rim inset）、`glass-lens.test.ts`（hero blur 36 + bg）。a11y：`[data-glass-variant]` selector 已 zero 掉 `backdrop-filter` / `background-image` / `box-shadow`（`prefers-reduced-transparency` / `prefers-contrast:more` / `forced-colors`），brightness / contrast 与 rim 在降级态被一并剥掉，**无需改 globals.css**。
+
+**perf**：GPU 60fps、0 stalls（blur 沿演进降低并 hold、无新 backdrop 成本；`light-dark()` + box-shadow 都是 compositor-cheap）。相对 baseline（main @ 293769d）的净变化：mode-aware `light-dark()` fills（亮 clean-frost / 暗更透）、降低的 blur、hairline 边、instant-blur transition 修复。glow 不动。
+
+**嵌套去重**（perf）：`[data-glass-variant]` 嵌套时内层自动失去 backdrop-filter（`globals.css` 一条 `!important` 规则；thick / sticky-up / sticky-down 例外）——嵌套层的 backdrop 本来就是外层糊过的，再 blur 是乘法级 paint 成本。regular 嵌 regular 时内层 bg 降一档防不透明度叠闷（该 dedup 在 `globals.css`，独立于 per-tier fill 数字）。写嵌套玻璃时不需要（也不应该）手动绕过。
 
 **Semantic（Regular 材质 + 语义 border + 语义 ambient shadow）**：
 
