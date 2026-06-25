@@ -10,6 +10,8 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-06-25 · Glass UI mode-aware light-dark 玻璃（明亮白霜 / 暗色透明 · PR #137）
+
 ### Changed
 
 - **Glass UI · mode-aware 玻璃填充重做**（copilot 打开态全 7 档 + sticky/hero）——填充色改用 CSS `light-dark()`，next-themes 设的 `color-scheme` 让它按当前主题解析，明暗两套各自调校：
