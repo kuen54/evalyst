@@ -43,6 +43,35 @@ function colorForTag(tag: number): string {
   return COLORS[(tag - 1) % COLORS.length]!
 }
 
+// 合成定位（compositor-only）：把 rect 转成 translate3d 定位 style 片段。
+// 照搬 inspector-overlay.tsx 的配方：外层锚 top:0/left:0，定位走 transform，
+// width/height 仍内联（这两个不会每帧脏化 layout，因为外层是 fixed 且尺寸驱动 inner inset-0）。
+// 几何沿用原 mask 的 -2px 偏移 + +4px 尺寸 padding。不返回 top/left key（证明走 transform 而非 layout 定位）。
+function maskMotionStyle(rect: DOMRect): { transform: string; width: number; height: number } {
+  return {
+    transform: `translate3d(${rect.left - 2}px, ${rect.top - 2}px, 0)`,
+    width: rect.width + 4,
+    height: rect.height + 4,
+  }
+}
+
+// #4 短路判定：逐项比较 prev/next 的 elementKey + tag + rect 四值，全等就跳过 setRects，
+// 避免每滚动帧无条件 setState(全新数组) 触发整树重渲。参 inspector-overlay 的 equal-rect 思路。
+function rectsEqual(prev: MaskRect[] | null, next: MaskRect[]): boolean {
+  if (!prev || prev.length !== next.length) return false
+  for (let i = 0; i < next.length; i++) {
+    const a = prev[i]!
+    const b = next[i]!
+    if (a.elementKey !== b.elementKey || a.tag !== b.tag) return false
+    const ar = a.rect
+    const br = b.rect
+    if (ar === null && br === null) continue
+    if (ar === null || br === null) return false
+    if (ar.top !== br.top || ar.left !== br.left || ar.width !== br.width || ar.height !== br.height) return false
+  }
+  return true
+}
+
 export function ContextMask() {
   const { contexts, removeContext, open } = useCopilotStore()
   const t = useT()
@@ -50,6 +79,8 @@ export function ContextMask() {
   const pathname = usePathname()
   const [rects, setRects] = useState<MaskRect[]>([])
   const frameRef = useRef<number | null>(null)
+  // 上一次提交的 rects；#4 短路用它跟新算出的 out 比，全等就不 setRects。
+  const lastRectsRef = useRef<MaskRect[] | null>(null)
   const observerRef = useRef<ResizeObserver | null>(null)
   // elementKey → 已解析的 DOM 元素。querySelector 只在 contexts/pathname 变化或元素
   // 失联时跑；scroll/resize 的每帧 recompute 只读 getBoundingClientRect。
@@ -58,6 +89,7 @@ export function ContextMask() {
   const recompute = useCallback(() => {
     frameRef.current = null
     if (contexts.length === 0) {
+      lastRectsRef.current = []
       setRects([])
       return
     }
@@ -81,6 +113,9 @@ export function ContextMask() {
         rect: el ? el.getBoundingClientRect() : null,
       }
     })
+    // #4: rect 全未变（滚动到底/无尺寸变化的帧）就跳过 setState，省一次整树重渲。
+    if (rectsEqual(lastRectsRef.current, out)) return
+    lastRectsRef.current = out
     setRects(out)
   }, [contexts])
 
@@ -140,43 +175,49 @@ export function ContextMask() {
         if (!r.rect) return null
         const color = colorForTag(r.tag)
         return (
+          // 外层 wrapper：只做合成定位（translate3d，compositor-only，不脏 layout）。
+          // 锚 top:0/left:0 + width/height inline（驱动 inner inset-0），不挂 will-change、不挂 mask-enter。
           <div
             key={r.elementKey}
             data-copilot-overlay
-            className="fixed pointer-events-none z-[9996] rounded-sm copilot-mask-enter"
-            style={{
-              top: r.rect.top - 2,
-              left: r.rect.left - 2,
-              width: r.rect.width + 4,
-              height: r.rect.height + 4,
-              border: `2px solid ${color}`,
-              backgroundColor: `${color.replace("rgb", "rgba").replace(")", " / 0.08)")}`,
-              boxShadow: `0 0 0 3px ${color.replace("rgb", "rgba").replace(")", " / 0.15)")}`,
-            }}
+            className="fixed top-0 left-0 pointer-events-none z-[9996]"
+            style={maskMotionStyle(r.rect)}
           >
-            {/* 数字徽章 —— 左上角 */}
+            {/* inner：独占 .copilot-mask-enter 的 scale 弹出（transform 落在本元素，不覆盖 wrapper 定位）。
+                承载 border/bg/shadow；badge/× 作为其 absolute 子节点，四角坐标与原一致。 */}
             <div
               data-copilot-overlay
-              className="absolute -top-2.5 -left-2.5 pointer-events-auto"
+              className="absolute inset-0 rounded-sm copilot-mask-enter"
+              style={{
+                border: `2px solid ${color}`,
+                backgroundColor: `${color.replace("rgb", "rgba").replace(")", " / 0.08)")}`,
+                boxShadow: `0 0 0 3px ${color.replace("rgb", "rgba").replace(")", " / 0.15)")}`,
+              }}
             >
-              <span
-                className="w-5 h-5 rounded-full text-[11px] font-bold text-white flex items-center justify-center shadow-sm"
-                style={{ backgroundColor: color }}
+              {/* 数字徽章 —— 左上角 */}
+              <div
+                data-copilot-overlay
+                className="absolute -top-2.5 -left-2.5 pointer-events-auto"
               >
-                {r.tag}
-              </span>
+                <span
+                  className="w-5 h-5 rounded-full text-[11px] font-bold text-white flex items-center justify-center shadow-sm"
+                  style={{ backgroundColor: color }}
+                >
+                  {r.tag}
+                </span>
+              </div>
+              {/* X 移除按钮 —— 右上角 */}
+              <button
+                data-copilot-overlay
+                onClick={() => removeContext(r.elementKey)}
+                className="absolute -top-2.5 -right-2.5 pointer-events-auto w-5 h-5 rounded-full bg-white/95 hover:bg-white border flex items-center justify-center text-[11px] leading-none text-muted-foreground hover:text-destructive shadow-sm transition-colors"
+                style={{ borderColor: color }}
+                title={t("copilot.context_remove_title")}
+                aria-label={t("copilot.context_remove_title")}
+              >
+                ×
+              </button>
             </div>
-            {/* X 移除按钮 —— 右上角 */}
-            <button
-              data-copilot-overlay
-              onClick={() => removeContext(r.elementKey)}
-              className="absolute -top-2.5 -right-2.5 pointer-events-auto w-5 h-5 rounded-full bg-white/95 hover:bg-white border flex items-center justify-center text-[11px] leading-none text-muted-foreground hover:text-destructive shadow-sm transition-colors"
-              style={{ borderColor: color }}
-              title={t("copilot.context_remove_title")}
-              aria-label={t("copilot.context_remove_title")}
-            >
-              ×
-            </button>
           </div>
         )
       })}
@@ -184,4 +225,5 @@ export function ContextMask() {
   )
 }
 
-export { colorForTag }
+export { colorForTag, maskMotionStyle, rectsEqual }
+export type { MaskRect }
