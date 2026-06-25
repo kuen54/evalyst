@@ -10,6 +10,15 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+## [0.20.1] — 2026-06-25 · copilot 圈选蒙层 translate3d 合成定位 + setRects 短路（PR #138）
+
+> 来自「copilot 打开 + 圈选元素」场景性能审计的两处确认可修项。整体场景性能健康；#1（streaming 期 hero blur 重栅）M3 实测不掉帧、保留既往 trade-off 不修；#3/#5/#6 留作 low-priority follow-up。配方照搬已上线的 `inspector-overlay.tsx`（同款 translate3d 定位 + equal-rect 短路）。`globals.css` 零改动。五件套 + e2e 全绿（CI #138 verify+e2e success）；功能实测 10 mask 滚动 maxDev=0.00px 跟手；性能差分隔离证 mask 归因 LayoutCount delta ≈0、LayoutDuration ~0.3ms。
+
+### Performance
+
+- **copilot 圈选蒙层（ContextMask）改 translate3d 合成定位**——`src/copilot/components/context-mask.tsx` 的 mask 定位从 `top/left`（layout 属性，圈选 N 个后每滚动帧触发 N 次同步 relayout）改为 **translate3d**（compositor-only，不脏 layout）。用 **wrapper/inner 拆分**：外层 `fixed` 只做 translate3d 定位（不挂 will-change / mask-enter），内层 `absolute inset-0` 独占 `.copilot-mask-enter` 的 scale 弹出 + border/bg/shadow，badge/× 为内层子节点（四角坐标不变）——避免定位 transform 与 mask-enter 的 scale keyframe 在同一元素互相覆盖。
+- **跳过 rect 未变化帧的 setRects**——recompute 加 `rectsEqual` + `lastRectsRef` 短路，rect 未变时不调用 `setRects`，省整树重渲。抽出纯函数 `maskMotionStyle` / `rectsEqual` + 12 例单测。
+
 ## [0.20.0] — 2026-06-25 · Glass UI mode-aware light-dark 玻璃（明亮白霜 / 暗色透明 · PR #137）
 
 ### Changed
