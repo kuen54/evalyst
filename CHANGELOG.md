@@ -10,6 +10,16 @@ Tag 打在特性**稳定且短期不再改**的点上（不是每次 PR merge �
 
 ## [Unreleased]
 
+### Changed
+
+- **Glass UI · mode-aware 玻璃填充重做**（copilot 打开态全 7 档 + sticky/hero）——填充色改用 CSS `light-dark()`，next-themes 设的 `color-scheme` 让它按当前主题解析，明暗两套各自调校：
+  - **Light = 克制干净的白霜**（`var(--card)` 不透明度 thin 6% / regular 20% / thick 30% / tinted 13% / sticky 26% / hero 27% / 语义档 20%）——近白背景上透明白要么发奶要么消失，所以明亮模式走克制白霜而非透明。
+  - **Dark = 更透**（thin 3% / regular 11% / thick 19% / tinted 9% / sticky 17% / hero 23%）——暗背景 + 环境辉光下让辉光透过来读。
+  - **降 blur**：thin 14 / regular 20 / thick 28 / sticky 20 / hero 36 / tinted 20（较原 16/28/40 整体下调）。
+  - **边缘改发丝级羽化**：RIM 用 1px（thick 2px）模糊内阴影，去掉大档上原本的硬 1px ring + 右下暗 bevel——软薄边而非「贴纸描边」；fringe / 扫光 / 内折光仍 thick 限定。
+  - **打开过渡修复**：`baseTransition` 不再列 `backdrop-filter`，copilot 打开时 blur **瞬时生效**（不再「先透明后结霜」两段式——霜从 t=0 就在，盖在不透明卡下不可见，随填充淡出而显形）；关闭态仍纯 transition 无 backdrop-filter，300 行数据密集页零成本。
+  - 辉光/背景维持 baseline 淡彩（`globals.css` 不变）——曾试中性灰底与 multiply-glow 着色基底，均**回退**（灰把辉光搅浑、multiply 过饱和伤可读性）。Track B 折射 lens 与 v0.19.0 一致，未动。
+
 ## [0.19.0] — 2026-06-24 · Glass UI Track B 真折射 lens（PR #136）
 
 > 真 `feDisplacementMap` backdrop 折射（Chromium-only，叠在 Track A premium-edge 之上）。看得见的主角是「液态玻璃 BAR」——结果列表 sticky 表头条，结果行从底下滚过时可见地涟漪折射；外加 Dialog/compare popover 的 thick portal 折射（基础设施、几乎看不见）。撤掉全页 hero 折射（GPU 也 60fps 但视觉不可见——背后是平滑 glow）+ Select 折射（常驻 url() 节点 / 违反 copilot 面板扁平）。真 GPU 实测性能中性：idle/滚动 60fps、折射 ON vs OFF p50 delta 0.0ms（全在合成器跑）、有界 1 节点（bar）零行泄漏。组件级 a11y/inspector + Blink-family probe 门控；非 Blink / a11y 降级优雅落回 blur，`-webkit` 永远 blur 字面量。五件套 + 57 e2e + 多 agent「各种手段」验收全绿。

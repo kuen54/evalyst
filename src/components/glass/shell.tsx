@@ -12,52 +12,83 @@ type GlassVariant =
   | "warning"
   | "danger"
 
+// backdrop-filter is DELIBERATELY excluded from this transition: backdrop-filter does NOT
+// interpolate none→blur(), so when copilot opens it snaps in late, AFTER background-color has
+// already faded — light mode shows a two-stage 「先透亮、后结霜」转折. Excluding it makes the blur
+// apply instantly (present from t=0 but invisible over the still-opaque card, revealed smoothly as
+// the fill fades) → frost + transparency arrive together. Closed state still returns { transition }
+// only with NO backdrop-filter → zero backdrop cost on the data-dense 300-row page.
 const baseTransition =
-  "background-color 320ms ease, backdrop-filter 320ms ease, border-color 320ms ease, box-shadow 320ms ease, background-image 320ms ease"
+  "background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease, background-image 320ms ease"
 
 // ---- Track A「premium edge」光学配方片段（纯 box-shadow / background-image，零 filter 成本，跨浏览器一致）----
 //
-// blur / saturate / bg-color 一律不动（filter buffer 不变 = 不引入新 paint 成本，详情页 N 行列表安全）。
-// 升级只发生在「边缘光学」：方向性 rim 全档共享；色散 fringe + 内折光 + 镜面扫光仅 thick（few-hero，
-// 数据密集的 thin/regular/tinted/semantic 不挂色散，避免亮底列表把色边读成 bug —— 用户钦定 fringe 仅 thick/hero）。
+// MODE-AWARE FILLS（light-dark()）：每档 fill 是 `light-dark(<亮模式 fill>, <暗模式 fill>)`，next-themes 在
+// <html> 上设 color-scheme（enableColorScheme 默认开），light-dark() 按当前主题解析。
+//  · LIGHT = clean white frost，restrained —— var(--card)：thin 6% / regular 系 20% / thick 30% / tinted(accent) 13% /
+//    sticky 26% / hero 27% / semantic 20%。
+//  · DARK = 更透 —— var(--card)：thin 3% / regular 系 11% / thick 19% / tinted(accent) 9% / sticky 17% / hero 23%。
+//  WHY：近白 LIGHT 底上，透明白 fill 要么读成奶白（太高）要么消失（太低），所以亮模式用 clean restrained 白霜；
+//  DARK 底 + ambient glow 下更透让 glow 透出来。曾试过「中性灰 tint」与「multiply-glow 染色衬底」，两者都已回退
+//  （灰把 glow 搅浊、multiply 过饱和伤可读性）；glow/背景维持 baseline calm pastel，globals.css 不动。
+//  · blur 半径：thin 14 / regular 20 / thick 28 / hero 36（mode-agnostic；blur=paint 成本只降不升，再降会杀掉玻璃质感；
+//    数据密集 thin 一页数百张更要守）。luminance 旋钮 compositor-only 色矩阵、airier fill 下撑可读性。
 //
-// 方向性 rim：左上提亮 / 右下压暗 = 玻璃斜切边吃光（光源默认左上，与 copilot-glow 四角光呼应）。按档加重 alpha。
-// regular/thick 额外补一道极淡白底线 `inset 0 -1px 0`：暗模式 --card 近黑，右下黑切边隐形会让 bevel 塌成单边，
-// 白底线（绝对白）在亮/暗两边都读得出，给（较大的）卡片稳定的「落地」下沿。
-// thin 是数据密集档（results 列表一行一张，可达数百张），刻意只留 2 层 0-blur 内描、不加白底线 ——
-// 每行少一层 box-shadow paint，下沿靠相邻行的顶高光读出，把数据密集场景的 per-row 成本压到最低。
-const RIM_THIN = "inset 1px 1px 0 oklch(1 0 0 / 0.3), inset -1px -1px 0 oklch(0 0 0 / 0.05)"
+// 边缘 → HAIRLINE：rim 是「barely-there 但仍描出面板」的最小 feathered 细线。
+//  (a) bevel 用 1px（thick 2px）BLURRED inset，modest α；
+//  (b) regular / thick / tinted / semantic / sticky 不挂右下暗切边层 —— 这些档只剩「左上高光 + 白顶线 + 一道
+//      极淡白底落地线」（tinted 另有 accent 环闭合 4 角），边是 barely-there 的软细描。只有 thin（数据密集、无白底
+//      落地线，需第三条 offset 闭合 corner）保留它自己的右下暗 inset。
+// 是 1-2px feather 模糊内描，**不**回 0-blur 锐利（避免生硬「贴纸轮廓」）。
+//
+// CRITICAL TENSION（背景是 CALM 近白 baseline glow，fill 薄 + 边薄、卡片有溶进底的风险）：distinctness
+// 几乎全靠 (1) 左上高光细线 + (2) 1px border（border-color color-mix，几何实边：regular 50% / thin 45% /
+// thick 60% / sticky 50%）+ (3) 外 drop-shadow（regular `0 20px 50px -20px /0.22`、thick `0 30px 60px -15px`，
+// 投影是近白底上卡片「浮起」的主载体）。左上高光 + 底缘白落地线（`inset 0 -1px 1px`）在亮/暗双向都读得出。
+// thick INNER_GLOW 给薄 fill 补「内部有厚度」线索（内部柔光、不是边描，不参与 hairline 收薄）。
+// 暗模式 legibility 钳制：regular/semantic brightness 收在 1.08（不到 recipe 的 1.10）—— brightness 会把
+// 已近白的渐变核进一步推白、压扁浅灰 muted text 的 ΔL，改让 contrast(1.04) 担可读性主力。升级仍只发生在
+// 「边缘光学 + fill/blur」：方向性 rim 全档共享；色散 fringe + 内折光 + 镜面扫光仅 thick（few-hero，数据密集的
+// thin/regular/tinted/semantic 不挂色散，避免亮底列表把色边读成 bug —— 本轮仍明确 NOT 给 regular 加
+// SWEEP_SOFT/FRINGE_SOFT）。
+const RIM_THIN =
+  "inset 1px 1px 1px oklch(1 0 0 / 0.4), inset 0 1px 1px oklch(1 0 0 / 0.16), inset -1px -1px 1px oklch(0 0 0 / 0.05)"
 const RIM_REGULAR =
-  "inset 1px 1px 0 oklch(1 0 0 / 0.55), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset -1px -1px 0 oklch(0 0 0 / 0.07), inset 0 0 0 1px oklch(1 0 0 / 0.08)"
+  "inset 1px 1px 1px oklch(1 0 0 / 0.42), inset 0 1px 1px oklch(1 0 0 / 0.22), inset 0 -1px 1px oklch(1 0 0 / 0.1)"
 const RIM_THICK =
-  "inset 1.5px 1.5px 0 oklch(1 0 0 / 0.65), inset 0 -1px 0 oklch(1 0 0 / 0.1), inset -1.5px -1.5px 0 oklch(0 0 0 / 0.1), inset 0 0 0 1px oklch(1 0 0 / 0.12)"
+  "inset 1px 1px 2px oklch(1 0 0 / 0.5), inset 0 1px 1px oklch(1 0 0 / 0.26), inset 0 -1px 1px oklch(1 0 0 / 0.11)"
 // 色散边：左缘暖红 / 右缘冷蓝 1px 内描，模拟玻璃边缘色散（chromatic aberration 的廉价 box-shadow 近似）。
-// 仅 thick：prototype 给 regular 也挂了 6% 弱 fringe，这里收紧为 thick-only 防数据密集列表 N 卡把彩色边读成渲染 bug。
+// 仅 thick：收紧为 thick-only 防数据密集列表 N 卡把彩色边读成渲染 bug，色边在薄 fill 上读成「刻意光学」而非渲染瑕疵。
 const FRINGE =
-  "inset 2px 0 2px -1px oklch(0.62 0.21 25 / 0.1), inset -2px 0 2px -1px oklch(0.66 0.17 255 / 0.1)"
-// 内折光：顶部柔和内高光，制造「内部有厚度」的折射错觉。
-const INNER_GLOW = "inset 0 8px 24px -14px oklch(1 0 0 / 0.18)"
+  "inset 2px 0 2px -1px oklch(0.62 0.21 25 / 0.16), inset -2px 0 2px -1px oklch(0.66 0.17 255 / 0.16)"
+// 内折光：顶部柔和内高光，制造「内部有厚度」的折射错觉（thick-only）。补回薄 fill 的「玻璃有厚度」线索 ——
+// 它是内部柔光不是边描，不参与 hairline 收薄。
+const INNER_GLOW = "inset 0 10px 28px -14px oklch(1 0 0 / 0.34)"
 // 镜面扫光：静态对角高光 backgroundImage（叠在 bg-color 之上，零动画）。a11y 媒介查询已统一 background-image:none 收敛。
-const SWEEP = "linear-gradient(135deg, oklch(1 0 0 / 0.1) 0%, oklch(1 0 0 / 0) 34%, oklch(1 0 0 / 0) 66%, oklch(1 0 0 / 0.05) 100%)"
+const SWEEP = "linear-gradient(135deg, oklch(1 0 0 / 0.12) 0%, oklch(1 0 0 / 0) 34%, oklch(1 0 0 / 0) 66%, oklch(1 0 0 / 0.06) 100%)"
 
 /**
  * Pure function to compute glass style for a given variant and open state.
  *
  * Copilot 玻璃梯度系统 7 档（4 primitive + 3 semantic）：
  *
- * Primitive:
- * - thin        — chrome / sticky / 数据单元格（blur 16, bg transparent）
- * - regular     — 页面主外壳 + 内容卡（blur 28, bg 35% card）
- * - thick       — 浮层 / copilot panel / dialog（blur 40, bg 55% card, 更重阴影 + 色散/扫光）
- * - tinted      — primary CTA / active tab（blur 28, bg 35% card + accent 染色）
+ * Primitive（bg fill 为 light-dark(亮模式 clean white frost, 暗模式更透)）:
+ * - thin        — chrome / sticky / 数据单元格（blur 14, bg light 6% / dark 3% card）
+ * - regular     — 页面主外壳 + 内容卡（blur 20, bg light 20% / dark 11% card）
+ * - thick       — 浮层 / copilot panel / dialog（blur 28, bg light 30% / dark 19% card, 更重阴影 + 色散/扫光）
+ * - tinted      — primary CTA / active tab（blur 20, bg accent light 13% / dark 9% + accent 染色）
  *
  * Semantic（Regular 材质 + 语义 border + 弱 ambient 色光）：
  * - success — 正向状态卡（emerald 边）
  * - warning — 提示 / 引导 banner（amber 边）
  * - danger  — 错误 / 警告卡（red 边）
  *
- * Track A premium-edge：全档加方向性 rim（左上亮/右下暗斜切高光）；thick 额外挂色散 fringe + 内折光 +
- * 镜面扫光。blur 半径全档保持 16/28/40 不变，升级只在 box-shadow / background-image。
+ * Track A premium-edge：全档加方向性 rim（左上亮/右下暗斜切细光线）；thick 额外挂色散 fringe +
+ * 内折光 + 镜面扫光。MODE-AWARE FILLS：每档 fill 包成 light-dark(亮模式 clean white frost, 暗模式更透)；blur 半径
+ * 14/20/28（hero 36）mode-agnostic。亮模式 fill（var(--card)）：thin 6 / regular 系 20 / thick 30 / tinted accent 13 /
+ * sticky 26 / hero 27；暗模式 fill：thin 3 / regular 系 11 / thick 19 / tinted accent 9 / sticky 17 / hero 23。
+ * rim 收成 hairline 软光（regular/thick/semantic/sticky 不挂右下暗层，SPREAD 守 1px feather 不回 0-blur 锐利）。
+ * 卡片 distinctness 在近白底上由「左上高光 + 白底落地线 + border + drop-shadow」兜底，rim 只 feather 这条几何边。
  *
  * copilot 关闭时返回 transition-only style，让外部 className 的 bg-card/bg-background 原样工作。
  */
@@ -71,9 +102,10 @@ export function getGlassStyleForVariant(
 
   if (variant === "thin") {
     return {
-      backgroundColor: "color-mix(in oklab, var(--card) 8%, transparent)",
-      backdropFilter: "blur(16px) saturate(1.2)",
-      WebkitBackdropFilter: "blur(16px) saturate(1.2)",
+      backgroundColor:
+        "light-dark(color-mix(in oklab, var(--card) 6%, transparent), color-mix(in oklab, var(--card) 3%, transparent))",
+      backdropFilter: "blur(14px) saturate(1.25) brightness(1.07)",
+      WebkitBackdropFilter: "blur(14px) saturate(1.25) brightness(1.07)",
       borderColor: "color-mix(in oklab, var(--border) 45%, transparent)",
       boxShadow: RIM_THIN,
       transition: baseTransition,
@@ -82,10 +114,11 @@ export function getGlassStyleForVariant(
 
   if (variant === "thick") {
     return {
-      backgroundColor: "color-mix(in oklab, var(--card) 55%, transparent)",
+      backgroundColor:
+        "light-dark(color-mix(in oklab, var(--card) 30%, transparent), color-mix(in oklab, var(--card) 19%, transparent))",
       backgroundImage: SWEEP,
-      backdropFilter: "blur(40px) saturate(1.3)",
-      WebkitBackdropFilter: "blur(40px) saturate(1.3)",
+      backdropFilter: "blur(28px) saturate(1.35) brightness(1.12) contrast(1.05)",
+      WebkitBackdropFilter: "blur(28px) saturate(1.35) brightness(1.12) contrast(1.05)",
       borderColor: "color-mix(in oklab, var(--border) 60%, transparent)",
       boxShadow:
         `${RIM_THICK}, ${FRINGE}, ${INNER_GLOW}, 0 30px 60px -15px oklch(0 0 0 / 0.32), 0 6px 16px -8px oklch(0 0 0 / 0.12)`,
@@ -94,17 +127,20 @@ export function getGlassStyleForVariant(
   }
 
   if (variant === "tinted") {
-    // 对齐 GlassSegmentedItem active 的"发光带"视觉：单层 accent 14% 透底 +
+    // 对齐 GlassSegmentedItem active 的"发光带"视觉：单层 accent 透底（light-dark：亮 13% / 暗 9%）+
     // accent 55% 边 + accent ambient 外光 + 方向性 rim 高光。文字色由调用方
     // 走 `text-foreground`（Button 通过 data-[copilot-tinted=on]:text-foreground
     // 覆盖默认的 text-primary-foreground 实现自适应）。fringe 仅 thick/hero，tinted 不挂。
+    // hairline：tinted 不挂右下黑 bevel —— accent 发光带自带的 inset accent 环（`inset 0 0 0 1px accent`）
+    // 已闭合 4 角，黑右下层多余且把边读重。rim 收成「左上高光 + 顶/底白线 + accent 环」hairline 软光，blur 20。
     return {
-      backgroundColor: "color-mix(in oklab, var(--copilot-accent) 14%, transparent)",
-      backdropFilter: "blur(28px) saturate(1.25)",
-      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
+      backgroundColor:
+        "light-dark(color-mix(in oklab, var(--copilot-accent) 13%, transparent), color-mix(in oklab, var(--copilot-accent) 9%, transparent))",
+      backdropFilter: "blur(20px) saturate(1.3) brightness(1.08)",
+      WebkitBackdropFilter: "blur(20px) saturate(1.3) brightness(1.08)",
       borderColor: "color-mix(in oklab, var(--copilot-accent) 55%, transparent)",
       boxShadow:
-        "inset 1px 1px 0 oklch(1 0 0 / 0.55), inset 0 -1px 0 oklch(1 0 0 / 0.08), inset -1px -1px 0 oklch(0 0 0 / 0.07), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 25%, transparent), 0 3px 10px -2px color-mix(in oklab, var(--copilot-accent) 40%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
+        "inset 1px 1px 1px oklch(1 0 0 / 0.38), inset 0 1px 1px oklch(1 0 0 / 0.18), inset 0 -1px 1px oklch(1 0 0 / 0.07), inset 0 0 0 1px color-mix(in oklab, var(--copilot-accent) 28%, transparent), 0 3px 10px -2px color-mix(in oklab, var(--copilot-accent) 42%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.22)",
       transition: baseTransition,
     }
   }
@@ -112,9 +148,10 @@ export function getGlassStyleForVariant(
   if (variant === "success") {
     // Regular 材质 + emerald-500 border + 弱 emerald ambient shadow + 方向性 rim
     return {
-      backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
-      backdropFilter: "blur(28px) saturate(1.25)",
-      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
+      backgroundColor:
+        "light-dark(color-mix(in oklab, var(--card) 20%, transparent), color-mix(in oklab, var(--card) 11%, transparent))",
+      backdropFilter: "blur(20px) saturate(1.3) brightness(1.08) contrast(1.04)",
+      WebkitBackdropFilter: "blur(20px) saturate(1.3) brightness(1.08) contrast(1.04)",
       borderColor: "color-mix(in oklab, oklch(0.696 0.17 162.48) 55%, transparent)",
       boxShadow:
         `${RIM_REGULAR}, 0 4px 14px -4px color-mix(in oklab, oklch(0.696 0.17 162.48) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)`,
@@ -125,9 +162,10 @@ export function getGlassStyleForVariant(
   if (variant === "warning") {
     // Regular 材质 + amber-500 border + 弱 amber ambient shadow + 方向性 rim
     return {
-      backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
-      backdropFilter: "blur(28px) saturate(1.25)",
-      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
+      backgroundColor:
+        "light-dark(color-mix(in oklab, var(--card) 20%, transparent), color-mix(in oklab, var(--card) 11%, transparent))",
+      backdropFilter: "blur(20px) saturate(1.3) brightness(1.08) contrast(1.04)",
+      WebkitBackdropFilter: "blur(20px) saturate(1.3) brightness(1.08) contrast(1.04)",
       borderColor: "color-mix(in oklab, oklch(0.769 0.188 70.08) 55%, transparent)",
       boxShadow:
         `${RIM_REGULAR}, 0 4px 14px -4px color-mix(in oklab, oklch(0.769 0.188 70.08) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)`,
@@ -138,9 +176,10 @@ export function getGlassStyleForVariant(
   if (variant === "danger") {
     // Regular 材质 + red-500 border + 弱 red ambient shadow + 方向性 rim
     return {
-      backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
-      backdropFilter: "blur(28px) saturate(1.25)",
-      WebkitBackdropFilter: "blur(28px) saturate(1.25)",
+      backgroundColor:
+        "light-dark(color-mix(in oklab, var(--card) 20%, transparent), color-mix(in oklab, var(--card) 11%, transparent))",
+      backdropFilter: "blur(20px) saturate(1.3) brightness(1.08) contrast(1.04)",
+      WebkitBackdropFilter: "blur(20px) saturate(1.3) brightness(1.08) contrast(1.04)",
       borderColor: "color-mix(in oklab, oklch(0.637 0.237 25.33) 55%, transparent)",
       boxShadow:
         `${RIM_REGULAR}, 0 4px 14px -4px color-mix(in oklab, oklch(0.637 0.237 25.33) 22%, transparent), 0 20px 50px -20px oklch(0 0 0 / 0.2)`,
@@ -150,9 +189,10 @@ export function getGlassStyleForVariant(
 
   // regular (default)
   return {
-    backgroundColor: "color-mix(in oklab, var(--card) 35%, transparent)",
-    backdropFilter: "blur(28px) saturate(1.25)",
-    WebkitBackdropFilter: "blur(28px) saturate(1.25)",
+    backgroundColor:
+      "light-dark(color-mix(in oklab, var(--card) 20%, transparent), color-mix(in oklab, var(--card) 11%, transparent))",
+    backdropFilter: "blur(20px) saturate(1.3) brightness(1.08) contrast(1.04)",
+    WebkitBackdropFilter: "blur(20px) saturate(1.3) brightness(1.08) contrast(1.04)",
     borderColor: "color-mix(in oklab, var(--border) 50%, transparent)",
     boxShadow:
       `${RIM_REGULAR}, 0 20px 50px -20px oklch(0 0 0 / 0.22), 0 4px 12px -6px oklch(0 0 0 / 0.08)`,
@@ -219,7 +259,7 @@ export const GlassDanger = makeGlass("danger", SHADCN_CARD_DEFAULTS)
 // ---- 「hero」变体：旗舰页一页一个的加重玻璃外壳（heavier blur，NO refraction）----
 //
 // GlassHero 不进 GlassVariant union、不走 getGlassStyleForVariant —— 保持 7 档配额 +
-// filter-buffer-lock 测试干净。它是 thick 档的「加重 blur」材质（blur 40 + 方向性 rim），
+// filter-buffer-lock 测试干净。它是 thick 档的「加重 blur」材质（blur 36 + 方向性 rim），
 // 给 /experiments/[id] 与 /compare 的一页一个外壳用。data-glass-variant="hero" 让四条 a11y
 // selector + inspector strip 都能匹配到它。
 //
@@ -233,10 +273,14 @@ export const GlassDanger = makeGlass("danger", SHADCN_CARD_DEFAULTS)
 export function getGlassHeroStyle(open: boolean): CSSProperties {
   if (!open) return { transition: baseTransition }
   return {
-    // 比 regular 略实一点（40% vs 35%），给大外壳的内容可读性
-    backgroundColor: "color-mix(in oklab, var(--card) 40%, transparent)",
-    backdropFilter: "blur(40px) saturate(1.3)",
-    WebkitBackdropFilter: "blur(40px) saturate(1.3)",
+    // hero fill 是 light-dark(亮 27%, 暗 23%)：亮分支 clean white frost、比 regular light 20% 实一档；
+    // 暗分支 23% 比 regular dark 11% 实一档，给一页一个的加重外壳留可读底。
+    // +brightness(1.10)/contrast(1.03) 是 hero 的 luminance 杠杆，补回薄 fill 下 hero children 文字的对比。
+    // blur 36 mode-agnostic（只降不升，与全档 blur-lock 一致）。
+    backgroundColor:
+      "light-dark(color-mix(in oklab, var(--card) 27%, transparent), color-mix(in oklab, var(--card) 23%, transparent))",
+    backdropFilter: "blur(36px) saturate(1.3) brightness(1.10) contrast(1.03)",
+    WebkitBackdropFilter: "blur(36px) saturate(1.3) brightness(1.10) contrast(1.03)",
     borderColor: "color-mix(in oklab, var(--border) 55%, transparent)",
     boxShadow:
       `${RIM_THICK}, 0 30px 60px -15px oklch(0 0 0 / 0.32), 0 6px 16px -8px oklch(0 0 0 / 0.12)`,
