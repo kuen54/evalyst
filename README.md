@@ -6,6 +6,10 @@
 
 **本地跑的通用 LLM prompt 评测平台**：一个表单定义评测任务 → 批量跑 LLM → 按维度自动呈现结果 → 跨实验对比。文件存储，不需要数据库，`docker compose up` 一条命令起。
 
+![evalyst 实验详情页](docs/screenshots/01-experiment-detail.png)
+
+**一个实验跑完长这样**：展开的「实验配置」是这次用的 prompt 模板和参数，中间是评分量表按 60 条结果聚合出的通过率 / 平均分，下面是按 `display_dimensions` 自动渲染的结果行——这一屏没有写一行展示代码。
+
 适合你的场景：
 - 同一个 prompt 想在不同模型/温度下对比
 - 同一个模型想在不同 prompt 版本下对比
@@ -16,6 +20,10 @@
 **Agent 驱动（推荐）**：Dashboard 空态和 `/settings` 顶栏各有一个「下载 SKILL.md」按钮。装上 `evalyst` skill 后，Claude Code 里一句话就能从零建数据集、评测任务、实验并跑起来——UI 专心展示结果。不想用 agent 也完全 OK，表单 UI 保持一流体验。
 
 **内嵌 Copilot**（`⌘K` 打开）：右侧滑出对话面板，能"看到"你当前屏幕上的东西 —— 圈选实验卡、task 行、prompt 模板、任意文本作为 context 发给 Copilot；切换到 copilot 模式时主内容区统一切到**玻璃 UI 语言**，和普通编辑模式视觉清晰区隔。玻璃做了 aave 风格的升级（[`docs/conventions/glass-ui.md`](docs/conventions/glass-ui.md)）：每档 fill 走 **mode-aware `light-dark()`**——亮模式是收敛的 clean white frost，暗模式更透让背景 ambient glow 透出；Track A 的 premium-edge 光学（hairline 羽化 rim + thick 浮层色散 fringe，纯 box-shadow、跨浏览器、零 filter 成本）+ Track B 的**真 `feDisplacementMap` 折射**——结果列表的 sticky 表头条是一道「液态玻璃」，结果行从底下滚过时可见地涟漪折射（Chromium-only，GPU 上零成本；其余引擎优雅降级到 blur）。工具调用闭环（代用户改模板 + 触发重跑）已 ship，详见 [`docs/copilot.md`](docs/copilot.md)。
+
+![⌘K 打开的 Copilot 面板与玻璃 UI](docs/screenshots/02-copilot-glass.png)
+
+**圈选进来的东西会变成带编号的 context**：图里两条结果被圈成 #1（蓝）和 #2（粉），输入框上方是对应的 chip，回答上面那两条 `读取圈选` 是 Copilot 真的去读了它们。主内容区同时切到玻璃语言——卡片半透，底下的 ambient gradient 透出来（这是暗色；亮模式的 fill 更收敛）。
 
 项目分两个独立域，可独立理解：
 
@@ -126,6 +134,10 @@ LLM 模型   →   数据集   →  评测任务   ⟶ 实验 ⟶  展示模板
 **关键：展示模板 95% 的场景不需要手建。** 评测任务声明 `display_dimensions`（用哪些字段分组），系统自动选最合适的内置展示（单列表 / 双维分组 / 三维网格 / 坐标叠加）。
 
 **所有资源的「创建 / 编辑」入口都是结构化表单**，手写 JSON 只在「AI agent 产出后粘贴」这一个场景下出现（每个 new 页都有一个 JSON tab 作为 fallback）。
+
+![设置页顶部的资源关系](docs/screenshots/03-settings-resources.png)
+
+**`/settings` 顶上那条就是上面这张关系图**：LLM 接口 → 数据集 → 评测任务 → 展示模板 → 评分量表，当前所在那一档高亮。黄色卡片是「下载 SKILL.md」的入口（Dashboard 空态里也有一个）。
 
 ---
 
@@ -257,6 +269,10 @@ Reference: {{reference}}
 
 **右栏预览**会实时反映推断结果：「推断的 display: `builtin_single_list`」，并用数据集前 3 条 + mock output 真实渲染出效果。
 
+![评测任务表单与右栏实时预览](docs/screenshots/04-task-builder.png)
+
+**维度选完，展示模板自己就定了**：左边给第 1 个维度配 value labels 和展示顺序（全是结构化编辑器，不是 JSON），右栏立刻推断成 `builtin_dual_list` 并用真实数据渲染出分组结果——上面那张「维度数 → 展示模板」的表，在这里是所见即所得。
+
 #### 3.7 保存
 
 点底部「保存」。存到 `data/schemas/qa_answer_v2.json`，跳转到详情页。
@@ -281,6 +297,10 @@ Reference: {{reference}}
 
 **失败 task 单条 retry**：跑完后详情页有红色「失败任务」Card，列所有 `status !== 'success'` 的 task，每条旁边一个 `↻ 重试` 按钮，只重跑这一条（不动其他成功结果）。
 
+![实验列表](docs/screenshots/05-dashboard.png)
+
+**总览页一眼看完所有批次**：一张卡是一次跑动，右上角徽章分 `已生成` / `已暂停` / `已生成 · N 失败` / `已生成 · 已评分`，右侧是进度（如 `104/104`）。暂停的点进去就能断点续跑。
+
 ### 步骤 6（可选）：评分量表 + 打分
 
 想量化评估结果？给实验绑一个 Rubric：
@@ -296,6 +316,10 @@ Reference: {{reference}}
 
 平台自带 `qa_accuracy` 量表（correct pass/fail + confidence_calibrated 1-5）作为示例。
 
+![逐条打分的弹窗](docs/screenshots/06-rubric-scoring.png)
+
+**三种 criterion 类型在一屏里都能看到**：`pass_fail` 是 Pass / Fail 二选一，`likert_1_5` 是 1-5 分段，`score_0_100` 是数字输入；每行右边的等宽小字是这条 criterion 的 key。
+
 ### 步骤 7：跨实验对比
 
 跑多个实验（换模型 / 换 prompt / 换温度）后，进入「实验对比」页：
@@ -303,6 +327,10 @@ Reference: {{reference}}
 1. 左栏按 Schema 筛选，勾选 2 个以上同 `compare_group` 的实验
 2. 右栏按 `input_refs` 对齐：每行对应一条输入 → 多列是不同实验的结果
 3. Prompt 悬停 hover 可看当时用的 system prompt 全文
+
+![跨实验对比](docs/screenshots/07-compare-text.png)
+
+**同一条输入，横着看三个实验**：行是输入、列是实验，按 `input_refs` 对齐——同一个商品，小红书 / 抖音 / 朋友圈三种 prompt 写出来的差别一眼可见。hover 列头的 `?` 还能翻出那次跑动当时用的 prompt 模板全文。
 
 ---
 
@@ -413,6 +441,10 @@ Meta-prompt 模板在 `src/lib/meta-prompts/template.ts`，含完整示例可参
 - Anthropic：`content: [{type: 'text', ...}, {type: 'image', source: {type: 'url', url: ...}}]`
 
 不需要自己改代码。
+
+![图片结果的三列对比](docs/screenshots/08-compare-images.jpg)
+
+**图片结果也走同一套对比**：同一个商品，三个 prompt 风格（小红书 / 抖音封面 / 朋友圈生活感）并排，每格底下是延迟和 token 数。
 
 ### 种子资源
 
